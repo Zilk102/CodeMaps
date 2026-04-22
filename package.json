@@ -1,0 +1,38 @@
+{
+  "name": "codemaps",
+  "version": "1.0.0",
+  "description": "Living Blueprint for Code",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
+    "electron:wait": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .",
+    "build": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "fast-glob": "^3.3.3",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-force-graph-2d": "^1.25.4",
+    "react-virtualized-auto-sizer": "^2.0.3",
+    "simple-git": "^3.36.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
+    "@vitejs/plugin-react": "^4.0.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.2.2",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.0.0",
+    "vite": "^8.0.9",
+    "wait-on": "^7.0.0"
+  }
+}
