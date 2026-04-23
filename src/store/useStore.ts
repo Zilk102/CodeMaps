@@ -37,6 +37,9 @@ interface StoreState {
   openProject: () => Promise<void>;
   initializeWatcher: () => void;
   setParsingProgress: (progress: { status: string; current: number; total: number; filename: string } | null) => void;
+  closeProject: () => void;
+  isMcpSettingsOpen: boolean;
+  setMcpSettingsOpen: (isOpen: boolean) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => {
@@ -49,7 +52,10 @@ export const useStore = create<StoreState>((set, get) => {
     isLoading: false,
     error: null,
     parsingProgress: null,
+    isMcpSettingsOpen: false,
+    setMcpSettingsOpen: (isOpen) => set({ isMcpSettingsOpen: isOpen }),
     setParsingProgress: (progress) => set({ parsingProgress: progress }),
+    closeProject: () => set({ graphData: null, selectedNode: null, selectedPath: null }),
     
     initializeWatcher: () => {
       if (isWatcherInitialized) return;

@@ -249,7 +249,7 @@ export const FileTree: React.FC = () => {
     }}>
       <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Explorer
+          Проводник
         </h2>
         <span style={{ cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>...</span>
       </div>
@@ -270,7 +270,7 @@ export const FileTree: React.FC = () => {
               onClick={() => toggleFolder('root_folder')}
             >
               <ChevronIcon expanded={expandedFolders['root_folder'] !== false} />
-              <span style={{ marginLeft: 4 }}>Folder</span>
+              <span style={{ marginLeft: 4 }}>Проект</span>
             </div>
             
             {(expandedFolders['root_folder'] !== false) && (
@@ -286,7 +286,7 @@ export const FileTree: React.FC = () => {
           </div>
         ) : (
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ color: '#888', fontSize: 13, textAlign: 'center' }}>No folder opened</div>
+            <div style={{ color: '#888', fontSize: 13, textAlign: 'center' }}>Папка не открыта</div>
             <button 
               onClick={openProject}
               disabled={isLoading}
@@ -295,7 +295,7 @@ export const FileTree: React.FC = () => {
                 border: 'none', borderRadius: '2px', cursor: 'pointer', fontSize: '13px'
               }}
             >
-              {isLoading ? 'Analyzing...' : 'Open Folder'}
+              {isLoading ? 'Анализ...' : 'Открыть папку'}
             </button>
           </div>
         )}

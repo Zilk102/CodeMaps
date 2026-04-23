@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FileTree } from './components/FileTree';
 import { GraphView } from './components/GraphView';
 import TitleBar from './components/TitleBar';
+import { McpSettingsModal } from './components/McpSettingsModal';
 import { useStore } from './store/useStore';
 
 const App: React.FC = () => {
@@ -95,6 +96,8 @@ const App: React.FC = () => {
           <div>{parsingProgress.current} / {parsingProgress.total}</div>
         </div>
       )}
+      
+      <McpSettingsModal />
     </div>
   );
 };
