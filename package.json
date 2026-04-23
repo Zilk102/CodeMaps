@@ -29,6 +29,7 @@
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^19.2.5",
     "react-virtualized-auto-sizer": "^2.0.3",
+    "react-zoom-pan-pinch": "^4.0.3",
     "sigma": "^3.0.2",
     "simple-git": "^3.36.0",
     "tree-sitter-wasms": "^0.1.13",
