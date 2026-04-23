@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStore, GraphNode } from '../store/useStore';
 import { Frame } from './Frame';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
@@ -81,16 +81,34 @@ export const GraphView: React.FC = () => {
     return roots;
   }, [graphData, filters]);
 
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
   const renderTree = (nodes: TreeNode[]) => {
     return nodes.map(node => (
-      <Frame key={node.data.id} node={node.data}>
+      <Frame key={node.data.id} node={node.data} childCount={node.children.length}>
         {node.children.length > 0 && renderTree(node.children)}
       </Frame>
     ));
   };
 
+  // Мемоизируем дерево, чтобы не перерисовывать тысячи DOM узлов при каждом чихе
+  const renderedTree = useMemo(() => renderTree(tree), [tree]);
+
+  const rootsCols = Math.ceil(Math.sqrt(tree.length || 1));
+  const rootsColumns = useMemo(() => {
+    if (!renderedTree.length) return [];
+    const colsArray: React.ReactNode[][] = Array.from({ length: rootsCols }, () => []);
+    renderedTree.forEach((child, index) => {
+      colsArray[index % rootsCols].push(child);
+    });
+    return colsArray;
+  }, [renderedTree, rootsCols]);
+
+  // Базовый размер виртуального холста
+  const CANVAS_SIZE = 10000;
+
   return (
-    <div style={{ width: '100%', height: '100%', background: '#0f111a', position: 'relative', display: 'flex' }}>
+    <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0f111a', position: 'relative', display: 'flex' }}>
       {error ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f44336' }}>Error: {error}</div>
       ) : !graphData ? (
@@ -101,50 +119,47 @@ export const GraphView: React.FC = () => {
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' }}>
             <TransformWrapper
               initialScale={1}
-              minScale={0.05}
+              initialPositionX={50}
+              initialPositionY={50}
+              minScale={0.01} // Разрешаем отдалиться очень сильно
               maxScale={8}
               limitToBounds={false}
-              centerOnInit={true}
-              wheel={{ 
-                step: 0.0001, // Возвращаем разумный шаг
-              }}
-              panning={{ 
-                velocityDisabled: false,
-              }}
-              doubleClick={{
-                disabled: true
-              }}
-              zoomAnimation={{
-                animationTime: 200, 
-                animationType: 'easeOutQuint' // Более плавная функция затухания
-              }}
+              wheel={{ step: 0.0001 }}
+              panning={{ velocityDisabled: false }}
+              doubleClick={{ disabled: true }}
+              zoomAnimation={{ animationTime: 200, animationType: 'easeOutQuint' }}
             >
-              {({ zoomIn, zoomOut, resetTransform }) => (
-                <>
-                  <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
-                    {/* Добавили width/height чтобы flex-wrap работал как сетка, а не как столб */}
-                    <div style={{ 
-                      display: 'flex', 
-                      flexWrap: 'wrap', 
-                      gap: '24px', 
-                      padding: '100px',
-                      alignItems: 'flex-start',
-                      alignContent: 'flex-start',
-                      width: '4000px', // Огромное полотно по ширине, чтобы элементы располагались в сетку, а не в столбец
-                      minHeight: '4000px'
-                    }}>
-                      {renderTree(tree)}
+              {({ zoomIn, zoomOut, resetTransform }) => {
+                return (
+                  <>
+                    <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
+                      <div
+                        style={{ 
+                          display: 'flex',
+                          gap: '24px',
+                          padding: '100px',
+                          width: 'max-content',
+                          minWidth: `${CANVAS_SIZE}px`,
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        {rootsColumns.map((col, i) => (
+                          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            {col}
+                          </div>
+                        ))}
+                      </div>
+                    </TransformComponent>
+                    
+                    {/* Панель управления зумом */}
+                    <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', gap: '8px', zIndex: 20 }}>
+                      <button onClick={() => zoomIn(0.2)} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>+</button>
+                      <button onClick={() => zoomOut(0.2)} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>-</button>
+                      <button onClick={() => resetTransform()} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>Reset</button>
                     </div>
-                  </TransformComponent>
-                  
-                  {/* Панель управления зумом */}
-                  <div style={{ position: 'absolute', bottom: 34, right: 20, display: 'flex', gap: '8px', zIndex: 20 }}>
-                    <button onClick={() => zoomIn(0.2)} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>+</button>
-                    <button onClick={() => zoomOut(0.2)} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>-</button>
-                    <button onClick={() => resetTransform()} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>Reset</button>
-                  </div>
-                </>
-              )}
+                  </>
+                );
+              }}
             </TransformWrapper>
           </div>
           
