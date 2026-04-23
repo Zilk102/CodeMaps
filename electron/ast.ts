@@ -254,14 +254,19 @@ export async function analyzeProject(baseDir: string, mainWindow?: BrowserWindow
     }
   }
 
-  const allFiles = await fg('**/*.{ts,tsx,js,jsx,py,go,rs,java,c,cpp,h,hpp,cs,php,rb,swift,kt,kts,zig,md}', { 
+  const allFiles = await fg('**/*', { 
     cwd: baseDir, 
     absolute: true,
     ignore: [
       '**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**', 
       '**/.idea/**', '**/.vscode/**', '**/venv/**', '**/__pycache__/**', '**/target/**',
       '**/out/**', '**/coverage/**', '**/tmp/**', '**/.*',
-      '**/*.lock', '**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json'
+      '**/*.lock', '**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json',
+      '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico', '**/*.webp',
+      '**/*.mp4', '**/*.webm', '**/*.ogg', '**/*.mp3', '**/*.wav',
+      '**/*.pdf', '**/*.zip', '**/*.tar', '**/*.gz', '**/*.rar', '**/*.7z',
+      '**/*.woff', '**/*.woff2', '**/*.ttf', '**/*.eot',
+      '**/*.exe', '**/*.dll', '**/*.so', '**/*.dylib', '**/*.bin', '**/*.pyc', '**/*.class'
     ]
   });
 

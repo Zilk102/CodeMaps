@@ -40,6 +40,7 @@ interface StoreState {
     showFunctions: boolean;
     showClasses: boolean;
     showADR: boolean;
+    showEdges: boolean;
   };
   setFilter: (key: keyof StoreState['filters'], value: boolean) => void;
 
@@ -72,6 +73,7 @@ export const useStore = create<StoreState>((set, get) => {
       showFunctions: false,
       showClasses: false,
       showADR: true,
+      showEdges: true,
     },
     setFilter: (key, value) => set((state) => ({ filters: { ...state.filters, [key]: value } })),
 

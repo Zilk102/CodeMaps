@@ -1,261 +1,393 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useStore, GraphNode, GraphLink } from '../store/useStore';
-import Graph from 'graphology';
-import { Sigma } from 'sigma';
-import { EdgeArrowProgram } from 'sigma/rendering';
-import forceAtlas2 from 'graphology-layout-forceatlas2';
-import { createNodeImageProgram } from '@sigma/node-image';
+import cytoscape from 'cytoscape';
+// @ts-ignore
+import fcose from 'cytoscape-fcose';
 
-const getIconSVG = (type: string, colorHex: string) => {
-  let path = '';
-  if (type === 'class') path = 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-4c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z';
-  else if (type === 'function') path = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z';
-  else if (type === 'adr') path = 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm1-6h-2V7h2v5z';
-  else path = 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z'; // file
-  
-  // Убрана прозрачность из SVG (чтобы не было черных квадратов в WebGL)
-  // Мы будем использовать opacity через CSS-цвета (rgba)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${colorHex.slice(0,7)}"><path d="${path}"/></svg>`;
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-};
+cytoscape.use(fcose);
 
 export const GraphView: React.FC = () => {
   const { graphData, selectedNode, selectedPath, setSelectedNode, setSelectedPath, error, filters, setFilter } = useStore();
   const containerRef = useRef<HTMLDivElement>(null);
-  const sigmaRef = useRef<Sigma | null>(null);
-  const hoveredNodeRef = useRef<string | null>(null);
-  const draggedNodeRef = useRef<string | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(entries => {
-      if (!entries || !entries[0]) return;
-      const { width, height } = entries[0].contentRect;
-      setDimensions({ width, height });
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const cyRef = useRef<cytoscape.Core | null>(null);
 
   const maxChurn = useMemo(() => {
     if (!graphData) return 1;
     return Math.max(...graphData.nodes.map(n => n.churn || 1));
   }, [graphData]);
 
-  // Инициализация графа Sigma
+  // Инициализация графа Cytoscape
   useEffect(() => {
     if (!containerRef.current || !graphData) return;
 
-    // Создаем Graphology граф
-    const graph: any = new Graph();
+    // Находим родительские связи для compound nodes
+    const parentMap = new Map<string, string>();
+    const nodeIds = new Set(graphData.nodes.map(n => n.id));
 
-    // Функция для генерации цвета файла на основе его папки (кластеризация по модулям)
-    const getModuleColor = (filePath: string) => {
-      const parts = filePath.split('/');
-      if (parts.length < 2) return '#4fc3f7'; // Корневые файлы (голубые)
-      
-      const moduleName = parts[parts.length > 2 ? parts.length - 2 : 0]; // Берем папку, в которой лежит файл
-      
-      // Генерируем псевдослучайный цвет на основе имени папки (строго яркие, пастельные тона)
-      let hash = 0;
-      for (let i = 0; i < moduleName.length; i++) hash = moduleName.charCodeAt(i) + ((hash << 5) - hash);
-      const hue = Math.abs(hash) % 360;
-      
-      return `hsl(${hue}, 70%, 65%)`; // Яркие цвета (HSL проще конвертировать в HEX, но Sigma понимает любой формат в nodeColor)
-    };
-
-    // Helper для перевода HSL/RGB в HEX, так как Sigma.js лучше работает с HEX
-    const stringToHex = (str: string) => {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      let color = '#';
-      for (let i = 0; i < 3; i++) {
-        const value = (hash >> (i * 8)) & 0xFF;
-        color += ('00' + value.toString(16)).substr(-2);
+    graphData.links.forEach(link => {
+      if (link.type === 'structure' || link.type === 'entity') {
+        const source = typeof link.source === 'string' ? link.source : (link.source as any).id;
+        const target = typeof link.target === 'string' ? link.target : (link.target as any).id;
+        if (nodeIds.has(source) && nodeIds.has(target) && source !== target) {
+          if (link.type === 'structure') {
+            // source is child (folder/file), target is parent (folder)
+            parentMap.set(source, target);
+          } else if (link.type === 'entity') {
+            // source is parent (file), target is child (function/class)
+            parentMap.set(target, source);
+          }
+        }
       }
-      return color;
-    };
+    });
 
-    // Цвета групп
-    const getColor = (node: GraphNode) => {
-      if (node.type === 'directory') return '#ab47bc'; // Папки (фиолетовые)
-      if (node.type === 'adr') return '#e91e63'; // ADR узлы (розовые)
-      if (node.adr) return '#ec407a'; // Файлы, ссылающиеся на ADR
-      if (node.type === 'file') {
-        const heat = Math.min((node.churn || 1) / maxChurn, 1);
-        if (heat > 0.5) return '#f44336'; // Hotspots (красные)
-        
-        // Красим файлы по папкам (модулям), чтобы они визуально группировались
-        // Берем ID узла (это абсолютный путь) и извлекаем папку
-        const relPath = node.id.replace(graphData.projectRoot.replace(/\\/g, '/'), '');
-        const folder = relPath.substring(0, relPath.lastIndexOf('/'));
-        
-        if (!folder || folder === '') return '#4fc3f7'; // Корневые файлы
-        
-        // Генерируем уникальный HEX цвет для каждой папки
-        let hash = 0;
-        for (let i = 0; i < folder.length; i++) hash = folder.charCodeAt(i) + ((hash << 5) - hash);
-        const hue = Math.abs(hash) % 360;
-        return `hsl(${hue}, 80%, 70%)`; // Sigma поддерживает HSL в originalColor, но для SVG иконки нужен HEX. Напишем простой конвертер
+    // Предотвращение циклов во вложенности
+    const cleanParentMap = new Map<string, string>();
+    parentMap.forEach((parent, child) => {
+      let curr: string | undefined = parent;
+      let hasCycle = false;
+      const visited = new Set<string>();
+      while (curr) {
+        if (curr === child || visited.has(curr)) {
+          hasCycle = true;
+          break;
+        }
+        visited.add(curr);
+        curr = parentMap.get(curr);
       }
-      if (node.type === 'class') return '#ffb74d';
-      return '#81c784'; // Function
-    };
-    
-    // Простой HSL to HEX
-    const hslToHex = (h: number, s: number, l: number) => {
-      l /= 100;
-      const a = s * Math.min(l, 1 - l) / 100;
-      const f = (n: number) => {
-        const k = (n + h / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
-      };
-      return `#${f(0)}${f(8)}${f(4)}`;
-    };
+      if (!hasCycle) {
+        cleanParentMap.set(child, parent);
+      }
+    });
 
-    const getHexColor = (node: GraphNode) => {
-      const color = getColor(node);
-      if (color.startsWith('#')) return color;
-      
-      // Парсим hsl
-      const match = color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-      if (match) {
-        return hslToHex(parseInt(match[1]), parseInt(match[2]), parseInt(match[3]));
-      }
-      return '#4fc3f7';
-    };
+    const elements: cytoscape.ElementDefinition[] = [];
 
     // Добавляем узлы
-    graphData.nodes.forEach((node, i) => {
-      if (!graph.hasNode(node.id)) {
-        let size = 6;
-        if (node.type === 'directory') size = 9;
-        if (node.type === 'adr') size = 12;
-        else if (node.type === 'file') size = Math.min(15, 4 + Math.log10(node.churn || 1) * 4); // Меньше размер файлов, как в CodeSee
-        else if (node.type === 'class') size = 5;
-        else size = 4;
-        
-        let lbl = `${node.label}`;
-        if (node.churn > 1 && node.type === 'file') lbl += ` (Hotspot: ${node.churn})`;
+    graphData.nodes.forEach((node) => {
+      let parent = cleanParentMap.get(node.id);
+      // Если папка или класс, они могут быть родителями. Если нет родителя, parent = undefined
+      let size = 20;
+      if (node.type === 'file') size = Math.min(40, 10 + Math.log10(node.churn || 1) * 10);
 
-        const angle = Math.random() * 2 * Math.PI;
-        const radius = Math.random() * 50;
-        const nodeColor = getHexColor(node);
-
-        graph.addNode(node.id, {
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius,
-          size,
-          label: lbl,
-          color: nodeColor, // Нативный цвет узла (без image)
-          originalColor: nodeColor,
-          type: 'circle', // Нативный рендеринг кругов, как в CodeSee (чистый WebGL без текстур)
-          originalData: node
-        });
+      // Генерируем цвет
+      let bgColor = '#4fc3f7';
+      if (node.type === 'directory') bgColor = '#ab47bc';
+      else if (node.type === 'adr') bgColor = '#e91e63';
+      else if (node.adr) bgColor = '#ec407a';
+      else if (node.type === 'class') bgColor = '#ffb74d';
+      else if (node.type === 'function') bgColor = '#81c784';
+      else if (node.type === 'file') {
+        const heat = Math.min((node.churn || 1) / maxChurn, 1);
+        if (heat > 0.5) bgColor = '#f44336';
       }
+
+      elements.push({
+        data: {
+          id: node.id,
+          label: node.label,
+          type: node.type,
+          parent: parent,
+          bgColor,
+          size,
+          originalData: node
+        }
+      });
     });
 
-    // Добавляем связи
-    graphData.links.forEach(link => {
+    // Добавляем связи (исключаем structure и entity, так как они теперь parent-child)
+    graphData.links.forEach((link, idx) => {
+      if (link.type === 'structure' || link.type === 'entity') return;
+
       const source = typeof link.source === 'string' ? link.source : (link.source as any).id;
       const target = typeof link.target === 'string' ? link.target : (link.target as any).id;
-      
-      if (graph.hasNode(source) && graph.hasNode(target)) {
-        if (!graph.hasEdge(source, target) && !graph.hasEdge(target, source)) {
-          let edgeColor = 'rgba(255,255,255,0.1)';
-          let edgeSize = 1;
-          let weight = link.value || 1;
-          
-          // Визуальное разделение связей
-          if (link.type === 'structure') {
-            edgeColor = 'rgba(171, 71, 188, 0.08)'; // Едва заметная структура для папок
-            edgeSize = 0.6;
-            weight = 1;
-          } else if (link.type === 'import') {
-            edgeColor = 'rgba(79, 195, 247, 0.05)'; // Почти невидимые по умолчанию импорты
-            edgeSize = 0.2; // Экстремально тонкие линии (убирает hairball)
-            weight = 1; // Обычный вес
-          } else if (link.type === 'adr') {
-            edgeColor = 'rgba(233, 30, 99, 0.2)'; // Розовые
-            edgeSize = 1;
-          } else if (link.type === 'entity') {
-            edgeColor = 'rgba(129, 199, 132, 0.5)'; // Зеленые
-            weight = 2; 
-            edgeSize = 1;
-          }
 
-          graph.addEdge(source, target, {
-            color: edgeColor,
-            size: edgeSize,
-            weight: weight, // Это значение будет использовать ForceAtlas2
-            type: link.type === 'import' ? 'arrow' : 'line', // Делаем импорты стрелками для понимания зависимости
-            originalType: link.type
-          });
+      if (nodeIds.has(source) && nodeIds.has(target)) {
+        let edgeColor = 'rgba(255,255,255,0.1)';
+        let edgeWidth = 1;
+        
+        if (link.type === 'import') {
+          edgeColor = 'rgba(79, 195, 247, 0.2)';
+          edgeWidth = 1;
+        } else if (link.type === 'adr') {
+          edgeColor = 'rgba(233, 30, 99, 0.4)';
+          edgeWidth = 2;
+        } else if (link.type === 'entity') {
+          edgeColor = 'rgba(129, 199, 132, 0.5)';
+          edgeWidth = 2;
         }
+
+        elements.push({
+          data: {
+            id: `edge-${idx}`,
+            source,
+            target,
+            type: link.type,
+            lineColor: edgeColor,
+            width: edgeWidth
+          }
+        });
       }
     });
 
-    // Запускаем ForceAtlas2 плавно, чтобы юзер видел как граф "распускается"
-    console.log(`Starting ForceAtlas2 animation...`);
-    let fa2Timer: any = null;
-    let iterations = 0;
-    const maxIterations = graph.order > 1000 ? 100 : 200;
-
-    if (graph.order > 0) {
-      fa2Timer = setInterval(() => {
-        forceAtlas2.assign(graph, {
-          iterations: 5,
-          settings: {
-            adjustSizes: true, // Файлы не накладываются друг на друга
-            gravity: 0.1, // Сильная гравитация, чтобы убрать дыры между файлами и сжать их в кучу
-            scalingRatio: 10, // Маленький скейлинг, чтобы кластеры были плотными (CodeSee-like)
-            strongGravityMode: true, // Стягиваем все в центр экрана
-            linLogMode: false, // Отключаем, чтобы не было "рваных" галактик с длинными отростками
-            barnesHutOptimize: true,
-            barnesHutTheta: 0.8,
-            edgeWeightInfluence: 0.5,
-            outboundAttractionDistribution: false 
+    const cy = cytoscape({
+      container: containerRef.current,
+      elements,
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'label': 'data(label)',
+            'background-color': 'data(bgColor)',
+            'color': '#ccc',
+            'font-size': '12px',
+            'text-valign': 'bottom',
+            'text-halign': 'center',
+            'width': 'data(size)',
+            'height': 'data(size)',
+            'min-zoomed-font-size': 8
           }
-        });
-        
-        iterations += 5;
-        if (sigmaRef.current) sigmaRef.current.refresh();
-        
-        if (iterations >= maxIterations) {
-          clearInterval(fa2Timer);
-          console.log('ForceAtlas2 animation finished');
+        },
+        {
+          selector: ':parent',
+          style: {
+            'shape': 'round-rectangle',
+            'background-opacity': 0.05,
+            'border-width': 2,
+            'text-valign': 'top',
+            'text-halign': 'center',
+            'font-weight': 'bold',
+            'padding': '25px'
+          }
+        },
+        {
+          selector: 'node[type = "directory"]:parent',
+          style: {
+            'background-color': '#ab47bc',
+            'border-color': '#ab47bc',
+            'color': '#e0e0e0',
+            'font-size': '14px',
+          }
+        },
+        {
+          selector: 'node[type = "file"]:parent',
+          style: {
+            'background-color': '#4fc3f7',
+            'border-color': '#4fc3f7',
+            'color': '#4fc3f7',
+            'font-size': '13px',
+            'border-style': 'dashed'
+          }
+        },
+        {
+          selector: 'node[type = "class"]:parent',
+          style: {
+            'background-color': '#ffb74d',
+            'border-color': '#ffb74d',
+            'color': '#ffb74d',
+            'font-size': '13px',
+          }
+        },
+        {
+          selector: 'node[type = "directory"]:childless',
+          style: {
+            'shape': 'round-rectangle',
+            'background-color': '#ab47bc',
+            'background-opacity': 0.05,
+            'border-width': 2,
+            'border-color': '#ab47bc',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'font-size': '12px',
+            'font-weight': 'bold',
+            'color': '#e0e0e0',
+            'padding': '15px'
+          }
+        },
+        {
+          selector: 'node[type = "class"]:childless',
+          style: {
+            'shape': 'round-rectangle',
+            'background-color': '#ffb74d',
+            'background-opacity': 0.05,
+            'border-width': 2,
+            'border-color': '#ffb74d',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'font-size': '12px',
+            'font-weight': 'bold',
+            'color': '#ffb74d',
+            'padding': '10px'
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            'width': 'data(width)',
+            'line-color': 'data(lineColor)',
+            'curve-style': 'bezier',
+            'opacity': 0.6
+          }
+        },
+        {
+          selector: 'edge[type = "import"]',
+          style: {
+            'target-arrow-shape': 'triangle',
+            'target-arrow-color': 'data(lineColor)',
+            'arrow-scale': 0.8
+          }
+        },
+        {
+          selector: '.hidden',
+          style: {
+            'display': 'none'
+          }
+        },
+        {
+          selector: '.dimmed',
+          style: {
+            'opacity': 0.1
+          }
+        },
+        {
+          selector: '.highlighted',
+          style: {
+            'border-width': 4,
+            'border-color': '#fff',
+            'opacity': 1
+          }
+        },
+        {
+          selector: 'edge.highlighted',
+          style: {
+            'width': 3,
+            'line-color': '#fff',
+            'target-arrow-color': '#fff',
+            'opacity': 1,
+            'z-index': 999
+          }
         }
-      }, 16); // ~60 FPS
-    }
-
-    console.log(`Initializing Sigma in container of size ${containerRef.current.clientWidth}x${containerRef.current.clientHeight}`);
-    
-    // Инициализируем рендерер
-    const renderer = new Sigma(graph, containerRef.current, {
-      edgeProgramClasses: {
-        arrow: EdgeArrowProgram
-      },
-      defaultNodeType: 'circle', // Переключаемся на нативные круги (быстрый WebGL без текстур)
-      defaultEdgeType: 'line',
-      renderEdgeLabels: false,
-      defaultNodeColor: '#4fc3f7',
-      defaultEdgeColor: 'rgba(255,255,255,0.05)',
-      labelColor: { color: '#ccc' },
-      labelSize: 12,
-      labelFont: 'Inter, sans-serif',
-      labelWeight: '400',
-      // Настройки для скрытия лейблов по умолчанию (будут управляться через hover)
-      labelRenderedSizeThreshold: 1000 // Делаем так, чтобы по умолчанию лейблы не рендерились, пока камера не приблизится
+      ],
+      layout: {
+        name: 'fcose',
+        quality: 'proof', // Самое высокое качество
+        randomize: true,
+        animate: true,
+        animationDuration: 1000,
+        fit: true,
+        padding: 50,
+        nodeDimensionsIncludeLabels: true, // КРАЙНЕ ВАЖНО: без этого родительские рамки игнорируют размеры детей и наезжают друг на друга!
+        packComponents: true, // Плотно упаковываем разрозненные узлы
+        step: 'all',
+        nodeSeparation: 60, // Отступ между узлами
+        idealEdgeLength: (edge: any) => 50, // Стягиваем связанные узлы ближе
+        edgeElasticity: (edge: any) => 0.45,
+        gravity: 0.5, // Гравитация всего графа (собираем в кучу)
+        numIter: 2500, // Больше итераций для идеальной раскладки
+        gravityCompound: 1.5, // Сильная гравитация внутри рамок (чтобы не было дыр)
+        gravityRangeCompound: 1.5,
+        centerAware: true,
+        nestingFactor: 0.1 // Минимальное раздувание от вложенности
+      } as any
     });
 
-    sigmaRef.current = renderer;
+    cyRef.current = cy;
 
-    // События
-    renderer.on('clickNode', ({ node }) => {
-      const nodeData = graph.getNodeAttribute(node, 'originalData');
+    // ЖЕСТКАЯ СТЕНА (Улучшенный Collision Detection)
+    let isDragging = false;
+    let dragStartPosition: any = null;
+    let dragStartBB: any = null;
+
+    cy.on('grab', 'node', (evt) => {
+      isDragging = true;
+      const node = evt.target;
+      
+      // Запоминаем изначальные позиции ВСЕХ узлов на момент начала драга
+      cy.nodes().forEach(n => {
+        n.scratch('drag_last_valid', { ...n.position() });
+      });
+      
+      // Если это рамка (parent), запоминаем ее bounding box до начала движения
+      if (node.isParent()) {
+        dragStartBB = node.boundingBox({ includeLabels: true, includeOverlays: false });
+      } else {
+        dragStartBB = null;
+      }
+    });
+
+    cy.on('drag', 'node', (evt) => {
+      if (!isDragging) return;
+      const node = evt.target;
+      
+      let isOverlapping = false;
+      const padding = 15; // Отступ (чтобы не слипались)
+
+      // 1. Проверка коллизий для самой рамки (если тащим саму рамку или обычный узел)
+      const siblings = node.siblings();
+      const nodeBB = node.boundingBox({ includeLabels: true, includeOverlays: false });
+      
+      for (let i = 0; i < siblings.length; i++) {
+        const sibling = siblings[i];
+        if (sibling.id() === node.id()) continue;
+        
+        const sbb = sibling.boundingBox({ includeLabels: true, includeOverlays: false });
+        
+        if (
+          nodeBB.x1 < sbb.x2 + padding &&
+          nodeBB.x2 > sbb.x1 - padding &&
+          nodeBB.y1 < sbb.y2 + padding &&
+          nodeBB.y2 > sbb.y1 - padding
+        ) {
+          isOverlapping = true;
+          break;
+        }
+      }
+
+      // 2. Проверка коллизий РОДИТЕЛЯ (если мы тащим внутренний узел, и родитель из-за этого расширяется)
+      if (!isOverlapping && node.parent().length > 0) {
+        const parent = node.parent()[0];
+        const parentBB = parent.boundingBox({ includeLabels: true, includeOverlays: false });
+        const parentSiblings = parent.siblings();
+        
+        for (let i = 0; i < parentSiblings.length; i++) {
+          const psibling = parentSiblings[i];
+          if (psibling.id() === parent.id()) continue;
+          
+          const psbb = psibling.boundingBox({ includeLabels: true, includeOverlays: false });
+          
+          if (
+            parentBB.x1 < psbb.x2 + padding &&
+            parentBB.x2 > psbb.x1 - padding &&
+            parentBB.y1 < psbb.y2 + padding &&
+            parentBB.y2 > psbb.y1 - padding
+          ) {
+            isOverlapping = true;
+            break;
+          }
+        }
+      }
+
+      if (isOverlapping) {
+        // Возвращаем ВСЕ узлы на последнюю валидную позицию (чтобы отменить расширение родителя)
+        cy.nodes().forEach(n => {
+          const prev = n.scratch('drag_last_valid');
+          if (prev) {
+            n.position(prev);
+          }
+        });
+      } else {
+        // Если коллизий нет, обновляем валидные позиции для ВСЕХ узлов
+        cy.nodes().forEach(n => {
+          n.scratch('drag_last_valid', { ...n.position() });
+        });
+      }
+    });
+
+    cy.on('free', 'node', () => {
+      isDragging = false;
+      dragStartBB = null;
+    });
+
+    cy.on('tap', 'node', (evt) => {
+      const nodeData = evt.target.data('originalData');
       setSelectedNode(nodeData);
       
       if (nodeData.type === 'file' && graphData) {
@@ -267,237 +399,89 @@ export const GraphView: React.FC = () => {
       }
     });
 
-    renderer.on('clickStage', () => {
-      setSelectedNode(null);
-      setSelectedPath(null);
-    });
-
-    // Состояние для Drag & Drop
-    let isDragging = false;
-
-    renderer.on('downNode', (e) => {
-      isDragging = true;
-      draggedNodeRef.current = e.node;
-      renderer.getCamera().disable(); // Отключаем перемещение камеры при перетаскивании
-    });
-
-    renderer.getMouseCaptor().on('mousemovebody', (e) => {
-      if (!isDragging || !draggedNodeRef.current) return;
-      const pos = renderer.viewportToGraph(e);
-      graph.setNodeAttribute(draggedNodeRef.current, 'x', pos.x);
-      graph.setNodeAttribute(draggedNodeRef.current, 'y', pos.y);
-      e.preventSigmaDefault();
-      e.original.preventDefault();
-      e.original.stopPropagation();
-    });
-
-    renderer.getMouseCaptor().on('mouseup', () => {
-      if (draggedNodeRef.current) {
-        isDragging = false;
-        draggedNodeRef.current = null;
-        renderer.getCamera().enable(); // Включаем камеру обратно
+    cy.on('tap', (evt) => {
+      if (evt.target === cy) {
+        setSelectedNode(null);
+        setSelectedPath(null);
       }
-    });
-
-    renderer.on('enterNode', ({ node }) => {
-      document.body.style.cursor = 'pointer';
-      hoveredNodeRef.current = node;
-      renderer.refresh(); // Принудительная перерисовка для показа лейбла
-    });
-
-    renderer.on('leaveNode', () => {
-      document.body.style.cursor = 'default';
-      hoveredNodeRef.current = null;
-      renderer.refresh();
     });
 
     return () => {
-      if (fa2Timer) clearInterval(fa2Timer);
-      renderer.kill();
-      sigmaRef.current = null;
+      cy.destroy();
+      cyRef.current = null;
     };
-  }, [graphData]); // Убрали maxChurn и dimensions.width из зависимостей, чтобы граф не пересоздавался при ресайзе
+  }, [graphData]);
 
-  // Эффект для Focus Mode и фильтров
+  // Фильтры и фокус
   useEffect(() => {
-    const renderer = sigmaRef.current;
-    if (!renderer || !graphData) return;
+    const cy = cyRef.current;
+    if (!cy || !graphData) return;
 
-    const graph = renderer.getGraph();
+    cy.batch(() => {
+      // 1. Применяем фильтры видимости
+      cy.nodes().forEach(node => {
+        const type = node.data('type');
+        let isHidden = false;
+        if (type === 'directory' && !filters.showDirectories) isHidden = true;
+        if (type === 'file' && !filters.showFiles) isHidden = true;
+        if (type === 'function' && !filters.showFunctions) isHidden = true;
+        if (type === 'class' && !filters.showClasses) isHidden = true;
+        if (type === 'adr' && !filters.showADR) isHidden = true;
 
-    // Регистрируем reducers здесь, так как они зависят от React-стейта (selectedNode, selectedPath)
-    renderer.setSetting('nodeReducer', (node, data) => {
-      const res = { ...data };
-      if (res.hidden) return res;
-
-      // Устанавливаем z-index: файлы спереди (0)
-      res.zIndex = 0;
-
-      // Затемняем узел (уводим в прозрачность)
-      const originalData = graph.getNodeAttribute(node, 'originalData');
-      
-      if (res.hidden) return res;
-
-      const isSelected = selectedNode && selectedNode.id === node;
-      const isHovered = hoveredNodeRef.current === node;
-      const isDragged = draggedNodeRef.current === node;
-
-      if (isSelected || isHovered || isDragged) {
-        res.highlighted = true;
-        res.forceLabel = true;
-      }
-
-      if (!res.forceLabel) {
-        res.label = ''; 
-      }
-
-      const activeNode = selectedNode ? selectedNode.id : hoveredNodeRef.current;
-      const activePath = selectedPath ? (graphData.projectRoot + '/' + selectedPath).replace(/\\/g, '/') : null;
-      
-      if (activeNode || activePath) {
-        let isFocused = false;
-
-        if (activeNode) {
-          isFocused = node === activeNode || graph.hasEdge(node, activeNode) || graph.hasEdge(activeNode, node);
-        } else if (activePath) {
-          isFocused = node.startsWith(activePath);
-        }
-
-        if (isFocused) {
-          res.zIndex = 2;
-          res.color = originalData.originalColor || res.color; // Восстанавливаем оригинальный цвет
+        if (isHidden) {
+          node.addClass('hidden');
         } else {
-          // Затемняем узел (используем нативный цвет с прозрачностью)
-          res.color = (originalData.originalColor || res.color) + '1A'; // 10% opacity
-          res.zIndex = -1;
+          node.removeClass('hidden');
         }
+      });
+
+      if (!filters.showEdges) {
+        cy.edges().addClass('hidden');
       } else {
-        res.color = originalData.originalColor || res.color; // В спокойном состоянии цвет нормальный
+        cy.edges().removeClass('hidden');
       }
 
-      return res;
-    });
-
-    // Кастомный рендерер связей для Focus Mode
-    renderer.setSetting('edgeReducer', (edge, data) => {
-      const res = { ...data };
-      if (res.hidden) return res;
-
-      const activeNode = selectedNode ? selectedNode.id : hoveredNodeRef.current;
+      // 2. Focus mode
+      const activeNodeId = selectedNode ? selectedNode.id : null;
       const activePath = selectedPath ? (graphData.projectRoot + '/' + selectedPath).replace(/\\/g, '/') : null;
 
-      if (activeNode || activePath) {
-        let isFocused = false;
+      cy.elements().removeClass('dimmed highlighted');
 
-        if (activeNode) {
-          isFocused = graph.hasExtremity(edge, activeNode);
-        } else if (activePath) {
-          const extremities = graph.extremities(edge);
-          isFocused = extremities.some((n: string) => n.startsWith(activePath));
-        }
+      if (activeNodeId || activePath) {
+        cy.elements().addClass('dimmed');
 
-        if (isFocused) {
-          // Эта связь касается активного узла/пути - подсвечиваем её
-          res.color = data.originalType === 'import' ? 'rgba(79, 195, 247, 1.0)' : 'rgba(255,255,255,0.8)';
-          res.size = data.originalType === 'import' ? 3 : 1.5; // Толстая стрелка только в фокусе!
-          res.zIndex = 1;
-        } else {
-          // Затемняем связь
-          res.color = 'rgba(255,255,255,0.01)';
-          res.zIndex = -1;
-        }
-      }
-
-      return res;
-    });
-    
-    // Сброс всех стилей и применение фильтров
-    graph.forEachNode((node: any) => {
-      const data = graph.getNodeAttribute(node, 'originalData');
-      
-      let isHidden = false;
-      if (data.type === 'directory' && !filters.showDirectories) isHidden = true;
-      if (data.type === 'file' && !filters.showFiles) isHidden = true;
-      if (data.type === 'function' && !filters.showFunctions) isHidden = true;
-      if (data.type === 'class' && !filters.showClasses) isHidden = true;
-      if (data.type === 'adr' && !filters.showADR) isHidden = true;
-
-      const hslToHexLocal = (h: number, s: number, l: number) => {
-        l /= 100;
-        const a = s * Math.min(l, 1 - l) / 100;
-        const f = (n: number) => {
-          const k = (n + h / 30) % 12;
-          const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-          return Math.round(255 * color).toString(16).padStart(2, '0');
-        };
-        return `#${f(0)}${f(8)}${f(4)}`;
-      };
-
-      let color = '#4fc3f7';
-      if (data.type === 'directory') color = '#ab47bc';
-      else if (data.type === 'adr') color = '#e91e63';
-      else if (data.adr) color = '#ec407a';
-      else if (data.type === 'file') {
-        const heat = Math.min((data.churn || 1) / maxChurn, 1);
-        if (heat > 0.5) {
-          color = '#f44336';
-        } else {
-          const relPath = data.id.replace(graphData.projectRoot.replace(/\\/g, '/'), '');
-          const folder = relPath.substring(0, relPath.lastIndexOf('/'));
-          if (!folder || folder === '') {
-            color = '#4fc3f7';
-          } else {
-            let hash = 0;
-            for (let i = 0; i < folder.length; i++) hash = folder.charCodeAt(i) + ((hash << 5) - hash);
-            const hue = Math.abs(hash) % 360;
-            color = hslToHexLocal(hue, 80, 70);
+        if (activeNodeId) {
+          const activeNode = cy.getElementById(activeNodeId);
+          if (activeNode.length > 0) {
+            activeNode.removeClass('dimmed').addClass('highlighted');
+            // Подсвечиваем соседей
+            activeNode.neighborhood().removeClass('dimmed').addClass('highlighted');
+            // Подсвечиваем предков (чтобы рамки не пропадали)
+            activeNode.ancestors().removeClass('dimmed');
+            // Подсвечиваем потомков
+            activeNode.descendants().removeClass('dimmed');
           }
+        } else if (activePath) {
+          const matchingNodes = cy.nodes().filter(node => node.id().startsWith(activePath));
+          matchingNodes.removeClass('dimmed').addClass('highlighted');
+          matchingNodes.neighborhood().removeClass('dimmed').addClass('highlighted');
+          matchingNodes.ancestors().removeClass('dimmed');
         }
       }
-      else if (data.type === 'class') color = '#ffb74d';
-      else color = '#81c784';
-
-      graph.setNodeAttribute(node, 'color', color); // Применяем нативный цвет
-      graph.setNodeAttribute(node, 'originalColor', color);
-      graph.setNodeAttribute(node, 'hidden', isHidden);
-      // Убрано setNodeAttribute('image') - иконок больше нет
     });
 
-    graph.forEachEdge((edge: any, ext: any, source: any, target: any) => {
-      const sourceHidden = graph.getNodeAttribute(source, 'hidden');
-      const targetHidden = graph.getNodeAttribute(target, 'hidden');
-
-      const type = graph.getEdgeAttribute(edge, 'originalType');
-      let edgeColor = 'rgba(255,255,255,0.1)';
-      let edgeSize = 1;
-      
-      if (type === 'structure') {
-        edgeColor = 'rgba(171, 71, 188, 0.08)';
-        edgeSize = 0.6;
-      } else if (type === 'import') {
-        edgeColor = 'rgba(79, 195, 247, 0.02)';
-        edgeSize = 0.1;
-      } else if (type === 'adr') {
-        edgeColor = 'rgba(233, 30, 99, 0.2)';
-        edgeSize = 1;
-      } else if (type === 'entity') {
-        edgeColor = 'rgba(129, 199, 132, 0.5)';
-      }
-
-      graph.setEdgeAttribute(edge, 'color', edgeColor);
-      graph.setEdgeAttribute(edge, 'originalColor', edgeColor);
-      graph.setEdgeAttribute(edge, 'size', edgeSize);
-      graph.setEdgeAttribute(edge, 'hidden', sourceHidden || targetHidden);
-    });
-
-    // Фокус камеры при выборе из дерева
     if (selectedNode) {
-      const pos = renderer.getNodeDisplayData(selectedNode.id);
-      if (pos) {
-        renderer.getCamera().animate({ x: pos.x, y: pos.y, ratio: 0.5 }, { duration: 500 });
+      const node = cy.getElementById(selectedNode.id);
+      if (node.length > 0) {
+        cy.animate({
+          center: { eles: node },
+          zoom: 1.5,
+          duration: 500
+        });
       }
     }
-  }, [selectedNode, selectedPath, graphData, maxChurn, filters]);
+
+  }, [selectedNode, selectedPath, filters, graphData]);
 
   return (
     <div style={{ width: '100%', height: '100%', background: '#0f111a', position: 'relative', display: 'flex' }}>
@@ -529,9 +513,13 @@ export const GraphView: React.FC = () => {
               <input type="checkbox" checked={filters.showClasses} onChange={(e) => setFilter('showClasses', e.target.checked)} style={{ marginRight: 8 }} />
               Классы
             </label>
-            <label style={{ display: 'block', marginBottom: 0, cursor: 'pointer' }}>
+            <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
               <input type="checkbox" checked={filters.showADR} onChange={(e) => setFilter('showADR', e.target.checked)} style={{ marginRight: 8 }} />
               ADR
+            </label>
+            <label style={{ display: 'block', marginBottom: 0, cursor: 'pointer' }}>
+              <input type="checkbox" checked={filters.showEdges} onChange={(e) => setFilter('showEdges', e.target.checked)} style={{ marginRight: 8 }} />
+              Связи (линии)
             </label>
           </div>
 
@@ -550,3 +538,4 @@ export const GraphView: React.FC = () => {
     </div>
   );
 };
+
