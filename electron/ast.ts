@@ -9,7 +9,7 @@ import Piscina from 'piscina';
 
 export interface GraphData {
   nodes: { id: string; label: string; group: number; type: string; churn?: number; adr?: string }[];
-  links: { source: string; target: string; value: number }[];
+  links: { source: string; target: string; value: number; type?: string }[];
   projectRoot: string;
 }
 
@@ -21,7 +21,7 @@ let isParserInitialized = false;
 
 // Хранилище графа в памяти для инкрементальных обновлений
 let currentNodes: Map<string, { id: string; label: string; group: number; type: string; churn: number; adr?: string }> = new Map();
-let currentLinks: { source: string; target: string; value: number }[] = [];
+let currentLinks: { source: string; target: string; value: number; type?: string }[] = [];
 let currentBaseDir: string = '';
 let currentWatcher: chokidar.FSWatcher | null = null;
 let currentChurnMap = new Map<string, number>();
@@ -30,6 +30,49 @@ const pool = new Piscina({
   filename: path.join(__dirname, 'worker.js')
 });
 
+function ensureStructureLink(source: string, target: string, value: number = 10) {
+  const exists = currentLinks.some(
+    (link) => link.source === source && link.target === target && link.type === 'structure'
+  );
+  if (!exists) {
+    currentLinks.push({ source, target, value, type: 'structure' });
+  }
+}
+
+function ensureDirectoryChainForFile(filePath: string, baseDir: string) {
+  const normalizedBaseDir = baseDir.replace(/\\/g, '/');
+  let currentDir = path.dirname(filePath).replace(/\\/g, '/');
+
+  while (
+    currentDir.startsWith(normalizedBaseDir) &&
+    currentDir !== normalizedBaseDir &&
+    currentDir !== '.' &&
+    currentDir !== path.dirname(currentDir).replace(/\\/g, '/')
+  ) {
+    if (!currentNodes.has(currentDir)) {
+      currentNodes.set(currentDir, {
+        id: currentDir,
+        label: path.basename(currentDir),
+        group: 0,
+        type: 'directory',
+        churn: 0
+      });
+    }
+
+    const parentDir = path.dirname(currentDir).replace(/\\/g, '/');
+    if (parentDir.startsWith(normalizedBaseDir) && parentDir !== normalizedBaseDir) {
+      ensureStructureLink(currentDir, parentDir);
+    }
+
+    currentDir = parentDir;
+  }
+
+  const parentDir = path.dirname(filePath).replace(/\\/g, '/');
+  if (parentDir.startsWith(normalizedBaseDir) && parentDir !== normalizedBaseDir) {
+    ensureStructureLink(filePath, parentDir, 20);
+  }
+}
+
 async function processFile(filePath: string, baseDir: string, isInitial: boolean = false) {
   const normalizedPath = filePath.replace(/\\/g, '/');
   const fileName = path.basename(normalizedPath);
@@ -37,6 +80,19 @@ async function processFile(filePath: string, baseDir: string, isInitial: boolean
   
   try {
     const result = await pool.run(normalizedPath);
+
+    // Для инкрементального апдейта сначала очищаем старые связи и вложенные сущности файла.
+    if (!isInitial) {
+      currentLinks = currentLinks.filter(l => l.source !== normalizedPath);
+      for (const [id] of currentNodes) {
+        if (id.startsWith(normalizedPath + '#')) {
+          currentNodes.delete(id);
+        }
+      }
+    }
+
+    ensureDirectoryChainForFile(normalizedPath, baseDir);
+
     if (result.sizeExceeded) {
       if (!currentNodes.has(normalizedPath)) {
         currentNodes.set(normalizedPath, { id: normalizedPath, label: fileName, group: 1, type: 'file', churn });
@@ -66,21 +122,34 @@ async function processFile(filePath: string, baseDir: string, isInitial: boolean
       // Ищем ADR по имени файла (например "001-auth.md") или пути
       const adrPathMatch = Array.from(currentNodes.keys()).find(p => p.toLowerCase().includes(adr.toLowerCase()) && currentNodes.get(p)?.type === 'adr');
       if (adrPathMatch) {
-        currentLinks.push({ source: normalizedPath, target: adrPathMatch, value: 3 }); // Сильная связь с ADR
+        currentLinks.push({ source: normalizedPath, target: adrPathMatch, value: 3, type: 'adr' }); // Сильная связь с ADR
       }
     }
 
-    // Очищаем старые связи для этого файла (если это инкрементальное обновление)
-    if (!isInitial) {
-      currentLinks = currentLinks.filter(l => l.source !== normalizedPath);
-    }
-    
     // Добавляем импорты
-    for (const importPath of imports) {
+    for (const imp of imports) {
       const dir = path.dirname(normalizedPath);
-      const resolvedPath = path.resolve(dir, importPath).replace(/\\/g, '/');
-      currentLinks.push({ source: normalizedPath, target: resolvedPath, value: 1 });
+      const resolvedPath = path.resolve(dir, imp.path).replace(/\\/g, '/');
+      
+      // Если мы знаем конкретные функции, которые импортируются, связываем файл напрямую с ними
+      if (imp.importedEntities && imp.importedEntities.length > 0) {
+        for (const entityName of imp.importedEntities) {
+          // Целевой ID сущности (функции или класса) в другом файле
+          // Поскольку расширение импорта может быть опущено, мы будем резолвить это на этапе getValidGraph
+          currentLinks.push({ 
+            source: normalizedPath, 
+            target: `${resolvedPath}#${entityName}`, 
+            value: 2, 
+            type: 'import' 
+          });
+        }
+      } else {
+        // Если конкретных сущностей нет, просто связываем файлы (default export/namespace)
+        currentLinks.push({ source: normalizedPath, target: resolvedPath, value: 1, type: 'import' });
+      }
     }
+
+    // Папки восстанавливаются как отдельные узлы и участвуют в структуре графа.
 
     // Добавляем классы и функции
     for (const entity of entities) {
@@ -92,7 +161,7 @@ async function processFile(filePath: string, baseDir: string, isInitial: boolean
         type: entity.type, 
         churn: 1 
       });
-      currentLinks.push({ source: normalizedPath, target: id, value: 2 });
+      currentLinks.push({ source: normalizedPath, target: id, value: 100, type: 'entity' }); // Огромный вес, чтобы жестко прикрепить к файлу
     }
   } catch (e) {
     // Игнорируем ошибки парсинга конкретного файла
@@ -101,13 +170,48 @@ async function processFile(filePath: string, baseDir: string, isInitial: boolean
 
 function getValidGraph(): GraphData {
   // Очистка мертвых линков (импорты, которые не с резолвились в реальные файлы в nodes)
+  const possibleExts = ['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.js'];
+
   const validLinks = currentLinks.filter(l => {
-    if (l.target.includes('#')) return true;
+    // Если это линк на сущность (Class/Function) в другом файле: `path/to/file#EntityName`
+    if (l.target.includes('#')) {
+      const exactMatch = currentNodes.has(l.target);
+      if (exactMatch) return true;
+
+      // Если расширения нет, пытаемся его подобрать
+      const [filePath, entityName] = l.target.split('#');
+      for (const ext of possibleExts) {
+        const fullId = `${filePath}${ext}#${entityName}`;
+        if (currentNodes.has(fullId)) {
+          l.target = fullId;
+          return true;
+        }
+      }
+      
+        // ФОЛБЭК: Если сущность не найдена, просто связываем файлы напрямую
+        if (currentNodes.has(filePath)) {
+          l.target = filePath;
+          return true;
+        }
+        
+        for (const ext of possibleExts) {
+          const fullFile = `${filePath}${ext}`;
+          if (currentNodes.has(fullFile)) {
+            l.target = fullFile;
+            return true;
+          }
+        }
+        return false; // Сущность и файл не найдены (мертвый импорт)
+      }
     
+    // Если это обычный линк (на файл или папку)
     const exactMatch = currentNodes.has(l.target);
     if (exactMatch) return true;
 
-    const possibleExts = ['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.js'];
+    // Разрешаем линки на директории
+    const targetNode = currentNodes.get(l.target);
+    if (targetNode && targetNode.type === 'directory') return true;
+
     for (const ext of possibleExts) {
       const p = l.target + ext;
       if (currentNodes.has(p)) {
@@ -168,7 +272,7 @@ export async function analyzeProject(baseDir: string, mainWindow?: BrowserWindow
   const cacheDir = path.join(app.getPath('userData'), 'codemaps-cache');
   await fs.mkdir(cacheDir, { recursive: true }).catch(() => {});
   const cacheKey = crypto.createHash('md5').update(baseDir).digest('hex');
-  const cacheFile = path.join(cacheDir, `${cacheKey}.json`);
+  const cacheFile = path.join(cacheDir, `${cacheKey}_v4.json`); // v4 для фикса fallback-логики связей
 
   let cache: any = null;
   try {
@@ -198,6 +302,15 @@ export async function analyzeProject(baseDir: string, mainWindow?: BrowserWindow
       }
     }
   }
+
+  // Пересобираем структуру папок из актуального списка файлов, чтобы карта не зависела от старого кэша.
+  for (const [id, node] of currentNodes) {
+    if (node.type === 'directory') {
+      currentNodes.delete(id);
+    }
+  }
+  currentLinks = currentLinks.filter(link => link.type !== 'structure');
+  allFiles.forEach(filePath => ensureDirectoryChainForFile(filePath.replace(/\\/g, '/'), baseDir));
 
   // Первичный парсинг только для изменившихся/новых файлов
   const newFileStats: Record<string, number> = {};
@@ -300,6 +413,20 @@ export async function analyzeProject(baseDir: string, mainWindow?: BrowserWindow
         }
       }
 
+      if (mainWindow) mainWindow.webContents.send('graph-updated', getValidGraph());
+      saveCacheDebounced();
+    })
+    .on('addDir', (dirPath: string) => {
+      if (dirPath.includes('node_modules') || dirPath.includes('.git')) return;
+      ensureDirectoryChainForFile(path.join(dirPath, '__placeholder__.ts').replace(/\\/g, '/'), baseDir);
+      currentLinks = currentLinks.filter(link => link.source !== path.join(dirPath, '__placeholder__.ts').replace(/\\/g, '/'));
+      if (mainWindow) mainWindow.webContents.send('graph-updated', getValidGraph());
+      saveCacheDebounced();
+    })
+    .on('unlinkDir', (dirPath: string) => {
+      const normalizedDir = dirPath.replace(/\\/g, '/');
+      currentNodes.delete(normalizedDir);
+      currentLinks = currentLinks.filter(l => l.source !== normalizedDir && l.target !== normalizedDir);
       if (mainWindow) mainWindow.webContents.send('graph-updated', getValidGraph());
       saveCacheDebounced();
     });

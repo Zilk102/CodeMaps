@@ -16,6 +16,7 @@ export interface GraphLink {
   source: string | GraphNode;
   target: string | GraphNode;
   value: number;
+  type?: 'structure' | 'import' | 'adr' | 'entity';
 }
 
 export interface GraphData {
@@ -31,6 +32,17 @@ interface StoreState {
   isLoading: boolean;
   error: string | null;
   parsingProgress: { status: string; current: number; total: number; filename: string } | null;
+  
+  // Filters
+  filters: {
+    showDirectories: boolean;
+    showFiles: boolean;
+    showFunctions: boolean;
+    showClasses: boolean;
+    showADR: boolean;
+  };
+  setFilter: (key: keyof StoreState['filters'], value: boolean) => void;
+
   fetchGraph: (path?: string) => Promise<void>;
   setSelectedNode: (node: GraphNode | null) => void;
   setSelectedPath: (path: string | null) => void;
@@ -53,6 +65,16 @@ export const useStore = create<StoreState>((set, get) => {
     error: null,
     parsingProgress: null,
     isMcpSettingsOpen: false,
+    
+    filters: {
+      showDirectories: true,
+      showFiles: true,
+      showFunctions: false,
+      showClasses: false,
+      showADR: true,
+    },
+    setFilter: (key, value) => set((state) => ({ filters: { ...state.filters, [key]: value } })),
+
     setMcpSettingsOpen: (isOpen) => set({ isMcpSettingsOpen: isOpen }),
     setParsingProgress: (progress) => set({ parsingProgress: progress }),
     closeProject: () => set({ graphData: null, selectedNode: null, selectedPath: null }),

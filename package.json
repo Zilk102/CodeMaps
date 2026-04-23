@@ -9,6 +9,7 @@
     "build": "tsc && vite build && tsc -p electron/tsconfig.json && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" electron-builder"
   },
   "dependencies": {
+    "@sigma/node-image": "^3.0.0",
     "chokidar": "^5.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",

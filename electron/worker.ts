@@ -92,19 +92,34 @@ export default async function parseWorker(filePath: string) {
     parser.setLanguage(lang);
     const tree = parser.parse(text);
     
-    const imports: string[] = [];
+    const imports: { path: string, importedEntities: string[] }[] = [];
     const entities: { type: string; name: string }[] = [];
 
     // Очень простой обход AST для извлечения импортов, классов и функций
     const traverse = (node: any) => {
       // Ищем импорты
-      if (node.type.includes('import')) {
+      if (node.type === 'import_statement' || node.type === 'import_declaration') {
+        let importPath = '';
+        const importedEntities: string[] = [];
+
+        // Ищем путь (строковый литерал)
         const sourceNode = node.children.find((c: any) => c.type === 'string' || c.type === 'string_literal');
         if (sourceNode) {
-          const importPath = sourceNode.text.replace(/['"]/g, '');
-          if (importPath.startsWith('.') || importPath.startsWith('/')) {
-            imports.push(importPath);
-          }
+          importPath = sourceNode.text.replace(/['"]/g, '');
+        }
+
+        // Ищем конкретные импортируемые сущности: import { A, B } from './c'
+        const clauseNode = node.children.find((c: any) => c.type === 'import_clause' || c.type === 'named_imports');
+        if (clauseNode) {
+          const specifiers = clauseNode.children.filter((c: any) => c.type === 'import_specifier' || c.type === 'identifier');
+          specifiers.forEach((spec: any) => {
+            const nameNode = spec.children.find((c: any) => c.type === 'identifier') || spec;
+            if (nameNode.type === 'identifier') importedEntities.push(nameNode.text);
+          });
+        }
+
+        if (importPath && (importPath.startsWith('.') || importPath.startsWith('/'))) {
+          imports.push({ path: importPath, importedEntities });
         }
       } 
       // Классы
