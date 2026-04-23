@@ -20,14 +20,14 @@ const TitleBar: React.FC = () => {
       } as React.CSSProperties}
     >
       {/* Левая часть */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', WebkitAppRegion: 'no-drag', paddingLeft: '5px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', WebkitAppRegion: 'no-drag', paddingLeft: '5px' } as any}>
         <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', color: '#ccc' }}>
           CodeMaps
         </div>
       </div>
 
       {/* Правая часть */}
-      <div style={{ display: 'flex', alignItems: 'center', height: '100%', WebkitAppRegion: 'no-drag' }}>
+      <div style={{ display: 'flex', alignItems: 'center', height: '100%', WebkitAppRegion: 'no-drag' } as any}>
         {/* Window controls */}
         <div style={{ display: 'flex', height: '100%' }}>
           <div 

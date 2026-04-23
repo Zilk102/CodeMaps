@@ -6,17 +6,24 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
     "electron:wait": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .",
-    "build": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder"
+    "build": "tsc && vite build && tsc -p electron/tsconfig.json && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" electron-builder"
   },
   "dependencies": {
+    "chokidar": "^5.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "fast-glob": "^3.3.3",
+    "graphology": "^0.26.0",
+    "graphology-components": "^1.5.4",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "piscina": "^5.1.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-force-graph-2d": "^1.25.4",
     "react-virtualized-auto-sizer": "^2.0.3",
+    "sigma": "^3.0.2",
     "simple-git": "^3.36.0",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "0.22.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

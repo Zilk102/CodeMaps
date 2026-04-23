@@ -67,7 +67,7 @@ ipcMain.handle('select-directory', async () => {
 
 ipcMain.handle('analyze-project', async (_, projectPath: string) => {
   try {
-    const data = await analyzeProject(projectPath || process.cwd());
+    const data = await analyzeProject(projectPath || process.cwd(), mainWindow!);
     return { success: true, data };
   } catch (error: any) {
     return { success: false, error: error.message };
