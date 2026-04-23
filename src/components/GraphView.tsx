@@ -5,6 +5,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { buildTree, TreeNode } from '../utils/treeBuilder';
 import { FilterPanel } from './FilterPanel';
 import { ZoomControls } from './ZoomControls';
+import { EdgesOverlay } from './EdgesOverlay';
 
 export const GraphView: React.FC = () => {
   const { graphData, error, filters } = useStore();
@@ -66,6 +67,7 @@ export const GraphView: React.FC = () => {
                   <>
                     <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
                       <div
+                        id="canvas-container"
                         style={{ 
                           display: 'flex',
                           gap: '24px',
@@ -73,6 +75,7 @@ export const GraphView: React.FC = () => {
                           width: 'max-content',
                           minWidth: `${CANVAS_SIZE}px`,
                           alignItems: 'flex-start',
+                          position: 'relative' // for absolute positioning of the SVG overlay
                         }}
                       >
                         {rootsColumns.map((col, i) => (
@@ -80,6 +83,8 @@ export const GraphView: React.FC = () => {
                             {col}
                           </div>
                         ))}
+                        
+                        <EdgesOverlay />
                       </div>
                     </TransformComponent>
                     

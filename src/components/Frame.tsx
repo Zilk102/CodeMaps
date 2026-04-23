@@ -44,6 +44,7 @@ export const Frame: React.FC<FrameProps> = ({ node, children, childCount = 0 }) 
 
   return (
     <div
+      id={`node-${node.id}`}
       style={{
         border: `2px ${borderStyle} ${borderColor}`,
         backgroundColor: bgColor,

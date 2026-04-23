@@ -27,9 +27,9 @@ export const FilterPanel: React.FC = () => {
         <input type="checkbox" checked={filters.showADR} onChange={(e) => setFilter('showADR', e.target.checked)} style={{ marginRight: 8 }} />
         ADR
       </label>
-      <label style={{ display: 'block', marginBottom: 0, cursor: 'pointer', opacity: 0.5 }}>
-        <input type="checkbox" disabled checked={filters.showEdges} style={{ marginRight: 8 }} />
-        Связи (линии) - Отключены
+      <label style={{ display: 'block', marginBottom: 0, cursor: 'pointer' }}>
+        <input type="checkbox" checked={filters.showEdges} onChange={(e) => setFilter('showEdges', e.target.checked)} style={{ marginRight: 8 }} />
+        Связи (линии)
       </label>
     </div>
   );
