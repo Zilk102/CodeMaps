@@ -1,84 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { useStore, GraphNode } from '../store/useStore';
+import React, { useMemo } from 'react';
+import { useStore } from '../store/useStore';
 import { Frame } from './Frame';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-
-export interface TreeNode {
-  data: GraphNode;
-  children: TreeNode[];
-}
+import { buildTree, TreeNode } from '../utils/treeBuilder';
+import { FilterPanel } from './FilterPanel';
+import { ZoomControls } from './ZoomControls';
 
 export const GraphView: React.FC = () => {
-  const { graphData, error, filters, setFilter } = useStore();
+  const { graphData, error, filters } = useStore();
 
   const tree = useMemo(() => {
-    if (!graphData) return [];
-
-    const parentMap = new Map<string, string>();
-    const nodeIds = new Set(graphData.nodes.map(n => n.id));
-
-    // 1. Извлекаем связи вложенности
-    graphData.links.forEach(link => {
-      if (link.type === 'structure' || link.type === 'entity') {
-        const source = typeof link.source === 'string' ? link.source : (link.source as any).id;
-        const target = typeof link.target === 'string' ? link.target : (link.target as any).id;
-        if (nodeIds.has(source) && nodeIds.has(target) && source !== target) {
-          if (link.type === 'structure') {
-            parentMap.set(source, target);
-          } else if (link.type === 'entity') {
-            parentMap.set(target, source);
-          }
-        }
-      }
-    });
-
-    // 2. Чистим от циклических зависимостей
-    const cleanParentMap = new Map<string, string>();
-    parentMap.forEach((parent, child) => {
-      let curr: string | undefined = parent;
-      let hasCycle = false;
-      const visited = new Set<string>();
-      while (curr) {
-        if (curr === child || visited.has(curr)) {
-          hasCycle = true;
-          break;
-        }
-        visited.add(curr);
-        curr = parentMap.get(curr);
-      }
-      if (!hasCycle) {
-        cleanParentMap.set(child, parent);
-      }
-    });
-
-    // 3. Строим дерево из плоского списка
-    const nodeMap = new Map<string, TreeNode>();
-    graphData.nodes.forEach(node => {
-      // Применяем фильтры видимости прямо на этапе сборки дерева
-      let isHidden = false;
-      if (node.type === 'directory' && !filters.showDirectories) isHidden = true;
-      if (node.type === 'file' && !filters.showFiles) isHidden = true;
-      if (node.type === 'function' && !filters.showFunctions) isHidden = true;
-      if (node.type === 'class' && !filters.showClasses) isHidden = true;
-      if (node.type === 'adr' && !filters.showADR) isHidden = true;
-
-      if (!isHidden) {
-        nodeMap.set(node.id, { data: node, children: [] });
-      }
-    });
-
-    const roots: TreeNode[] = [];
-
-    nodeMap.forEach((treeNode, id) => {
-      const parentId = cleanParentMap.get(id);
-      if (parentId && nodeMap.has(parentId)) {
-        nodeMap.get(parentId)!.children.push(treeNode);
-      } else {
-        roots.push(treeNode);
-      }
-    });
-
-    return roots;
+    return buildTree(graphData, filters);
   }, [graphData, filters]);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -151,45 +83,14 @@ export const GraphView: React.FC = () => {
                       </div>
                     </TransformComponent>
                     
-                    {/* Панель управления зумом */}
-                    <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', gap: '8px', zIndex: 20 }}>
-                      <button onClick={() => zoomIn(0.2)} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>+</button>
-                      <button onClick={() => zoomOut(0.2)} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>-</button>
-                      <button onClick={() => resetTransform()} style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '8px 12px', cursor: 'pointer' }}>Reset</button>
-                    </div>
+                    <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} />
                   </>
                 );
               }}
             </TransformWrapper>
           </div>
           
-          <div style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.7)', padding: 15, borderRadius: 8, color: '#fff', fontSize: 13, zIndex: 10, backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: 14 }}>Фильтры</h4>
-            <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
-              <input type="checkbox" checked={filters.showDirectories} onChange={(e) => setFilter('showDirectories', e.target.checked)} style={{ marginRight: 8 }} />
-              Папки
-            </label>
-            <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
-              <input type="checkbox" checked={filters.showFiles} onChange={(e) => setFilter('showFiles', e.target.checked)} style={{ marginRight: 8 }} />
-              Файлы
-            </label>
-            <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
-              <input type="checkbox" checked={filters.showFunctions} onChange={(e) => setFilter('showFunctions', e.target.checked)} style={{ marginRight: 8 }} />
-              Функции
-            </label>
-            <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
-              <input type="checkbox" checked={filters.showClasses} onChange={(e) => setFilter('showClasses', e.target.checked)} style={{ marginRight: 8 }} />
-              Классы
-            </label>
-            <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
-              <input type="checkbox" checked={filters.showADR} onChange={(e) => setFilter('showADR', e.target.checked)} style={{ marginRight: 8 }} />
-              ADR
-            </label>
-            <label style={{ display: 'block', marginBottom: 0, cursor: 'pointer', opacity: 0.5 }}>
-              <input type="checkbox" disabled checked={filters.showEdges} style={{ marginRight: 8 }} />
-              Связи (линии) - Отключены
-            </label>
-          </div>
+          <FilterPanel />
         </>
       )}
     </div>
