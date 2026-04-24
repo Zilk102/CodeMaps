@@ -32,7 +32,7 @@ interface McpStatus {
   linksCount: number;
 }
 
-type SettingsTab = 'overview' | 'tools' | 'resources' | 'clients';
+type SettingsTab = 'overview' | 'tools' | 'resources' | 'clients' | 'agent-skill';
 
 export const McpSettingsModal: React.FC = () => {
   const isOpen = useStore(state => state.isMcpSettingsOpen);
@@ -81,6 +81,75 @@ export const McpSettingsModal: React.FC = () => {
       snippet: `claude mcp add codemaps ${endpoint} --transport http`,
     },
   ]), [endpoint]);
+
+  const skillSnippet = useMemo(() => `---
+name: "codemaps-agent-autopilot"
+description: "Uses CodeMaps MCP as the default architectural brain for project understanding, debugging, refactors, reviews, and migration campaigns. Invoke whenever CodeMaps is connected."
+---
+
+# CodeMaps Agent Autopilot
+
+Use this skill whenever the workspace has the \`codemaps\` MCP server available.
+
+## Goal
+
+Treat CodeMaps as the primary architectural intelligence layer before editing code.
+Do not wait until after file inspection to use it.
+
+## MCP Server
+
+- Server name: \`codemaps\`
+- MCP endpoint: \`${endpoint}\`
+
+## Default Flow
+
+1. If the project is not analyzed yet, call \`analyze_project\`.
+2. For any natural-language user request, call \`prepare_task_context\` first.
+3. If CodeMaps routes the task to a campaign-level change, use \`prepare_change_campaign\`.
+4. If CodeMaps routes the task to a single-target code change, use \`prepare_change_context\`.
+5. If CodeMaps routes the task to diagnostics, review, architecture, or stabilization, use \`prepare_review_context\`.
+6. Use low-level tools only as fallback when the composite context explicitly leaves ambiguity.
+
+## Routing Rules
+
+- Bug, incident, regression, "не работает", "ломается":
+  Start with \`prepare_task_context\`.
+- Broad migration, replace SDK/library everywhere, cross-cutting refactor:
+  Start with \`prepare_task_context\` and follow \`prepare_change_campaign\` if selected.
+- Localized feature/refactor with a clear code area:
+  Start with \`prepare_task_context\`, then follow \`prepare_change_context\`.
+- Review, architecture audit, security review, stabilization:
+  Start with \`prepare_task_context\`, then follow \`prepare_review_context\`.
+
+## Mandatory Behavior
+
+- Use CodeMaps before making non-trivial code decisions.
+- Prefer CodeMaps composite contexts over raw graph tools.
+- Do not guess target files when CodeMaps cannot resolve them confidently.
+- For large changes, work in waves from \`prepare_change_campaign\` instead of editing many files ad hoc.
+- Re-check CodeMaps after meaningful edits if the architectural context may have changed.
+
+## Low-Level Fallback Tools
+
+Use these only if the selected composite context is insufficient:
+
+- \`search_graph\`
+- \`get_node_dependencies\`
+- \`get_blast_radius\`
+- \`get_architecture_overview\`
+- \`get_health_score\`
+- \`detect_patterns\`
+- \`run_security_scan\`
+- \`search_signatures\`
+
+## Expected Outcome
+
+The agent should behave like it has a project-aware architectural map:
+- understand the system before editing,
+- choose the right scope automatically,
+- avoid blind file-by-file wandering,
+- treat CodeMaps as the default brain for project structure and impact analysis.
+`, [endpoint]);
 
   if (!isOpen) return null;
 
@@ -223,6 +292,38 @@ export const McpSettingsModal: React.FC = () => {
     </div>
   );
 
+  const renderAgentSkill = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={commonSectionStyle}>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Зачем это нужно</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
+          Если агент подключён к `codemaps`, но не имеет постоянной инструкции работать через него как через архитектурный мозг, он может использовать MCP слишком слабо или слишком поздно. Этот шаблон `SKILL.md` фиксирует правильное поведение: сначала `CodeMaps`, потом локальное чтение и правки.
+        </div>
+      </div>
+
+      <div style={{ ...commonSectionStyle, display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'start' }}>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Как использовать</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
+            1. Создай у агента новый навык, например в `.trae/skills/codemaps-agent-autopilot/SKILL.md`.
+            <br />
+            2. Скопируй шаблон ниже без изменений.
+            <br />
+            3. После этого любой агент сможет постоянно работать через `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context` и `prepare_review_context`, а не только вручную вызывать низкоуровневые tools.
+          </div>
+        </div>
+        <button className="btn-glass" onClick={() => copyText('agent-skill', skillSnippet)}>
+          {copiedKey === 'agent-skill' ? 'Скопировано' : 'Копировать SKILL.md'}
+        </button>
+      </div>
+
+      <div style={commonSectionStyle}>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Готовый шаблон SKILL.md</div>
+        <CodeBlock>{skillSnippet}</CodeBlock>
+      </div>
+    </div>
+  );
+
   return (
     <div className="modal-overlay" onClick={() => setOpen(false)}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 1080, width: '96vw', maxHeight: '88vh', padding: 0 }}>
@@ -236,6 +337,7 @@ export const McpSettingsModal: React.FC = () => {
           <TabButton active={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>Инструменты</TabButton>
           <TabButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>Ресурсы</TabButton>
           <TabButton active={activeTab === 'clients'} onClick={() => setActiveTab('clients')}>Подключение</TabButton>
+          <TabButton active={activeTab === 'agent-skill'} onClick={() => setActiveTab('agent-skill')}>Навык для агентов</TabButton>
         </div>
         </div>
 
@@ -244,6 +346,7 @@ export const McpSettingsModal: React.FC = () => {
           {activeTab === 'tools' && renderTools()}
           {activeTab === 'resources' && renderResources()}
           {activeTab === 'clients' && renderClients()}
+          {activeTab === 'agent-skill' && renderAgentSkill()}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px 18px', borderTop: '1px solid var(--border)' }}>
