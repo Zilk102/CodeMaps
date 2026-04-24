@@ -28,10 +28,15 @@ export interface HealthScoreResult {
 export class HealthScoreAnalyzer {
   analyze(graph: GraphData): HealthScoreResult {
     const architecture = new ArchitectureInsightService().analyze(graph);
+    const layerByNodeId = new Map(architecture.classifications.map((record) => [record.nodeId, record.layer]));
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
     const fileNodes = graph.nodes.filter((node) => node.type === 'file');
     const symbolNodes = graph.nodes.filter((node) => node.id.includes('#'));
     const orphanNodes = graph.nodes.filter((node) => {
+      if (layerByNodeId.get(node.id) === 'configuration') {
+        return false;
+      }
+
       const hasIncoming = (incomingByTarget.get(node.id) || []).length > 0;
       const hasOutgoing = (outgoingBySource.get(node.id) || []).length > 0;
       const hasKnownHierarchyParent = hasKnownParent(node, nodeById);

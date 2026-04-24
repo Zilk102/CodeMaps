@@ -110,6 +110,66 @@ try {
   });
   console.log('[MCP] get_blast_radius:', JSON.stringify(parseFirstTextPayload(blastRadius, 'get_blast_radius'), null, 2));
 
+  const projectContext = await client.callTool({
+    name: 'prepare_project_context',
+    arguments: {
+      limit: 8,
+      includeSecurityFindings: true,
+      includeClassifications: false,
+    },
+  });
+  console.log('[MCP] prepare_project_context:', JSON.stringify(parseFirstTextPayload(projectContext, 'prepare_project_context'), null, 2));
+
+  const taskContext = await client.callTool({
+    name: 'prepare_task_context',
+    arguments: {
+      userRequest: 'У меня почему-то авторизация ломается после изменений в backend',
+      limit: 8,
+      depth: 4,
+      includeSecurityFindings: true,
+      includeClassifications: false,
+    },
+  });
+  console.log('[MCP] prepare_task_context:', JSON.stringify(parseFirstTextPayload(taskContext, 'prepare_task_context'), null, 2));
+
+  const changeCampaign = await client.callTool({
+    name: 'prepare_change_campaign',
+    arguments: {
+      userRequest: 'Переведи все MCP сервисы на новый orchestration flow и обнови связанные integration points',
+      candidateQueries: ['mcp', 'service', 'integration', 'orchestration'],
+      taskMode: 'refactor',
+      depth: 2,
+      maxSeeds: 8,
+      maxFiles: 24,
+      includeSecurityFindings: true,
+    },
+  });
+  console.log('[MCP] prepare_change_campaign:', JSON.stringify(parseFirstTextPayload(changeCampaign, 'prepare_change_campaign'), null, 2));
+
+  const changeContext = await client.callTool({
+    name: 'prepare_change_context',
+    arguments: {
+      target: blastTarget.id,
+      taskMode: 'refactor',
+      changeIntent: 'Smoke-test composite context for agent-first editing',
+      depth: 3,
+      includeSecurityFindings: true,
+    },
+  });
+  console.log('[MCP] prepare_change_context:', JSON.stringify(parseFirstTextPayload(changeContext, 'prepare_change_context'), null, 2));
+
+  const reviewContext = await client.callTool({
+    name: 'prepare_review_context',
+    arguments: {
+      focusQuery: 'oracle',
+      taskMode: 'architecture',
+      limit: 8,
+      includeSecurityFindings: true,
+      includeClassifications: false,
+    },
+  });
+  console.log('[MCP] prepare_review_context:', JSON.stringify(parseFirstTextPayload(reviewContext, 'prepare_review_context'), null, 2));
+
   const resources = await client.listResources();
   console.log('[MCP] resources:', resources.resources.map((resource) => resource.uri).join(', '));
 
@@ -117,6 +177,16 @@ try {
     uri: 'codemaps://project/summary',
   });
   console.log('[MCP] project summary:', JSON.stringify(summary.contents, null, 2));
+
+  const agentPlaybook = await client.readResource({
+    uri: 'codemaps://agent/playbook',
+  });
+  console.log('[MCP] agent playbook:', JSON.stringify(agentPlaybook.contents, null, 2));
+
+  const projectBrain = await client.readResource({
+    uri: 'codemaps://agent/project-brain',
+  });
+  console.log('[MCP] project brain:', JSON.stringify(projectBrain.contents, null, 2));
 
   await transport.terminateSession().catch(() => undefined);
   await client.close();

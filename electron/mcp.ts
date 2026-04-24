@@ -16,6 +16,10 @@ import { PatternDetectionAnalyzer } from './analysis/PatternDetectionAnalyzer';
 import { SecurityScanner } from './analysis/SecurityScanner';
 import { SignatureSearchService } from './analysis/SignatureSearchService';
 import { ArchitectureInsightService } from './analysis/ArchitectureInsightService';
+import { AgentContextService } from './analysis/AgentContextService';
+import { ProjectInsightService } from './analysis/ProjectInsightService';
+import { TaskIntelligenceService } from './analysis/TaskIntelligenceService';
+import { ChangeCampaignService } from './analysis/ChangeCampaignService';
 
 const MCP_HOST = '127.0.0.1';
 const MCP_PORT = 3005;
@@ -32,12 +36,15 @@ export interface McpStatusToolDescriptor {
   name: string;
   title: string;
   description: string;
+  preferredForAgents?: boolean;
+  recommendedWhen?: string;
 }
 
 export interface McpStatusResourceDescriptor {
   uri: string;
   title: string;
   description: string;
+  preferredForAgents?: boolean;
 }
 
 export interface McpStatus {
@@ -74,58 +81,115 @@ const MCP_RESOURCES: McpStatusResourceDescriptor[] = [
     title: 'Full Graph',
     description: 'Полный JSON-граф проекта для продвинутого анализа, клиентских интеграций и отладки.',
   },
+  {
+    uri: 'codemaps://agent/playbook',
+    title: 'Agent Playbook',
+    description: 'Как агенту использовать CodeMaps автоматически: preferred tools, fallback path и порядок действий.',
+    preferredForAgents: true,
+  },
+  {
+    uri: 'codemaps://agent/project-brain',
+    title: 'Project Brain',
+    description: 'Готовая архитектурная ментальная модель текущего проекта для agent-first старта без ручной оркестрации tools.',
+    preferredForAgents: true,
+  },
 ];
 
 const MCP_TOOLS: McpStatusToolDescriptor[] = [
   {
     name: 'analyze_project',
     title: 'Analyze Project',
-    description: 'Индексирует проект и загружает граф в CodeMaps.',
+    description: 'Индексирует проект и загружает граф в CodeMaps. Обычно агенту достаточно вызывать его автоматически при смене проекта.',
+    recommendedWhen: 'Когда проект ещё не открыт или нужно переключить активный workspace.',
   },
   {
     name: 'get_graph_context',
     title: 'Get Graph Context',
-    description: 'Возвращает summary графа или полный graph payload.',
+    description: 'Возвращает summary графа или полный graph payload. Полезен как низкоуровневый fallback, когда нужен сырой граф.',
+    recommendedWhen: 'Когда composite context недостаточен и агенту нужен полный снимок графа.',
   },
   {
     name: 'get_node_dependencies',
     title: 'Get Node Dependencies',
-    description: 'Показывает входящие и исходящие связи конкретного узла.',
+    description: 'Показывает входящие и исходящие связи конкретного узла. Обычно нужен как fallback после prepare_change_context.',
+    recommendedWhen: 'Когда нужно вручную расширить локальный dependency context.',
   },
   {
     name: 'search_graph',
     title: 'Search Graph',
-    description: 'Ищет узлы по label или id, при необходимости с фильтром по типу.',
+    description: 'Ищет узлы по label или id, при необходимости с фильтром по типу. Низкоуровневый поиск для неоднозначных целей.',
+    recommendedWhen: 'Когда target resolution в composite context требует ручного уточнения.',
   },
   {
     name: 'get_blast_radius',
     title: 'Get Blast Radius',
-    description: 'Считает прямое и транзитивное влияние изменений для выбранного узла.',
+    description: 'Считает прямое и транзитивное влияние изменений для выбранного узла. Обычно уже включён в prepare_change_context.',
+    recommendedWhen: 'Когда нужно отдельно углубить impact analysis по конкретному узлу.',
   },
   {
     name: 'get_health_score',
     title: 'Get Health Score',
-    description: 'Оценивает здоровье графа и архитектурные риски в виде score/grade.',
+    description: 'Оценивает здоровье графа и архитектурные риски в виде score/grade. Обычно уже включён в prepare_review_context.',
+    recommendedWhen: 'Когда нужно быстро перепроверить общую деградацию после серии изменений.',
   },
   {
     name: 'get_architecture_overview',
     title: 'Get Architecture Overview',
-    description: 'Классифицирует слои, показывает межслоевые зависимости и boundary violations.',
+    description: 'Классифицирует слои, показывает межслоевые зависимости и boundary violations. Обычно уже включён в prepare_review_context.',
+    recommendedWhen: 'Когда нужен детальный слойный обзор вне composite review context.',
   },
   {
     name: 'detect_patterns',
     title: 'Detect Patterns',
-    description: 'Ищет hotspot-ы, fan-in/fan-out проблемы и архитектурные anti-pattern candidates.',
+    description: 'Ищет hotspot-ы, fan-in/fan-out проблемы и архитектурные anti-pattern candidates. Обычно уже включён в prepare_review_context.',
+    recommendedWhen: 'Когда нужен отдельный structural hotspot scan.',
   },
   {
     name: 'run_security_scan',
     title: 'Run Security Scan',
-    description: 'Сканирует индексированные файлы на рискованные и подозрительные паттерны.',
+    description: 'Сканирует индексированные файлы на рискованные и подозрительные паттерны. Обычно уже включён в prepare_review_context или prepare_change_context.',
+    recommendedWhen: 'Когда review сфокусирован на security или рядом с target уже есть findings.',
   },
   {
     name: 'search_signatures',
     title: 'Search Signatures',
-    description: 'Ищет declaration-like сигнатуры по исходникам и символам.',
+    description: 'Ищет declaration-like сигнатуры по исходникам и символам. Используется как fallback для точного поиска declaration-level целей.',
+    recommendedWhen: 'Когда нужно быстро найти declaration-like код по имени или regex.',
+  },
+  {
+    name: 'prepare_task_context',
+    title: 'Prepare Task Context',
+    description: 'Главный agent-first инструмент для естественного запроса пользователя: определяет intent, выбирает правильный composite flow и по возможности сразу готовит change/review context.',
+    preferredForAgents: true,
+    recommendedWhen: 'Использовать первым при обычном человеческом запросе вроде "авторизация ломается", "найди причину", "добавь фичу" или "проведи review".',
+  },
+  {
+    name: 'prepare_change_campaign',
+    title: 'Prepare Change Campaign',
+    description: 'Campaign-level инструмент для массовых миграций и широких refactor-задач: собирает seed targets, расширенный scope, execution waves и campaign risks.',
+    preferredForAgents: true,
+    recommendedWhen: 'Использовать для задач вроде "переведи все сервисы оплаты на новую библиотеку", "замени SDK по всему backend" или других multi-file кампаний.',
+  },
+  {
+    name: 'prepare_project_context',
+    title: 'Prepare Project Context',
+    description: 'Предпочтительный стартовый инструмент для агента: собирает проектную ментальную модель, entry points, orchestrators, boundaries и стратегию дальнейшей работы.',
+    preferredForAgents: true,
+    recommendedWhen: 'Использовать сразу после analyze_project, когда агенту нужно быстро понять любой новый проект как систему.',
+  },
+  {
+    name: 'prepare_change_context',
+    title: 'Prepare Change Context',
+    description: 'Предпочтительный инструмент для агента перед bugfix/feature/refactor: собирает target, зависимости, blast radius, архитектурные риски и рекомендации.',
+    preferredForAgents: true,
+    recommendedWhen: 'Использовать по умолчанию перед любыми нетривиальными изменениями кода.',
+  },
+  {
+    name: 'prepare_review_context',
+    title: 'Prepare Review Context',
+    description: 'Предпочтительный инструмент для агента перед review: собирает health, architecture, patterns, security и приоритеты проверки.',
+    preferredForAgents: true,
+    recommendedWhen: 'Использовать по умолчанию для review, аудита архитектуры и post-change проверки.',
   },
 ];
 
@@ -179,6 +243,38 @@ const searchGraph = (graph: GraphData, query: string, type?: string, limit = 20)
 
 const createTextContent = (payload: unknown) => JSON.stringify(payload, null, 2);
 
+const createAgentPlaybook = () => ({
+  version: 4,
+  goal: 'Обычный пользователь подключает CodeMaps к агенту, а агент сам выбирает нужные инструменты без знания MCP-команд.',
+  preferredDefaultFlow: {
+    openProject: 'analyze_project',
+    naturalLanguageRequest: 'prepare_task_context',
+    understandProject: 'prepare_project_context',
+    largeScaleChange: 'prepare_change_campaign',
+    codeChange: 'prepare_change_context',
+    review: 'prepare_review_context',
+  },
+  rules: [
+    'Если проект ещё не открыт, сначала вызвать analyze_project.',
+    'Если пользователь говорит обычным естественным языком о проблеме, фиче, деградации или review, агенту стоит сначала вызвать prepare_task_context.',
+    'Сразу после открытия проекта агенту стоит вызвать prepare_project_context, чтобы построить ментальную модель entry points, orchestrators и architectural boundaries.',
+    'Для массовых миграций, library switch и широких refactor-кампаний использовать prepare_change_campaign вместо single-target prepare_change_context.',
+    'Для bugfix/feature/refactor сначала вызывать prepare_change_context.',
+    'Для review, архитектурной оценки и post-change validation сначала вызывать prepare_review_context.',
+    'Низкоуровневые tools использовать только как fallback, когда composite context недостаточен.',
+  ],
+  fallbackTools: [
+    'search_graph',
+    'get_node_dependencies',
+    'get_blast_radius',
+    'get_architecture_overview',
+    'get_health_score',
+    'detect_patterns',
+    'run_security_scan',
+    'search_signatures',
+  ],
+});
+
 const createMcpServer = () => {
   const server = new McpServer({
     name: 'codemaps-mcp',
@@ -195,6 +291,10 @@ const createMcpServer = () => {
   const securityScanner = new SecurityScanner();
   const signatureSearchService = new SignatureSearchService();
   const architectureInsightService = new ArchitectureInsightService();
+  const agentContextService = new AgentContextService();
+  const projectInsightService = new ProjectInsightService();
+  const taskIntelligenceService = new TaskIntelligenceService(projectInsightService, agentContextService);
+  const changeCampaignService = new ChangeCampaignService();
 
   server.registerResource('project-summary', 'codemaps://project/summary', {
     title: 'Project Summary',
@@ -226,6 +326,44 @@ const createMcpServer = () => {
           uri: 'codemaps://graph/full',
           mimeType: 'application/json',
           text: createTextContent(graph),
+        },
+      ],
+    };
+  });
+
+  server.registerResource('agent-playbook', 'codemaps://agent/playbook', {
+    title: 'Agent Playbook',
+    description: 'Preferred agent-first workflow for CodeMaps',
+    mimeType: 'application/json',
+  }, async () => {
+    return {
+      contents: [
+        {
+          uri: 'codemaps://agent/playbook',
+          mimeType: 'application/json',
+          text: createTextContent(createAgentPlaybook()),
+        },
+      ],
+    };
+  });
+
+  server.registerResource('project-brain', 'codemaps://agent/project-brain', {
+    title: 'Project Brain',
+    description: 'Project-level architectural mental model for agent-first understanding',
+    mimeType: 'application/json',
+  }, async () => {
+    const graph = await ensureGraphLoaded();
+    const context = await projectInsightService.prepareContext(graph, {
+      includeSecurityFindings: true,
+      includeClassifications: false,
+      limit: 8,
+    });
+    return {
+      contents: [
+        {
+          uri: 'codemaps://agent/project-brain',
+          mimeType: 'application/json',
+          text: createTextContent(context),
         },
       ],
     };
@@ -493,6 +631,282 @@ const createMcpServer = () => {
         },
       ],
     };
+  });
+
+  server.registerTool('prepare_project_context', {
+    title: 'Prepare Project Context',
+    description: 'Prepare a project-level mental model so an agent can understand architecture before editing or review',
+    inputSchema: {
+      projectPath: z.string().optional().describe('Absolute project path. When provided, CodeMaps loads it before building the context.'),
+      limit: z.number().int().min(1).max(50).optional().describe('Maximum number of patterns/dependencies/findings to include'),
+      includeSecurityFindings: z.boolean().optional().describe('When true, include security findings in the project context'),
+      includeClassifications: z.boolean().optional().describe('When true, include per-node layer classifications'),
+    },
+  }, async ({
+    projectPath,
+    limit = 10,
+    includeSecurityFindings = true,
+    includeClassifications = false,
+  }) => {
+    try {
+      const graph = await ensureGraphLoaded(projectPath);
+      const context = await projectInsightService.prepareContext(graph, {
+        limit,
+        includeSecurityFindings,
+        includeClassifications,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'ok',
+              context,
+            }),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'error',
+              message: error?.message || 'Failed to prepare project context',
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  server.registerTool('prepare_task_context', {
+    title: 'Prepare Task Context',
+    description: 'Route a natural-language user request into the right CodeMaps composite workflow with prepared context',
+    inputSchema: {
+      projectPath: z.string().optional().describe('Absolute project path. When provided, CodeMaps loads it before building the context.'),
+      userRequest: z.string().describe('Natural-language user request, problem statement, bug report, feature ask or review prompt.'),
+      limit: z.number().int().min(1).max(50).optional().describe('Maximum number of patterns/dependencies/findings to include'),
+      depth: z.number().int().min(1).max(20).optional().describe('Optional blast radius depth limit when change-like context is selected'),
+      includeSecurityFindings: z.boolean().optional().describe('When true, include security findings in prepared contexts'),
+      includeClassifications: z.boolean().optional().describe('When true, include per-node layer classifications'),
+    },
+  }, async ({
+    projectPath,
+    userRequest,
+    limit = 10,
+    depth = 4,
+    includeSecurityFindings = true,
+    includeClassifications = false,
+  }) => {
+    try {
+      const graph = await ensureGraphLoaded(projectPath);
+      const context = await taskIntelligenceService.prepareContext(graph, {
+        userRequest,
+        limit,
+        depth,
+        includeSecurityFindings,
+        includeClassifications,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'ok',
+              context,
+            }),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'error',
+              message: error?.message || 'Failed to prepare task context',
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  server.registerTool('prepare_change_campaign', {
+    title: 'Prepare Change Campaign',
+    description: 'Prepare a phased multi-target migration/refactor context for broad codebase changes',
+    inputSchema: {
+      projectPath: z.string().optional().describe('Absolute project path. When provided, CodeMaps loads it before building the context.'),
+      userRequest: z.string().describe('Natural-language large-scale change request or migration plan.'),
+      candidateQueries: z.array(z.string()).optional().describe('Optional pre-extracted candidate queries to bias campaign seed matching.'),
+      seedNodeIds: z.array(z.string()).optional().describe('Optional exact graph node ids to seed the campaign.'),
+      taskMode: z.enum(['bugfix', 'feature', 'refactor', 'explore']).optional().describe('High-level change mode for the campaign'),
+      depth: z.number().int().min(1).max(20).optional().describe('Dependency expansion depth for the campaign'),
+      maxSeeds: z.number().int().min(1).max(30).optional().describe('Maximum number of seed targets'),
+      maxFiles: z.number().int().min(1).max(100).optional().describe('Maximum number of affected files in the campaign'),
+      includeSecurityFindings: z.boolean().optional().describe('When true, include security findings related to the campaign area'),
+    },
+  }, async ({
+    projectPath,
+    userRequest,
+    candidateQueries = [],
+    seedNodeIds = [],
+    taskMode,
+    depth = 2,
+    maxSeeds = 8,
+    maxFiles = 30,
+    includeSecurityFindings = true,
+  }) => {
+    try {
+      const graph = await ensureGraphLoaded(projectPath);
+      const context = await changeCampaignService.prepareContext(graph, {
+        userRequest,
+        candidateQueries,
+        seedNodeIds,
+        taskMode,
+        depth,
+        maxSeeds,
+        maxFiles,
+        includeSecurityFindings,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'ok',
+              context,
+            }),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'error',
+              message: error?.message || 'Failed to prepare change campaign',
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  server.registerTool('prepare_change_context', {
+    title: 'Prepare Change Context',
+    description: 'Prepare a high-level change context so an agent can edit code with architectural awareness',
+    inputSchema: {
+      projectPath: z.string().optional().describe('Absolute project path. When provided, CodeMaps loads it before building the context.'),
+      target: z.string().describe('Exact node id or free-text query for the code area that will be changed'),
+      type: z.string().optional().describe('Optional node type filter such as file, class, function or adr'),
+      taskMode: z.enum(['bugfix', 'feature', 'refactor', 'explore']).optional().describe('High-level change mode used to tailor agent guidance'),
+      changeIntent: z.string().optional().describe('Short human description of the planned change'),
+      depth: z.number().int().min(1).max(20).optional().describe('Optional blast radius depth limit'),
+      includeSecurityFindings: z.boolean().optional().describe('When true, include security findings related to the target area'),
+    },
+  }, async ({ projectPath, target, type, taskMode, changeIntent, depth, includeSecurityFindings = true }) => {
+    try {
+      const graph = await ensureGraphLoaded(projectPath);
+      const context = await agentContextService.prepareChangeContext(graph, {
+        target,
+        type,
+        taskMode,
+        changeIntent,
+        depth,
+        includeSecurityFindings,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'ok',
+              context,
+            }),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'error',
+              message: error?.message || 'Failed to prepare change context',
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  server.registerTool('prepare_review_context', {
+    title: 'Prepare Review Context',
+    description: 'Prepare a high-level review context so an agent can assess architecture without hand-orchestrating all tools',
+    inputSchema: {
+      projectPath: z.string().optional().describe('Absolute project path. When provided, CodeMaps loads it before building the context.'),
+      focusQuery: z.string().optional().describe('Optional file/symbol query to focus the review on a sub-area'),
+      type: z.string().optional().describe('Optional node type filter for the focus query'),
+      taskMode: z.enum(['review', 'architecture', 'security', 'stabilization']).optional().describe('High-level review mode used to tailor agent guidance'),
+      limit: z.number().int().min(1).max(50).optional().describe('Maximum number of patterns/dependencies/violations to return'),
+      includeSecurityFindings: z.boolean().optional().describe('When true, include security findings in the review context'),
+      includeClassifications: z.boolean().optional().describe('When true, include per-node layer classifications'),
+    },
+  }, async ({
+    projectPath,
+    focusQuery,
+    type,
+    taskMode,
+    limit = 12,
+    includeSecurityFindings = true,
+    includeClassifications = false,
+  }) => {
+    try {
+      const graph = await ensureGraphLoaded(projectPath);
+      const context = await agentContextService.prepareReviewContext(graph, {
+        focusQuery,
+        type,
+        taskMode,
+        limit,
+        includeSecurityFindings,
+        includeClassifications,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'ok',
+              context,
+            }),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({
+              status: 'error',
+              message: error?.message || 'Failed to prepare review context',
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
   });
 
   return server;

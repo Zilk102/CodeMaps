@@ -33,7 +33,7 @@ export class ProjectIndexer {
     return detectProjectLanguages(filePaths.map((filePath) => normalizePath(filePath)));
   }
 
-  async reindexFile(filePath: string, baseDir: string, languageProfile: ProjectLanguageProfile, isInitial: boolean = false) {
+  async reindexFile(filePath: string, baseDir: string, languageProfile: ProjectLanguageProfile) {
     const normalizedPath = normalizePath(filePath);
     const churn = oracleStore.getState().churnMap.get(normalizedPath) || 1;
     const result = await this.pool.run({
@@ -42,10 +42,9 @@ export class ProjectIndexer {
       baseDir,
     });
 
-    if (!isInitial) {
-      this.graphBuilder.removeFileArtifacts(normalizedPath);
-    }
-
+    // Always clear the previous file-level graph artifacts before applying a fresh parse.
+    // This prevents stale symbol nodes and import links from surviving cache restore + reindex.
+    this.graphBuilder.removeFileArtifacts(normalizedPath);
     this.graphBuilder.applyParsedFile(normalizedPath, baseDir, churn, result);
   }
 
@@ -101,7 +100,7 @@ export class ProjectIndexer {
     }
 
     await Promise.all(filesToParse.map(async (filePath) => {
-      await this.reindexFile(filePath, baseDir, languageProfile, true);
+      await this.reindexFile(filePath, baseDir, languageProfile);
       processed += 1;
       if (onProgress && processed % 10 === 0) {
         onProgress({

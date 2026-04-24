@@ -240,6 +240,10 @@ export class ArchitectureInsightService {
   }
 
   private isConfigurationNode(filePath: string) {
+    if (filePath.endsWith('/scripts')) {
+      return true;
+    }
+
     return filePath.endsWith('/package.json')
       || filePath.endsWith('/tsconfig.json')
       || filePath.endsWith('/vite.config.ts')

@@ -5,12 +5,15 @@ interface McpStatusToolDescriptor {
   name: string;
   title: string;
   description: string;
+  preferredForAgents?: boolean;
+  recommendedWhen?: string;
 }
 
 interface McpStatusResourceDescriptor {
   uri: string;
   title: string;
   description: string;
+  preferredForAgents?: boolean;
 }
 
 interface McpStatus {
@@ -129,7 +132,18 @@ export const McpSettingsModal: React.FC = () => {
       <div style={{ ...commonSectionStyle }}>
         <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Что это даёт агенту</div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
-          `CodeMaps` даёт агенту инструменты не только для поиска по коду, но и для анализа архитектуры: graph context, blast radius, health score, architecture overview, pattern detection, security scan и search по сигнатурам.
+          Обычному пользователю не нужно помнить MCP-команды. Для нормального агента `CodeMaps` теперь должен работать так: агент сам открывает проект, сам запрашивает `prepare_change_context` перед правками и `prepare_review_context` для review, а низкоуровневые инструменты использует только как fallback.
+        </div>
+      </div>
+
+      <div style={{ ...commonSectionStyle }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Предпочтительные инструменты для агента</div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {toolDetails.filter((tool) => tool.preferredForAgents).map((tool) => (
+            <div key={tool.name} style={{ background: 'var(--accbg)', border: '1px solid var(--acc)', borderRadius: '999px', padding: '6px 10px', fontSize: '12px', color: 'var(--acc)' }}>
+              {tool.name}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -141,13 +155,25 @@ export const McpSettingsModal: React.FC = () => {
         <div key={tool.name} style={commonSectionStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'start' }}>
             <div>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{tool.title}</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span>{tool.title}</span>
+                {tool.preferredForAgents && (
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'var(--accbg)', border: '1px solid var(--acc)', color: 'var(--acc)' }}>
+                    Рекомендуется агенту
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>{tool.name}</div>
             </div>
           </div>
           <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
             {tool.description}
           </div>
+          {tool.recommendedWhen && (
+            <div style={{ marginTop: '8px', color: 'var(--text-primary)', fontSize: '11px', lineHeight: 1.4 }}>
+              Когда использовать: {tool.recommendedWhen}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -157,7 +183,14 @@ export const McpSettingsModal: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {resourceDetails.map((resource) => (
         <div key={resource.uri} style={commonSectionStyle}>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{resource.title}</div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span>{resource.title}</span>
+            {resource.preferredForAgents && (
+              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'var(--accbg)', border: '1px solid var(--acc)', color: 'var(--acc)' }}>
+                Для автопилота
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>{resource.uri}</div>
           <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
             {resource.description}

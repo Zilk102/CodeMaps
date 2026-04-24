@@ -17,6 +17,7 @@ export interface PatternDetectionResult {
 export class PatternDetectionAnalyzer {
   analyze(graph: GraphData): PatternDetectionResult {
     const architecture = new ArchitectureInsightService().analyze(graph);
+    const layerByNodeId = new Map(architecture.classifications.map((record) => [record.nodeId, record.layer]));
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
     const patterns: DetectedPattern[] = [];
 
@@ -110,6 +111,10 @@ export class PatternDetectionAnalyzer {
     const isolatedFiles = graph.nodes
       .filter((node) => node.type === 'file')
       .filter((node) => {
+        if (layerByNodeId.get(node.id) === 'configuration') {
+          return false;
+        }
+
         const fanIn = (incomingByTarget.get(node.id) || []).length;
         const fanOut = (outgoingBySource.get(node.id) || []).length;
         const hasKnownHierarchy = hasKnownParent(node, nodeById) || (childrenByParentId.get(node.id) || []).length > 0;

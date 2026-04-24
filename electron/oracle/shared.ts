@@ -1,6 +1,6 @@
 import * as path from 'path';
 
-export const ORACLE_CACHE_VERSION = 7;
+export const ORACLE_CACHE_VERSION = 9;
 
 export const ORACLE_IGNORE_GLOBS = [
   '**/node_modules/**', '**/dist/**', '**/dist-electron/**', '**/build/**', '**/release/**', '**/.git/**',

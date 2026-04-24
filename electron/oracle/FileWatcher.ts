@@ -53,13 +53,13 @@ export class FileWatcher {
       .on('add', async (filePath: string) => {
         if (shouldIgnorePath(filePath)) return;
         updateLanguageProfile(filePath, 1);
-        await this.indexer.reindexFile(filePath, baseDir, getLanguageProfile(), false);
+        await this.indexer.reindexFile(filePath, baseDir, getLanguageProfile());
         callbacks.emitGraphUpdated();
         this.cacheManager.saveDebounced(baseDir);
       })
       .on('change', async (filePath: string) => {
         if (shouldIgnorePath(filePath)) return;
-        await this.indexer.reindexFile(filePath, baseDir, getLanguageProfile(), false);
+        await this.indexer.reindexFile(filePath, baseDir, getLanguageProfile());
         callbacks.emitGraphUpdated();
         this.cacheManager.saveDebounced(baseDir);
       })
