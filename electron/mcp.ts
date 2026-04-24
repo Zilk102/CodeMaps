@@ -15,6 +15,7 @@ import { HealthScoreAnalyzer } from './analysis/HealthScoreAnalyzer';
 import { PatternDetectionAnalyzer } from './analysis/PatternDetectionAnalyzer';
 import { SecurityScanner } from './analysis/SecurityScanner';
 import { SignatureSearchService } from './analysis/SignatureSearchService';
+import { ArchitectureInsightService } from './analysis/ArchitectureInsightService';
 
 const MCP_HOST = '127.0.0.1';
 const MCP_PORT = 3005;
@@ -27,6 +28,18 @@ type McpTransportRecord = {
   server: McpServer;
 };
 
+export interface McpStatusToolDescriptor {
+  name: string;
+  title: string;
+  description: string;
+}
+
+export interface McpStatusResourceDescriptor {
+  uri: string;
+  title: string;
+  description: string;
+}
+
 export interface McpStatus {
   enabled: boolean;
   host: string;
@@ -36,6 +49,8 @@ export interface McpStatus {
   websocketUrl: string;
   resources: string[];
   tools: string[];
+  resourceDetails: McpStatusResourceDescriptor[];
+  toolDetails: McpStatusToolDescriptor[];
   projectRoot: string | null;
   nodesCount: number;
   linksCount: number;
@@ -48,21 +63,70 @@ type McpServiceHandle = {
 
 let mcpService: McpServiceHandle | null = null;
 
-const MCP_RESOURCE_URIS = [
-  'codemaps://project/summary',
-  'codemaps://graph/full',
+const MCP_RESOURCES: McpStatusResourceDescriptor[] = [
+  {
+    uri: 'codemaps://project/summary',
+    title: 'Project Summary',
+    description: 'Краткая сводка по графу проекта: корень, количество узлов, связей и типы узлов.',
+  },
+  {
+    uri: 'codemaps://graph/full',
+    title: 'Full Graph',
+    description: 'Полный JSON-граф проекта для продвинутого анализа, клиентских интеграций и отладки.',
+  },
 ];
 
-const MCP_TOOL_NAMES = [
-  'analyze_project',
-  'get_graph_context',
-  'get_node_dependencies',
-  'get_blast_radius',
-  'get_health_score',
-  'detect_patterns',
-  'run_security_scan',
-  'search_graph',
-  'search_signatures',
+const MCP_TOOLS: McpStatusToolDescriptor[] = [
+  {
+    name: 'analyze_project',
+    title: 'Analyze Project',
+    description: 'Индексирует проект и загружает граф в CodeMaps.',
+  },
+  {
+    name: 'get_graph_context',
+    title: 'Get Graph Context',
+    description: 'Возвращает summary графа или полный graph payload.',
+  },
+  {
+    name: 'get_node_dependencies',
+    title: 'Get Node Dependencies',
+    description: 'Показывает входящие и исходящие связи конкретного узла.',
+  },
+  {
+    name: 'search_graph',
+    title: 'Search Graph',
+    description: 'Ищет узлы по label или id, при необходимости с фильтром по типу.',
+  },
+  {
+    name: 'get_blast_radius',
+    title: 'Get Blast Radius',
+    description: 'Считает прямое и транзитивное влияние изменений для выбранного узла.',
+  },
+  {
+    name: 'get_health_score',
+    title: 'Get Health Score',
+    description: 'Оценивает здоровье графа и архитектурные риски в виде score/grade.',
+  },
+  {
+    name: 'get_architecture_overview',
+    title: 'Get Architecture Overview',
+    description: 'Классифицирует слои, показывает межслоевые зависимости и boundary violations.',
+  },
+  {
+    name: 'detect_patterns',
+    title: 'Detect Patterns',
+    description: 'Ищет hotspot-ы, fan-in/fan-out проблемы и архитектурные anti-pattern candidates.',
+  },
+  {
+    name: 'run_security_scan',
+    title: 'Run Security Scan',
+    description: 'Сканирует индексированные файлы на рискованные и подозрительные паттерны.',
+  },
+  {
+    name: 'search_signatures',
+    title: 'Search Signatures',
+    description: 'Ищет declaration-like сигнатуры по исходникам и символам.',
+  },
 ];
 
 const normalizePath = (value?: string) => value?.replace(/\\/g, '/');
@@ -130,6 +194,7 @@ const createMcpServer = () => {
   const patternDetectionAnalyzer = new PatternDetectionAnalyzer();
   const securityScanner = new SecurityScanner();
   const signatureSearchService = new SignatureSearchService();
+  const architectureInsightService = new ArchitectureInsightService();
 
   server.registerResource('project-summary', 'codemaps://project/summary', {
     title: 'Project Summary',
@@ -326,6 +391,33 @@ const createMcpServer = () => {
     };
   });
 
+  server.registerTool('get_architecture_overview', {
+    title: 'Get Architecture Overview',
+    description: 'Return architectural layer classification, cross-layer dependencies and boundary violations',
+    inputSchema: {
+      includeClassifications: z.boolean().optional().describe('When true, include per-node layer classifications'),
+    },
+  }, async ({ includeClassifications = false }) => {
+    const graph = await ensureGraphLoaded();
+    const overview = architectureInsightService.analyze(graph);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: createTextContent({
+            status: 'ok',
+            architecture: includeClassifications ? overview : {
+              layers: overview.layers,
+              dependencies: overview.dependencies,
+              violations: overview.violations,
+              summary: overview.summary,
+            },
+          }),
+        },
+      ],
+    };
+  });
+
   server.registerTool('detect_patterns', {
     title: 'Detect Patterns',
     description: 'Detect architectural hotspots and anti-pattern candidates in the graph',
@@ -415,8 +507,10 @@ const getMcpStatusInternal = (): McpStatus => {
     path: MCP_PATH,
     endpoint: MCP_HTTP_URL,
     websocketUrl: MCP_WS_URL,
-    resources: MCP_RESOURCE_URIS,
-    tools: MCP_TOOL_NAMES,
+    resources: MCP_RESOURCES.map((resource) => resource.uri),
+    tools: MCP_TOOLS.map((tool) => tool.name),
+    resourceDetails: MCP_RESOURCES,
+    toolDetails: MCP_TOOLS,
     projectRoot: graph.projectRoot || null,
     nodesCount: graph.nodes.length,
     linksCount: graph.links.length,

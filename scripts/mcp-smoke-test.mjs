@@ -70,6 +70,12 @@ try {
   });
   console.log('[MCP] get_health_score:', JSON.stringify(parseFirstTextPayload(healthScore, 'get_health_score'), null, 2));
 
+  const architectureOverview = await client.callTool({
+    name: 'get_architecture_overview',
+    arguments: {},
+  });
+  console.log('[MCP] get_architecture_overview:', JSON.stringify(parseFirstTextPayload(architectureOverview, 'get_architecture_overview'), null, 2));
+
   const patterns = await client.callTool({
     name: 'detect_patterns',
     arguments: {

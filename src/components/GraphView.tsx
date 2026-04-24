@@ -1,11 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { useStore } from '../store/useStore';
 import { FilterPanel } from './FilterPanel';
 import { runLayout, LayoutNode } from '../utils/layoutEngine';
+import type { GraphData, GraphNode } from '../types/graph';
+
+const resolveVisibleNodeId = (
+  selectedNode: GraphNode | null,
+  layoutNodes: LayoutNode[],
+  graphData: GraphData
+) => {
+  if (!selectedNode) {
+    return null;
+  }
+
+  const visibleNodeIds = new Set(layoutNodes.map((node) => node.id));
+  const nodeIndex = new Map(graphData.nodes.map((node) => [node.id, node]));
+  let currentId: string | undefined = selectedNode.id;
+
+  while (currentId && !visibleNodeIds.has(currentId)) {
+    currentId = nodeIndex.get(currentId)?.parentId;
+  }
+
+  return currentId || null;
+};
 
 export const GraphView: React.FC = () => {
-  const { graphData, error, filters, layoutData, setLayoutData, setSelectedNode, selectedNode } = useStore();
+  const {
+    graphData,
+    error,
+    filters,
+    layoutMode,
+    layoutData,
+    setLayoutData,
+    setSelectedNode,
+    selectedNode,
+  } = useStore();
   const [isCalculating, setIsCalculating] = useState(false);
 
   useEffect(() => {
@@ -13,7 +43,7 @@ export const GraphView: React.FC = () => {
     let isMounted = true;
 
     setIsCalculating(true);
-    runLayout(graphData, filters).then(res => {
+    runLayout(graphData, filters, layoutMode, selectedNode?.id).then(res => {
       if (isMounted) {
         setLayoutData(res);
         setIsCalculating(false);
@@ -26,7 +56,34 @@ export const GraphView: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [graphData, filters]);
+  }, [graphData, filters, layoutMode, selectedNode?.id]);
+
+  const graphInsights = useMemo(() => {
+    if (!graphData || !layoutData) {
+      return null;
+    }
+
+    const selectedVisibleId = resolveVisibleNodeId(selectedNode, layoutData.nodes, graphData);
+    const connectedEdges = selectedVisibleId
+      ? layoutData.edges.filter((edge) => edge.sourceId === selectedVisibleId || edge.targetId === selectedVisibleId)
+      : [];
+    const relatedNodeIds = new Set<string>(selectedVisibleId ? [selectedVisibleId] : []);
+    connectedEdges.forEach((edge) => {
+      relatedNodeIds.add(edge.sourceId);
+      relatedNodeIds.add(edge.targetId);
+    });
+
+    const incomingCount = connectedEdges.filter((edge) => edge.targetId === selectedVisibleId).length;
+    const outgoingCount = connectedEdges.filter((edge) => edge.sourceId === selectedVisibleId).length;
+
+    return {
+      selectedVisibleId,
+      connectedEdges,
+      relatedNodeIds,
+      incomingCount,
+      outgoingCount,
+    };
+  }, [graphData, layoutData, selectedNode]);
 
   if (error) {
     return (
@@ -51,6 +108,20 @@ export const GraphView: React.FC = () => {
           Перерасчет графа...
         </div>
       )}
+      <div style={{ position: 'absolute', top: 10, left: 10, color: 'var(--t1)', zIndex: 10, background: 'var(--bg1)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 12, width: 'min(420px, calc(100% - 260px))' }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+          Режим: {layoutMode === 'hierarchy' ? 'Иерархия' : 'Зависимости'}
+        </div>
+        <div style={{ color: 'var(--t2)', lineHeight: 1.4 }}>
+          {layoutMode === 'hierarchy'
+            ? (graphInsights?.selectedVisibleId
+              ? `Показываются связи относительно выбранного узла: входящие ${graphInsights.incomingCount}, исходящие ${graphInsights.outgoingCount}.`
+              : 'Выбери файл, класс или функцию, чтобы увидеть понятные входящие и исходящие зависимости внутри иерархии.')
+            : (graphInsights?.selectedVisibleId
+              ? `Показывается сфокусированный dependency-subgraph вокруг выбранного узла: входящие ${graphInsights.incomingCount}, исходящие ${graphInsights.outgoingCount}.`
+              : 'Показывается обзор на уровне файлов и ADR. Выбери узел на графе или в дереве, чтобы сфокусироваться на его соседях.')}
+        </div>
+      </div>
       
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <TransformWrapper
@@ -79,9 +150,17 @@ export const GraphView: React.FC = () => {
                     </marker>
                   </defs>
                   {layoutData.edges.map(edge => {
+                    const isConnectedToSelection = graphInsights?.selectedVisibleId
+                      ? edge.sourceId === graphInsights.selectedVisibleId || edge.targetId === graphInsights.selectedVisibleId
+                      : false;
+                    if (layoutMode === 'hierarchy' && graphInsights?.selectedVisibleId && !isConnectedToSelection) {
+                      return null;
+                    }
+
                     const isAdr = edge.data.type === 'adr';
-                    const strokeColor = isAdr ? 'var(--purple)' : 'var(--t3)';
-                    const strokeWidth = isAdr ? 3 : 1.5;
+                    const isImport = edge.data.type === 'import';
+                    const strokeColor = isAdr ? 'var(--purple)' : isImport ? 'rgba(255,255,255,0.75)' : 'var(--t3)';
+                    const strokeWidth = isConnectedToSelection ? (isAdr ? 3.5 : 2.4) : (isAdr ? 2.4 : 1.2);
                     const strokeDasharray = isAdr ? '5,5' : 'none';
                     const marker = isAdr ? 'url(#arrowhead-adr)' : 'url(#arrowhead)';
 
@@ -103,7 +182,7 @@ export const GraphView: React.FC = () => {
                         strokeWidth={strokeWidth}
                         strokeDasharray={strokeDasharray}
                         markerEnd={marker}
-                        opacity={0.6}
+                        opacity={graphInsights?.selectedVisibleId ? (isConnectedToSelection ? 0.95 : 0.08) : (layoutMode === 'dependencies' ? 0.5 : 0.18)}
                       />
                     );
                   })}
@@ -114,6 +193,16 @@ export const GraphView: React.FC = () => {
                   <NodeComponent 
                     key={node.id} 
                     node={node} 
+                    layoutMode={layoutMode}
+                    emphasis={
+                      graphInsights?.selectedVisibleId
+                        ? (selectedNode?.id === node.id || graphInsights.selectedVisibleId === node.id
+                          ? 'selected'
+                          : graphInsights.relatedNodeIds.has(node.id)
+                            ? 'related'
+                            : 'muted')
+                        : 'default'
+                    }
                     isSelected={selectedNode?.id === node.id}
                     onClick={() => setSelectedNode(node.data)}
                   />
@@ -128,13 +217,13 @@ export const GraphView: React.FC = () => {
   );
 };
 
-const NodeComponent: React.FC<{ node: LayoutNode; isSelected: boolean; onClick: () => void }> = ({ node, isSelected, onClick }) => {
+const NodeComponent: React.FC<{ node: LayoutNode; layoutMode: 'hierarchy' | 'dependencies'; emphasis: 'selected' | 'related' | 'muted' | 'default'; isSelected: boolean; onClick: () => void }> = ({ node, layoutMode, emphasis, isSelected, onClick }) => {
   const { type, label, churn } = node.data;
   
   let bgColor = 'var(--bg2)';
   let border = isSelected ? '2px solid var(--acc)' : '1px solid var(--border)';
   let borderRadius = '6px';
-  let isContainer = false;
+  const isContainer = node.isContainer;
   let textColor = 'var(--t0)';
   let boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
   let labelBackground = 'transparent';
@@ -142,24 +231,33 @@ const NodeComponent: React.FC<{ node: LayoutNode; isSelected: boolean; onClick: 
   if (type === 'project') {
     bgColor = 'rgba(167, 139, 250, 0.08)';
     border = isSelected ? '2px solid var(--purple)' : '2px solid rgba(167, 139, 250, 0.45)';
-    isContainer = true;
     textColor = 'var(--purple)';
     boxShadow = 'inset 0 0 0 1px rgba(167, 139, 250, 0.15)';
     labelBackground = 'rgba(167, 139, 250, 0.16)';
   } else if (type === 'directory') {
-    bgColor = 'rgba(77, 159, 255, 0.08)';
-    border = isSelected ? '2px solid var(--blue)' : '2px solid rgba(77, 159, 255, 0.45)';
-    isContainer = true;
-    textColor = 'var(--blue)';
-    boxShadow = 'inset 0 0 0 1px rgba(77, 159, 255, 0.12)';
-    labelBackground = 'rgba(77, 159, 255, 0.14)';
+    if (isContainer) {
+      bgColor = 'rgba(77, 159, 255, 0.08)';
+      border = isSelected ? '2px solid var(--blue)' : '2px solid rgba(77, 159, 255, 0.45)';
+      textColor = 'var(--blue)';
+      boxShadow = 'inset 0 0 0 1px rgba(77, 159, 255, 0.12)';
+      labelBackground = 'rgba(77, 159, 255, 0.14)';
+    } else {
+      bgColor = 'rgba(77, 159, 255, 0.14)';
+      border = isSelected ? '2px solid var(--blue)' : '1px solid rgba(77, 159, 255, 0.45)';
+      textColor = 'var(--blue)';
+    }
   } else if (type === 'file') {
-    bgColor = 'rgba(34, 197, 94, 0.07)';
-    border = isSelected ? '2px solid var(--green)' : '1px solid rgba(34, 197, 94, 0.35)';
-    isContainer = true;
-    textColor = 'var(--green)';
-    boxShadow = 'inset 0 0 0 1px rgba(34, 197, 94, 0.08)';
-    labelBackground = 'rgba(34, 197, 94, 0.12)';
+    if (isContainer) {
+      bgColor = 'rgba(34, 197, 94, 0.07)';
+      border = isSelected ? '2px solid var(--green)' : '1px solid rgba(34, 197, 94, 0.35)';
+      textColor = 'var(--green)';
+      boxShadow = 'inset 0 0 0 1px rgba(34, 197, 94, 0.08)';
+      labelBackground = 'rgba(34, 197, 94, 0.12)';
+    } else {
+      bgColor = 'rgba(34, 197, 94, 0.14)';
+      border = isSelected ? '2px solid var(--green)' : '1px solid rgba(34, 197, 94, 0.45)';
+      textColor = 'var(--green)';
+    }
   } else if (type === 'class') {
     bgColor = 'var(--orange)';
     border = isSelected ? '2px solid #fff' : '1px solid var(--orange)';
@@ -178,9 +276,21 @@ const NodeComponent: React.FC<{ node: LayoutNode; isSelected: boolean; onClick: 
   }
 
   // Churn override
-  if (churn && churn > 5 && !isContainer) {
+  if (churn && churn > 5 && (!isContainer || layoutMode === 'dependencies')) {
     border = '2px dashed var(--red)';
   }
+
+  const opacity = emphasis === 'muted' ? 0.24 : 1;
+  const nodeTransform = emphasis === 'selected'
+    ? 'scale(1.03)'
+    : emphasis === 'related'
+      ? 'scale(1.01)'
+      : 'scale(1)';
+  const computedBoxShadow = emphasis === 'selected'
+    ? `0 0 0 1px var(--acc), 0 10px 28px rgba(0,0,0,0.55)`
+    : emphasis === 'related'
+      ? `0 0 0 1px rgba(255,255,255,0.14), ${boxShadow}`
+      : (isContainer ? boxShadow : '0 2px 8px rgba(0,0,0,0.4)');
 
   return (
     <div
@@ -208,18 +318,20 @@ const NodeComponent: React.FC<{ node: LayoutNode; isSelected: boolean; onClick: 
         fontWeight: isContainer ? '600' : 'normal',
         fontFamily: 'var(--font-family)',
         pointerEvents: 'auto',
-        boxShadow: isContainer ? boxShadow : '0 2px 8px rgba(0,0,0,0.4)',
         overflow: 'hidden',
         cursor: 'pointer',
         zIndex: isContainer ? 0 : 2,
-        transition: 'border 0.2s ease, box-shadow 0.2s ease, transform 0.1s'
+        transition: 'border 0.2s ease, box-shadow 0.2s ease, transform 0.1s, opacity 0.2s ease',
+        opacity,
+        transform: nodeTransform,
+        boxShadow: computedBoxShadow,
       }}
       title={label}
       onMouseEnter={(e) => {
-        if (!isContainer) e.currentTarget.style.transform = 'scale(1.05)';
+        if (!isContainer) e.currentTarget.style.transform = emphasis === 'selected' ? 'scale(1.06)' : 'scale(1.05)';
       }}
       onMouseLeave={(e) => {
-        if (!isContainer) e.currentTarget.style.transform = 'scale(1)';
+        if (!isContainer) e.currentTarget.style.transform = nodeTransform;
       }}
     >
       <div style={{

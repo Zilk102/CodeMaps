@@ -1,5 +1,6 @@
 import { GraphData } from '../store';
 import { buildGraphAdjacency, hasKnownParent, shouldHaveDirectoryParent } from './graphAnalysisUtils';
+import { ArchitectureInsightService } from './ArchitectureInsightService';
 
 export interface HealthScoreIssue {
   code: string;
@@ -18,12 +19,15 @@ export interface HealthScoreResult {
     orphanNodes: number;
     unresolvedImportLinks: number;
     directoryCoverageRatio: number;
+    architectureViolations: number;
+    unknownLayerNodes: number;
   };
   issues: HealthScoreIssue[];
 }
 
 export class HealthScoreAnalyzer {
   analyze(graph: GraphData): HealthScoreResult {
+    const architecture = new ArchitectureInsightService().analyze(graph);
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
     const fileNodes = graph.nodes.filter((node) => node.type === 'file');
     const symbolNodes = graph.nodes.filter((node) => node.id.includes('#'));
@@ -109,6 +113,24 @@ export class HealthScoreAnalyzer {
       score -= 25;
     }
 
+    if (architecture.summary.violationCount > 0) {
+      issues.push({
+        code: 'architecture_violations',
+        severity: architecture.summary.violationCount > 10 ? 'high' : 'medium',
+        message: `Обнаружено ${architecture.summary.violationCount} нарушений межслоевых зависимостей.`,
+      });
+      score -= Math.min(20, architecture.summary.violationCount * 2);
+    }
+
+    if (architecture.summary.unknownNodes > 0) {
+      issues.push({
+        code: 'unknown_layer_nodes',
+        severity: architecture.summary.unknownNodes > 25 ? 'medium' : 'low',
+        message: `Для ${architecture.summary.unknownNodes} узлов не удалось определить архитектурный слой.`,
+      });
+      score -= Math.min(10, Math.ceil(architecture.summary.unknownNodes / 10));
+    }
+
     score = Math.max(0, Math.min(100, score));
 
     return {
@@ -122,6 +144,8 @@ export class HealthScoreAnalyzer {
         orphanNodes: orphanNodes.length,
         unresolvedImportLinks,
         directoryCoverageRatio,
+        architectureViolations: architecture.summary.violationCount,
+        unknownLayerNodes: architecture.summary.unknownNodes,
       },
       issues,
     };

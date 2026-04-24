@@ -1,36 +1,6 @@
 import { create } from 'zustand';
-import { LayoutResult } from '../utils/layoutEngine';
-
-export interface GraphNode {
-  id: string;
-  label: string;
-  group: number;
-  type: string;
-  churn?: number;
-  adr?: string;
-  parentId?: string; // Слой Иерархии
-  exports?: Array<{
-    exportedName: string;
-    localName?: string;
-    isDefault?: boolean;
-  }>;
-  x?: number;
-  y?: number;
-  z?: number;
-}
-
-export interface GraphLink {
-  source: string | GraphNode;
-  target: string | GraphNode;
-  value: number;
-  type?: 'structure' | 'import' | 'adr' | 'entity';
-}
-
-export interface GraphData {
-  projectRoot: string;
-  nodes: GraphNode[];
-  links: GraphLink[];
-}
+import type { LayoutResult } from '../utils/layoutEngine';
+import type { GraphData, GraphFilters, GraphNode, LayoutMode } from '../types/graph';
 
 interface StoreState {
   graphData: GraphData | null;
@@ -42,15 +12,10 @@ interface StoreState {
   parsingProgress: { status: string; current: number; total: number; filename: string } | null;
   
   // Filters
-  filters: {
-    showDirectories: boolean;
-    showFiles: boolean;
-    showFunctions: boolean;
-    showClasses: boolean;
-    showADR: boolean;
-    showEdges: boolean;
-  };
-  setFilter: (key: keyof StoreState['filters'], value: boolean) => void;
+  filters: GraphFilters;
+  layoutMode: LayoutMode;
+  setFilter: (key: keyof GraphFilters, value: boolean) => void;
+  setLayoutMode: (mode: LayoutMode) => void;
 
   fetchGraph: (path?: string) => Promise<void>;
   setSelectedNode: (node: GraphNode | null) => void;
@@ -88,7 +53,9 @@ export const useStore = create<StoreState>((set, get) => {
       showADR: true,
       showEdges: true,
     },
+    layoutMode: 'hierarchy',
     setFilter: (key, value) => set((state) => ({ filters: { ...state.filters, [key]: value } })),
+    setLayoutMode: (mode) => set({ layoutMode: mode }),
 
     setMcpSettingsOpen: (isOpen) => set({ isMcpSettingsOpen: isOpen }),
     setLayoutData: (data) => set({ layoutData: data }),

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { useStore, GraphNode } from '../store/useStore';
+import { useStore } from '../store/useStore';
+import type { GraphNode } from '../types/graph';
 
 interface TreeNode {
   name: string;

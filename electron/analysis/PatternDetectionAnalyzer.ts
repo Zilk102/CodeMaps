@@ -1,5 +1,6 @@
 import { GraphData, GraphNode } from '../store';
 import { buildGraphAdjacency, getHierarchyDepth, hasKnownParent } from './graphAnalysisUtils';
+import { ArchitectureInsightService } from './ArchitectureInsightService';
 
 export interface DetectedPattern {
   id: string;
@@ -15,6 +16,7 @@ export interface PatternDetectionResult {
 
 export class PatternDetectionAnalyzer {
   analyze(graph: GraphData): PatternDetectionResult {
+    const architecture = new ArchitectureInsightService().analyze(graph);
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
     const patterns: DetectedPattern[] = [];
 
@@ -122,6 +124,30 @@ export class PatternDetectionAnalyzer {
         title: 'Isolated Files',
         description: 'Файлы не участвуют ни в зависимостях, ни в иерархических группах; проверьте игнор-листы, парсинг или фактическую связность проекта.',
         nodeIds: isolatedFiles.map((node) => node.id),
+      });
+    }
+
+    if (architecture.violations.length > 0) {
+      patterns.push({
+        id: 'layer_violations',
+        severity: architecture.violations.length > 10 ? 'high' : 'medium',
+        title: 'Layer Violations',
+        description: 'Обнаружены зависимости, нарушающие ожидаемые архитектурные границы между слоями.',
+        nodeIds: architecture.violations.slice(0, 15).flatMap((violation) => [violation.sourceId, violation.targetId]),
+      });
+    }
+
+    const unknownLayerNodes = architecture.classifications
+      .filter((record) => record.layer === 'unknown')
+      .slice(0, 15);
+
+    if (unknownLayerNodes.length >= 5) {
+      patterns.push({
+        id: 'unknown_layer_classification',
+        severity: 'low',
+        title: 'Unknown Architecture Layer',
+        description: 'Часть узлов не укладывается в архитектурную модель, из-за чего ИИ и инструменты теряют структурное понимание системы.',
+        nodeIds: unknownLayerNodes.map((record) => record.nodeId),
       });
     }
 

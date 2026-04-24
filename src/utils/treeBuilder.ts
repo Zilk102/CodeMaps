@@ -1,4 +1,4 @@
-import { GraphNode } from '../store/useStore';
+import type { GraphNode } from '../types/graph';
 
 export interface TreeNode {
   data: GraphNode;
