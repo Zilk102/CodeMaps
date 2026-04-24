@@ -97,6 +97,7 @@ export class OracleService extends EventEmitter {
       }
     );
 
+    this.emitGraphUpdated();
     setTimeout(() => this.emit('parsing-progress', null), 2000);
     return this.graphRepository.getGraph();
   }
