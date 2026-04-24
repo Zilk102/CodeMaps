@@ -10,6 +10,11 @@ import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { oracle } from './oracle';
 import { GraphData, GraphLink, GraphNode, oracleStore } from './store';
+import { BlastRadiusAnalyzer } from './analysis/BlastRadiusAnalyzer';
+import { HealthScoreAnalyzer } from './analysis/HealthScoreAnalyzer';
+import { PatternDetectionAnalyzer } from './analysis/PatternDetectionAnalyzer';
+import { SecurityScanner } from './analysis/SecurityScanner';
+import { SignatureSearchService } from './analysis/SignatureSearchService';
 
 const MCP_HOST = '127.0.0.1';
 const MCP_PORT = 3005;
@@ -52,13 +57,18 @@ const MCP_TOOL_NAMES = [
   'analyze_project',
   'get_graph_context',
   'get_node_dependencies',
+  'get_blast_radius',
+  'get_health_score',
+  'detect_patterns',
+  'run_security_scan',
   'search_graph',
+  'search_signatures',
 ];
 
 const normalizePath = (value?: string) => value?.replace(/\\/g, '/');
 
 const getGraphSnapshot = (): GraphData => {
-  return oracleStore.getState().getValidGraph();
+  return oracle.getGraph();
 };
 
 const getGraphCountsByType = (graph: GraphData) => {
@@ -83,7 +93,7 @@ const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
     return oracle.analyzeProject(targetPath);
   }
 
-  return state.getValidGraph();
+  return oracle.getGraph();
 };
 
 const getNodeDependencies = (graph: GraphData, nodeId: string) => {
@@ -115,6 +125,11 @@ const createMcpServer = () => {
       logging: {},
     },
   });
+  const blastRadiusAnalyzer = new BlastRadiusAnalyzer();
+  const healthScoreAnalyzer = new HealthScoreAnalyzer();
+  const patternDetectionAnalyzer = new PatternDetectionAnalyzer();
+  const securityScanner = new SecurityScanner();
+  const signatureSearchService = new SignatureSearchService();
 
   server.registerResource('project-summary', 'codemaps://project/summary', {
     title: 'Project Summary',
@@ -253,6 +268,141 @@ const createMcpServer = () => {
     };
   });
 
+  server.registerTool('get_blast_radius', {
+    title: 'Get Blast Radius',
+    description: 'Return direct and transitive impact for changing a node',
+    inputSchema: {
+      nodeId: z.string().describe('Exact node id from the graph'),
+      depth: z.number().int().min(1).max(20).optional().describe('Optional traversal depth limit'),
+    },
+  }, async ({ nodeId, depth }) => {
+    const graph = await ensureGraphLoaded();
+    const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+
+    if (!node) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: createTextContent({ status: 'error', message: `Node not found: ${nodeId}` }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const blastRadius = blastRadiusAnalyzer.analyze(graph, nodeId, depth);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: createTextContent({
+            status: 'ok',
+            node,
+            blastRadius,
+          }),
+        },
+      ],
+    };
+  });
+
+  server.registerTool('get_health_score', {
+    title: 'Get Health Score',
+    description: 'Compute structural graph health metrics and an overall score',
+    inputSchema: {},
+  }, async () => {
+    const graph = await ensureGraphLoaded();
+    const health = healthScoreAnalyzer.analyze(graph);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: createTextContent({
+            status: 'ok',
+            health,
+          }),
+        },
+      ],
+    };
+  });
+
+  server.registerTool('detect_patterns', {
+    title: 'Detect Patterns',
+    description: 'Detect architectural hotspots and anti-pattern candidates in the graph',
+    inputSchema: {
+      limit: z.number().int().min(1).max(100).optional().describe('Optional maximum number of patterns to return'),
+    },
+  }, async ({ limit = 20 }) => {
+    const graph = await ensureGraphLoaded();
+    const result = patternDetectionAnalyzer.analyze(graph);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: createTextContent({
+            status: 'ok',
+            count: Math.min(result.patterns.length, limit),
+            patterns: result.patterns.slice(0, limit),
+          }),
+        },
+      ],
+    };
+  });
+
+  server.registerTool('run_security_scan', {
+    title: 'Run Security Scan',
+    description: 'Scan indexed source files for high-risk patterns and suspicious artifacts',
+    inputSchema: {
+      limit: z.number().int().min(1).max(500).optional().describe('Optional maximum number of findings to return'),
+    },
+  }, async ({ limit = 100 }) => {
+    const graph = await ensureGraphLoaded();
+    const scan = await securityScanner.analyze(graph);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: createTextContent({
+            status: 'ok',
+            summary: scan.summary,
+            findings: scan.findings.slice(0, limit),
+          }),
+        },
+      ],
+    };
+  });
+
+  server.registerTool('search_signatures', {
+    title: 'Search Signatures',
+    description: 'Search declaration-like code signatures across indexed source files',
+    inputSchema: {
+      query: z.string().describe('Text or regex pattern to search in declaration signatures'),
+      type: z.string().optional().describe('Optional symbol type filter such as function or class'),
+      limit: z.number().int().min(1).max(100).optional().describe('Maximum number of matches to return'),
+      caseSensitive: z.boolean().optional().describe('Enable case-sensitive matching'),
+      regex: z.boolean().optional().describe('Treat query as a regular expression'),
+    },
+  }, async ({ query, type, limit = 20, caseSensitive = false, regex = false }) => {
+    const graph = await ensureGraphLoaded();
+    const result = await signatureSearchService.search(graph, query, {
+      type,
+      limit,
+      caseSensitive,
+      regex,
+    });
+    return {
+      content: [
+        {
+          type: 'text',
+          text: createTextContent({
+            status: 'ok',
+            ...result,
+          }),
+        },
+      ],
+    };
+  });
+
   return server;
 };
 
@@ -334,7 +484,7 @@ export function setupMcpServer() {
     if (state.baseDir) {
       ws.send(JSON.stringify({
         type: 'graph-updated',
-        payload: state.getValidGraph(),
+        payload: oracle.getGraph(),
       }));
     }
 
@@ -430,8 +580,7 @@ export function setupMcpServer() {
   app.delete(MCP_PATH, handleMcpDelete);
 
   oracle.on('graph-updated', (graphData) => {
-    const state = oracleStore.getState();
-    const diff = state.getAndResetDiff();
+    const diff = oracleStore.getState().getAndResetDiff();
     const message = JSON.stringify({
       type: 'graph-diff',
       payload: {

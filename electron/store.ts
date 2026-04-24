@@ -40,6 +40,8 @@ export interface OracleState {
   nodes: Map<string, GraphNode>;
   links: GraphLink[];
   churnMap: Map<string, number>;
+  nodeRevision: number;
+  linkRevision: number;
   
   // Actions
   setBaseDir: (dir: string) => void;
@@ -71,6 +73,8 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
   nodes: new Map(),
   links: [],
   churnMap: new Map(),
+  nodeRevision: 0,
+  linkRevision: 0,
   pendingDiff: { nodesAdded: [], nodesRemoved: [], linksAdded: [], linksRemoved: [] },
 
   setBaseDir: (dir) => set({ baseDir: dir }),
@@ -82,6 +86,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     newNodes.set(node.id, node);
     return { 
       nodes: newNodes,
+      nodeRevision: state.nodeRevision + 1,
       pendingDiff: {
         ...state.pendingDiff,
         nodesAdded: [...state.pendingDiff.nodesAdded, node]
@@ -94,6 +99,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     newNodes.delete(id);
     return { 
       nodes: newNodes,
+      nodeRevision: state.nodeRevision + 1,
       pendingDiff: {
         ...state.pendingDiff,
         nodesRemoved: [...state.pendingDiff.nodesRemoved, id]
@@ -112,6 +118,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     }
     return { 
       nodes: newNodes,
+      nodeRevision: state.nodeRevision + 1,
       pendingDiff: {
         ...state.pendingDiff,
         nodesRemoved: [...state.pendingDiff.nodesRemoved, ...removed]
@@ -121,6 +128,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
 
   addLink: (link) => set((state) => ({
     links: [...state.links, link],
+    linkRevision: state.linkRevision + 1,
     pendingDiff: {
       ...state.pendingDiff,
       linksAdded: [...state.pendingDiff.linksAdded, link]
@@ -131,6 +139,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     const toRemove = state.links.filter(l => l.source === source);
     return {
       links: state.links.filter(l => l.source !== source),
+      linkRevision: state.linkRevision + 1,
       pendingDiff: {
         ...state.pendingDiff,
         linksRemoved: [...state.pendingDiff.linksRemoved, ...toRemove]
@@ -142,6 +151,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     const toRemove = state.links.filter(l => l.source === id || l.target === id);
     return {
       links: state.links.filter(l => l.source !== id && l.target !== id),
+      linkRevision: state.linkRevision + 1,
       pendingDiff: {
         ...state.pendingDiff,
         linksRemoved: [...state.pendingDiff.linksRemoved, ...toRemove]
@@ -197,14 +207,16 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
 
     const newNodes = new Map();
     normalizedNodes.forEach((n) => newNodes.set(n.id, n));
-    return { nodes: newNodes, links };
+    return { nodes: newNodes, links, nodeRevision: state.nodeRevision + 1, linkRevision: state.linkRevision + 1 };
   }),
 
   clear: () => set({
     baseDir: '',
     nodes: new Map(),
     links: [],
-    churnMap: new Map()
+    churnMap: new Map(),
+    nodeRevision: 0,
+    linkRevision: 0
   }),
 
   getValidGraph: () => {
