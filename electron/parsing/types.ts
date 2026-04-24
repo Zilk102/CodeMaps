@@ -1,9 +1,10 @@
 export type EntityType = 'class' | 'function';
-export type ParserEngine = 'tree-sitter' | 'markdown-adr';
+export type ParserEngine = 'tree-sitter' | 'markdown-adr' | 'typescript-semantic';
 
 export interface ImportRecord {
   path: string;
   importedEntities: string[];
+  resolvedPath?: string;
 }
 
 export interface EntityRecord {
@@ -11,10 +12,17 @@ export interface EntityRecord {
   name: string;
 }
 
+export interface ExportRecord {
+  exportedName: string;
+  localName?: string;
+  isDefault?: boolean;
+}
+
 export interface ParseResult {
   sizeExceeded: boolean;
   imports: ImportRecord[];
   entities: EntityRecord[];
+  exports: ExportRecord[];
   adr?: string;
   isMarkdownADR?: boolean;
   variables: string[];
@@ -49,4 +57,5 @@ export interface ProjectLanguageProfile {
 export interface ParseWorkerInput {
   filePath: string;
   activeLanguageIds?: string[];
+  baseDir?: string;
 }

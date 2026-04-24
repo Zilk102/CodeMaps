@@ -9,6 +9,11 @@ export interface GraphNode {
   churn?: number;
   adr?: string;
   parentId?: string; // Слой Иерархии
+  exports?: Array<{
+    exportedName: string;
+    localName?: string;
+    isDefault?: boolean;
+  }>;
   x?: number;
   y?: number;
   z?: number;

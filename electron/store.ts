@@ -8,6 +8,11 @@ export interface GraphNode {
   churn: number;
   adr?: string;
   parentId?: string; // Указатель на родительский элемент (Слой Иерархии)
+  exports?: Array<{
+    exportedName: string;
+    localName?: string;
+    isDefault?: boolean;
+  }>;
 }
 
 export interface GraphLink {
@@ -204,9 +209,38 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
 
   getValidGraph: () => {
     const state = get();
-    const possibleExts = ['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.js'];
+    const possibleExts = [
+      '.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs',
+      '/index.ts', '/index.tsx', '/index.js', '/index.jsx', '/index.mts', '/index.cts', '/index.mjs', '/index.cjs'
+    ];
     
     const validLinks: GraphLink[] = [];
+    const resolveSymbolTarget = (filePath: string, symbolName: string) => {
+      const fileNode = state.nodes.get(filePath);
+
+      if (state.nodes.has(`${filePath}#${symbolName}`)) {
+        return `${filePath}#${symbolName}`;
+      }
+
+      if (!fileNode?.exports?.length) {
+        return undefined;
+      }
+
+      const directExport = fileNode.exports.find((record) =>
+        record.exportedName === symbolName ||
+        (symbolName === 'default' && record.isDefault)
+      );
+
+      if (directExport?.localName && state.nodes.has(`${filePath}#${directExport.localName}`)) {
+        return `${filePath}#${directExport.localName}`;
+      }
+
+      if (directExport && state.nodes.has(`${filePath}#${directExport.exportedName}`)) {
+        return `${filePath}#${directExport.exportedName}`;
+      }
+
+      return undefined;
+    };
     
     state.links.forEach(l => {
       let resolvedTarget = l.target;
@@ -217,10 +251,21 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
           isValid = true;
         } else {
           const [filePath, entityName] = resolvedTarget.split('#');
+          const directResolvedSymbol = resolveSymbolTarget(filePath, entityName);
+          if (directResolvedSymbol) {
+            resolvedTarget = directResolvedSymbol;
+            isValid = true;
+          }
+
+          if (isValid) {
+            validLinks.push({ ...l, target: resolvedTarget });
+            return;
+          }
+
           for (const ext of possibleExts) {
-            const fullId = `${filePath}${ext}#${entityName}`;
-            if (state.nodes.has(fullId)) {
-              resolvedTarget = fullId;
+            const resolvedSymbol = resolveSymbolTarget(`${filePath}${ext}`, entityName);
+            if (resolvedSymbol) {
+              resolvedTarget = resolvedSymbol;
               isValid = true;
               break;
             }

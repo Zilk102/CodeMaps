@@ -92,6 +92,7 @@ export class OracleService extends EventEmitter {
       const result = await this.pool.run({
         filePath: normalizedPath,
         activeLanguageIds: this.projectLanguageProfile.activeLanguageIds,
+        baseDir,
       });
 
       if (!isInitial) {
@@ -118,7 +119,7 @@ export class OracleService extends EventEmitter {
         return;
       }
 
-      const { imports, entities, adr, isMarkdownADR } = result;
+      const { imports, entities, exports, adr, isMarkdownADR } = result;
 
       if (isMarkdownADR) {
         store.upsertNode({ 
@@ -140,6 +141,7 @@ export class OracleService extends EventEmitter {
         type: 'file', 
         churn, 
         adr,
+        exports,
         parentId: hasParent ? parentDir : undefined
       });
 
@@ -151,11 +153,29 @@ export class OracleService extends EventEmitter {
       }
 
       for (const imp of imports) {
-        const dir = path.dirname(normalizedPath);
-        const resolvedPath = path.resolve(dir, imp.path).replace(/\\/g, '/');
+        const isLikelyLocalSpecifier = imp.path.startsWith('.') || imp.path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(imp.path);
+        const resolvedPath = imp.resolvedPath
+          ? imp.resolvedPath.replace(/\\/g, '/')
+          : isLikelyLocalSpecifier
+            ? path.resolve(path.dirname(normalizedPath), imp.path).replace(/\\/g, '/')
+            : undefined;
+
+        if (!resolvedPath) {
+          continue;
+        }
         
         if (imp.importedEntities && imp.importedEntities.length > 0) {
           for (const entityName of imp.importedEntities) {
+            if (entityName === '*') {
+              store.addLink({
+                source: normalizedPath,
+                target: resolvedPath,
+                value: 1,
+                type: 'import'
+              });
+              continue;
+            }
+
             store.addLink({ 
               source: normalizedPath, 
               target: `${resolvedPath}#${entityName}`, 
@@ -196,7 +216,7 @@ export class OracleService extends EventEmitter {
 
         const cacheDir = path.join(app.getPath('userData'), 'codemaps-cache');
         const cacheKey = crypto.createHash('md5').update(baseDir).digest('hex');
-        const cacheFile = path.join(cacheDir, `${cacheKey}_v5.json`);
+        const cacheFile = path.join(cacheDir, `${cacheKey}_v6.json`);
 
         const stats: Record<string, number> = {};
         for (const [id, node] of store.nodes) {
@@ -250,7 +270,7 @@ export class OracleService extends EventEmitter {
       cwd: baseDir, 
       absolute: true,
       ignore: [
-        '**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**', 
+        '**/node_modules/**', '**/dist/**', '**/dist-electron/**', '**/build/**', '**/release/**', '**/.git/**', 
         '**/.idea/**', '**/.vscode/**', '**/venv/**', '**/__pycache__/**', '**/target/**',
         '**/out/**', '**/coverage/**', '**/tmp/**', '**/.*',
         '**/*.lock', '**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json',
@@ -271,7 +291,7 @@ export class OracleService extends EventEmitter {
     const cacheDir = path.join(app.getPath('userData'), 'codemaps-cache');
     await fs.mkdir(cacheDir, { recursive: true }).catch(() => {});
     const cacheKey = crypto.createHash('md5').update(baseDir).digest('hex');
-    const cacheFile = path.join(cacheDir, `${cacheKey}_v5.json`);
+    const cacheFile = path.join(cacheDir, `${cacheKey}_v6.json`);
 
     let cache: any = null;
     try {
@@ -344,6 +364,8 @@ export class OracleService extends EventEmitter {
         /(^|[\/\\])\../,
         /node_modules/,
         /dist/,
+        /dist-electron/,
+        /release/,
         /build/
       ],
       persistent: true,
@@ -352,14 +374,14 @@ export class OracleService extends EventEmitter {
 
     this.watcher
       .on('add', async (filePath: string) => {
-        if (filePath.includes('node_modules') || filePath.includes('.git')) return;
+        if (filePath.includes('node_modules') || filePath.includes('.git') || filePath.includes('dist-electron') || filePath.includes('release')) return;
         this.updateLanguageCount(filePath, 1);
         await this.processFile(filePath, baseDir, false);
         this.emit('graph-updated', oracleStore.getState().getValidGraph());
         this.saveCacheDebounced();
       })
       .on('change', async (filePath: string) => {
-        if (filePath.includes('node_modules') || filePath.includes('.git')) return;
+        if (filePath.includes('node_modules') || filePath.includes('.git') || filePath.includes('dist-electron') || filePath.includes('release')) return;
         await this.processFile(filePath, baseDir, false);
         this.emit('graph-updated', oracleStore.getState().getValidGraph());
         this.saveCacheDebounced();
@@ -376,7 +398,7 @@ export class OracleService extends EventEmitter {
         this.saveCacheDebounced();
       })
       .on('addDir', (dirPath: string) => {
-        if (dirPath.includes('node_modules') || dirPath.includes('.git')) return;
+        if (dirPath.includes('node_modules') || dirPath.includes('.git') || dirPath.includes('dist-electron') || dirPath.includes('release')) return;
         this.ensureDirectoryChainForFile(path.join(dirPath, '__placeholder__.ts').replace(/\\/g, '/'), baseDir);
         oracleStore.getState().removeLinksBySource(path.join(dirPath, '__placeholder__.ts').replace(/\\/g, '/'));
         this.emit('graph-updated', oracleStore.getState().getValidGraph());

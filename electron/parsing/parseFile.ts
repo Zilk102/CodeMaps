@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getLanguageByExtension } from './languageRegistry';
 import { extractMarkdownAdr } from './extractors/markdownAdrExtractor';
+import { extractWithTypeScriptSemantic } from './extractors/typescriptSemanticExtractor';
 import { extractWithTreeSitterQuery } from './extractors/treeSitterQueryExtractor';
 import { getParserInstance, loadTreeSitterLanguage } from './treeSitterRuntime';
 import { ParseResult, ParseWorkerInput } from './types';
@@ -12,6 +13,7 @@ const emptyResult = (detectedLanguage?: string, adr?: string): ParseResult => ({
   sizeExceeded: false,
   imports: [],
   entities: [],
+  exports: [],
   adr,
   variables: [],
   calls: [],
@@ -19,7 +21,7 @@ const emptyResult = (detectedLanguage?: string, adr?: string): ParseResult => ({
   detectedLanguage,
 });
 
-export const parseFile = async ({ filePath, activeLanguageIds }: ParseWorkerInput): Promise<ParseResult> => {
+export const parseFile = async ({ filePath, activeLanguageIds, baseDir }: ParseWorkerInput): Promise<ParseResult> => {
   const extension = path.extname(filePath).toLowerCase();
   const definition = getLanguageByExtension(extension);
 
@@ -43,8 +45,15 @@ export const parseFile = async ({ filePath, activeLanguageIds }: ParseWorkerInpu
       return extractMarkdownAdr(filePath, text);
     }
 
-    const adrMatch = text.match(/@adr\s+(.+)/i) || text.match(/ADR:\s+(.+)/i);
+    const adrMatch =
+      text.match(/^\s*(?:\/\/\s*|#\s*|\/\*\s*|\*\s*)@adr\s+(.+)$/im) ||
+      text.match(/^\s*(?:\/\/\s*|#\s*|\/\*\s*|\*\s*)ADR:\s+(.+)$/im);
     const adr = adrMatch ? adrMatch[1].trim() : undefined;
+
+    if (definition.parserEngine === 'typescript-semantic') {
+      return extractWithTypeScriptSemantic(filePath, text, definition, adr, baseDir);
+    }
+
 
     const parser = await getParserInstance();
     const language = await loadTreeSitterLanguage(definition);

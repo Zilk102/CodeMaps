@@ -5,7 +5,7 @@ const ALL_LANGUAGES: LanguageDefinition[] = [
   {
     id: 'javascript',
     displayName: 'JavaScript',
-    parserEngine: 'tree-sitter',
+    parserEngine: 'typescript-semantic',
     wasmName: 'javascript',
     extensions: ['.js', '.mjs', '.cjs', '.jsx'],
     query: languageQueries.javascript,
@@ -14,7 +14,7 @@ const ALL_LANGUAGES: LanguageDefinition[] = [
   {
     id: 'typescript',
     displayName: 'TypeScript',
-    parserEngine: 'tree-sitter',
+    parserEngine: 'typescript-semantic',
     wasmName: 'typescript',
     extensions: ['.ts', '.mts', '.cts'],
     query: languageQueries.typescript,
@@ -23,7 +23,7 @@ const ALL_LANGUAGES: LanguageDefinition[] = [
   {
     id: 'tsx',
     displayName: 'TSX',
-    parserEngine: 'tree-sitter',
+    parserEngine: 'typescript-semantic',
     wasmName: 'tsx',
     extensions: ['.tsx'],
     query: languageQueries.tsx,

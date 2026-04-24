@@ -16,6 +16,7 @@ export const extractWithTreeSitterQuery = (
 ): ParseResult => {
   const imports: ParseResult['imports'] = [];
   const entities: ParseResult['entities'] = [];
+  const exports: ParseResult['exports'] = [];
   const variables: string[] = [];
   const calls: string[] = [];
   const comments: string[] = [];
@@ -25,6 +26,7 @@ export const extractWithTreeSitterQuery = (
       sizeExceeded: false,
       imports,
       entities,
+      exports,
       adr,
       variables,
       calls,
@@ -106,6 +108,7 @@ export const extractWithTreeSitterQuery = (
     sizeExceeded: false,
     imports,
     entities,
+    exports,
     adr,
     variables,
     calls,
