@@ -14,7 +14,7 @@ const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
     width="16" height="16" viewBox="0 0 16 16" 
     style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.1s', minWidth: 16 }}
   >
-    <path d="M6 4L10 8L6 12" stroke="#cccccc" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -22,7 +22,7 @@ const FileIcon = ({ name, isDir, expanded }: { name: string, isDir: boolean, exp
   if (isDir) {
     return (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ minWidth: 16 }}>
-        <path d="M1.5 4.5C1.5 3.39543 2.39543 2.5 3.5 2.5H6.58579C6.851 2.5 7.10536 2.60536 7.29289 2.79289L8.70711 4.20711C8.89464 4.39464 9.149 4.5 9.41421 4.5H12.5C13.6046 4.5 14.5 5.39543 14.5 6.5V11.5C14.5 12.6046 13.6046 13.5 12.5 13.5H3.5C2.39543 13.5 1.5 12.6046 1.5 11.5V4.5Z" stroke="#D4D4D4" strokeWidth="1.2"/>
+        <path d="M1.5 4.5C1.5 3.39543 2.39543 2.5 3.5 2.5H6.58579C6.851 2.5 7.10536 2.60536 7.29289 2.79289L8.70711 4.20711C8.89464 4.39464 9.149 4.5 9.41421 4.5H12.5C13.6046 4.5 14.5 5.39543 14.5 6.5V11.5C14.5 12.6046 13.6046 13.5 12.5 13.5H3.5C2.39543 13.5 1.5 12.6046 1.5 11.5V4.5Z" stroke="currentColor" strokeWidth="1.2"/>
       </svg>
     );
   }
@@ -119,17 +119,25 @@ const FileTreeNode: React.FC<{
           padding: '4px 0',
           paddingLeft: `${level * 16}px`,
           cursor: 'pointer',
-          background: isSelected ? 'rgba(55, 55, 61, 1)' : 'transparent',
-          color: isSelected ? '#ffffff' : '#cccccc',
-          fontSize: '13px',
-          fontFamily: "'Segoe UI', Consolas, sans-serif",
-          userSelect: 'none'
+          background: isSelected ? 'var(--accbg)' : 'transparent',
+          color: isSelected ? 'var(--acc)' : 'var(--t1)',
+          fontSize: '11px',
+          fontFamily: "var(--font-family)",
+          userSelect: 'none',
+          borderRadius: '4px',
+          transition: 'background 0.15s, color 0.15s'
         }}
         onMouseEnter={(e) => {
-          if (!isSelected) e.currentTarget.style.background = 'rgba(42, 45, 46, 1)';
+          if (!isSelected) {
+            e.currentTarget.style.background = 'var(--hover)';
+            e.currentTarget.style.color = 'var(--t0)';
+          }
         }}
         onMouseLeave={(e) => {
-          if (!isSelected) e.currentTarget.style.background = 'transparent';
+          if (!isSelected) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--t1)';
+          }
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', width: 16, justifyContent: 'center', marginRight: 4 }}>
@@ -154,7 +162,7 @@ const FileTreeNode: React.FC<{
             top: 0,
             bottom: 0,
             width: '1px',
-            background: 'rgba(255, 255, 255, 0.1)',
+            background: 'var(--border)',
             zIndex: 1
           }} />
           
@@ -239,24 +247,22 @@ export const FileTree: React.FC = () => {
   return (
     <div style={{ 
       width: '100%', 
-      background: '#181818', 
+      background: 'var(--bg1)', 
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      borderRight: '1px solid #2d2d2d',
-      color: '#cccccc',
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      color: 'var(--t1)',
+      fontFamily: 'var(--font-family)'
     }}>
-      <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>
+        <h2 style={{ margin: 0, fontSize: '9px', fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '1px' }}>
           Проводник
         </h2>
-        <span style={{ cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>...</span>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px' }} className="sidebar-scroll">
         {error ? (
-          <div style={{ color: '#f44336', fontSize: 13, padding: '10px', background: 'rgba(244, 67, 54, 0.1)' }}>
+          <div style={{ color: 'var(--red)', fontSize: 11, padding: '10px', background: 'rgba(255, 95, 95, 0.1)', borderRadius: 6 }}>
             {error}
           </div>
         ) : tree ? (
@@ -265,7 +271,7 @@ export const FileTree: React.FC = () => {
             <div 
               style={{ 
                 display: 'flex', alignItems: 'center', padding: '4px 10px', cursor: 'pointer',
-                fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' 
+                fontWeight: '600', fontSize: '10px', textTransform: 'uppercase', color: 'var(--t2)'
               }}
               onClick={() => toggleFolder('root_folder')}
             >

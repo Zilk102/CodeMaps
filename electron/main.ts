@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
-import { setupMcpServer } from './mcp';
-import { analyzeProject } from './ast';
+import { getMcpStatus, setupMcpServer } from './mcp';
+import { oracle } from './oracle';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -67,9 +67,26 @@ ipcMain.handle('select-directory', async () => {
 
 ipcMain.handle('analyze-project', async (_, projectPath: string) => {
   try {
-    const data = await analyzeProject(projectPath || process.cwd(), mainWindow!);
+    const data = await oracle.analyzeProject(projectPath || process.cwd());
     return { success: true, data };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('mcp-status', () => {
+  return getMcpStatus();
+});
+
+// Проксируем события Оракула в UI
+oracle.on('parsing-progress', (progress) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('parsing-progress', progress);
+  }
+});
+
+oracle.on('graph-updated', (graphData) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('graph-updated', graphData);
   }
 });

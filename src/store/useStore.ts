@@ -1,12 +1,14 @@
 import { create } from 'zustand';
+import { LayoutResult } from '../utils/layoutEngine';
 
 export interface GraphNode {
   id: string;
   label: string;
   group: number;
   type: string;
-  churn: number;
+  churn?: number;
   adr?: string;
+  parentId?: string; // Слой Иерархии
   x?: number;
   y?: number;
   z?: number;
@@ -27,6 +29,7 @@ export interface GraphData {
 
 interface StoreState {
   graphData: GraphData | null;
+  layoutData: LayoutResult | null;
   selectedNode: GraphNode | null;
   selectedPath: string | null;
   isLoading: boolean;
@@ -49,17 +52,22 @@ interface StoreState {
   setSelectedPath: (path: string | null) => void;
   openProject: () => Promise<void>;
   initializeWatcher: () => void;
+  initializeWebSocket: () => void;
   setParsingProgress: (progress: { status: string; current: number; total: number; filename: string } | null) => void;
   closeProject: () => void;
   isMcpSettingsOpen: boolean;
   setMcpSettingsOpen: (isOpen: boolean) => void;
+  setLayoutData: (data: LayoutResult | null) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => {
   let isWatcherInitialized = false;
+  let isWsInitialized = false;
+  let ws: WebSocket | null = null;
 
   return {
     graphData: null,
+    layoutData: null,
     selectedNode: null,
     selectedPath: null,
     isLoading: false,
@@ -78,8 +86,9 @@ export const useStore = create<StoreState>((set, get) => {
     setFilter: (key, value) => set((state) => ({ filters: { ...state.filters, [key]: value } })),
 
     setMcpSettingsOpen: (isOpen) => set({ isMcpSettingsOpen: isOpen }),
+    setLayoutData: (data) => set({ layoutData: data }),
     setParsingProgress: (progress) => set({ parsingProgress: progress }),
-    closeProject: () => set({ graphData: null, selectedNode: null, selectedPath: null }),
+    closeProject: () => set({ graphData: null, layoutData: null, selectedNode: null, selectedPath: null }),
     
     initializeWatcher: () => {
       if (isWatcherInitialized) return;
@@ -94,6 +103,46 @@ export const useStore = create<StoreState>((set, get) => {
           set({ parsingProgress: progress });
         });
       }
+    },
+
+    initializeWebSocket: () => {
+      if (isWsInitialized) return;
+      isWsInitialized = true;
+
+      const connect = () => {
+        ws = new WebSocket('ws://localhost:3005');
+
+        ws.onopen = () => {
+          console.log('[WS] Connected to Oracle server');
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'graph-updated') {
+              set({ graphData: data.payload });
+            } else if (data.type === 'graph-diff') {
+              // Инкрементальное обновление (diff)
+              const { graph, diff } = data.payload;
+              // Для простоты и гарантии консистентности UI пока принимаем полный граф
+              // Но архитектурно мы готовы обрабатывать только diff, если граф станет гигантским
+              set({ graphData: graph });
+            } else if (data.type === 'parsing-progress') {
+              set({ parsingProgress: data.payload });
+            }
+          } catch (e) {
+            console.error('Failed to parse WS message', e);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('[WS] Disconnected. Reconnecting in 3s...');
+          isWsInitialized = false;
+          setTimeout(connect, 3000);
+        };
+      };
+
+      connect();
     },
 
     fetchGraph: async (path?: string) => {

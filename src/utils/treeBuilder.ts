@@ -11,40 +11,25 @@ export const buildTree = (
 ): TreeNode[] => {
   if (!graphData) return [];
 
-  const parentMap = new Map<string, string>();
-  const nodeIds = new Set(graphData.nodes.map(n => n.id));
-
-  // 1. Извлекаем связи вложенности
-  graphData.links.forEach(link => {
-    if (link.type === 'structure' || link.type === 'entity') {
-      const source = typeof link.source === 'string' ? link.source : (link.source as any).id;
-      const target = typeof link.target === 'string' ? link.target : (link.target as any).id;
-      if (nodeIds.has(source) && nodeIds.has(target) && source !== target) {
-        if (link.type === 'structure') {
-          parentMap.set(source, target);
-        } else if (link.type === 'entity') {
-          parentMap.set(target, source);
-        }
-      }
-    }
-  });
-
-  // 2. Чистим от циклических зависимостей
   const cleanParentMap = new Map<string, string>();
-  parentMap.forEach((parent, child) => {
-    let curr: string | undefined = parent;
-    let hasCycle = false;
-    const visited = new Set<string>();
-    while (curr) {
-      if (curr === child || visited.has(curr)) {
-        hasCycle = true;
-        break;
+  graphData.nodes.forEach(node => {
+    if (node.parentId) {
+      let curr: string | undefined = node.parentId;
+      let hasCycle = false;
+      const visited = new Set<string>();
+      while (curr) {
+        if (curr === node.id || visited.has(curr)) {
+          hasCycle = true;
+          break;
+        }
+        visited.add(curr);
+        // Find parent of curr
+        const parentNode = graphData.nodes.find(n => n.id === curr);
+        curr = parentNode?.parentId;
       }
-      visited.add(curr);
-      curr = parentMap.get(curr);
-    }
-    if (!hasCycle) {
-      cleanParentMap.set(child, parent);
+      if (!hasCycle) {
+        cleanParentMap.set(node.id, node.parentId);
+      }
     }
   });
 

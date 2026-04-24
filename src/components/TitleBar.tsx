@@ -8,32 +8,30 @@ const TitleBar: React.FC = () => {
   const graphData = useStore(state => state.graphData);
 
   return (
-    <div
-      style={{
-        height: '40px',
-        width: '100%',
-        backgroundColor: 'var(--glass-bg)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
+    <div 
+      style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
         justifyContent: 'space-between',
+        height: '48px',
+        background: 'var(--bg1)',
+        borderBottom: '1px solid var(--border)',
+        padding: '0 16px',
+        WebkitAppRegion: 'drag',
         userSelect: 'none',
-        WebkitAppRegion: 'drag', // Make it draggable
-        color: 'var(--text-primary)',
-        fontSize: '13px',
-        borderBottom: '1px solid var(--glass-border)',
-        boxSizing: 'border-box',
-        paddingLeft: '15px'
-      } as React.CSSProperties}
+        flexShrink: 0
+      } as any}
     >
       {/* Левая часть */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', WebkitAppRegion: 'no-drag', height: '100%' } as any}>
-        <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-          CodeMaps
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg, var(--acc), var(--cyan))', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg0)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--acc)', fontFamily: 'var(--font-family)' }}>CodeMaps</div>
         </div>
         
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: 20 }}>
           <button className="btn-glass" onClick={openProject}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
             Открыть проект
@@ -55,28 +53,28 @@ const TitleBar: React.FC = () => {
 
       {/* Правая часть */}
       <div style={{ display: 'flex', alignItems: 'center', height: '100%', WebkitAppRegion: 'no-drag' } as any}>
-        {/* Window controls */}
-        <div style={{ display: 'flex', height: '100%' }}>
+        {/* Кнопки окна (Windows) */}
+        <div style={{ display: 'flex', WebkitAppRegion: 'no-drag', height: '100%', alignItems: 'center' } as any}>
           <div 
             className="window-control"
-            style={{ padding: '0 15px', display: 'flex', alignItems: 'center', cursor: 'pointer', height: '100%' }}
+            style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 
             onClick={() => (window as any).api.minimize()}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,5 L 10,5" stroke="currentColor" strokeWidth="1"/></svg>
           </div>
           <div 
             className="window-control"
-            style={{ padding: '0 15px', display: 'flex', alignItems: 'center', cursor: 'pointer', height: '100%' }}
+            style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 
             onClick={() => (window as any).api.maximize()}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,0 L 10,0 L 10,10 L 0,10 Z" fill="none" stroke="currentColor" strokeWidth="1"/></svg>
           </div>
           <div 
             className="window-control close"
-            style={{ padding: '0 15px', display: 'flex', alignItems: 'center', cursor: 'pointer', height: '100%' }}
+            style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)', transition: 'background-color 0.1s' }} 
             onClick={() => (window as any).api.close()}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,0 L 10,10 M 10,0 L 0,10" stroke="currentColor" strokeWidth="1"/></svg>
           </div>
         </div>
       </div>

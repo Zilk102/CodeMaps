@@ -9,10 +9,12 @@ const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const isDragging = useRef(false);
   const initializeWatcher = useStore(state => state.initializeWatcher);
+  const initializeWebSocket = useStore(state => state.initializeWebSocket);
   const parsingProgress = useStore(state => state.parsingProgress);
 
   useEffect(() => {
     initializeWatcher();
+    initializeWebSocket();
     
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
@@ -38,62 +40,78 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#0f111a' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: 'var(--bg0)' }}>
       <TitleBar />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
         {/* Левая панель */}
-        <div style={{ width: sidebarWidth, flexShrink: 0, height: '100%' }}>
+        <div style={{ 
+          width: sidebarWidth, 
+          minWidth: 200, 
+          maxWidth: '50vw',
+          height: '100%', 
+          display: 'flex', 
+          flexDirection: 'column',
+          backgroundColor: 'var(--bg1)',
+          borderRight: '1px solid var(--border)'
+        }}>
           <FileTree />
         </div>
         
         {/* Сплиттер (Drag Handle) */}
-        <div
-          style={{
-            width: '4px',
-            background: 'rgba(255,255,255,0.05)',
-            cursor: 'col-resize',
-            zIndex: 50,
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(79, 195, 247, 0.5)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+        <div 
           onMouseDown={() => {
             isDragging.current = true;
             document.body.style.cursor = 'col-resize';
           }}
+          style={{ 
+            width: '8px', 
+            cursor: 'col-resize', 
+            background: 'transparent',
+            zIndex: 10,
+            position: 'absolute',
+            left: sidebarWidth - 4,
+            height: '100%',
+          }} 
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--acc)'; e.currentTarget.style.opacity = '0.3'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.opacity = '1'; }}
         />
         
-        {/* Правая панель с Графом */}
-        <div style={{ flex: 1, height: '100%', overflow: 'hidden', position: 'relative' }}>
+        {/* Граф */}
+        <div style={{ flex: 1, position: 'relative', minWidth: 0, backgroundColor: 'var(--bg0)' }}>
           <GraphView />
         </div>
       </div>
       
+      {/* Прогресс парсинга */}
       {parsingProgress && (
         <div style={{
-          height: 24,
-          background: '#1e1e1e',
-          color: '#ccc',
+          position: 'fixed',
+          bottom: 20,
+          right: 20,
+          background: 'var(--bg1)',
+          padding: '15px 20px',
+          borderRadius: 8,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          border: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 10px',
-          fontSize: 12,
-          borderTop: '1px solid #333',
-          zIndex: 9999
+          gap: 15,
+          zIndex: 1000,
+          fontFamily: 'var(--font-family)'
         }}>
-          <div style={{ marginRight: 10, fontWeight: 'bold' }}>{parsingProgress.status}</div>
-          <div style={{ flex: 1, background: '#333', height: 10, borderRadius: 5, overflow: 'hidden', marginRight: 10 }}>
-            <div style={{
-              width: `${(parsingProgress.current / parsingProgress.total) * 100}%`,
-              background: '#4fc3f7',
-              height: '100%',
+          <div style={{ color: 'var(--acc)' }}>{parsingProgress.status}</div>
+          <div style={{ width: 150, height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ 
+              width: `${(parsingProgress.current / parsingProgress.total) * 100}%`, 
+              height: '100%', 
+              background: 'var(--acc)',
               transition: 'width 0.1s linear'
             }} />
           </div>
-          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300, marginRight: 10, color: '#888' }}>
+          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300, marginRight: 10, color: 'var(--t3)' }}>
             {parsingProgress.filename}
           </div>
-          <div>{parsingProgress.current} / {parsingProgress.total}</div>
+          <div style={{ color: 'var(--t1)' }}>{parsingProgress.current} / {parsingProgress.total}</div>
         </div>
       )}
       

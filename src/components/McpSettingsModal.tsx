@@ -1,13 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 
+interface McpStatus {
+  enabled: boolean;
+  host: string;
+  port: number;
+  path: string;
+  endpoint: string;
+  websocketUrl: string;
+  resources: string[];
+  tools: string[];
+  projectRoot: string | null;
+  nodesCount: number;
+  linksCount: number;
+}
+
 export const McpSettingsModal: React.FC = () => {
   const isOpen = useStore(state => state.isMcpSettingsOpen);
   const setOpen = useStore(state => state.setMcpSettingsOpen);
   const graphData = useStore(state => state.graphData);
-  const [port, setPort] = useState(3005);
+  const [status, setStatus] = useState<McpStatus | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    (window as any).api?.getMcpStatus?.()
+      .then((nextStatus: McpStatus) => setStatus(nextStatus))
+      .catch(() => setStatus(null));
+  }, [isOpen]);
   
   if (!isOpen) return null;
+
+  const copyEndpoint = async () => {
+    if (!status?.endpoint) return;
+    await navigator.clipboard.writeText(status.endpoint);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <div className="modal-overlay" onClick={() => setOpen(false)}>
@@ -22,30 +52,75 @@ export const McpSettingsModal: React.FC = () => {
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px' }}>Статус</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50', boxShadow: '0 0 8px #4caf50' }}></div>
-              Активен (Ожидает агентов)
+              {status?.enabled ? 'Активен (Streamable HTTP MCP)' : 'Недоступен'}
             </div>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Порт (Только чтение)</label>
-            <input 
-              type="text" 
-              value={port}
-              readOnly
-              style={{
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>MCP Endpoint</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                value={status?.endpoint || 'Загрузка...'}
+                readOnly
+                style={{
+                  flex: 1,
+                  background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)',
+                  padding: '10px',
+                  borderRadius: '6px',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  fontFamily: 'monospace'
+                }}
+              />
+              <button className="btn-glass" onClick={copyEndpoint}>
+                {copied ? 'Скопировано' : 'Копировать'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>WebSocket для UI</label>
+            <div style={{
                 background: 'var(--glass-bg)',
                 border: '1px solid var(--glass-border)',
                 padding: '10px',
                 borderRadius: '6px',
                 color: 'var(--text-primary)',
-                outline: 'none',
                 fontFamily: 'monospace'
-              }}
-            />
+            }}>
+              {status?.websocketUrl || 'Загрузка...'}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ background: 'var(--glass-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Инструменты</div>
+              <div style={{ color: 'var(--text-primary)' }}>{status?.tools.length || 0}</div>
+            </div>
+            <div style={{ background: 'var(--glass-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Ресурсы</div>
+              <div style={{ color: 'var(--text-primary)' }}>{status?.resources.length || 0}</div>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Доступный контекст (узлы)</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Активный проект</label>
+            <div style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                padding: '10px',
+                borderRadius: '6px',
+                color: 'var(--text-primary)',
+                fontFamily: 'monospace'
+            }}>
+              {status?.projectRoot || 'Проект не открыт'}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Граф</label>
             <div style={{
                 background: 'var(--glass-bg)',
                 border: '1px solid var(--glass-border)',
@@ -53,7 +128,7 @@ export const McpSettingsModal: React.FC = () => {
                 borderRadius: '6px',
                 color: 'var(--text-primary)'
             }}>
-              {graphData ? `${graphData.nodes.length} узлов загружено` : 'Проект не открыт'}
+              {graphData ? `${status?.nodesCount || graphData.nodes.length} узлов, ${status?.linksCount || graphData.links.length} связей` : 'Проект не открыт'}
             </div>
           </div>
         </div>
