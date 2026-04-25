@@ -64,7 +64,8 @@ const buildOrthogonalSections = (source: LayoutNode, target: LayoutNode) => {
   const targetCenterX = target.x + target.width / 2;
   const targetCenterY = target.y + target.height / 2;
 
-  const horizontalDominant = Math.abs(targetCenterX - sourceCenterX) >= Math.abs(targetCenterY - sourceCenterY);
+  const horizontalDominant =
+    Math.abs(targetCenterX - sourceCenterX) >= Math.abs(targetCenterY - sourceCenterY);
 
   if (horizontalDominant) {
     const sourceOnRight = targetCenterX >= sourceCenterX;
@@ -181,9 +182,10 @@ const createElkNode = (node: GraphNode, mode: LayoutMode) => ({
   height: getNodeDimensions(node, mode).height,
   labels: [{ text: node.label, width: Math.max(40, node.label.length * 8), height: 16 }],
   layoutOptions: {
-    'elk.padding': mode === 'hierarchy'
-      ? '[top=40,left=20,bottom=20,right=20]'
-      : '[top=12,left=12,bottom=12,right=12]',
+    'elk.padding':
+      mode === 'hierarchy'
+        ? '[top=40,left=20,bottom=20,right=20]'
+        : '[top=12,left=12,bottom=12,right=12]',
   },
 });
 
@@ -214,7 +216,11 @@ const computeCanvasBounds = (nodes: LayoutNode[]) => {
   };
 };
 
-const buildVisibleContext = (graphData: GraphData, filters: GraphFilters, includeProjectRoot: boolean) => {
+const buildVisibleContext = (
+  graphData: GraphData,
+  filters: GraphFilters,
+  includeProjectRoot: boolean
+) => {
   const nodeIndex = new Map(graphData.nodes.map((node) => [node.id, node]));
   const validNodes = new Map<string, GraphNode>();
 
@@ -227,7 +233,8 @@ const buildVisibleContext = (graphData: GraphData, filters: GraphFilters, includ
   if (includeProjectRoot) {
     const projectRootNode: GraphNode = {
       id: PROJECT_ROOT_ID,
-      label: graphData.projectRoot.replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'project',
+      label:
+        graphData.projectRoot.replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'project',
       group: -1,
       type: 'project',
       churn: 0,
@@ -263,7 +270,10 @@ const buildRenderedEdges = (
       return;
     }
 
-    if (includeProjectRoot && (visibleSourceId === PROJECT_ROOT_ID || visibleTargetId === PROJECT_ROOT_ID)) {
+    if (
+      includeProjectRoot &&
+      (visibleSourceId === PROJECT_ROOT_ID || visibleTargetId === PROJECT_ROOT_ID)
+    ) {
       return;
     }
 
@@ -369,7 +379,7 @@ const runHierarchyLayout = async (
       'elk.padding': '[top=24,left=24,bottom=24,right=24]',
     },
     children: [projectRootElkNode],
-    edges: []
+    edges: [],
   };
 
   const layouted: any = await elk.layout(graph as any);
@@ -421,7 +431,8 @@ const buildDependencyLayoutEdges = (
 ) => {
   const visibleNodeIds = new Set(validNodes.keys());
   const dedupe = new Set<string>();
-  const layoutEdges: Array<{ id: string; sources: string[]; targets: string[]; data: GraphLink }> = [];
+  const layoutEdges: Array<{ id: string; sources: string[]; targets: string[]; data: GraphLink }> =
+    [];
   const focusedNodeIds = new Set<string>();
 
   const collapsedSelectedId = selectedNodeId
@@ -457,7 +468,10 @@ const buildDependencyLayoutEdges = (
       data: link,
     });
 
-    if (collapsedSelectedId && (visibleSourceId === collapsedSelectedId || visibleTargetId === collapsedSelectedId)) {
+    if (
+      collapsedSelectedId &&
+      (visibleSourceId === collapsedSelectedId || visibleTargetId === collapsedSelectedId)
+    ) {
       focusedNodeIds.add(collapsedSelectedId);
       focusedNodeIds.add(visibleSourceId);
       focusedNodeIds.add(visibleTargetId);
@@ -484,11 +498,12 @@ const runDependencyLayout = async (
     }
   });
 
-  const {
-    dependencyEdges,
-    focusedNodeIds,
-    collapsedSelectedId,
-  } = buildDependencyLayoutEdges(graphData, validNodes, nodeIndex, selectedNodeId);
+  const { dependencyEdges, focusedNodeIds, collapsedSelectedId } = buildDependencyLayoutEdges(
+    graphData,
+    validNodes,
+    nodeIndex,
+    selectedNodeId
+  );
 
   const hasFocusedSelection = Boolean(collapsedSelectedId && focusedNodeIds.size > 1);
 
@@ -527,10 +542,10 @@ const runDependencyLayout = async (
         return focusedNodeIds.has(edge.sources[0]) && focusedNodeIds.has(edge.targets[0]);
       })
       .map((edge) => ({
-      id: edge.id,
-      sources: edge.sources,
-      targets: edge.targets,
-    })),
+        id: edge.id,
+        sources: edge.sources,
+        targets: edge.targets,
+      })),
   };
 
   const layouted: any = await elk.layout(graph as any);
@@ -557,13 +572,15 @@ const runDependencyLayout = async (
           return [];
         }
 
-        return [{
-          id: edge.id,
-          sections: buildOrthogonalSections(sourceNode, targetNode),
-          data: edgeDataById.get(edge.id),
-          sourceId,
-          targetId,
-        }];
+        return [
+          {
+            id: edge.id,
+            sections: buildOrthogonalSections(sourceNode, targetNode),
+            data: edgeDataById.get(edge.id),
+            sourceId,
+            targetId,
+          },
+        ];
       })
     : [];
 

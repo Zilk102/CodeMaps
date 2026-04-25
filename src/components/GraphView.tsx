@@ -43,15 +43,17 @@ export const GraphView: React.FC = () => {
     let isMounted = true;
 
     setIsCalculating(true);
-    runLayout(graphData, filters, layoutMode, selectedNode?.id).then(res => {
-      if (isMounted) {
-        setLayoutData(res);
-        setIsCalculating(false);
-      }
-    }).catch(err => {
-      console.error('Layout error', err);
-      if (isMounted) setIsCalculating(false);
-    });
+    runLayout(graphData, filters, layoutMode, selectedNode?.id)
+      .then((res) => {
+        if (isMounted) {
+          setLayoutData(res);
+          setIsCalculating(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Layout error', err);
+        if (isMounted) setIsCalculating(false);
+      });
 
     return () => {
       isMounted = false;
@@ -65,7 +67,9 @@ export const GraphView: React.FC = () => {
 
     const selectedVisibleId = resolveVisibleNodeId(selectedNode, layoutData.nodes, graphData);
     const connectedEdges = selectedVisibleId
-      ? layoutData.edges.filter((edge) => edge.sourceId === selectedVisibleId || edge.targetId === selectedVisibleId)
+      ? layoutData.edges.filter(
+          (edge) => edge.sourceId === selectedVisibleId || edge.targetId === selectedVisibleId
+        )
       : [];
     const relatedNodeIds = new Set<string>(selectedVisibleId ? [selectedVisibleId] : []);
     connectedEdges.forEach((edge) => {
@@ -73,8 +77,12 @@ export const GraphView: React.FC = () => {
       relatedNodeIds.add(edge.targetId);
     });
 
-    const incomingCount = connectedEdges.filter((edge) => edge.targetId === selectedVisibleId).length;
-    const outgoingCount = connectedEdges.filter((edge) => edge.sourceId === selectedVisibleId).length;
+    const incomingCount = connectedEdges.filter(
+      (edge) => edge.targetId === selectedVisibleId
+    ).length;
+    const outgoingCount = connectedEdges.filter(
+      (edge) => edge.sourceId === selectedVisibleId
+    ).length;
 
     return {
       selectedVisibleId,
@@ -87,7 +95,17 @@ export const GraphView: React.FC = () => {
 
   if (error) {
     return (
-      <div style={{ width: '100%', height: '100%', background: 'var(--bg0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--red)' }}>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          background: 'var(--bg0)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--red)',
+        }}
+      >
         Error: {error}
       </div>
     );
@@ -95,34 +113,79 @@ export const GraphView: React.FC = () => {
 
   if (!graphData) {
     return (
-      <div style={{ width: '100%', height: '100%', background: 'var(--bg0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t1)' }}>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          background: 'var(--bg0)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--t1)',
+        }}
+      >
         Откройте проект для анализа.
       </div>
     );
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', background: 'var(--bg0)', position: 'relative', display: 'flex', overflow: 'hidden' }}>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: 'var(--bg0)',
+        position: 'relative',
+        display: 'flex',
+        overflow: 'hidden',
+      }}
+    >
       {isCalculating && (
-        <div style={{ position: 'absolute', top: 10, left: 10, color: 'var(--acc)', zIndex: 10, background: 'var(--bg1)', padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            color: 'var(--acc)',
+            zIndex: 10,
+            background: 'var(--bg1)',
+            padding: '6px 12px',
+            borderRadius: 6,
+            border: '1px solid var(--border)',
+          }}
+        >
           Перерасчет графа...
         </div>
       )}
-      <div style={{ position: 'absolute', top: 10, left: 10, color: 'var(--t1)', zIndex: 10, background: 'var(--bg1)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 12, width: 'min(420px, calc(100% - 260px))' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 10,
+          left: 10,
+          color: 'var(--t1)',
+          zIndex: 10,
+          background: 'var(--bg1)',
+          padding: '8px 12px',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          fontSize: 12,
+          width: 'min(420px, calc(100% - 260px))',
+        }}
+      >
         <div style={{ fontWeight: 700, marginBottom: 4 }}>
           Режим: {layoutMode === 'hierarchy' ? 'Иерархия' : 'Зависимости'}
         </div>
         <div style={{ color: 'var(--t2)', lineHeight: 1.4 }}>
           {layoutMode === 'hierarchy'
-            ? (graphInsights?.selectedVisibleId
+            ? graphInsights?.selectedVisibleId
               ? `Показываются связи относительно выбранного узла: входящие ${graphInsights.incomingCount}, исходящие ${graphInsights.outgoingCount}.`
-              : 'Выбери файл, класс или функцию, чтобы увидеть понятные входящие и исходящие зависимости внутри иерархии.')
-            : (graphInsights?.selectedVisibleId
+              : 'Выбери файл, класс или функцию, чтобы увидеть понятные входящие и исходящие зависимости внутри иерархии.'
+            : graphInsights?.selectedVisibleId
               ? `Показывается сфокусированный dependency-subgraph вокруг выбранного узла: входящие ${graphInsights.incomingCount}, исходящие ${graphInsights.outgoingCount}.`
-              : 'Показывается обзор на уровне файлов и ADR. Выбери узел на графе или в дереве, чтобы сфокусироваться на его соседях.')}
+              : 'Показывается обзор на уровне файлов и ADR. Выбери узел на графе или в дереве, чтобы сфокусироваться на его соседях.'}
         </div>
       </div>
-      
+
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <TransformWrapper
           initialScale={1}
@@ -134,47 +197,90 @@ export const GraphView: React.FC = () => {
         >
           <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
             {layoutData && (
-              <div style={{ 
-                position: 'relative', 
-                width: layoutData.width, 
-                height: layoutData.height 
-              }}>
+              <div
+                style={{
+                  position: 'relative',
+                  width: layoutData.width,
+                  height: layoutData.height,
+                }}
+              >
                 {/* Слой связей (Edges) */}
-                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+                <svg
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }}
+                >
                   <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <marker
+                      id="arrowhead"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
                       <polygon points="0 0, 10 3.5, 0 7" fill="var(--t3)" />
                     </marker>
-                    <marker id="arrowhead-adr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <marker
+                      id="arrowhead-adr"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
                       <polygon points="0 0, 10 3.5, 0 7" fill="var(--purple)" />
                     </marker>
                   </defs>
-                  {layoutData.edges.map(edge => {
+                  {layoutData.edges.map((edge) => {
                     const isConnectedToSelection = graphInsights?.selectedVisibleId
-                      ? edge.sourceId === graphInsights.selectedVisibleId || edge.targetId === graphInsights.selectedVisibleId
+                      ? edge.sourceId === graphInsights.selectedVisibleId ||
+                        edge.targetId === graphInsights.selectedVisibleId
                       : false;
-                    if (layoutMode === 'hierarchy' && graphInsights?.selectedVisibleId && !isConnectedToSelection) {
+                    if (
+                      layoutMode === 'hierarchy' &&
+                      graphInsights?.selectedVisibleId &&
+                      !isConnectedToSelection
+                    ) {
                       return null;
                     }
 
                     const isAdr = edge.data.type === 'adr';
                     const isImport = edge.data.type === 'import';
-                    const strokeColor = isAdr ? 'var(--purple)' : isImport ? 'rgba(255,255,255,0.75)' : 'var(--t3)';
-                    const strokeWidth = isConnectedToSelection ? (isAdr ? 3.5 : 2.4) : (isAdr ? 2.4 : 1.2);
+                    const strokeColor = isAdr
+                      ? 'var(--purple)'
+                      : isImport
+                        ? 'rgba(255,255,255,0.75)'
+                        : 'var(--t3)';
+                    const strokeWidth = isConnectedToSelection
+                      ? isAdr
+                        ? 3.5
+                        : 2.4
+                      : isAdr
+                        ? 2.4
+                        : 1.2;
                     const strokeDasharray = isAdr ? '5,5' : 'none';
                     const marker = isAdr ? 'url(#arrowhead-adr)' : 'url(#arrowhead)';
 
-                    const d = edge.sections.map((sec: any) => {
-                      let pathData = `M ${sec.startPoint.x} ${sec.startPoint.y} `;
-                      if (sec.bendPoints) {
-                        pathData += sec.bendPoints.map((b: any) => `L ${b.x} ${b.y} `).join('');
-                      }
-                      pathData += `L ${sec.endPoint.x} ${sec.endPoint.y}`;
-                      return pathData;
-                    }).join(' ');
+                    const d = edge.sections
+                      .map((sec: any) => {
+                        let pathData = `M ${sec.startPoint.x} ${sec.startPoint.y} `;
+                        if (sec.bendPoints) {
+                          pathData += sec.bendPoints.map((b: any) => `L ${b.x} ${b.y} `).join('');
+                        }
+                        pathData += `L ${sec.endPoint.x} ${sec.endPoint.y}`;
+                        return pathData;
+                      })
+                      .join(' ');
 
                     return (
-                      <path 
+                      <path
                         key={edge.id}
                         d={d}
                         fill="none"
@@ -182,25 +288,34 @@ export const GraphView: React.FC = () => {
                         strokeWidth={strokeWidth}
                         strokeDasharray={strokeDasharray}
                         markerEnd={marker}
-                        opacity={graphInsights?.selectedVisibleId ? (isConnectedToSelection ? 0.95 : 0.08) : (layoutMode === 'dependencies' ? 0.5 : 0.18)}
+                        opacity={
+                          graphInsights?.selectedVisibleId
+                            ? isConnectedToSelection
+                              ? 0.95
+                              : 0.08
+                            : layoutMode === 'dependencies'
+                              ? 0.5
+                              : 0.18
+                        }
                       />
                     );
                   })}
                 </svg>
 
                 {/* Слой узлов (Nodes) */}
-                {layoutData.nodes.map(node => (
-                  <NodeComponent 
-                    key={node.id} 
-                    node={node} 
+                {layoutData.nodes.map((node) => (
+                  <NodeComponent
+                    key={node.id}
+                    node={node}
                     layoutMode={layoutMode}
                     emphasis={
                       graphInsights?.selectedVisibleId
-                        ? (selectedNode?.id === node.id || graphInsights.selectedVisibleId === node.id
+                        ? selectedNode?.id === node.id ||
+                          graphInsights.selectedVisibleId === node.id
                           ? 'selected'
                           : graphInsights.relatedNodeIds.has(node.id)
                             ? 'related'
-                            : 'muted')
+                            : 'muted'
                         : 'default'
                     }
                     isSelected={selectedNode?.id === node.id}
@@ -217,9 +332,15 @@ export const GraphView: React.FC = () => {
   );
 };
 
-const NodeComponent: React.FC<{ node: LayoutNode; layoutMode: 'hierarchy' | 'dependencies'; emphasis: 'selected' | 'related' | 'muted' | 'default'; isSelected: boolean; onClick: () => void }> = ({ node, layoutMode, emphasis, isSelected, onClick }) => {
+const NodeComponent: React.FC<{
+  node: LayoutNode;
+  layoutMode: 'hierarchy' | 'dependencies';
+  emphasis: 'selected' | 'related' | 'muted' | 'default';
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ node, layoutMode, emphasis, isSelected, onClick }) => {
   const { type, label, churn } = node.data;
-  
+
   let bgColor = 'var(--bg2)';
   let border = isSelected ? '2px solid var(--acc)' : '1px solid var(--border)';
   let borderRadius = '6px';
@@ -281,16 +402,16 @@ const NodeComponent: React.FC<{ node: LayoutNode; layoutMode: 'hierarchy' | 'dep
   }
 
   const opacity = emphasis === 'muted' ? 0.24 : 1;
-  const nodeTransform = emphasis === 'selected'
-    ? 'scale(1.03)'
-    : emphasis === 'related'
-      ? 'scale(1.01)'
-      : 'scale(1)';
-  const computedBoxShadow = emphasis === 'selected'
-    ? `0 0 0 1px var(--acc), 0 10px 28px rgba(0,0,0,0.55)`
-    : emphasis === 'related'
-      ? `0 0 0 1px rgba(255,255,255,0.14), ${boxShadow}`
-      : (isContainer ? boxShadow : '0 2px 8px rgba(0,0,0,0.4)');
+  const nodeTransform =
+    emphasis === 'selected' ? 'scale(1.03)' : emphasis === 'related' ? 'scale(1.01)' : 'scale(1)';
+  const computedBoxShadow =
+    emphasis === 'selected'
+      ? `0 0 0 1px var(--acc), 0 10px 28px rgba(0,0,0,0.55)`
+      : emphasis === 'related'
+        ? `0 0 0 1px rgba(255,255,255,0.14), ${boxShadow}`
+        : isContainer
+          ? boxShadow
+          : '0 2px 8px rgba(0,0,0,0.4)';
 
   return (
     <div
@@ -328,21 +449,24 @@ const NodeComponent: React.FC<{ node: LayoutNode; layoutMode: 'hierarchy' | 'dep
       }}
       title={label}
       onMouseEnter={(e) => {
-        if (!isContainer) e.currentTarget.style.transform = emphasis === 'selected' ? 'scale(1.06)' : 'scale(1.05)';
+        if (!isContainer)
+          e.currentTarget.style.transform = emphasis === 'selected' ? 'scale(1.06)' : 'scale(1.05)';
       }}
       onMouseLeave={(e) => {
         if (!isContainer) e.currentTarget.style.transform = nodeTransform;
       }}
     >
-      <div style={{
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        maxWidth: '100%',
-        background: isContainer ? labelBackground : 'transparent',
-        padding: isContainer ? '2px 8px' : 0,
-        borderRadius: isContainer ? '999px' : 0
-      }}>
+      <div
+        style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%',
+          background: isContainer ? labelBackground : 'transparent',
+          padding: isContainer ? '2px 8px' : 0,
+          borderRadius: isContainer ? '999px' : 0,
+        }}
+      >
         {label}
       </div>
     </div>

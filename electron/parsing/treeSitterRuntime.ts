@@ -7,7 +7,8 @@ let parserInstance: Parser | null = null;
 let isParserInitialized = false;
 const loadedLanguages = new Map<string, Language>();
 
-const getWasmDirectory = () => path.join(__dirname, '..', '..', 'node_modules', 'tree-sitter-wasms', 'out');
+const getWasmDirectory = () =>
+  path.join(__dirname, '..', '..', 'node_modules', 'tree-sitter-wasms', 'out');
 
 export const getParserInstance = async (): Promise<Parser> => {
   if (!isParserInitialized) {
@@ -23,7 +24,9 @@ export const getParserInstance = async (): Promise<Parser> => {
   return parserInstance;
 };
 
-export const loadTreeSitterLanguage = async (definition: LanguageDefinition): Promise<Language | null> => {
+export const loadTreeSitterLanguage = async (
+  definition: LanguageDefinition
+): Promise<Language | null> => {
   if (!definition.wasmName) {
     return null;
   }
@@ -37,4 +40,3 @@ export const loadTreeSitterLanguage = async (definition: LanguageDefinition): Pr
   loadedLanguages.set(definition.id, language);
   return language;
 };
-

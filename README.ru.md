@@ -25,7 +25,7 @@
 
 ## 📦 Установка
 
-Скачайте портативную версию (Portable) из раздела [Releases](https://github.com/Zilk102/CodeMaps/releases). 
+Скачайте портативную версию (Portable) из раздела [Releases](https://github.com/Zilk102/CodeMaps/releases).
 Приложение не требует сложной установки и работает прямо "из коробки" на Windows.
 
 ## 🛠 Разработка
@@ -33,6 +33,7 @@
 Проект построен на стеке: **Electron + React + TypeScript + Vite**. Для визуализации графов используется связка Cytoscape / Sigma.
 
 ### Запуск локально
+
 ```bash
 # Установка зависимостей
 npm install
@@ -42,13 +43,16 @@ npm run dev
 ```
 
 ### Сборка
+
 ```bash
 # Создание production-сборки (Portable)
 npm run build:portable
 ```
 
 ## 🤝 Контрибьютинг
+
 Мы рады любой помощи в развитии проекта! Пожалуйста, ознакомьтесь с [руководством для контрибьюторов](CONTRIBUTING.md) перед созданием Pull Request.
 
 ## 📄 Лицензия
+
 Проект распространяется под лицензией MIT. Подробнее смотрите в файле [LICENSE](LICENSE).

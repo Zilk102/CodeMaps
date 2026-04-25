@@ -73,7 +73,10 @@ const loadCompilerOptions = (configPath?: string): ts.CompilerOptions => {
   }
 };
 
-export const getTypeScriptProjectContext = (filePath: string, baseDir?: string): TypeScriptProjectContext => {
+export const getTypeScriptProjectContext = (
+  filePath: string,
+  baseDir?: string
+): TypeScriptProjectContext => {
   const configPath = findNearestTsConfig(filePath, baseDir);
   const cacheKey = configPath || `__default__:${baseDir || path.dirname(filePath)}`;
 

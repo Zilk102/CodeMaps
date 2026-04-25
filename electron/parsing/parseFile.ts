@@ -21,7 +21,11 @@ const emptyResult = (detectedLanguage?: string, adr?: string): ParseResult => ({
   detectedLanguage,
 });
 
-export const parseFile = async ({ filePath, activeLanguageIds, baseDir }: ParseWorkerInput): Promise<ParseResult> => {
+export const parseFile = async ({
+  filePath,
+  activeLanguageIds,
+  baseDir,
+}: ParseWorkerInput): Promise<ParseResult> => {
   const extension = path.extname(filePath).toLowerCase();
   const definition = getLanguageByExtension(extension);
 
@@ -53,7 +57,6 @@ export const parseFile = async ({ filePath, activeLanguageIds, baseDir }: ParseW
     if (definition.parserEngine === 'typescript-semantic') {
       return extractWithTypeScriptSemantic(filePath, text, definition, adr, baseDir);
     }
-
 
     const parser = await getParserInstance();
     const language = await loadTreeSitterLanguage(definition);

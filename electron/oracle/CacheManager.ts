@@ -24,9 +24,8 @@ export class CacheManager {
       // Fall back to a user-scoped cache directory when Electron app context is unavailable.
     }
 
-    const fallbackRoot = process.env.LOCALAPPDATA
-      || process.env.APPDATA
-      || path.join(os.homedir(), '.codemaps');
+    const fallbackRoot =
+      process.env.LOCALAPPDATA || process.env.APPDATA || path.join(os.homedir(), '.codemaps');
 
     return path.join(fallbackRoot, 'CodeMaps', 'cache');
   }
@@ -66,11 +65,14 @@ export class CacheManager {
     }
 
     await fs.mkdir(cacheDir, { recursive: true }).catch(() => undefined);
-    await fs.writeFile(cacheFile, JSON.stringify({
-      fileStats: stats,
-      nodes: Array.from(state.nodes.values()),
-      links: state.links,
-    }));
+    await fs.writeFile(
+      cacheFile,
+      JSON.stringify({
+        fileStats: stats,
+        nodes: Array.from(state.nodes.values()),
+        links: state.links,
+      })
+    );
   }
 
   saveDebounced(baseDir: string) {

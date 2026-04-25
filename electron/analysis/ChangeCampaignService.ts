@@ -85,42 +85,67 @@ const MAX_SECURITY_FINDINGS = 12;
 const CAMPAIGN_NODE_TYPES = ['file', 'class', 'function'];
 
 const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
-const unique = <T,>(items: T[]) => Array.from(new Set(items));
+const unique = <T>(items: T[]) => Array.from(new Set(items));
 
 export class ChangeCampaignService {
   constructor(
     private readonly architectureInsightService = new ArchitectureInsightService(),
     private readonly blastRadiusAnalyzer = new BlastRadiusAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner(),
+    private readonly securityScanner = new SecurityScanner()
   ) {}
 
-  async prepareContext(graph: GraphData, input: PrepareChangeCampaignInput): Promise<ChangeCampaignResult> {
+  async prepareContext(
+    graph: GraphData,
+    input: PrepareChangeCampaignInput
+  ): Promise<ChangeCampaignResult> {
     const taskMode = input.taskMode || 'refactor';
     const architecture = this.architectureInsightService.analyze(graph);
-    const layerByNodeId = new Map(architecture.classifications.map((record) => [record.nodeId, record]));
+    const layerByNodeId = new Map(
+      architecture.classifications.map((record) => [record.nodeId, record])
+    );
     const seedTargets = this.resolveSeedTargets(graph, input, architecture);
-    const directlyMatchedFiles = this.collectMatchedFiles(graph, seedTargets, input.candidateQueries, input.maxSeeds || DEFAULT_MAX_SEEDS);
-    const affectedFiles = this.expandAffectedFiles(graph, directlyMatchedFiles, input.depth || 2, input.maxFiles || DEFAULT_MAX_FILES);
-    const blastRadius = this.buildCampaignBlastRadius(graph, directlyMatchedFiles, input.depth || 2, input.maxFiles || DEFAULT_MAX_FILES);
+    const directlyMatchedFiles = this.collectMatchedFiles(
+      graph,
+      seedTargets,
+      input.candidateQueries,
+      input.maxSeeds || DEFAULT_MAX_SEEDS
+    );
+    const affectedFiles = this.expandAffectedFiles(
+      graph,
+      directlyMatchedFiles,
+      input.depth || 2,
+      input.maxFiles || DEFAULT_MAX_FILES
+    );
+    const blastRadius = this.buildCampaignBlastRadius(
+      graph,
+      directlyMatchedFiles,
+      input.depth || 2,
+      input.maxFiles || DEFAULT_MAX_FILES
+    );
     const campaignFileIds = new Set(affectedFiles.map((node) => node.id));
     const campaignStructuralIds = new Set(affectedFiles.map((node) => toStructuralNodeId(node.id)));
-    const patterns = this.patternDetectionAnalyzer.analyze(graph).patterns
-      .filter((pattern) => pattern.nodeIds.some((nodeId) => campaignStructuralIds.has(toStructuralNodeId(nodeId))))
+    const patterns = this.patternDetectionAnalyzer
+      .analyze(graph)
+      .patterns.filter((pattern) =>
+        pattern.nodeIds.some((nodeId) => campaignStructuralIds.has(toStructuralNodeId(nodeId)))
+      )
       .slice(0, MAX_PATTERN_RESULTS);
-    const securityScan = input.includeSecurityFindings === false
-      ? {
-        summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
-        findings: [] as SecurityFinding[],
-      }
-      : await this.securityScanner.analyze(graph);
+    const securityScan =
+      input.includeSecurityFindings === false
+        ? {
+            summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
+            findings: [] as SecurityFinding[],
+          }
+        : await this.securityScanner.analyze(graph);
     const securityFindings = securityScan.findings
       .filter((finding) => campaignStructuralIds.has(toStructuralNodeId(finding.nodeId)))
       .slice(0, MAX_SECURITY_FINDINGS);
     const layersInvolved = this.buildLayersInvolved(affectedFiles, layerByNodeId);
-    const campaignViolations = architecture.violations.filter((violation) =>
-      campaignStructuralIds.has(toStructuralNodeId(violation.sourceId))
-      || campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
+    const campaignViolations = architecture.violations.filter(
+      (violation) =>
+        campaignStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
+        campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
     );
     const waves = this.buildExecutionWaves(affectedFiles, layerByNodeId);
 
@@ -157,12 +182,28 @@ export class ChangeCampaignService {
         waves,
         shouldFallbackToLowLevelTools: directlyMatchedFiles.length === 0,
       },
-      risks: this.buildRisks(affectedFiles, layersInvolved, campaignViolations, patterns, securityFindings),
-      nextSteps: this.buildNextSteps(taskMode, directlyMatchedFiles, affectedFiles, waves, securityFindings.length > 0),
+      risks: this.buildRisks(
+        affectedFiles,
+        layersInvolved,
+        campaignViolations,
+        patterns,
+        securityFindings
+      ),
+      nextSteps: this.buildNextSteps(
+        taskMode,
+        directlyMatchedFiles,
+        affectedFiles,
+        waves,
+        securityFindings.length > 0
+      ),
     };
   }
 
-  private resolveSeedTargets(graph: GraphData, input: PrepareChangeCampaignInput, architecture: ArchitectureOverview) {
+  private resolveSeedTargets(
+    graph: GraphData,
+    input: PrepareChangeCampaignInput,
+    architecture: ArchitectureOverview
+  ) {
     const seedNodes = new Map<string, GraphNode>();
     const maxSeeds = input.maxSeeds || DEFAULT_MAX_SEEDS;
 
@@ -177,13 +218,17 @@ export class ChangeCampaignService {
       .filter((node) => CAMPAIGN_NODE_TYPES.includes(node.type))
       .map((node) => ({
         node,
-        score: input.candidateQueries.reduce((max, query) => Math.max(max, this.scoreNodeMatch(node, query)), 0),
+        score: input.candidateQueries.reduce(
+          (max, query) => Math.max(max, this.scoreNodeMatch(node, query)),
+          0
+        ),
       }))
       .filter(({ score }) => score > 0)
-      .sort((a, b) =>
-        b.score - a.score
-        || this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type)
-        || a.node.label.localeCompare(b.node.label)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type) ||
+          a.node.label.localeCompare(b.node.label)
       )
       .slice(0, maxSeeds * 3);
 
@@ -209,7 +254,12 @@ export class ChangeCampaignService {
     return Array.from(seedNodes.values()).slice(0, maxSeeds);
   }
 
-  private collectMatchedFiles(graph: GraphData, seedTargets: GraphNode[], candidateQueries: string[], maxSeeds: number) {
+  private collectMatchedFiles(
+    graph: GraphData,
+    seedTargets: GraphNode[],
+    candidateQueries: string[],
+    maxSeeds: number
+  ) {
     const fileNodes = new Map<string, GraphNode>();
 
     for (const target of seedTargets) {
@@ -238,7 +288,12 @@ export class ChangeCampaignService {
     return Array.from(fileNodes.values()).slice(0, maxSeeds);
   }
 
-  private expandAffectedFiles(graph: GraphData, files: GraphNode[], depth: number, maxFiles: number) {
+  private expandAffectedFiles(
+    graph: GraphData,
+    files: GraphNode[],
+    depth: number,
+    maxFiles: number
+  ) {
     const collapsed = this.buildCollapsedFileGraph(graph);
     const queue = files.map((node) => ({ id: node.id, depth: 0 }));
     const visited = new Set(queue.map((entry) => entry.id));
@@ -274,7 +329,12 @@ export class ChangeCampaignService {
       .slice(0, maxFiles);
   }
 
-  private buildCampaignBlastRadius(graph: GraphData, files: GraphNode[], depth: number, maxFiles: number): ChangeCampaignResult['blastRadius'] {
+  private buildCampaignBlastRadius(
+    graph: GraphData,
+    files: GraphNode[],
+    depth: number,
+    maxFiles: number
+  ): ChangeCampaignResult['blastRadius'] {
     const seeds = files.map((file) => {
       const blast = this.blastRadiusAnalyzer.analyze(graph, file.id, depth);
       const affectedFiles = unique([
@@ -323,7 +383,7 @@ export class ChangeCampaignService {
 
   private buildLayersInvolved(
     affectedFiles: GraphNode[],
-    layerByNodeId: Map<string, ArchitectureNodeClassification>,
+    layerByNodeId: Map<string, ArchitectureNodeClassification>
   ) {
     const counts = new Map<ArchitectureLayer, number>();
 
@@ -342,11 +402,19 @@ export class ChangeCampaignService {
 
   private buildExecutionWaves(
     affectedFiles: GraphNode[],
-    layerByNodeId: Map<string, ArchitectureNodeClassification>,
+    layerByNodeId: Map<string, ArchitectureNodeClassification>
   ) {
-    const groups = new Map<string, { layer: ArchitectureLayer | 'mixed'; title: string; goal: string; fileIds: string[] }>();
+    const groups = new Map<
+      string,
+      { layer: ArchitectureLayer | 'mixed'; title: string; goal: string; fileIds: string[] }
+    >();
 
-    const waveDefinition: Array<{ key: string; layers: ArchitectureLayer[]; title: string; goal: string }> = [
+    const waveDefinition: Array<{
+      key: string;
+      layers: ArchitectureLayer[];
+      title: string;
+      goal: string;
+    }> = [
       {
         key: 'wave-foundation',
         layers: ['shared', 'state', 'configuration'],
@@ -368,7 +436,12 @@ export class ChangeCampaignService {
     ];
 
     for (const wave of waveDefinition) {
-      groups.set(wave.key, { layer: wave.layers[0], title: wave.title, goal: wave.goal, fileIds: [] });
+      groups.set(wave.key, {
+        layer: wave.layers[0],
+        title: wave.title,
+        goal: wave.goal,
+        fileIds: [],
+      });
     }
 
     for (const file of affectedFiles) {
@@ -401,27 +474,41 @@ export class ChangeCampaignService {
     layersInvolved: Array<{ layer: ArchitectureLayer; count: number }>,
     campaignViolations: ArchitectureViolation[],
     patterns: DetectedPattern[],
-    securityFindings: SecurityFinding[],
+    securityFindings: SecurityFinding[]
   ) {
     const risks: string[] = [];
 
     if (affectedFiles.length >= 20) {
-      risks.push(`Кампания затрагивает ${affectedFiles.length} файлов; высок риск частичных несовместимых изменений между волнами.`);
+      risks.push(
+        `Кампания затрагивает ${affectedFiles.length} файлов; высок риск частичных несовместимых изменений между волнами.`
+      );
     }
     if (layersInvolved.length >= 3) {
-      risks.push('Затронуто несколько архитектурных слоёв; нужно удержать границы и не смешать foundation/core/edge изменения.');
+      risks.push(
+        'Затронуто несколько архитектурных слоёв; нужно удержать границы и не смешать foundation/core/edge изменения.'
+      );
     }
     if (campaignViolations.length > 0) {
-      risks.push('Часть файлов кампании уже вовлечена в layer violations; миграция может закрепить smell, если не поправить границы сразу.');
+      risks.push(
+        'Часть файлов кампании уже вовлечена в layer violations; миграция может закрепить smell, если не поправить границы сразу.'
+      );
     }
-    if (patterns.some((pattern) => pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files')) {
-      risks.push('Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.');
+    if (
+      patterns.some((pattern) => pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files')
+    ) {
+      risks.push(
+        'Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.'
+      );
     }
     if (securityFindings.length > 0) {
-      risks.push('В области кампании есть security findings; миграцию нужно сверять с безопасностью токенов, cookies и API contracts.');
+      risks.push(
+        'В области кампании есть security findings; миграцию нужно сверять с безопасностью токенов, cookies и API contracts.'
+      );
     }
     if (risks.length === 0) {
-      risks.push('Явных structural red flags не найдено, но массовую миграцию всё равно нужно выполнять по фазам и с post-wave validation.');
+      risks.push(
+        'Явных structural red flags не найдено, но массовую миграцию всё равно нужно выполнять по фазам и с post-wave validation.'
+      );
     }
 
     return risks;
@@ -432,11 +519,16 @@ export class ChangeCampaignService {
     directlyMatchedFiles: GraphNode[],
     affectedFiles: GraphNode[],
     waves: ChangeCampaignResult['executionPlan']['waves'],
-    hasSecurityFindings: boolean,
+    hasSecurityFindings: boolean
   ) {
     const nextSteps = [
       `CodeMaps определил задачу как multi-target campaign в режиме "${taskMode}".`,
-      `Сначала подтвердить seed-файлы кампании: ${directlyMatchedFiles.map((node) => node.id).slice(0, 5).join(', ') || 'явные seed-файлы не найдены'}.`,
+      `Сначала подтвердить seed-файлы кампании: ${
+        directlyMatchedFiles
+          .map((node) => node.id)
+          .slice(0, 5)
+          .join(', ') || 'явные seed-файлы не найдены'
+      }.`,
       `После подтверждения выполнять миграцию волнами, а не пытаться править все ${affectedFiles.length} файлов за один проход.`,
     ];
 
@@ -475,7 +567,8 @@ export class ChangeCampaignService {
     if (basenameWithoutExtension === normalizedQuery) score += node.type === 'file' ? 240 : 120;
     if (normalizedLabel.startsWith(normalizedQuery)) score += 90;
     if (basename.startsWith(normalizedQuery)) score += node.type === 'file' ? 110 : 50;
-    if (basenameWithoutExtension.startsWith(normalizedQuery)) score += node.type === 'file' ? 130 : 60;
+    if (basenameWithoutExtension.startsWith(normalizedQuery))
+      score += node.type === 'file' ? 130 : 60;
     if (normalizedLabel.includes(normalizedQuery)) score += 45;
     if (normalizedId.includes(normalizedQuery)) score += node.type === 'file' ? 40 : 20;
 

@@ -125,14 +125,20 @@ export class ArchitectureInsightService {
 
     const dependencies = Array.from(dependencyCounts.entries())
       .map(([key, count]) => {
-        const [sourceLayer, targetLayer] = key.split('->') as [ArchitectureLayer, ArchitectureLayer];
+        const [sourceLayer, targetLayer] = key.split('->') as [
+          ArchitectureLayer,
+          ArchitectureLayer,
+        ];
         return { sourceLayer, targetLayer, count };
       })
-      .sort((a, b) => b.count - a.count || a.sourceLayer.localeCompare(b.sourceLayer) || a.targetLayer.localeCompare(b.targetLayer));
+      .sort(
+        (a, b) =>
+          b.count - a.count ||
+          a.sourceLayer.localeCompare(b.sourceLayer) ||
+          a.targetLayer.localeCompare(b.targetLayer)
+      );
 
-    const dominantLayer = layers
-      .slice()
-      .sort((a, b) => b.count - a.count)[0]?.layer || 'unknown';
+    const dominantLayer = layers.slice().sort((a, b) => b.count - a.count)[0]?.layer || 'unknown';
 
     return {
       classifications,
@@ -142,7 +148,9 @@ export class ArchitectureInsightService {
       summary: {
         classifiedNodes: classifications.length,
         unknownNodes: classifications.filter((record) => record.layer === 'unknown').length,
-        crossLayerDependencies: dependencies.filter((entry) => entry.sourceLayer !== entry.targetLayer).reduce((sum, entry) => sum + entry.count, 0),
+        crossLayerDependencies: dependencies
+          .filter((entry) => entry.sourceLayer !== entry.targetLayer)
+          .reduce((sum, entry) => sum + entry.count, 0),
         violationCount: violations.length,
         dominantLayer,
       },
@@ -200,11 +208,19 @@ export class ArchitectureInsightService {
       return { nodeId: node.id, layer: 'shared', reason: 'type_declaration_path' };
     }
 
-    if (filePath.includes('/src/components/') || filePath.includes('/src/app.') || filePath.includes('/src/main.')) {
+    if (
+      filePath.includes('/src/components/') ||
+      filePath.includes('/src/app.') ||
+      filePath.includes('/src/main.')
+    ) {
       return { nodeId: node.id, layer: 'presentation', reason: 'ui_component_path' };
     }
 
-    if (filePath.includes('/src/store/') || filePath.endsWith('/store.ts') || filePath.endsWith('/usestore.ts')) {
+    if (
+      filePath.includes('/src/store/') ||
+      filePath.endsWith('/store.ts') ||
+      filePath.endsWith('/usestore.ts')
+    ) {
       return { nodeId: node.id, layer: 'state', reason: 'state_store_path' };
     }
 
@@ -212,7 +228,11 @@ export class ArchitectureInsightService {
       return { nodeId: node.id, layer: 'analysis', reason: 'analysis_path' };
     }
 
-    if (filePath.includes('/parsing/') || filePath.endsWith('/queries.ts') || filePath.endsWith('/worker.ts')) {
+    if (
+      filePath.includes('/parsing/') ||
+      filePath.endsWith('/queries.ts') ||
+      filePath.endsWith('/worker.ts')
+    ) {
       return { nodeId: node.id, layer: 'parsing', reason: 'parsing_path' };
     }
 
@@ -220,15 +240,28 @@ export class ArchitectureInsightService {
       return { nodeId: node.id, layer: 'application', reason: 'orchestration_path' };
     }
 
-    if (filePath.endsWith('/mcp.ts') || filePath.endsWith('/main.ts') || filePath.endsWith('/preload.ts')) {
+    if (
+      filePath.endsWith('/mcp.ts') ||
+      filePath.endsWith('/main.ts') ||
+      filePath.endsWith('/preload.ts')
+    ) {
       return { nodeId: node.id, layer: 'integration', reason: 'entrypoint_or_adapter_path' };
     }
 
-    if (filePath.includes('/domain/') || filePath.includes('/core/') || filePath.includes('/entities/') || filePath.includes('/models/')) {
+    if (
+      filePath.includes('/domain/') ||
+      filePath.includes('/core/') ||
+      filePath.includes('/entities/') ||
+      filePath.includes('/models/')
+    ) {
       return { nodeId: node.id, layer: 'domain', reason: 'domain_path' };
     }
 
-    if (filePath.includes('/shared/') || filePath.includes('/utils/') || filePath.endsWith('/shared.ts')) {
+    if (
+      filePath.includes('/shared/') ||
+      filePath.includes('/utils/') ||
+      filePath.endsWith('/shared.ts')
+    ) {
       return { nodeId: node.id, layer: 'shared', reason: 'shared_utility_path' };
     }
 
@@ -244,14 +277,16 @@ export class ArchitectureInsightService {
       return true;
     }
 
-    return filePath.endsWith('/package.json')
-      || filePath.endsWith('/tsconfig.json')
-      || filePath.endsWith('/vite.config.ts')
-      || filePath.endsWith('/index.html')
-      || filePath.includes('/scripts/')
-      || filePath.endsWith('/.env')
-      || filePath.endsWith('/dockerfile')
-      || filePath.endsWith('/docker-compose.yml');
+    return (
+      filePath.endsWith('/package.json') ||
+      filePath.endsWith('/tsconfig.json') ||
+      filePath.endsWith('/vite.config.ts') ||
+      filePath.endsWith('/index.html') ||
+      filePath.includes('/scripts/') ||
+      filePath.endsWith('/.env') ||
+      filePath.endsWith('/dockerfile') ||
+      filePath.endsWith('/docker-compose.yml')
+    );
   }
 
   private getViolationReason(sourceLayer: ArchitectureLayer, targetLayer: ArchitectureLayer) {
@@ -275,7 +310,10 @@ export class ArchitectureInsightService {
       return 'Shared-слой должен оставаться низкоуровневым и не зависеть от верхних слоёв.';
     }
 
-    if (sourceLayer === 'state' && !['state', 'shared', 'configuration', 'domain'].includes(targetLayer)) {
+    if (
+      sourceLayer === 'state' &&
+      !['state', 'shared', 'configuration', 'domain'].includes(targetLayer)
+    ) {
       return 'State-слой не должен тянуть presentation/application/integration детали напрямую.';
     }
 

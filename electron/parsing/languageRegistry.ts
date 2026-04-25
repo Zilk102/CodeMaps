@@ -133,7 +133,13 @@ const ALL_LANGUAGES: LanguageDefinition[] = [
     displayName: 'Markdown',
     parserEngine: 'markdown-adr',
     extensions: ['.md'],
-    capabilities: { entities: false, imports: false, variables: false, calls: false, comments: false },
+    capabilities: {
+      entities: false,
+      imports: false,
+      variables: false,
+      calls: false,
+      comments: false,
+    },
   },
 ];
 

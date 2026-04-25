@@ -103,8 +103,10 @@ export class GraphBuilder {
     });
 
     if (adr) {
-      const adrPathMatch = Array.from(store.nodes.keys()).find((candidate) =>
-        candidate.toLowerCase().includes(adr.toLowerCase()) && store.nodes.get(candidate)?.type === 'adr'
+      const adrPathMatch = Array.from(store.nodes.keys()).find(
+        (candidate) =>
+          candidate.toLowerCase().includes(adr.toLowerCase()) &&
+          store.nodes.get(candidate)?.type === 'adr'
       );
       if (adrPathMatch) {
         store.addLink({ source: normalizedPath, target: adrPathMatch, value: 3, type: 'adr' });
@@ -123,7 +125,12 @@ export class GraphBuilder {
       if (imp.importedEntities.length > 0) {
         for (const entityName of imp.importedEntities) {
           if (entityName === '*') {
-            store.addLink({ source: normalizedPath, target: resolvedPath, value: 1, type: 'import' });
+            store.addLink({
+              source: normalizedPath,
+              target: resolvedPath,
+              value: 1,
+              type: 'import',
+            });
             continue;
           }
 

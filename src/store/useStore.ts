@@ -10,7 +10,7 @@ interface StoreState {
   isLoading: boolean;
   error: string | null;
   parsingProgress: { status: string; current: number; total: number; filename: string } | null;
-  
+
   // Filters
   filters: GraphFilters;
   layoutMode: LayoutMode;
@@ -23,7 +23,9 @@ interface StoreState {
   openProject: () => Promise<void>;
   initializeWatcher: () => void;
   initializeWebSocket: () => void;
-  setParsingProgress: (progress: { status: string; current: number; total: number; filename: string } | null) => void;
+  setParsingProgress: (
+    progress: { status: string; current: number; total: number; filename: string } | null
+  ) => void;
   closeProject: () => void;
   isMcpSettingsOpen: boolean;
   setMcpSettingsOpen: (isOpen: boolean) => void;
@@ -44,7 +46,7 @@ export const useStore = create<StoreState>((set, get) => {
     error: null,
     parsingProgress: null,
     isMcpSettingsOpen: false,
-    
+
     filters: {
       showDirectories: true,
       showFiles: true,
@@ -60,8 +62,9 @@ export const useStore = create<StoreState>((set, get) => {
     setMcpSettingsOpen: (isOpen) => set({ isMcpSettingsOpen: isOpen }),
     setLayoutData: (data) => set({ layoutData: data }),
     setParsingProgress: (progress) => set({ parsingProgress: progress }),
-    closeProject: () => set({ graphData: null, layoutData: null, selectedNode: null, selectedPath: null }),
-    
+    closeProject: () =>
+      set({ graphData: null, layoutData: null, selectedNode: null, selectedPath: null }),
+
     initializeWatcher: () => {
       if (isWatcherInitialized) return;
       isWatcherInitialized = true;
@@ -118,27 +121,27 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     fetchGraph: async (path?: string) => {
-    set({ isLoading: true, error: null, selectedNode: null, selectedPath: null });
-    try {
-      const result = await (window as any).api.analyzeProject(path);
-      if (result.success) {
-        set({ graphData: result.data, isLoading: false });
-      } else {
-        set({ error: result.error, isLoading: false });
+      set({ isLoading: true, error: null, selectedNode: null, selectedPath: null });
+      try {
+        const result = await (window as any).api.analyzeProject(path);
+        if (result.success) {
+          set({ graphData: result.data, isLoading: false });
+        } else {
+          set({ error: result.error, isLoading: false });
+        }
+      } catch (error: any) {
+        set({ error: error.message, isLoading: false });
       }
-    } catch (error: any) {
-      set({ error: error.message, isLoading: false });
-    }
-  },
+    },
 
-  openProject: async () => {
-    const dirPath = await (window as any).api.selectDirectory();
-    if (dirPath) {
-      await get().fetchGraph(dirPath);
-    }
-  },
-  
-  setSelectedNode: (node) => set({ selectedNode: node }),
-  setSelectedPath: (path) => set({ selectedPath: path })
+    openProject: async () => {
+      const dirPath = await (window as any).api.selectDirectory();
+      if (dirPath) {
+        await get().fetchGraph(dirPath);
+      }
+    },
+
+    setSelectedNode: (node) => set({ selectedNode: node }),
+    setSelectedPath: (path) => set({ selectedPath: path }),
   };
 });

@@ -11,10 +11,7 @@ import {
   ProjectInsightResult,
   ProjectInsightService,
 } from './ProjectInsightService';
-import {
-  ChangeCampaignResult,
-  ChangeCampaignService,
-} from './ChangeCampaignService';
+import { ChangeCampaignResult, ChangeCampaignService } from './ChangeCampaignService';
 
 export type RoutedTaskKind =
   | 'bugfix'
@@ -40,7 +37,11 @@ export interface TaskIntentInference {
 
 export interface TaskRoutePlan {
   initialTool: 'prepare_task_context';
-  selectedCompositeTool: 'prepare_project_context' | 'prepare_change_context' | 'prepare_change_campaign' | 'prepare_review_context';
+  selectedCompositeTool:
+    | 'prepare_project_context'
+    | 'prepare_change_context'
+    | 'prepare_change_campaign'
+    | 'prepare_review_context';
   rationale: string;
   shouldInspectCodeImmediately: boolean;
   fallbackTools: string[];
@@ -67,22 +68,165 @@ export interface TaskContextResult {
 const MAX_KEYWORDS = 8;
 const MAX_CANDIDATES = 6;
 const STOP_WORDS = new Set([
-  'и', 'или', 'но', 'а', 'не', 'да', 'как', 'что', 'это', 'так', 'для', 'при', 'про', 'без',
-  'если', 'когда', 'где', 'почему', 'надо', 'нужно', 'чтобы', 'какой', 'какая', 'какие', 'какого',
-  'меня', 'мой', 'моя', 'мои', 'твой', 'твоя', 'его', 'ее', 'их', 'наш', 'ваш', 'там', 'тут',
-  'очень', 'просто', 'после', 'почему-то', 'сломалось', 'ломается', 'ошибка', 'проблема', 'изменений',
-  'проведи', 'скажи', 'найди', 'причину', 'где', 'риски', 'before', 'after', 'with', 'from', 'that', 'this', 'user', 'users',
-  'the', 'and', 'for', 'why', 'how', 'when', 'where', 'not', 'into',
+  'и',
+  'или',
+  'но',
+  'а',
+  'не',
+  'да',
+  'как',
+  'что',
+  'это',
+  'так',
+  'для',
+  'при',
+  'про',
+  'без',
+  'если',
+  'когда',
+  'где',
+  'почему',
+  'надо',
+  'нужно',
+  'чтобы',
+  'какой',
+  'какая',
+  'какие',
+  'какого',
+  'меня',
+  'мой',
+  'моя',
+  'мои',
+  'твой',
+  'твоя',
+  'его',
+  'ее',
+  'их',
+  'наш',
+  'ваш',
+  'там',
+  'тут',
+  'очень',
+  'просто',
+  'после',
+  'почему-то',
+  'сломалось',
+  'ломается',
+  'ошибка',
+  'проблема',
+  'изменений',
+  'проведи',
+  'скажи',
+  'найди',
+  'причину',
+  'где',
+  'риски',
+  'before',
+  'after',
+  'with',
+  'from',
+  'that',
+  'this',
+  'user',
+  'users',
+  'the',
+  'and',
+  'for',
+  'why',
+  'how',
+  'when',
+  'where',
+  'not',
+  'into',
 ]);
 
-const BUGFIX_HINTS = ['ломается', 'сломалось', 'не работает', 'ошибка', 'баг', 'crash', 'broken', 'fails', 'failing', 'issue', 'problem', 'debug'];
-const FEATURE_HINTS = ['добавь', 'добавить', 'реализуй', 'реализовать', 'поддержку', 'support', 'implement', 'feature'];
-const REFACTOR_HINTS = ['рефактор', 'refactor', 'упрости', 'почисти', 'перестрой', 'restructure', 'cleanup', 'переведи', 'замени', 'обнови', 'миграц', 'migration', 'switch', 'upgrade', 'replace'];
+const BUGFIX_HINTS = [
+  'ломается',
+  'сломалось',
+  'не работает',
+  'ошибка',
+  'баг',
+  'crash',
+  'broken',
+  'fails',
+  'failing',
+  'issue',
+  'problem',
+  'debug',
+];
+const FEATURE_HINTS = [
+  'добавь',
+  'добавить',
+  'реализуй',
+  'реализовать',
+  'поддержку',
+  'support',
+  'implement',
+  'feature',
+];
+const REFACTOR_HINTS = [
+  'рефактор',
+  'refactor',
+  'упрости',
+  'почисти',
+  'перестрой',
+  'restructure',
+  'cleanup',
+  'переведи',
+  'замени',
+  'обнови',
+  'миграц',
+  'migration',
+  'switch',
+  'upgrade',
+  'replace',
+];
 const REVIEW_HINTS = ['ревью', 'review', 'проверь', 'audit', 'аудит', 'оцени'];
 const ARCHITECTURE_HINTS = ['архитектур', 'слой', 'границ', 'solid', 'dependency', 'design'];
-const SECURITY_HINTS = ['security', 'безопас', 'xss', 'csrf', 'sql', 'token', 'cookie', 'auth', 'авторизац', 'аутентификац'];
-const STABILIZATION_HINTS = ['нестабиль', 'flaky', 'memory leak', 'утечк', 'медленно', 'slow', 'performance', 'hang', 'зависает'];
-const CAMPAIGN_HINTS = ['все', 'all', 'массов', 'миграц', 'migration', 'переведи', 'замени', 'replace', 'switch', 'upgrade', 'across', 'по всему', 'повсюду', 'несколько', 'много', 'сервисы', 'service', 'library', 'библиотек'];
+const SECURITY_HINTS = [
+  'security',
+  'безопас',
+  'xss',
+  'csrf',
+  'sql',
+  'token',
+  'cookie',
+  'auth',
+  'авторизац',
+  'аутентификац',
+];
+const STABILIZATION_HINTS = [
+  'нестабиль',
+  'flaky',
+  'memory leak',
+  'утечк',
+  'медленно',
+  'slow',
+  'performance',
+  'hang',
+  'зависает',
+];
+const CAMPAIGN_HINTS = [
+  'все',
+  'all',
+  'массов',
+  'миграц',
+  'migration',
+  'переведи',
+  'замени',
+  'replace',
+  'switch',
+  'upgrade',
+  'across',
+  'по всему',
+  'повсюду',
+  'несколько',
+  'много',
+  'сервисы',
+  'service',
+  'library',
+  'библиотек',
+];
 
 const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
 
@@ -90,15 +234,24 @@ export class TaskIntelligenceService {
   constructor(
     private readonly projectInsightService = new ProjectInsightService(),
     private readonly agentContextService = new AgentContextService(),
-    private readonly changeCampaignService = new ChangeCampaignService(),
+    private readonly changeCampaignService = new ChangeCampaignService()
   ) {}
 
-  async prepareContext(graph: GraphData, input: PrepareTaskContextInput): Promise<TaskContextResult> {
+  async prepareContext(
+    graph: GraphData,
+    input: PrepareTaskContextInput
+  ): Promise<TaskContextResult> {
     const inferredIntent = this.inferIntent(input.userRequest);
     const candidateQueries = this.extractCandidateQueries(input.userRequest);
     const targetCandidates = this.findTargetCandidates(graph, candidateQueries);
     const projectContext = await this.projectInsightService.prepareContext(graph, input);
-    const selectedContext = await this.prepareSelectedContext(graph, inferredIntent, targetCandidates, candidateQueries, input);
+    const selectedContext = await this.prepareSelectedContext(
+      graph,
+      inferredIntent,
+      targetCandidates,
+      candidateQueries,
+      input
+    );
     const route = this.buildRoute(inferredIntent, targetCandidates, selectedContext);
 
     return {
@@ -121,7 +274,7 @@ export class TaskIntelligenceService {
     inferredIntent: TaskIntentInference,
     targetCandidates: GraphNode[],
     candidateQueries: string[],
-    input: PrepareTaskContextInput,
+    input: PrepareTaskContextInput
   ): Promise<TaskContextResult['selectedContext']> {
     if (this.shouldUseCampaignContext(input.userRequest, inferredIntent, targetCandidates)) {
       const context = await this.changeCampaignService.prepareContext(graph, {
@@ -166,13 +319,14 @@ export class TaskIntelligenceService {
   private buildRoute(
     inferredIntent: TaskIntentInference,
     targetCandidates: GraphNode[],
-    selectedContext: TaskContextResult['selectedContext'],
+    selectedContext: TaskContextResult['selectedContext']
   ): TaskRoutePlan {
     if (selectedContext?.kind === 'campaign') {
       return {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_change_campaign',
-        rationale: 'Запрос выглядит как массовая миграция или крупный refactor, поэтому агенту нужен campaign-level план, а не single-target change context.',
+        rationale:
+          'Запрос выглядит как массовая миграция или крупный refactor, поэтому агенту нужен campaign-level план, а не single-target change context.',
         shouldInspectCodeImmediately: true,
         fallbackTools: ['search_graph', 'get_node_dependencies', 'get_blast_radius'],
       };
@@ -182,7 +336,8 @@ export class TaskIntelligenceService {
       return {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_change_context',
-        rationale: 'Запрос похож на изменение или bugfix, и CodeMaps смог привязать его к конкретной кодовой цели.',
+        rationale:
+          'Запрос похож на изменение или bugfix, и CodeMaps смог привязать его к конкретной кодовой цели.',
         shouldInspectCodeImmediately: true,
         fallbackTools: ['get_node_dependencies', 'get_blast_radius', 'search_graph'],
       };
@@ -192,9 +347,10 @@ export class TaskIntelligenceService {
       return {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_review_context',
-        rationale: targetCandidates.length > 0
-          ? 'Запрос требует диагностики/аудита, поэтому агенту полезнее начать с review-style контекста по найденной focus-области.'
-          : 'Запрос пока не удалось жёстко привязать к одной кодовой цели, поэтому безопаснее начать с review-style контекста.',
+        rationale:
+          targetCandidates.length > 0
+            ? 'Запрос требует диагностики/аудита, поэтому агенту полезнее начать с review-style контекста по найденной focus-области.'
+            : 'Запрос пока не удалось жёстко привязать к одной кодовой цели, поэтому безопаснее начать с review-style контекста.',
         shouldInspectCodeImmediately: targetCandidates.length > 0,
         fallbackTools: ['search_graph', 'get_architecture_overview', 'detect_patterns'],
       };
@@ -203,7 +359,8 @@ export class TaskIntelligenceService {
     return {
       initialTool: 'prepare_task_context',
       selectedCompositeTool: 'prepare_project_context',
-      rationale: 'Запрос слишком общий или недостаточно привязан к кодовой области, поэтому агенту нужно начать с общей ментальной модели проекта.',
+      rationale:
+        'Запрос слишком общий или недостаточно привязан к кодовой области, поэтому агенту нужно начать с общей ментальной модели проекта.',
       shouldInspectCodeImmediately: false,
       fallbackTools: ['prepare_review_context', 'search_graph', 'get_graph_context'],
     };
@@ -213,7 +370,7 @@ export class TaskIntelligenceService {
     inferredIntent: TaskIntentInference,
     route: TaskRoutePlan,
     targetCandidates: GraphNode[],
-    selectedContext: TaskContextResult['selectedContext'],
+    selectedContext: TaskContextResult['selectedContext']
   ) {
     const nextSteps = [
       `Агент уже понял intent как "${inferredIntent.taskKind}" и выбрал основной composite tool "${route.selectedCompositeTool}".`,
@@ -222,17 +379,27 @@ export class TaskIntelligenceService {
     if (targetCandidates.length > 0) {
       nextSteps.push(`Первый кандидат цели: ${targetCandidates[0].id}.`);
     } else {
-      nextSteps.push('Явная кодовая цель пока не найдена; стоит использовать focus-кандидаты и проектную ментальную модель для уточнения области.');
+      nextSteps.push(
+        'Явная кодовая цель пока не найдена; стоит использовать focus-кандидаты и проектную ментальную модель для уточнения области.'
+      );
     }
 
     if (selectedContext?.kind === 'change') {
-      nextSteps.push('Дальше агенту стоит читать change-context risks, blast radius и recommendedFilesToInspect перед правкой.');
+      nextSteps.push(
+        'Дальше агенту стоит читать change-context risks, blast radius и recommendedFilesToInspect перед правкой.'
+      );
     } else if (selectedContext?.kind === 'campaign') {
-      nextSteps.push('Дальше агенту стоит читать execution waves, affected files и campaign risks, а затем выполнять миграцию фазами.');
+      nextSteps.push(
+        'Дальше агенту стоит читать execution waves, affected files и campaign risks, а затем выполнять миграцию фазами.'
+      );
     } else if (selectedContext?.kind === 'review') {
-      nextSteps.push('Дальше агенту стоит читать review priorities, patterns и architecture summary перед углублением в код.');
+      nextSteps.push(
+        'Дальше агенту стоит читать review priorities, patterns и architecture summary перед углублением в код.'
+      );
     } else {
-      nextSteps.push('Дальше агенту стоит выбрать focusQuery из candidateQueries и затем углубиться в review/change context.');
+      nextSteps.push(
+        'Дальше агенту стоит выбрать focusQuery из candidateQueries и затем углубиться в review/change context.'
+      );
     }
 
     return nextSteps;
@@ -254,7 +421,13 @@ export class TaskIntelligenceService {
       return { taskKind: 'bugfix', confidence: 'high', reasoning, extractedKeywords };
     }
 
-    if (has(CAMPAIGN_HINTS) && (has(REFACTOR_HINTS) || has(FEATURE_HINTS) || normalized.includes('нов') || normalized.includes('библиотек'))) {
+    if (
+      has(CAMPAIGN_HINTS) &&
+      (has(REFACTOR_HINTS) ||
+        has(FEATURE_HINTS) ||
+        normalized.includes('нов') ||
+        normalized.includes('библиотек'))
+    ) {
       reasoning.push('Обнаружены сигналы массовой миграции или широкого refactor-изменения.');
       return { taskKind: 'refactor', confidence: 'high', reasoning, extractedKeywords };
     }
@@ -296,13 +469,20 @@ export class TaskIntelligenceService {
   private extractCandidateQueries(userRequest: string) {
     const normalized = userRequest.toLowerCase();
     const quoted = Array.from(normalized.matchAll(/["'`](.+?)["'`]/gu), (match) => match[1].trim());
-    const fileLike = Array.from(normalized.matchAll(/[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md)/gu), (match) => match[0]);
-    const tokens = Array.from(normalized.matchAll(/[\p{L}\p{N}_-]{3,}/gu), (match) => match[0])
-      .filter((token) => !STOP_WORDS.has(token));
+    const fileLike = Array.from(
+      normalized.matchAll(/[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md)/gu),
+      (match) => match[0]
+    );
+    const tokens = Array.from(
+      normalized.matchAll(/[\p{L}\p{N}_-]{3,}/gu),
+      (match) => match[0]
+    ).filter((token) => !STOP_WORDS.has(token));
 
     const expanded = new Set<string>([...quoted, ...fileLike, ...tokens]);
     if (normalized.includes('авторизац') || normalized.includes('auth')) {
-      ['auth', 'authentication', 'login', 'token', 'cookie', 'session'].forEach((term) => expanded.add(term));
+      ['auth', 'authentication', 'login', 'token', 'cookie', 'session'].forEach((term) =>
+        expanded.add(term)
+      );
     }
     if (normalized.includes('логин')) {
       ['login', 'auth', 'session'].forEach((term) => expanded.add(term));
@@ -329,10 +509,11 @@ export class TaskIntelligenceService {
     }
 
     return Array.from(scored.values())
-      .sort((a, b) =>
-        b.score - a.score
-        || this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type)
-        || a.node.label.localeCompare(b.node.label)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type) ||
+          a.node.label.localeCompare(b.node.label)
       )
       .slice(0, MAX_CANDIDATES)
       .map(({ node }) => node);
@@ -342,11 +523,18 @@ export class TaskIntelligenceService {
     return taskKind === 'bugfix' || taskKind === 'feature' || taskKind === 'refactor';
   }
 
-  private shouldUseCampaignContext(userRequest: string, inferredIntent: TaskIntentInference, targetCandidates: GraphNode[]) {
+  private shouldUseCampaignContext(
+    userRequest: string,
+    inferredIntent: TaskIntentInference,
+    targetCandidates: GraphNode[]
+  ) {
     const normalized = userRequest.toLowerCase();
     const hasCampaignHints = CAMPAIGN_HINTS.some((hint) => normalized.includes(hint));
 
-    if (hasCampaignHints && (this.isChangeIntent(inferredIntent.taskKind) || inferredIntent.taskKind === 'explore')) {
+    if (
+      hasCampaignHints &&
+      (this.isChangeIntent(inferredIntent.taskKind) || inferredIntent.taskKind === 'explore')
+    ) {
       return true;
     }
 
@@ -358,11 +546,13 @@ export class TaskIntelligenceService {
   }
 
   private isReviewIntent(taskKind: RoutedTaskKind) {
-    return taskKind === 'review'
-      || taskKind === 'architecture'
-      || taskKind === 'security'
-      || taskKind === 'stabilization'
-      || taskKind === 'explore';
+    return (
+      taskKind === 'review' ||
+      taskKind === 'architecture' ||
+      taskKind === 'security' ||
+      taskKind === 'stabilization' ||
+      taskKind === 'explore'
+    );
   }
 
   private toChangeTaskMode(taskKind: RoutedTaskKind): ChangeTaskMode {
@@ -419,7 +609,8 @@ export class TaskIntelligenceService {
     if (basenameWithoutExtension === normalizedQuery) textScore += node.type === 'file' ? 220 : 100;
     if (normalizedLabel.startsWith(normalizedQuery)) textScore += 90;
     if (basename.startsWith(normalizedQuery)) textScore += node.type === 'file' ? 100 : 50;
-    if (basenameWithoutExtension.startsWith(normalizedQuery)) textScore += node.type === 'file' ? 120 : 60;
+    if (basenameWithoutExtension.startsWith(normalizedQuery))
+      textScore += node.type === 'file' ? 120 : 60;
     if (normalizedLabel.includes(normalizedQuery)) textScore += 40;
     if (normalizedId.includes(normalizedQuery)) textScore += node.type === 'file' ? 35 : 20;
 

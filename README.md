@@ -25,7 +25,7 @@
 
 ## 📦 Installation
 
-Download the portable version from the [Releases](https://github.com/Zilk102/CodeMaps/releases) page. 
+Download the portable version from the [Releases](https://github.com/Zilk102/CodeMaps/releases) page.
 The application requires no complex installation and works right out of the box on Windows.
 
 ## 🛠 Development
@@ -33,6 +33,7 @@ The application requires no complex installation and works right out of the box 
 The project is built on the following stack: **Electron + React + TypeScript + Vite**. Cytoscape / Sigma are used for graph visualization.
 
 ### Run Locally
+
 ```bash
 # Install dependencies
 npm install
@@ -42,13 +43,16 @@ npm run dev
 ```
 
 ### Build
+
 ```bash
 # Create a production build (Portable)
 npm run build:portable
 ```
 
 ## 🤝 Contributing
+
 We welcome any help in developing the project! Please read the [Contributing Guide](CONTRIBUTING.md) before creating a Pull Request.
 
 ## 📄 License
+
 The project is distributed under the MIT License. See the [LICENSE](LICENSE) file for details.

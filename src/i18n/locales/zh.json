@@ -1,0 +1,91 @@
+{
+  "titleBar": {
+    "openProject": "打开项目",
+    "closeProject": "关闭项目",
+    "mcpSettings": "MCP 设置"
+  },
+  "graphView": {
+    "recalculatingGraph": "重新计算图形...",
+    "mode": "模式",
+    "hierarchy": "层级",
+    "dependencies": "依赖关系",
+    "openProjectToAnalyze": "请打开一个项目进行分析。",
+    "error": "错误",
+    "hierarchySelectedDescription": "显示相对于选定节点的连接：传入 {{incomingCount}}，传出 {{outgoingCount}}。",
+    "hierarchyDefaultDescription": "选择文件、类或函数以查看层级结构内的传入和传出依赖关系。",
+    "dependenciesSelectedDescription": "围绕选定节点的聚焦依赖子图：传入 {{incomingCount}}，传出 {{outgoingCount}}。",
+    "dependenciesDefaultDescription": "文件和 ADR 级别的概览。在图形或树中选择节点以聚焦其邻居。"
+  },
+  "fileTree": {
+    "explorer": "资源管理器",
+    "project": "项目",
+    "noFolderOpen": "未打开文件夹",
+    "openFolder": "打开文件夹",
+    "analyzing": "分析中...",
+    "error": "加载错误"
+  },
+  "mcpSettings": {
+    "title": "MCP 服务器设置",
+    "overview": "概览",
+    "tools": "工具",
+    "resources": "资源",
+    "clients": "连接",
+    "agentSkill": "代理技能",
+    "close": "关闭",
+    "status": "状态",
+    "active": "活跃",
+    "unavailable": "不可用",
+    "copied": "已复制",
+    "copyUrl": "复制 URL",
+    "copy": "复制",
+    "copySkillMd": "复制 SKILL.md",
+    "metricTools": "工具",
+    "metricResources": "资源",
+    "metricGraph": "图形",
+    "metricGraphHint": "节点 / 连接",
+    "mcpEndpoint": "MCP 端点",
+    "websocketUI": "用于 UI 的 WebSocket",
+    "activeProject": "活跃项目",
+    "noProjectOpen": "未打开项目",
+    "whatAgentGets": "这给代理带来什么",
+    "preferredToolsForAgent": "代理的首选工具",
+    "recommendedForAgent": "推荐给代理",
+    "forAutopilot": "用于自动驾驶",
+    "whenToUse": "何时使用",
+    "whyNeeded": "为什么需要这个",
+    "howToUse": "如何使用",
+    "readyTemplateSkill": "现成的 SKILL.md 模板",
+    "streamableHttpServerDescription": "用于代理的可流式 HTTP MCP 服务器和用于 UI 的单独 WebSocket 通道。",
+    "agentBehaviorDescription": "普通用户不需要记住 MCP 命令。对于合适的代理，`CodeMaps` 现在应该这样工作：代理自己打开项目，在编辑前请求 `prepare_change_context`，在审查时请求 `prepare_review_context`，仅将底层工具用作备用。",
+    "skillSetupStep1": "1. 为代理创建一个新技能，例如在 `.trae/skills/codemaps-agent-autopilot/SKILL.md` 中。",
+    "skillSetupStep2": "2. 复制下面的模板，无需更改。",
+    "skillSetupStep3": "3. 此后，任何代理都将能够通过 `prepare_task_context`、`prepare_change_campaign`、`prepare_change_context` 和 `prepare_review_context` 持续工作，而不是手动调用底层工具。",
+    "trae": "Trae",
+    "traeDescription": "通过 URL 添加 HTTP MCP 服务器。对于本地 CodeMaps，请使用可流式 HTTP 端点。",
+    "cursor": "Cursor",
+    "cursorDescription": "对于 Cursor，将传输设置为可流式 HTTP 并使用相同的本地端点。",
+    "claudeCode": "Claude Code",
+    "claudeCodeDescription": "Claude Code 最容易通过 CLI 命令连接，以立即在客户端中注册服务器。",
+    "skillTemplateDescription": "如果代理已连接到 `codemaps` 但缺乏通过它作为架构大脑工作的永久指令，它可能会太弱或太晚地使用 MCP。这个 `SKILL.md` 模板修复了正确的行为：先使用 `CodeMaps`，然后进行本地读取和编辑。"
+  },
+  "filterPanel": {
+    "filters": "筛选器",
+    "layoutMode": "布局模式",
+    "hierarchy": "层级",
+    "dependencies": "依赖关系",
+    "hierarchyDescription": "项目结构和嵌套。选择特定节点后更容易读取连接。",
+    "dependenciesDescription": "文件和 ADR 级别的依赖关系概览。选择节点后，显示其局部子图。",
+    "directories": "目录",
+    "files": "文件",
+    "functions": "函数",
+    "classes": "类",
+    "adr": "ADR",
+    "edges": "边（线）"
+  },
+  "app": {
+    "loading": "加载中…"
+  },
+  "languageSwitcher": {
+    "language": "语言"
+  }
+}

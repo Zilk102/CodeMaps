@@ -20,7 +20,8 @@ export interface SecurityScanResult {
 }
 
 const SECRET_FILE_RE = /\.(env|pem|key|p12|pfx|crt|cert)$/i;
-const SENSITIVE_NAME_RE = /(secret|token|password|passwd|credential|private[-_]?key|access[-_]?key)/i;
+const SENSITIVE_NAME_RE =
+  /(secret|token|password|passwd|credential|private[-_]?key|access[-_]?key)/i;
 const INFRA_FILE_RE = /(dockerfile|docker-compose|compose\.ya?ml|k8s|helm|terraform|\.tf$)/i;
 const SANITIZED_CONTENT_RULES: Array<{
   ruleId: string;
@@ -32,32 +33,39 @@ const SANITIZED_CONTENT_RULES: Array<{
     ruleId: 'browser_storage_auth',
     severity: 'critical',
     pattern: /\b(?:window\.)?(?:localStorage|sessionStorage)\s*(?:\.|\[)/,
-    message: 'Найдено использование browser storage. Для auth и чувствительных данных используйте только HTTP-only Secure Cookies.',
+    message:
+      'Найдено использование browser storage. Для auth и чувствительных данных используйте только HTTP-only Secure Cookies.',
   },
   {
     ruleId: 'dynamic_code_execution',
     severity: 'high',
     pattern: /\b(?:eval\s*\(|new Function\s*\()/,
-    message: 'Найдено динамическое выполнение кода (`eval`/`Function`), что увеличивает риск RCE/XSS.',
+    message:
+      'Найдено динамическое выполнение кода (`eval`/`Function`), что увеличивает риск RCE/XSS.',
   },
   {
     ruleId: 'child_process_shell',
     severity: 'high',
     pattern: /\b(?:exec|execSync|spawn|spawnSync)\s*\(/,
-    message: 'Найден shell/process execution API. Проверьте sandboxing, валидацию аргументов и blast radius.',
+    message:
+      'Найден shell/process execution API. Проверьте sandboxing, валидацию аргументов и blast radius.',
   },
   {
     ruleId: 'hardcoded_secret',
     severity: 'high',
     pattern: /\b(?:api[_-]?key|secret|token|password)\b\s*[:=]\s*['"`][^'"`\s]{8,}['"`]/i,
-    message: 'Похоже на hardcoded credential. Вынесите секрет в переменные окружения и secret management.',
+    message:
+      'Похоже на hardcoded credential. Вынесите секрет в переменные окружения и secret management.',
   },
 ];
 
 const stripStringsAndComments = (content: string) => {
   const withoutBlockComments = content.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const withoutLineComments = withoutBlockComments.replace(/\/\/.*$/gm, ' ');
-  return withoutLineComments.replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`/g, '""');
+  return withoutLineComments.replace(
+    /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`/g,
+    '""'
+  );
 };
 
 export class SecurityScanner {
@@ -71,7 +79,9 @@ export class SecurityScanner {
 
       // Skip build output directories to avoid false positives from bundled/compiled code
       const normalizedPath = node.id.replace(/\\/g, '/');
-      if (/(dist|dist-electron|dist-renderer|node_modules|build|out|coverage)\//.test(normalizedPath)) {
+      if (
+        /(dist|dist-electron|dist-renderer|node_modules|build|out|coverage)\//.test(normalizedPath)
+      ) {
         continue;
       }
 
@@ -101,7 +111,8 @@ export class SecurityScanner {
           ruleId: 'infra_in_source_tree',
           severity: 'low',
           nodeId: node.id,
-          message: 'Инфраструктурный файл находится внутри source tree; проверьте разделение runtime и delivery-артефактов.',
+          message:
+            'Инфраструктурный файл находится внутри source tree; проверьте разделение runtime и delivery-артефактов.',
         });
       }
 
@@ -122,11 +133,12 @@ export class SecurityScanner {
 
         const hasInsecureRemoteHttp = content
           .split(/\r?\n/)
-          .some((line) =>
-            /http:\/\//i.test(line) &&
-            !/localhost|127\.0\.0\.1/i.test(line) &&
-            !/\$\{/.test(line) &&
-            !/xmlns\s*=|www\.w3\.org/i.test(line)
+          .some(
+            (line) =>
+              /http:\/\//i.test(line) &&
+              !/localhost|127\.0\.0\.1/i.test(line) &&
+              !/\$\{/.test(line) &&
+              !/xmlns\s*=|www\.w3\.org/i.test(line)
           );
 
         if (hasInsecureRemoteHttp) {

@@ -12,5 +12,15 @@ contextBridge.exposeInMainWorld('api', {
   },
   onParsingProgress: (callback: (data: any) => void) => {
     ipcRenderer.on('parsing-progress', (_event, data) => callback(data));
-  }
+  },
+  // Updater IPC
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  getUpdaterState: () => ipcRenderer.invoke('updater:get-state'),
+  onUpdaterStateChange: (callback: (state: any) => void) => {
+    ipcRenderer.on('updater:state-changed', (_event, state) => callback(state));
+  },
+  removeUpdaterListener: () => {
+    ipcRenderer.removeAllListeners('updater:state-changed');
+  },
 });

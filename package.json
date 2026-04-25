@@ -1,7 +1,7 @@
 {
   "name": "codemaps",
   "productName": "CodeMaps",
-  "version": "0.0.0",
+  "version": "9.9.9",
   "author": {
     "name": "Zilk102",
     "email": "moskvi-ivan@yandex.ru"
@@ -23,7 +23,10 @@
     "package:portable": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win portable --x64",
     "build": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && electron-builder",
     "build:portable": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && npm run package:portable",
-    "mcp:smoke": "node scripts/mcp-smoke-test.mjs"
+    "mcp:smoke": "node scripts/mcp-smoke-test.mjs",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write ."
   },
   "build": {
     "productName": "CodeMaps",
@@ -43,15 +46,24 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ],
       "artifactName": "CodeMaps-${version}-win-${arch}.${ext}"
@@ -60,19 +72,27 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "rpm",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "tar.gz",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "CodeMaps-${version}-linux-${arch}.${ext}",
@@ -93,9 +113,13 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "chokidar": "^5.0.0",
     "cors": "^2.8.6",
+    "electron-updater": "^6.8.3",
     "express": "^5.2.1",
     "fast-glob": "^3.3.3",
+    "i18next": "^26.0.8",
+    "i18next-browser-languagedetector": "^8.2.1",
     "piscina": "^5.1.4",
+    "react-i18next": "^17.0.4",
     "simple-git": "^3.36.0",
     "typescript": "^5.0.0",
     "web-tree-sitter": "^0.26.8",
@@ -104,6 +128,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@sigma/node-image": "^3.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -112,17 +137,25 @@
     "@types/react-dom": "^19.0.0",
     "@types/react-virtualized-auto-sizer": "^1.0.4",
     "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/parser": "^8.59.0",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^41.2.2",
     "electron-builder": "^26.8.1",
     "elkjs": "^0.11.1",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.5.0",
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
     "graphology-layout-forceatlas2": "^0.10.1",
     "graphology-types": "^0.24.8",
     "klayjs": "^0.4.1",
+    "prettier": "^3.8.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-virtualized-auto-sizer": "^2.0.3",

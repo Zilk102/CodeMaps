@@ -4,12 +4,15 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const endpoint = process.env.MCP_ENDPOINT || 'http://127.0.0.1:3005/mcp';
 const projectPath = process.env.MCP_PROJECT_PATH || process.cwd();
 
-const client = new Client({
-  name: 'codemaps-smoke-test',
-  version: '1.0.0',
-}, {
-  capabilities: {},
-});
+const client = new Client(
+  {
+    name: 'codemaps-smoke-test',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {},
+  }
+);
 
 const transport = new StreamableHTTPClientTransport(new URL(endpoint));
 
@@ -41,7 +44,10 @@ const parseFirstTextPayload = (response, toolName) => {
 
 const expectOk = (payload, toolName) => {
   if (payload.status === undefined) return; // Some tools (e.g. get_graph_context) don't return status
-  assert(payload.status === 'ok', `${toolName}: expected status 'ok', got ${JSON.stringify(payload.status)}`);
+  assert(
+    payload.status === 'ok',
+    `${toolName}: expected status 'ok', got ${JSON.stringify(payload.status)}`
+  );
 };
 
 const trackedErrors = [];
@@ -120,11 +126,11 @@ try {
 
   assert(
     JSON.stringify(toolNames) === JSON.stringify(expectedTools),
-    `Tool list mismatch. Expected: ${expectedTools.join(', ')}, Got: ${toolNames.join(', ')}`,
+    `Tool list mismatch. Expected: ${expectedTools.join(', ')}, Got: ${toolNames.join(', ')}`
   );
   assert(
     JSON.stringify(resourceUris) === JSON.stringify(expectedResources),
-    `Resource list mismatch. Expected: ${expectedResources.join(', ')}, Got: ${resourceUris.join(', ')}`,
+    `Resource list mismatch. Expected: ${expectedResources.join(', ')}, Got: ${resourceUris.join(', ')}`
   );
   console.log('[PASS] tool & resource registry match expected');
   stats.passed += 2;
@@ -160,7 +166,11 @@ try {
   assert(Array.isArray(deps?.dependents), 'get_node_dependencies: expected dependents array');
 
   // ─── 5. search_graph ───────────────────────────────────────
-  const search = await runTool('search_graph', { query: blastTarget.label || 'a', type: blastTarget.type, limit: 10 });
+  const search = await runTool('search_graph', {
+    query: blastTarget.label || 'a',
+    type: blastTarget.type,
+    limit: 10,
+  });
   assert(search?.count >= 0, 'search_graph: expected count >= 0');
   assert(Array.isArray(search?.matches), 'search_graph: expected matches array');
 
@@ -189,7 +199,10 @@ try {
 
   // ─── 11. search_signatures ────────────────────────────────
   const sigs = await runTool('search_signatures', { query: 'analyze', limit: 10 });
-  assert(sigs?.results !== undefined || sigs?.count !== undefined, 'search_signatures: expected results');
+  assert(
+    sigs?.results !== undefined || sigs?.count !== undefined,
+    'search_signatures: expected results'
+  );
 
   // ─── 12. prepare_project_context ──────────────────────────
   const projCtx = await runTool('prepare_project_context', {
@@ -211,7 +224,8 @@ try {
 
   // ─── 14. prepare_change_campaign ───────────────────────────
   const campaign = await runTool('prepare_change_campaign', {
-    userRequest: 'Переведи все MCP сервисы на новый orchestration flow и обнови связанные integration points',
+    userRequest:
+      'Переведи все MCP сервисы на новый orchestration flow и обнови связанные integration points',
     candidateQueries: ['mcp', 'service', 'integration', 'orchestration'],
     taskMode: 'refactor',
     depth: 2,

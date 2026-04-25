@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
 import { getMcpStatus, setupMcpServer } from './mcp';
 import { oracle } from './oracle';
+import { initAutoUpdater } from './autoUpdater';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -17,7 +18,7 @@ function createWindow() {
     backgroundColor: '#0f111a',
     titleBarStyle: 'hidden',
     frame: false,
-    titleBarOverlay: false
+    titleBarOverlay: false,
   });
 
   if (!app.isPackaged) {
@@ -47,6 +48,7 @@ ipcMain.handle('window-close', () => {
 app.whenReady().then(() => {
   createWindow();
   setupMcpServer();
+  initAutoUpdater(mainWindow!);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -60,7 +62,7 @@ app.on('window-all-closed', () => {
 ipcMain.handle('select-directory', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
+    properties: ['openDirectory'],
   });
   return result.canceled ? null : result.filePaths[0];
 });

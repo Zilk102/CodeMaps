@@ -1,0 +1,91 @@
+{
+  "titleBar": {
+    "openProject": "Открыть проект",
+    "closeProject": "Закрыть проект",
+    "mcpSettings": "MCP Настройки"
+  },
+  "graphView": {
+    "recalculatingGraph": "Перерасчет графа...",
+    "mode": "Режим",
+    "hierarchy": "Иерархия",
+    "dependencies": "Зависимости",
+    "openProjectToAnalyze": "Откройте проект для анализа.",
+    "error": "Ошибка",
+    "hierarchySelectedDescription": "Показываются связи относительно выбранного узла: входящие {{incomingCount}}, исходящие {{outgoingCount}}.",
+    "hierarchyDefaultDescription": "Выбери файл, класс или функцию, чтобы увидеть понятные входящие и исходящие зависимости внутри иерархии.",
+    "dependenciesSelectedDescription": "Показывается сфокусированный dependency-subgraph вокруг выбранного узла: входящие {{incomingCount}}, исходящие {{outgoingCount}}.",
+    "dependenciesDefaultDescription": "Показывается обзор на уровне файлов и ADR. Выбери узел на графе или в дереве, чтобы сфокусироваться на его соседях."
+  },
+  "fileTree": {
+    "explorer": "Проводник",
+    "project": "Проект",
+    "noFolderOpen": "Папка не открыта",
+    "openFolder": "Открыть папку",
+    "analyzing": "Анализ...",
+    "error": "Ошибка загрузки"
+  },
+  "mcpSettings": {
+    "title": "Настройки MCP Сервера",
+    "overview": "Обзор",
+    "tools": "Инструменты",
+    "resources": "Ресурсы",
+    "clients": "Подключение",
+    "agentSkill": "Навык для агентов",
+    "close": "Закрыть",
+    "status": "Статус",
+    "active": "Активен",
+    "unavailable": "Недоступен",
+    "copied": "Скопировано",
+    "copyUrl": "Копировать URL",
+    "copy": "Копировать",
+    "copySkillMd": "Копировать SKILL.md",
+    "metricTools": "Инструменты",
+    "metricResources": "Ресурсы",
+    "metricGraph": "Граф",
+    "metricGraphHint": "узлы / связи",
+    "mcpEndpoint": "MCP Endpoint",
+    "websocketUI": "WebSocket для UI",
+    "activeProject": "Активный проект",
+    "noProjectOpen": "Проект не открыт",
+    "whatAgentGets": "Что это даёт агенту",
+    "preferredToolsForAgent": "Предпочтительные инструменты для агента",
+    "recommendedForAgent": "Рекомендуется агенту",
+    "forAutopilot": "Для автопилота",
+    "whenToUse": "Когда использовать",
+    "whyNeeded": "Зачем это нужно",
+    "howToUse": "Как использовать",
+    "readyTemplateSkill": "Готовый шаблон SKILL.md",
+    "streamableHttpServerDescription": "Streamable HTTP MCP сервер для агентов и отдельный WebSocket канал для UI.",
+    "agentBehaviorDescription": "Обычному пользователю не нужно помнить MCP-команды. Для нормального агента `CodeMaps` теперь должен работать так: агент сам открывает проект, сам запрашивает `prepare_change_context` перед правками и `prepare_review_context` для review, а низкоуровневые инструменты использует только как fallback.",
+    "skillSetupStep1": "1. Создай у агента новый навык, например в `.trae/skills/codemaps-agent-autopilot/SKILL.md`.",
+    "skillSetupStep2": "2. Скопируй шаблон ниже без изменений.",
+    "skillSetupStep3": "3. После этого любой агент сможет постоянно работать через `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context` и `prepare_review_context`, а не только вручную вызывать низкоуровневые tools.",
+    "trae": "Trae",
+    "traeDescription": "HTTP MCP сервер добавляется по URL. Для локального CodeMaps используй streamable HTTP endpoint.",
+    "cursor": "Cursor",
+    "cursorDescription": "Для Cursor укажи transport как streamable HTTP и тот же локальный endpoint.",
+    "claudeCode": "Claude Code",
+    "claudeCodeDescription": "Claude Code удобнее всего подключать CLI-командой, чтобы сразу зарегистрировать сервер в клиенте.",
+    "skillTemplateDescription": "Если агент подключён к `codemaps`, но не имеет постоянной инструкции работать через него как через архитектурный мозг, он может использовать MCP слишком слабо или слишком поздно. Этот шаблон `SKILL.md` фиксирует правильное поведение: сначала `CodeMaps`, потом локальное чтение и правки."
+  },
+  "filterPanel": {
+    "filters": "Фильтры",
+    "layoutMode": "Режим Layout",
+    "hierarchy": "Иерархия",
+    "dependencies": "Зависимости",
+    "hierarchyDescription": "Рамки и вложенность проекта. Связи лучше читать после выбора конкретного узла.",
+    "dependenciesDescription": "Обзор зависимостей на уровне файлов и ADR. После выбора узла показывается его локальный subgraph.",
+    "directories": "Папки",
+    "files": "Файлы",
+    "functions": "Функции",
+    "classes": "Классы",
+    "adr": "ADR",
+    "edges": "Связи (линии)"
+  },
+  "app": {
+    "loading": "Загрузка…"
+  },
+  "languageSwitcher": {
+    "language": "Язык"
+  }
+}

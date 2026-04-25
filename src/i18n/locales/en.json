@@ -1,0 +1,91 @@
+{
+  "titleBar": {
+    "openProject": "Open Project",
+    "closeProject": "Close Project",
+    "mcpSettings": "MCP Settings"
+  },
+  "graphView": {
+    "recalculatingGraph": "Recalculating graph...",
+    "mode": "Mode",
+    "hierarchy": "Hierarchy",
+    "dependencies": "Dependencies",
+    "openProjectToAnalyze": "Open a project to analyze.",
+    "error": "Error",
+    "hierarchySelectedDescription": "Showing connections relative to selected node: incoming {{incomingCount}}, outgoing {{outgoingCount}}.",
+    "hierarchyDefaultDescription": "Select a file, class, or function to see clear incoming and outgoing dependencies within the hierarchy.",
+    "dependenciesSelectedDescription": "Focused dependency subgraph around selected node: incoming {{incomingCount}}, outgoing {{outgoingCount}}.",
+    "dependenciesDefaultDescription": "Overview at file and ADR level. Select a node on the graph or in the tree to focus on its neighbors."
+  },
+  "fileTree": {
+    "explorer": "Explorer",
+    "project": "Project",
+    "noFolderOpen": "No folder open",
+    "openFolder": "Open Folder",
+    "analyzing": "Analyzing...",
+    "error": "Loading error"
+  },
+  "mcpSettings": {
+    "title": "MCP Server Settings",
+    "overview": "Overview",
+    "tools": "Tools",
+    "resources": "Resources",
+    "clients": "Connection",
+    "agentSkill": "Agent Skill",
+    "close": "Close",
+    "status": "Status",
+    "active": "Active",
+    "unavailable": "Unavailable",
+    "copied": "Copied",
+    "copyUrl": "Copy URL",
+    "copy": "Copy",
+    "copySkillMd": "Copy SKILL.md",
+    "metricTools": "Tools",
+    "metricResources": "Resources",
+    "metricGraph": "Graph",
+    "metricGraphHint": "nodes / links",
+    "mcpEndpoint": "MCP Endpoint",
+    "websocketUI": "WebSocket for UI",
+    "activeProject": "Active Project",
+    "noProjectOpen": "No project open",
+    "whatAgentGets": "What this gives the agent",
+    "preferredToolsForAgent": "Preferred tools for agent",
+    "recommendedForAgent": "Recommended for agent",
+    "forAutopilot": "For autopilot",
+    "whenToUse": "When to use",
+    "whyNeeded": "Why this is needed",
+    "howToUse": "How to use",
+    "readyTemplateSkill": "Ready SKILL.md template",
+    "streamableHttpServerDescription": "Streamable HTTP MCP server for agents and a separate WebSocket channel for UI.",
+    "agentBehaviorDescription": "Normal users don't need to remember MCP commands. For a proper agent, `CodeMaps` should now work like this: the agent opens the project itself, requests `prepare_change_context` before edits and `prepare_review_context` for reviews, using low-level tools only as fallback.",
+    "skillSetupStep1": "1. Create a new skill for the agent, e.g. in `.trae/skills/codemaps-agent-autopilot/SKILL.md`.",
+    "skillSetupStep2": "2. Copy the template below without changes.",
+    "skillSetupStep3": "3. After this, any agent will be able to work continuously through `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context`, and `prepare_review_context`, rather than manually calling low-level tools.",
+    "trae": "Trae",
+    "traeDescription": "HTTP MCP server is added by URL. For local CodeMaps use the streamable HTTP endpoint.",
+    "cursor": "Cursor",
+    "cursorDescription": "For Cursor set transport to streamable HTTP and use the same local endpoint.",
+    "claudeCode": "Claude Code",
+    "claudeCodeDescription": "Claude Code is easiest to connect via CLI command to immediately register the server in the client.",
+    "skillTemplateDescription": "If an agent is connected to `codemaps` but lacks a permanent instruction to work through it as an architectural brain, it may use MCP too weakly or too late. This `SKILL.md` template fixes proper behavior: `CodeMaps` first, then local reading and edits."
+  },
+  "filterPanel": {
+    "filters": "Filters",
+    "layoutMode": "Layout Mode",
+    "hierarchy": "Hierarchy",
+    "dependencies": "Dependencies",
+    "hierarchyDescription": "Project structure and nesting. Connections are better read after selecting a specific node.",
+    "dependenciesDescription": "Dependency overview at file and ADR level. After selecting a node, its local subgraph is shown.",
+    "directories": "Directories",
+    "files": "Files",
+    "functions": "Functions",
+    "classes": "Classes",
+    "adr": "ADR",
+    "edges": "Edges (lines)"
+  },
+  "app": {
+    "loading": "Loading…"
+  },
+  "languageSwitcher": {
+    "language": "Language"
+  }
+}

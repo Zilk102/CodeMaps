@@ -51,9 +51,16 @@ export class ProjectIndexer {
   async indexProject(
     baseDir: string,
     cache: ProjectCacheSnapshot | null,
-    onProgress?: (progress: { status: string; current: number; total: number; filename: string }) => void
+    onProgress?: (progress: {
+      status: string;
+      current: number;
+      total: number;
+      filename: string;
+    }) => void
   ): Promise<IndexProjectResult> {
-    const filePaths = (await this.discoverFiles(baseDir)).map((filePath) => normalizePath(filePath));
+    const filePaths = (await this.discoverFiles(baseDir)).map((filePath) =>
+      normalizePath(filePath)
+    );
     if (filePaths.length === 0) {
       throw new Error('No source code files found in the selected directory.');
     }
@@ -79,7 +86,9 @@ export class ProjectIndexer {
       }
     }
 
-    filePaths.forEach((filePath) => this.graphBuilder.ensureDirectoryChainForFile(filePath, baseDir));
+    filePaths.forEach((filePath) =>
+      this.graphBuilder.ensureDirectoryChainForFile(filePath, baseDir)
+    );
 
     const fileStats: Record<string, number> = {};
     const filesToParse: string[] = [];
@@ -99,21 +108,28 @@ export class ProjectIndexer {
       onProgress({ status: 'Индексация файлов...', current: 0, total: totalToParse, filename: '' });
     }
 
-    await Promise.all(filesToParse.map(async (filePath) => {
-      await this.reindexFile(filePath, baseDir, languageProfile);
-      processed += 1;
-      if (onProgress && processed % 10 === 0) {
-        onProgress({
-          status: 'Индексация файлов...',
-          current: processed,
-          total: totalToParse,
-          filename: path.basename(filePath),
-        });
-      }
-    }));
+    await Promise.all(
+      filesToParse.map(async (filePath) => {
+        await this.reindexFile(filePath, baseDir, languageProfile);
+        processed += 1;
+        if (onProgress && processed % 10 === 0) {
+          onProgress({
+            status: 'Индексация файлов...',
+            current: processed,
+            total: totalToParse,
+            filename: path.basename(filePath),
+          });
+        }
+      })
+    );
 
     if (onProgress && totalToParse > 0) {
-      onProgress({ status: 'Индексация завершена', current: totalToParse, total: totalToParse, filename: '' });
+      onProgress({
+        status: 'Индексация завершена',
+        current: totalToParse,
+        total: totalToParse,
+        filename: '',
+      });
     }
 
     return {

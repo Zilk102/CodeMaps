@@ -7,12 +7,18 @@ export interface TreeNode {
 
 export const buildTree = (
   graphData: { nodes: GraphNode[]; links: any[] } | null,
-  filters: { showDirectories: boolean; showFiles: boolean; showFunctions: boolean; showClasses: boolean; showADR: boolean }
+  filters: {
+    showDirectories: boolean;
+    showFiles: boolean;
+    showFunctions: boolean;
+    showClasses: boolean;
+    showADR: boolean;
+  }
 ): TreeNode[] => {
   if (!graphData) return [];
 
   const cleanParentMap = new Map<string, string>();
-  graphData.nodes.forEach(node => {
+  graphData.nodes.forEach((node) => {
     if (node.parentId) {
       let curr: string | undefined = node.parentId;
       let hasCycle = false;
@@ -24,7 +30,7 @@ export const buildTree = (
         }
         visited.add(curr);
         // Find parent of curr
-        const parentNode = graphData.nodes.find(n => n.id === curr);
+        const parentNode = graphData.nodes.find((n) => n.id === curr);
         curr = parentNode?.parentId;
       }
       if (!hasCycle) {
@@ -35,7 +41,7 @@ export const buildTree = (
 
   // 3. Строим дерево из плоского списка
   const nodeMap = new Map<string, TreeNode>();
-  graphData.nodes.forEach(node => {
+  graphData.nodes.forEach((node) => {
     // Применяем фильтры видимости прямо на этапе сборки дерева
     let isHidden = false;
     if (node.type === 'directory' && !filters.showDirectories) isHidden = true;

@@ -1,17 +1,20 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStore } from '../store/useStore';
 
 export const FilterPanel: React.FC = () => {
   const { filters, layoutMode, setFilter, setLayoutMode } = useStore();
+  const { t } = useTranslation();
+
   const modeDescription = layoutMode === 'hierarchy'
-    ? 'Рамки и вложенность проекта. Связи лучше читать после выбора конкретного узла.'
-    : 'Обзор зависимостей на уровне файлов и ADR. После выбора узла показывается его локальный subgraph.';
+    ? t('filterPanel.hierarchyDescription')
+    : t('filterPanel.dependenciesDescription');
 
   return (
     <div style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.7)', padding: 15, borderRadius: 8, color: '#fff', fontSize: 13, zIndex: 10, backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <h4 style={{ margin: '0 0 10px 0', fontSize: 14 }}>Фильтры</h4>
+      <h4 style={{ margin: '0 0 10px 0', fontSize: 14 }}>{t('filterPanel.filters')}</h4>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ marginBottom: 6, color: 'var(--t2)', fontSize: 12 }}>Режим Layout</div>
+        <div style={{ marginBottom: 6, color: 'var(--t2)', fontSize: 12 }}>{t('filterPanel.layoutMode')}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             type="button"
@@ -26,7 +29,7 @@ export const FilterPanel: React.FC = () => {
               fontSize: 12,
             }}
           >
-            Иерархия
+            {t('filterPanel.hierarchy')}
           </button>
           <button
             type="button"
@@ -41,7 +44,7 @@ export const FilterPanel: React.FC = () => {
               fontSize: 12,
             }}
           >
-            Зависимости
+            {t('filterPanel.dependencies')}
           </button>
         </div>
         <div style={{ marginTop: 8, color: 'var(--t3)', fontSize: 11, lineHeight: 1.35, maxWidth: 220 }}>
@@ -50,27 +53,27 @@ export const FilterPanel: React.FC = () => {
       </div>
       <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.showDirectories} onChange={(e) => setFilter('showDirectories', e.target.checked)} style={{ marginRight: 8 }} />
-        Папки
+        {t('filterPanel.directories')}
       </label>
       <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.showFiles} onChange={(e) => setFilter('showFiles', e.target.checked)} style={{ marginRight: 8 }} />
-        Файлы
+        {t('filterPanel.files')}
       </label>
       <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.showFunctions} onChange={(e) => setFilter('showFunctions', e.target.checked)} style={{ marginRight: 8 }} />
-        Функции
+        {t('filterPanel.functions')}
       </label>
       <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.showClasses} onChange={(e) => setFilter('showClasses', e.target.checked)} style={{ marginRight: 8 }} />
-        Классы
+        {t('filterPanel.classes')}
       </label>
       <label style={{ display: 'block', marginBottom: 5, cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.showADR} onChange={(e) => setFilter('showADR', e.target.checked)} style={{ marginRight: 8 }} />
-        ADR
+        {t('filterPanel.adr')}
       </label>
       <label style={{ display: 'block', marginBottom: 0, cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.showEdges} onChange={(e) => setFilter('showEdges', e.target.checked)} style={{ marginRight: 8 }} />
-        Связи (линии)
+        {t('filterPanel.edges')}
       </label>
     </div>
   );

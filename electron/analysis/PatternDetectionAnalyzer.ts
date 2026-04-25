@@ -17,8 +17,11 @@ export interface PatternDetectionResult {
 export class PatternDetectionAnalyzer {
   analyze(graph: GraphData): PatternDetectionResult {
     const architecture = new ArchitectureInsightService().analyze(graph);
-    const layerByNodeId = new Map(architecture.classifications.map((record) => [record.nodeId, record.layer]));
-    const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
+    const layerByNodeId = new Map(
+      architecture.classifications.map((record) => [record.nodeId, record.layer])
+    );
+    const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } =
+      buildGraphAdjacency(graph);
     const patterns: DetectedPattern[] = [];
 
     const highFanInNodes = graph.nodes
@@ -33,7 +36,8 @@ export class PatternDetectionAnalyzer {
         id: 'hub_nodes',
         severity: highFanInNodes.some(({ fanIn }) => fanIn >= 15) ? 'high' : 'medium',
         title: 'Hub Nodes',
-        description: 'Узлы с чрезмерно высоким fan-in могут стать bottleneck и точкой массового влияния.',
+        description:
+          'Узлы с чрезмерно высоким fan-in могут стать bottleneck и точкой массового влияния.',
         nodeIds: highFanInNodes.map(({ node }) => node.id),
       });
     }
@@ -50,7 +54,8 @@ export class PatternDetectionAnalyzer {
         id: 'high_fan_out_files',
         severity: highFanOutFiles.some(({ fanOut }) => fanOut >= 20) ? 'high' : 'medium',
         title: 'High Fan-Out Files',
-        description: 'Файлы с большим количеством исходящих зависимостей перегружены ответственностью.',
+        description:
+          'Файлы с большим количеством исходящих зависимостей перегружены ответственностью.',
         nodeIds: highFanOutFiles.map(({ node }) => node.id),
       });
     }
@@ -80,7 +85,8 @@ export class PatternDetectionAnalyzer {
         id: 'churn_hotspots',
         severity: churnHotspots.some((node) => node.churn >= 25) ? 'high' : 'medium',
         title: 'Churn Hotspots',
-        description: 'Файлы с высоким churn обычно содержат нестабильную или перегруженную бизнес-логику.',
+        description:
+          'Файлы с высоким churn обычно содержат нестабильную или перегруженную бизнес-логику.',
         nodeIds: churnHotspots.map((node) => node.id),
       });
     }
@@ -103,7 +109,8 @@ export class PatternDetectionAnalyzer {
         id: 'broad_adr_impact',
         severity: 'low',
         title: 'Broad ADR Impact',
-        description: 'ADR связан с большим количеством файлов, стоит проверить granular ownership и traceability.',
+        description:
+          'ADR связан с большим количеством файлов, стоит проверить granular ownership и traceability.',
         nodeIds: overlyBroadAdr,
       });
     }
@@ -117,7 +124,8 @@ export class PatternDetectionAnalyzer {
 
         const fanIn = (incomingByTarget.get(node.id) || []).length;
         const fanOut = (outgoingBySource.get(node.id) || []).length;
-        const hasKnownHierarchy = hasKnownParent(node, nodeById) || (childrenByParentId.get(node.id) || []).length > 0;
+        const hasKnownHierarchy =
+          hasKnownParent(node, nodeById) || (childrenByParentId.get(node.id) || []).length > 0;
         return fanIn === 0 && fanOut === 0 && !hasKnownHierarchy;
       })
       .slice(0, 10);
@@ -127,7 +135,8 @@ export class PatternDetectionAnalyzer {
         id: 'isolated_files',
         severity: isolatedFiles.length >= 8 ? 'medium' : 'low',
         title: 'Isolated Files',
-        description: 'Файлы не участвуют ни в зависимостях, ни в иерархических группах; проверьте игнор-листы, парсинг или фактическую связность проекта.',
+        description:
+          'Файлы не участвуют ни в зависимостях, ни в иерархических группах; проверьте игнор-листы, парсинг или фактическую связность проекта.',
         nodeIds: isolatedFiles.map((node) => node.id),
       });
     }
@@ -137,8 +146,11 @@ export class PatternDetectionAnalyzer {
         id: 'layer_violations',
         severity: architecture.violations.length > 10 ? 'high' : 'medium',
         title: 'Layer Violations',
-        description: 'Обнаружены зависимости, нарушающие ожидаемые архитектурные границы между слоями.',
-        nodeIds: architecture.violations.slice(0, 15).flatMap((violation) => [violation.sourceId, violation.targetId]),
+        description:
+          'Обнаружены зависимости, нарушающие ожидаемые архитектурные границы между слоями.',
+        nodeIds: architecture.violations
+          .slice(0, 15)
+          .flatMap((violation) => [violation.sourceId, violation.targetId]),
       });
     }
 
@@ -151,7 +163,8 @@ export class PatternDetectionAnalyzer {
         id: 'unknown_layer_classification',
         severity: 'low',
         title: 'Unknown Architecture Layer',
-        description: 'Часть узлов не укладывается в архитектурную модель, из-за чего ИИ и инструменты теряют структурное понимание системы.',
+        description:
+          'Часть узлов не укладывается в архитектурную модель, из-за чего ИИ и инструменты теряют структурное понимание системы.',
         nodeIds: unknownLayerNodes.map((record) => record.nodeId),
       });
     }

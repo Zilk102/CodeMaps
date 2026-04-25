@@ -1,5 +1,9 @@
 import { GraphData } from '../store';
-import { buildGraphAdjacency, hasKnownParent, shouldHaveDirectoryParent } from './graphAnalysisUtils';
+import {
+  buildGraphAdjacency,
+  hasKnownParent,
+  shouldHaveDirectoryParent,
+} from './graphAnalysisUtils';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 
 export interface HealthScoreIssue {
@@ -28,8 +32,11 @@ export interface HealthScoreResult {
 export class HealthScoreAnalyzer {
   analyze(graph: GraphData): HealthScoreResult {
     const architecture = new ArchitectureInsightService().analyze(graph);
-    const layerByNodeId = new Map(architecture.classifications.map((record) => [record.nodeId, record.layer]));
-    const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
+    const layerByNodeId = new Map(
+      architecture.classifications.map((record) => [record.nodeId, record.layer])
+    );
+    const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } =
+      buildGraphAdjacency(graph);
     const fileNodes = graph.nodes.filter((node) => node.type === 'file');
     const symbolNodes = graph.nodes.filter((node) => node.id.includes('#'));
     const orphanNodes = graph.nodes.filter((node) => {
@@ -42,7 +49,13 @@ export class HealthScoreAnalyzer {
       const hasKnownHierarchyParent = hasKnownParent(node, nodeById);
       const hasHierarchyChildren = (childrenByParentId.get(node.id) || []).length > 0;
       const structuralNode = node.type === 'directory' || node.type === 'project';
-      return !structuralNode && !hasIncoming && !hasOutgoing && !hasKnownHierarchyParent && !hasHierarchyChildren;
+      return (
+        !structuralNode &&
+        !hasIncoming &&
+        !hasOutgoing &&
+        !hasKnownHierarchyParent &&
+        !hasHierarchyChildren
+      );
     });
 
     const unresolvedImportLinks = graph.links.filter((link) => {
@@ -66,9 +79,10 @@ export class HealthScoreAnalyzer {
       shouldHaveDirectoryParent(node, graph.projectRoot)
     ).length;
 
-    const directoryCoverageRatio = nodesThatShouldHaveDirectoryParent === 0
-      ? 1
-      : directoryChildren / nodesThatShouldHaveDirectoryParent;
+    const directoryCoverageRatio =
+      nodesThatShouldHaveDirectoryParent === 0
+        ? 1
+        : directoryChildren / nodesThatShouldHaveDirectoryParent;
 
     const issues: HealthScoreIssue[] = [];
     let score = 100;

@@ -60,7 +60,10 @@ export class BlastRadiusAnalyzer {
     };
   }
 
-  private computeConfidence(affectedLinks: GraphLink[], affectedNodes: GraphNode[]): 'high' | 'medium' | 'low' {
+  private computeConfidence(
+    affectedLinks: GraphLink[],
+    affectedNodes: GraphNode[]
+  ): 'high' | 'medium' | 'low' {
     if (affectedNodes.length === 0) {
       return 'low';
     }

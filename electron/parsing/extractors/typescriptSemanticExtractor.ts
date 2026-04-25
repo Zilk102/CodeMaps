@@ -8,7 +8,8 @@ const getScriptKind = (filePath: string) => {
   const normalized = filePath.toLowerCase();
   if (normalized.endsWith('.tsx')) return ts.ScriptKind.TSX;
   if (normalized.endsWith('.jsx')) return ts.ScriptKind.JSX;
-  if (normalized.endsWith('.js') || normalized.endsWith('.mjs') || normalized.endsWith('.cjs')) return ts.ScriptKind.JS;
+  if (normalized.endsWith('.js') || normalized.endsWith('.mjs') || normalized.endsWith('.cjs'))
+    return ts.ScriptKind.JS;
   return ts.ScriptKind.TS;
 };
 
@@ -21,7 +22,12 @@ const getImportBindingName = (node: ts.ImportSpecifier) => {
 };
 
 const getPropertyNameText = (name: ts.PropertyName | ts.BindingName) => {
-  if (ts.isIdentifier(name) || ts.isPrivateIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+  if (
+    ts.isIdentifier(name) ||
+    ts.isPrivateIdentifier(name) ||
+    ts.isStringLiteral(name) ||
+    ts.isNumericLiteral(name)
+  ) {
     return name.text;
   }
 
@@ -92,10 +98,7 @@ const maybeAddExport = (
 };
 
 const isFunctionLikeInitializer = (initializer?: ts.Expression) =>
-  !!initializer && (
-    ts.isArrowFunction(initializer) ||
-    ts.isFunctionExpression(initializer)
-  );
+  !!initializer && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer));
 
 const collectImportedEntities = (clause?: ts.ImportClause) => {
   const importedEntities = new Set<string>();
@@ -177,10 +180,14 @@ export const extractWithTypeScriptSemantic = (
   };
 
   const hasExportModifier = (node: ts.Node) =>
-    getNodeModifiers(node).some((modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+    getNodeModifiers(node).some(
+      (modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+    );
 
   const hasDefaultModifier = (node: ts.Node) =>
-    getNodeModifiers(node).some((modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword);
+    getNodeModifiers(node).some(
+      (modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword
+    );
 
   const registerDeclarationExport = (node: ts.Node, localName?: string) => {
     if (!hasExportModifier(node) || !localName) return;
@@ -196,22 +203,44 @@ export const extractWithTypeScriptSemantic = (
       if (node.importClause?.name) {
         variables.add(node.importClause.name.text);
       }
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
       const exportedEntities = new Set<string>();
       if (node.exportClause && ts.isNamedExports(node.exportClause)) {
         node.exportClause.elements.forEach((element) => {
           exportedEntities.add(element.propertyName?.text || element.name.text);
-          maybeAddExport(exports, exportKeys, element.name.text, element.propertyName?.text || element.name.text);
+          maybeAddExport(
+            exports,
+            exportKeys,
+            element.name.text,
+            element.propertyName?.text || element.name.text
+          );
         });
       } else {
         exportedEntities.add('*');
       }
       addImport(node.moduleSpecifier.text, exportedEntities);
-    } else if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.exportClause &&
+      ts.isNamedExports(node.exportClause)
+    ) {
       node.exportClause.elements.forEach((element) => {
-        maybeAddExport(exports, exportKeys, element.name.text, element.propertyName?.text || element.name.text);
+        maybeAddExport(
+          exports,
+          exportKeys,
+          element.name.text,
+          element.propertyName?.text || element.name.text
+        );
       });
-    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      ts.isStringLiteral(node.moduleReference.expression)
+    ) {
       const importedEntities = new Set<string>([node.name.text]);
       addImport(node.moduleReference.expression.text, importedEntities);
     } else if (ts.isCallExpression(node)) {
@@ -234,14 +263,28 @@ export const extractWithTypeScriptSemantic = (
       ) {
         addImport(node.arguments[0].text, new Set());
       }
-    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
       addImport(node.argument.literal.text, new Set(['type']));
     } else if (ts.isFunctionDeclaration(node)) {
       maybeAddFunctionEntity(entities, entityKeys, node.name?.text);
       registerDeclarationExport(node, node.name?.text);
-    } else if (ts.isMethodDeclaration(node) || ts.isMethodSignature(node) || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) {
+    } else if (
+      ts.isMethodDeclaration(node) ||
+      ts.isMethodSignature(node) ||
+      ts.isGetAccessorDeclaration(node) ||
+      ts.isSetAccessorDeclaration(node)
+    ) {
       maybeAddFunctionEntity(entities, entityKeys, getPropertyNameText(node.name));
-    } else if (ts.isClassDeclaration(node) || ts.isInterfaceDeclaration(node) || ts.isEnumDeclaration(node) || ts.isTypeAliasDeclaration(node)) {
+    } else if (
+      ts.isClassDeclaration(node) ||
+      ts.isInterfaceDeclaration(node) ||
+      ts.isEnumDeclaration(node) ||
+      ts.isTypeAliasDeclaration(node)
+    ) {
       maybeAddClassEntity(entities, entityKeys, node.name?.text);
       registerDeclarationExport(node, node.name?.text);
     } else if (ts.isVariableDeclaration(node)) {
@@ -251,7 +294,10 @@ export const extractWithTypeScriptSemantic = (
         maybeAddFunctionEntity(entities, entityKeys, node.name.text);
       }
       if (ts.isVariableDeclarationList(node.parent) && ts.isVariableStatement(node.parent.parent)) {
-        registerDeclarationExport(node.parent.parent, ts.isIdentifier(node.name) ? node.name.text : undefined);
+        registerDeclarationExport(
+          node.parent.parent,
+          ts.isIdentifier(node.name) ? node.name.text : undefined
+        );
       }
     } else if (ts.isPropertyDeclaration(node)) {
       const propertyName = getPropertyNameText(node.name);

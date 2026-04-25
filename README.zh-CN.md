@@ -33,6 +33,7 @@
 项目基于以下技术栈构建：**Electron + React + TypeScript + Vite**。图表可视化使用 Cytoscape / Sigma。
 
 ### 本地运行
+
 ```bash
 # 安装依赖
 npm install
@@ -42,13 +43,16 @@ npm run dev
 ```
 
 ### 构建
+
 ```bash
 # 创建生产版本 (便携版)
 npm run build:portable
 ```
 
 ## 🤝 贡献
+
 我们欢迎任何对项目开发的帮助！在创建 Pull Request 之前，请阅读 [贡献指南](CONTRIBUTING.md)。
 
 ## 📄 许可证
+
 本项目根据 MIT 许可证分发。详情请参阅 [LICENSE](LICENSE) 文件。

@@ -28,14 +28,19 @@ export class OracleService extends EventEmitter {
   constructor() {
     super();
     this.pool = new Piscina({
-      filename: path.join(__dirname, 'worker.js')
+      filename: path.join(__dirname, 'worker.js'),
     });
     this.graphRepository = new GraphRepository();
     this.cacheManager = new CacheManager();
     this.churnAnalyzer = new ChurnAnalyzer();
     this.graphBuilder = new GraphBuilder();
     this.projectIndexer = new ProjectIndexer(this.pool, this.graphBuilder);
-    this.fileWatcher = new FileWatcher(this.projectIndexer, this.graphBuilder, this.graphRepository, this.cacheManager);
+    this.fileWatcher = new FileWatcher(
+      this.projectIndexer,
+      this.graphBuilder,
+      this.graphRepository,
+      this.cacheManager
+    );
   }
 
   public getGraph() {

@@ -351,5 +351,5 @@ export const languageQueries: Record<string, string> = {
     ; Comments
     (line_comment) @comment
     (multiline_comment) @comment
-  `
+  `,
 };

@@ -75,7 +75,11 @@ export interface ChangeContextResult {
   autopilotPlan: {
     primaryGoal: string;
     whyThisTarget: string;
-    preferredNextAction: 'inspect_code' | 'review_dependencies' | 'check_security' | 'verify_architecture';
+    preferredNextAction:
+      | 'inspect_code'
+      | 'review_dependencies'
+      | 'check_security'
+      | 'verify_architecture';
     shouldFallbackToLowLevelTools: boolean;
   };
   nextSteps: string[];
@@ -143,7 +147,7 @@ const NORMALIZED_CODE_NODE_TYPES = ['file', 'class', 'function', 'adr'];
 const CHANGE_TASK_MODES: ChangeTaskMode[] = ['bugfix', 'feature', 'refactor', 'explore'];
 const REVIEW_TASK_MODES: ReviewTaskMode[] = ['review', 'architecture', 'security', 'stabilization'];
 
-const unique = <T,>(items: T[]) => Array.from(new Set(items));
+const unique = <T>(items: T[]) => Array.from(new Set(items));
 
 export class AgentContextService {
   constructor(
@@ -151,17 +155,25 @@ export class AgentContextService {
     private readonly blastRadiusAnalyzer = new BlastRadiusAnalyzer(),
     private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner(),
+    private readonly securityScanner = new SecurityScanner()
   ) {}
 
-  async prepareChangeContext(graph: GraphData, input: PrepareChangeContextInput): Promise<ChangeContextResult> {
+  async prepareChangeContext(
+    graph: GraphData,
+    input: PrepareChangeContextInput
+  ): Promise<ChangeContextResult> {
     const taskMode = this.normalizeChangeTaskMode(input.taskMode);
     const resolvedTarget = this.resolveTarget(graph, input.target, input.type);
     const architecture = this.architectureInsightService.analyze(graph);
-    const targetClassification = architecture.classifications.find((record) => record.nodeId === resolvedTarget.node.id)
-      || this.architectureInsightService.classifyNode(resolvedTarget.node);
+    const targetClassification =
+      architecture.classifications.find((record) => record.nodeId === resolvedTarget.node.id) ||
+      this.architectureInsightService.classifyNode(resolvedTarget.node);
     const dependencies = this.getNodeDependencies(graph, resolvedTarget.node.id);
-    const blastRadius = this.blastRadiusAnalyzer.analyze(graph, resolvedTarget.node.id, input.depth);
+    const blastRadius = this.blastRadiusAnalyzer.analyze(
+      graph,
+      resolvedTarget.node.id,
+      input.depth
+    );
     const patternResult = this.patternDetectionAnalyzer.analyze(graph);
     const relatedNodeIds = new Set<string>([
       resolvedTarget.node.id,
@@ -170,21 +182,28 @@ export class AgentContextService {
       ...blastRadius.directDependents.map((node) => node.id),
       ...blastRadius.affectedNodes.map((node) => node.id),
     ]);
-    const structuralNodeIds = new Set(Array.from(relatedNodeIds, (nodeId) => toStructuralNodeId(nodeId)));
+    const structuralNodeIds = new Set(
+      Array.from(relatedNodeIds, (nodeId) => toStructuralNodeId(nodeId))
+    );
     const relevantPatterns = patternResult.patterns
-      .filter((pattern) => pattern.nodeIds.some((nodeId) =>
-        relatedNodeIds.has(nodeId) || structuralNodeIds.has(toStructuralNodeId(nodeId))
-      ))
+      .filter((pattern) =>
+        pattern.nodeIds.some(
+          (nodeId) =>
+            relatedNodeIds.has(nodeId) || structuralNodeIds.has(toStructuralNodeId(nodeId))
+        )
+      )
       .slice(0, MAX_RELATED_PATTERNS);
-    const securityFindings = input.includeSecurityFindings === false
-      ? []
-      : (await this.securityScanner.analyze(graph)).findings
-        .filter((finding) => structuralNodeIds.has(toStructuralNodeId(finding.nodeId)))
-        .slice(0, MAX_RELATED_FINDINGS);
+    const securityFindings =
+      input.includeSecurityFindings === false
+        ? []
+        : (await this.securityScanner.analyze(graph)).findings
+            .filter((finding) => structuralNodeIds.has(toStructuralNodeId(finding.nodeId)))
+            .slice(0, MAX_RELATED_FINDINGS);
 
-    const targetViolations = architecture.violations.filter((violation) =>
-      toStructuralNodeId(violation.sourceId) === toStructuralNodeId(resolvedTarget.node.id)
-      || toStructuralNodeId(violation.targetId) === toStructuralNodeId(resolvedTarget.node.id)
+    const targetViolations = architecture.violations.filter(
+      (violation) =>
+        toStructuralNodeId(violation.sourceId) === toStructuralNodeId(resolvedTarget.node.id) ||
+        toStructuralNodeId(violation.targetId) === toStructuralNodeId(resolvedTarget.node.id)
     );
 
     const recommendedFilesToInspect = unique([
@@ -254,23 +273,29 @@ export class AgentContextService {
     };
   }
 
-  async prepareReviewContext(graph: GraphData, input: PrepareReviewContextInput): Promise<ReviewContextResult> {
+  async prepareReviewContext(
+    graph: GraphData,
+    input: PrepareReviewContextInput
+  ): Promise<ReviewContextResult> {
     const taskMode = this.normalizeReviewTaskMode(input.taskMode);
     const architecture = this.architectureInsightService.analyze(graph);
     const health = this.healthScoreAnalyzer.analyze(graph);
-    const patterns = this.patternDetectionAnalyzer.analyze(graph).patterns.slice(0, input.limit || MAX_REVIEW_PATTERNS);
-    const security = input.includeSecurityFindings === false
-      ? {
-        findings: [],
-        summary: {
-          total: 0,
-          critical: 0,
-          high: 0,
-          medium: 0,
-          low: 0,
-        },
-      }
-      : await this.securityScanner.analyze(graph);
+    const patterns = this.patternDetectionAnalyzer
+      .analyze(graph)
+      .patterns.slice(0, input.limit || MAX_REVIEW_PATTERNS);
+    const security =
+      input.includeSecurityFindings === false
+        ? {
+            findings: [],
+            summary: {
+              total: 0,
+              critical: 0,
+              high: 0,
+              medium: 0,
+              low: 0,
+            },
+          }
+        : await this.securityScanner.analyze(graph);
     const focus = this.prepareFocusContext(graph, architecture, patterns, input);
 
     return {
@@ -290,15 +315,34 @@ export class AgentContextService {
         findings: security.findings.slice(0, MAX_REVIEW_FINDINGS),
       },
       focus,
-      reviewPriorities: this.buildReviewPriorities(health, architecture, patterns, security.findings, focus),
-      autopilotPlan: this.buildReviewAutopilotPlan(taskMode, security.findings, architecture, focus),
-      nextSteps: this.buildReviewNextSteps(health, architecture, patterns, security.findings, Boolean(focus)),
+      reviewPriorities: this.buildReviewPriorities(
+        health,
+        architecture,
+        patterns,
+        security.findings,
+        focus
+      ),
+      autopilotPlan: this.buildReviewAutopilotPlan(
+        taskMode,
+        security.findings,
+        architecture,
+        focus
+      ),
+      nextSteps: this.buildReviewNextSteps(
+        health,
+        architecture,
+        patterns,
+        security.findings,
+        Boolean(focus)
+      ),
     };
   }
 
   private resolveTarget(graph: GraphData, query: string, type?: string): ResolvedTargetContext {
     const normalizedQuery = query.trim().toLowerCase();
-    const exactIdMatch = graph.nodes.find((node) => node.id.toLowerCase() === normalizedQuery && (!type || node.type === type));
+    const exactIdMatch = graph.nodes.find(
+      (node) => node.id.toLowerCase() === normalizedQuery && (!type || node.type === type)
+    );
     if (exactIdMatch) {
       return {
         query,
@@ -336,17 +380,21 @@ export class AgentContextService {
       .filter((node) => {
         if (type && node.type !== type) return false;
         if (!normalizedQuery) return true;
-        return node.label.toLowerCase().includes(normalizedQuery) || node.id.toLowerCase().includes(normalizedQuery);
+        return (
+          node.label.toLowerCase().includes(normalizedQuery) ||
+          node.id.toLowerCase().includes(normalizedQuery)
+        );
       })
       .map((node) => ({
         node,
         score: this.scoreNodeMatch(node, normalizedQuery),
       }))
       .filter(({ score }) => score > 0)
-      .sort((a, b) =>
-        b.score - a.score
-        || this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type)
-        || a.node.label.localeCompare(b.node.label)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type) ||
+          a.node.label.localeCompare(b.node.label)
       )
       .slice(0, limit)
       .map(({ node }) => node);
@@ -363,8 +411,12 @@ export class AgentContextService {
       .map((link) => nodeById.get(link.source))
       .filter((node): node is GraphNode => Boolean(node));
     const relatedAdrNodes = graph.links
-      .filter((link) =>
-        link.type === 'adr' && (link.source === nodeId || link.target === nodeId || toStructuralNodeId(link.source) === toStructuralNodeId(nodeId))
+      .filter(
+        (link) =>
+          link.type === 'adr' &&
+          (link.source === nodeId ||
+            link.target === nodeId ||
+            toStructuralNodeId(link.source) === toStructuralNodeId(nodeId))
       )
       .flatMap((link) => [nodeById.get(link.source), nodeById.get(link.target)])
       .filter((node): node is GraphNode => node !== undefined && node.type === 'adr');
@@ -382,7 +434,7 @@ export class AgentContextService {
     graph: GraphData,
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
-    input: PrepareReviewContextInput,
+    input: PrepareReviewContextInput
   ): ReviewContextResult['focus'] {
     if (!input.focusQuery?.trim()) {
       return null;
@@ -412,15 +464,19 @@ export class AgentContextService {
     return {
       query: input.focusQuery,
       matches,
-      classifications: architecture.classifications.filter((record) =>
-        focusIds.has(record.nodeId) || focusStructuralIds.has(toStructuralNodeId(record.nodeId))
+      classifications: architecture.classifications.filter(
+        (record) =>
+          focusIds.has(record.nodeId) || focusStructuralIds.has(toStructuralNodeId(record.nodeId))
       ),
       relatedPatterns: patterns.filter((pattern) =>
-        pattern.nodeIds.some((nodeId) => focusIds.has(nodeId) || focusStructuralIds.has(toStructuralNodeId(nodeId)))
+        pattern.nodeIds.some(
+          (nodeId) => focusIds.has(nodeId) || focusStructuralIds.has(toStructuralNodeId(nodeId))
+        )
       ),
-      relatedViolations: architecture.violations.filter((violation) =>
-        focusStructuralIds.has(toStructuralNodeId(violation.sourceId))
-        || focusStructuralIds.has(toStructuralNodeId(violation.targetId))
+      relatedViolations: architecture.violations.filter(
+        (violation) =>
+          focusStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
+          focusStructuralIds.has(toStructuralNodeId(violation.targetId))
       ),
     };
   }
@@ -430,7 +486,7 @@ export class AgentContextService {
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
     securityFindings: SecurityFinding[],
-    focus: ReviewContextResult['focus'],
+    focus: ReviewContextResult['focus']
   ): ReviewPriority[] {
     const priorities: ReviewPriority[] = [];
 
@@ -438,8 +494,13 @@ export class AgentContextService {
       priorities.push({
         severity: 'critical',
         title: 'Security Findings',
-        reason: 'В проекте есть критичные security findings; их нужно разобрать раньше любой архитектурной косметики.',
-        nodeIds: unique(securityFindings.filter((finding) => finding.severity === 'critical').map((finding) => finding.nodeId)).slice(0, 10),
+        reason:
+          'В проекте есть критичные security findings; их нужно разобрать раньше любой архитектурной косметики.',
+        nodeIds: unique(
+          securityFindings
+            .filter((finding) => finding.severity === 'critical')
+            .map((finding) => finding.nodeId)
+        ).slice(0, 10),
       });
     }
 
@@ -447,8 +508,13 @@ export class AgentContextService {
       priorities.push({
         severity: architecture.violations.length > 10 ? 'high' : 'medium',
         title: 'Architecture Violations',
-        reason: 'Нарушения межслоевых зависимостей бьют по maintainability и делают impact analysis менее предсказуемым.',
-        nodeIds: unique(architecture.violations.slice(0, 10).flatMap((violation) => [violation.sourceId, violation.targetId])),
+        reason:
+          'Нарушения межслоевых зависимостей бьют по maintainability и делают impact analysis менее предсказуемым.',
+        nodeIds: unique(
+          architecture.violations
+            .slice(0, 10)
+            .flatMap((violation) => [violation.sourceId, violation.targetId])
+        ),
       });
     }
 
@@ -457,7 +523,8 @@ export class AgentContextService {
       priorities.push({
         severity: 'high',
         title: 'High-Severity Patterns',
-        reason: 'Граф содержит hotspot-ы и anti-pattern candidates, которые повышают blast radius и churn risk.',
+        reason:
+          'Граф содержит hotspot-ы и anti-pattern candidates, которые повышают blast radius и churn risk.',
         nodeIds: unique(severePatterns.flatMap((pattern) => pattern.nodeIds)).slice(0, 10),
       });
     }
@@ -466,7 +533,8 @@ export class AgentContextService {
       priorities.push({
         severity: health.grade === 'F' || health.grade === 'D' ? 'high' : 'medium',
         title: 'Health Issues',
-        reason: 'Health score уже сигнализирует о структурных потерях: review должен покрыть эти деградации явно.',
+        reason:
+          'Health score уже сигнализирует о структурных потерях: review должен покрыть эти деградации явно.',
         nodeIds: [],
       });
     }
@@ -488,7 +556,7 @@ export class AgentContextService {
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
     securityFindings: SecurityFinding[],
-    hasFocus: boolean,
+    hasFocus: boolean
   ) {
     const nextSteps = [
       'Начать review с узлов, попавших в top architecture violations и severe patterns.',
@@ -500,19 +568,27 @@ export class AgentContextService {
     }
 
     if (health.issues.length > 0) {
-      nextSteps.push('Сверить health issues с фактическим кодом и определить, что является реальной проблемой, а что эвристическим шумом.');
+      nextSteps.push(
+        'Сверить health issues с фактическим кодом и определить, что является реальной проблемой, а что эвристическим шумом.'
+      );
     }
 
     if (architecture.summary.unknownNodes > 0) {
-      nextSteps.push('Уточнить правила классификации слоёв для unknown nodes, чтобы агент и review опирались на более точную модель.');
+      nextSteps.push(
+        'Уточнить правила классификации слоёв для unknown nodes, чтобы агент и review опирались на более точную модель.'
+      );
     }
 
     if (patterns.length === 0) {
-      nextSteps.push('Явных structural patterns не найдено; review стоит сфокусировать на кодовых контрактах и runtime-поведении.');
+      nextSteps.push(
+        'Явных structural patterns не найдено; review стоит сфокусировать на кодовых контрактах и runtime-поведении.'
+      );
     }
 
     if (hasFocus) {
-      nextSteps.push('После общего обзора сделать отдельный локальный review для focus-области и проверить её blast radius вручную.');
+      nextSteps.push(
+        'После общего обзора сделать отдельный локальный review для focus-области и проверить её blast radius вручную.'
+      );
     }
 
     return nextSteps;
@@ -527,19 +603,22 @@ export class AgentContextService {
     securityFindings: SecurityFinding[];
   }): ChangeContextResult['autopilotPlan'] {
     const targetKind = `${args.resolvedTarget.node.type}:${args.resolvedTarget.node.label}`;
-    const preferredNextAction: ChangeContextResult['autopilotPlan']['preferredNextAction'] = args.securityFindings.length > 0
-      ? 'check_security'
-      : args.blastRadius.affectedNodes.length > 0
-        ? 'review_dependencies'
-        : args.targetClassification.layer === 'shared' || args.targetClassification.layer === 'domain'
-          ? 'verify_architecture'
-          : 'inspect_code';
+    const preferredNextAction: ChangeContextResult['autopilotPlan']['preferredNextAction'] =
+      args.securityFindings.length > 0
+        ? 'check_security'
+        : args.blastRadius.affectedNodes.length > 0
+          ? 'review_dependencies'
+          : args.targetClassification.layer === 'shared' ||
+              args.targetClassification.layer === 'domain'
+            ? 'verify_architecture'
+            : 'inspect_code';
 
     return {
       primaryGoal: args.changeIntent || this.describeChangeModeGoal(args.taskMode),
       whyThisTarget: `${targetKind} выбран по причине ${args.resolvedTarget.resolutionReason}.`,
       preferredNextAction,
-      shouldFallbackToLowLevelTools: args.resolvedTarget.alternatives.length > 0 && !args.resolvedTarget.exactMatch,
+      shouldFallbackToLowLevelTools:
+        args.resolvedTarget.alternatives.length > 0 && !args.resolvedTarget.exactMatch,
     };
   }
 
@@ -547,9 +626,11 @@ export class AgentContextService {
     taskMode: ReviewTaskMode,
     securityFindings: SecurityFinding[],
     architecture: ArchitectureOverview,
-    focus: ReviewContextResult['focus'],
+    focus: ReviewContextResult['focus']
   ) {
-    const preferredOrder: Array<'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'> = [];
+    const preferredOrder: Array<
+      'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'
+    > = [];
 
     if (taskMode === 'security' || securityFindings.length > 0) {
       preferredOrder.push('security');
@@ -565,7 +646,9 @@ export class AgentContextService {
     return {
       primaryGoal: this.describeReviewModeGoal(taskMode),
       preferredOrder: unique(preferredOrder),
-      shouldFallbackToLowLevelTools: Boolean(focus?.matches.length && !focus.relatedPatterns.length && !focus.relatedViolations.length),
+      shouldFallbackToLowLevelTools: Boolean(
+        focus?.matches.length && !focus.relatedPatterns.length && !focus.relatedViolations.length
+      ),
     };
   }
 
@@ -580,27 +663,46 @@ export class AgentContextService {
     const risks: string[] = [];
 
     if (args.blastRadius.confidence === 'high' && args.blastRadius.affectedNodes.length > 0) {
-      risks.push(`Изменение имеет подтверждённый impact на ${args.blastRadius.affectedNodes.length} зависимых узлов.`);
+      risks.push(
+        `Изменение имеет подтверждённый impact на ${args.blastRadius.affectedNodes.length} зависимых узлов.`
+      );
     }
 
     if (args.targetViolations.length > 0) {
-      risks.push('Целевая область уже участвует в layer violations; локальная правка может закрепить архитектурный smell.');
+      risks.push(
+        'Целевая область уже участвует в layer violations; локальная правка может закрепить архитектурный smell.'
+      );
     }
 
-    if (args.relevantPatterns.some((pattern) => pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files')) {
-      risks.push('Цель лежит рядом с hotspot-узлами высокой связности; нужна осторожность с новыми зависимостями.');
+    if (
+      args.relevantPatterns.some(
+        (pattern) => pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files'
+      )
+    ) {
+      risks.push(
+        'Цель лежит рядом с hotspot-узлами высокой связности; нужна осторожность с новыми зависимостями.'
+      );
     }
 
     if (args.securityFindings.length > 0) {
-      risks.push('В смежных файлах уже есть security findings; изменение нужно сверять с безопасностью данных и API.');
+      risks.push(
+        'В смежных файлах уже есть security findings; изменение нужно сверять с безопасностью данных и API.'
+      );
     }
 
-    if (args.targetClassification.layer === 'shared' || args.targetClassification.layer === 'domain') {
-      risks.push(`Цель находится в слое ${args.targetClassification.layer}, поэтому blast radius может выходить далеко за локальный модуль.`);
+    if (
+      args.targetClassification.layer === 'shared' ||
+      args.targetClassification.layer === 'domain'
+    ) {
+      risks.push(
+        `Цель находится в слое ${args.targetClassification.layer}, поэтому blast radius может выходить далеко за локальный модуль.`
+      );
     }
 
     if (risks.length === 0) {
-      risks.push('Явных структурных red flags не найдено, но всё равно проверьте runtime-контракты и обратные зависимости.');
+      risks.push(
+        'Явных структурных red flags не найдено, но всё равно проверьте runtime-контракты и обратные зависимости.'
+      );
     }
 
     return risks;
@@ -624,26 +726,35 @@ export class AgentContextService {
     }
 
     if (args.blastRadius.affectedNodes.length > 0) {
-      nextSteps.push('После правки перепроверить affected nodes из blast radius и убедиться, что контракты не деградировали.');
+      nextSteps.push(
+        'После правки перепроверить affected nodes из blast radius и убедиться, что контракты не деградировали.'
+      );
     }
 
     if (args.securityFindings.length > 0) {
-      nextSteps.push('Отдельно перепроверить безопасную работу с секретами, shell/process APIs и browser storage.');
+      nextSteps.push(
+        'Отдельно перепроверить безопасную работу с секретами, shell/process APIs и browser storage.'
+      );
     }
 
-    if (args.targetClassification.layer === 'application' || args.targetClassification.layer === 'integration') {
-      nextSteps.push('Убедиться, что orchestration/integration код не начинает тянуть presentation детали или лишнее состояние.');
+    if (
+      args.targetClassification.layer === 'application' ||
+      args.targetClassification.layer === 'integration'
+    ) {
+      nextSteps.push(
+        'Убедиться, что orchestration/integration код не начинает тянуть presentation детали или лишнее состояние.'
+      );
     }
 
     return nextSteps;
   }
 
   private normalizeChangeTaskMode(taskMode?: ChangeTaskMode): ChangeTaskMode {
-    return CHANGE_TASK_MODES.includes(taskMode || 'bugfix') ? (taskMode || 'bugfix') : 'bugfix';
+    return CHANGE_TASK_MODES.includes(taskMode || 'bugfix') ? taskMode || 'bugfix' : 'bugfix';
   }
 
   private normalizeReviewTaskMode(taskMode?: ReviewTaskMode): ReviewTaskMode {
-    return REVIEW_TASK_MODES.includes(taskMode || 'review') ? (taskMode || 'review') : 'review';
+    return REVIEW_TASK_MODES.includes(taskMode || 'review') ? taskMode || 'review' : 'review';
   }
 
   private scoreNodeMatch(node: GraphNode, normalizedQuery: string) {
@@ -659,7 +770,11 @@ export class AgentContextService {
     if (basename === normalizedQuery) score += 180;
     if (basenameWithoutExtension === normalizedQuery) score += 220;
     if (structuralLabel === normalizedQuery) score += 160;
-    if (normalizedId.endsWith(`/${normalizedQuery}`) || normalizedId.endsWith(`/${normalizedQuery}.ts`) || normalizedId.endsWith(`/${normalizedQuery}.tsx`)) {
+    if (
+      normalizedId.endsWith(`/${normalizedQuery}`) ||
+      normalizedId.endsWith(`/${normalizedQuery}.ts`) ||
+      normalizedId.endsWith(`/${normalizedQuery}.tsx`)
+    ) {
       score += 160;
     }
     if (normalizedLabel.startsWith(normalizedQuery)) score += 60;
@@ -698,7 +813,11 @@ export class AgentContextService {
     const structuralId = toStructuralNodeId(node.id.toLowerCase());
     const basename = structuralId.split('/').pop() || structuralId;
     const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
-    return normalizedLabel === normalizedQuery || basename === normalizedQuery || basenameWithoutExtension === normalizedQuery;
+    return (
+      normalizedLabel === normalizedQuery ||
+      basename === normalizedQuery ||
+      basenameWithoutExtension === normalizedQuery
+    );
   }
 
   private describeMatchReason(node: GraphNode, normalizedQuery: string) {
@@ -738,10 +857,12 @@ export class AgentContextService {
       const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
       const normalizedLabel = candidate.label.toLowerCase();
 
-      return basenameWithoutExtension === normalizedQuery
-        || basename === normalizedQuery
-        || normalizedLabel === normalizedQuery
-        || normalizedLabel.startsWith(normalizedQuery);
+      return (
+        basenameWithoutExtension === normalizedQuery ||
+        basename === normalizedQuery ||
+        normalizedLabel === normalizedQuery ||
+        normalizedLabel.startsWith(normalizedQuery)
+      );
     });
 
     return preferred || null;
