@@ -8,12 +8,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "composite": true,
-
-    "outDir": "../dist-electron",
-    "baseUrl": ".",
-    "paths": {
-      "*": ["node_modules/*"]
-    }
+    "outDir": "../dist-electron"
   },
   "include": ["**/*.ts"]
 }
