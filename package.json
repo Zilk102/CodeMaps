@@ -94,6 +94,6 @@
     "sigma": "^3.0.2",
     "tree-sitter-wasms": "^0.1.13",
     "vite": "^8.0.9",
-    "wait-on": "^7.0.0"
+    "wait-on": "^9.0.5"
   }
 }
