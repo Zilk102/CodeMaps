@@ -38,9 +38,42 @@
     },
     "win": {
       "target": [
-        "portable"
+        {
+          "target": "portable",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "ia32"]
+        }
       ],
-      "artifactName": "CodeMaps-${version}-portable.${ext}"
+      "artifactName": "CodeMaps-${version}-win-${arch}-${target}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "rpm",
+          "arch": ["x64"]
+        },
+        {
+          "target": "tar.gz",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "CodeMaps-${version}-linux-${arch}-${target}.${ext}",
+      "category": "Development"
     },
     "files": [
       "dist-renderer/**/*",

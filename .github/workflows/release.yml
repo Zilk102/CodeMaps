@@ -4,9 +4,50 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: false
 
 jobs:
-  release:
+  build-linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - uses: actions/checkout@v6
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Typecheck
+      run: npm run typecheck
+      
+    - name: Build Linux
+      run: |
+        npm run clean:build
+        npm run build:renderer
+        npm run build:electron
+        npx electron-builder --linux
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Linux Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-builds
+        path: release/CodeMaps-*-linux-*
+        retention-days: 1
+
+  build-windows:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -23,12 +64,50 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Build and Publish Release
+    - name: Typecheck
+      run: npm run typecheck
+      
+    - name: Build Windows
       run: |
         npm run clean:build
-        npm run typecheck
         npm run build:renderer
         npm run build:electron
-        npx electron-builder --publish always
+        npx electron-builder --win
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Windows Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-builds
+        path: release/CodeMaps-*-win-*
+        retention-days: 1
+
+  publish:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        merge-multiple: true
+
+    - name: List artifacts
+      run: ls -la artifacts/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: artifacts/CodeMaps-*
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
