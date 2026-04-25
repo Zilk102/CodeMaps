@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const FileTree = React.lazy(() =>
   import('./components/FileTree').then((m) => ({ default: m.FileTree }))
@@ -14,23 +15,27 @@ const UpdateNotification = React.lazy(() =>
 );
 
 import TitleBar from './components/TitleBar';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import { useStore } from './store/useStore';
 
-const LazyFallback: React.FC = () => (
-  <div
-    style={{
-      width: '100%',
-      height: '100%',
-      background: 'var(--bg0)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'var(--t2)',
-    }}
-  >
-    Загрузка…
-  </div>
-);
+const LazyFallback: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: 'var(--bg0)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--t2)',
+      }}
+    >
+      {t('app.loading')}
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(320);
@@ -45,7 +50,7 @@ const App: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
-      e.preventDefault(); // Предотвращаем выделение текста при ресайзе
+      e.preventDefault();
       const newWidth = Math.max(200, Math.min(e.clientX, window.innerWidth - 300));
       setSidebarWidth(newWidth);
     };
@@ -81,6 +86,7 @@ const App: React.FC = () => {
       <Suspense fallback={<LazyFallback />}>
         <UpdateNotification />
       </Suspense>
+      
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
         {/* Левая панель */}
         <div
@@ -192,6 +198,8 @@ const App: React.FC = () => {
       <Suspense fallback={<LazyFallback />}>
         <McpSettingsModal />
       </Suspense>
+      
+      <LanguageSwitcher />
     </div>
   );
 };
