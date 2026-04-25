@@ -62,7 +62,7 @@
     "piscina": "^5.1.4",
     "simple-git": "^3.36.0",
     "typescript": "^5.0.0",
-    "web-tree-sitter": "0.22.2",
+    "web-tree-sitter": "0.26.8",
     "ws": "^8.20.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
