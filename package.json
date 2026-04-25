@@ -14,7 +14,7 @@
     "dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
     "electron:wait": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .",
     "typecheck": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
-    "clean:build": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/clean-build.ps1",
+    "clean:build": "node scripts/clean-build.js",
     "build:renderer": "vite build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "package:portable": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win portable --x64",
