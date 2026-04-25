@@ -1,9 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FileTree } from './components/FileTree';
-import { GraphView } from './components/GraphView';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+
+const FileTree = React.lazy(() => import('./components/FileTree').then(m => ({ default: m.FileTree })));
+const GraphView = React.lazy(() => import('./components/GraphView').then(m => ({ default: m.GraphView })));
+const McpSettingsModal = React.lazy(() => import('./components/McpSettingsModal').then(m => ({ default: m.McpSettingsModal })));
+
 import TitleBar from './components/TitleBar';
-import { McpSettingsModal } from './components/McpSettingsModal';
 import { useStore } from './store/useStore';
+
+const LazyFallback: React.FC = () => (
+  <div style={{ width: '100%', height: '100%', background: 'var(--bg0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t2)' }}>
+    Загрузка…
+  </div>
+);
 
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(320);
@@ -54,7 +62,9 @@ const App: React.FC = () => {
           backgroundColor: 'var(--bg1)',
           borderRight: '1px solid var(--border)'
         }}>
-          <FileTree />
+          <Suspense fallback={<LazyFallback />}>
+            <FileTree />
+          </Suspense>
         </div>
         
         {/* Сплиттер (Drag Handle) */}
@@ -78,7 +88,9 @@ const App: React.FC = () => {
         
         {/* Граф */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0, backgroundColor: 'var(--bg0)' }}>
-          <GraphView />
+          <Suspense fallback={<LazyFallback />}>
+            <GraphView />
+          </Suspense>
         </div>
       </div>
       
@@ -115,7 +127,9 @@ const App: React.FC = () => {
         </div>
       )}
       
-      <McpSettingsModal />
+      <Suspense fallback={<LazyFallback />}>
+        <McpSettingsModal />
+      </Suspense>
     </div>
   );
 };
