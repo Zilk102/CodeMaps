@@ -69,6 +69,12 @@ export class SecurityScanner {
         continue;
       }
 
+      // Skip build output directories to avoid false positives from bundled/compiled code
+      const normalizedPath = node.id.replace(/\\/g, '/');
+      if (\/(dist|dist-electron|dist-renderer|node_modules|build|out|coverage)\/.test(normalizedPath)) {
+        continue;
+      }
+
       const normalizedId = node.id.toLowerCase();
       const normalizedLabel = node.label.toLowerCase();
 
