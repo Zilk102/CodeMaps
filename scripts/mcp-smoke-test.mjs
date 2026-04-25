@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const endpoint = process.env.MCP_ENDPOINT || 'http://127.0.0.1:3005/mcp';
-const projectPath = process.env.MCP_PROJECT_PATH || 'D:/PROJECT/CodeMaps';
+const projectPath = process.env.MCP_PROJECT_PATH || process.cwd();
 
 const client = new Client({
   name: 'codemaps-smoke-test',
@@ -40,6 +40,7 @@ const parseFirstTextPayload = (response, toolName) => {
 };
 
 const expectOk = (payload, toolName) => {
+  if (payload.status === undefined) return; // Some tools (e.g. get_graph_context) don't return status
   assert(payload.status === 'ok', `${toolName}: expected status 'ok', got ${JSON.stringify(payload.status)}`);
 };
 
