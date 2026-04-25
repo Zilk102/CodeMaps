@@ -2,6 +2,12 @@
   "name": "codemaps",
   "productName": "CodeMaps",
   "version": "1.0.0",
+  "author": "Zilk102",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zilk102/CodeMaps.git"
+  },
+  "license": "MIT",
   "description": "Living Blueprint for Code",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -18,6 +24,13 @@
   },
   "build": {
     "productName": "CodeMaps",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Zilk102",
+        "repo": "CodeMaps"
+      }
+    ],
     "appId": "com.codemaps.app",
     "npmRebuild": false,
     "directories": {
