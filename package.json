@@ -2,7 +2,10 @@
   "name": "codemaps",
   "productName": "CodeMaps",
   "version": "1.0.0",
-  "author": "Zilk102",
+  "author": {
+    "name": "Zilk102",
+    "email": "moskvi-ivan@yandex.ru"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Zilk102/CodeMaps.git"
