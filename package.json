@@ -51,7 +51,7 @@
           "arch": ["x64", "ia32"]
         }
       ],
-      "artifactName": "CodeMaps-${version}-win-${arch}-${target}.${ext}"
+      "artifactName": "CodeMaps-${version}-win-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -72,7 +72,7 @@
           "arch": ["x64"]
         }
       ],
-      "artifactName": "CodeMaps-${version}-linux-${arch}-${target}.${ext}",
+      "artifactName": "CodeMaps-${version}-linux-${arch}.${ext}",
       "category": "Development"
     },
     "files": [
