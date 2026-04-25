@@ -1,6 +1,7 @@
 {
   "titleBar": {
     "openProject": "打开项目",
+    "openFolder": "打开项目",
     "closeProject": "关闭项目",
     "mcpSettings": "MCP 设置"
   },
@@ -87,5 +88,9 @@
   },
   "languageSwitcher": {
     "language": "语言"
+  },
+  "dragDrop": {
+    "dropHere": "将项目文件夹拖放到此处",
+    "dropSubtitle": "松开以进行分析"
   }
 }

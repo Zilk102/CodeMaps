@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const FileTree = React.lazy(() =>
@@ -12,6 +12,9 @@ const McpSettingsModal = React.lazy(() =>
 );
 const UpdateNotification = React.lazy(() =>
   import('./components/UpdateNotification')
+);
+const DragDropZone = React.lazy(() =>
+  import('./components/DragDropZone').then((m) => ({ default: m.default }))
 );
 
 import TitleBar from './components/TitleBar';
@@ -40,9 +43,13 @@ const LazyFallback: React.FC = () => {
 const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const isDragging = useRef(false);
+  const [dragOver, setDragOver] = useState(false);
+  const dragCounter = useRef(0);
+
   const initializeWatcher = useStore((state) => state.initializeWatcher);
   const initializeWebSocket = useStore((state) => state.initializeWebSocket);
   const parsingProgress = useStore((state) => state.parsingProgress);
+  const fetchGraph = useStore((state) => state.fetchGraph);
 
   useEffect(() => {
     initializeWatcher();
@@ -71,8 +78,86 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setDragOver(false);
+
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) return;
+
+    // Look for directory entries
+    const getPathFromItem = async (item: DataTransferItem) => {
+      const entry = item.webkitGetAsEntry?.() || (item as any).getAsEntry?.();
+      if (!entry) return null;
+
+      if (entry.isDirectory) {
+        // Use FileSystemDirectoryEntry path if available
+        if ((entry as any).fullPath) {
+          // In Electron, we can use the path property from the file object
+          const file = item.getAsFile();
+          if (file && (file as any).path) {
+            // For directories dropped from OS, the path points to the directory
+            return (file as any).path;
+          }
+        }
+        // Fallback: read directory name, can't get full path securely from web API alone
+        return null;
+      }
+
+      // If a file was dropped, try to use its parent directory
+      const file = item.getAsFile();
+      if (file && (file as any).path) {
+        const path = (file as any).path as string;
+        return path.substring(0, path.lastIndexOf('/')) || path.substring(0, path.lastIndexOf('\\'));
+      }
+
+      return null;
+    };
+
+    // Try to find a directory path from dropped items
+    const processDrop = async () => {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const path = await getPathFromItem(item);
+        if (path) {
+          await fetchGraph(path);
+          return;
+        }
+      }
+    };
+
+    processDrop().catch(console.error);
+  }, [fetchGraph]);
+
   return (
     <div
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -138,6 +223,11 @@ const App: React.FC = () => {
           </Suspense>
         </div>
       </div>
+
+      {/* Drag & Drop Overlay */}
+      <Suspense fallback={null}>
+        <DragDropZone isActive={dragOver} />
+      </Suspense>
 
       {/* Прогресс парсинга */}
       {parsingProgress && (

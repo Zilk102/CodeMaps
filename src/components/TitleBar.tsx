@@ -35,7 +35,7 @@ const TitleBar: React.FC = () => {
         
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: 20 }}>
           <button className="btn-glass" onClick={openProject}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5z"/></svg>
             {t('titleBar.openProject')}
           </button>
           

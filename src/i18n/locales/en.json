@@ -1,6 +1,7 @@
 {
   "titleBar": {
     "openProject": "Open Project",
+    "openFolder": "Open Project",
     "closeProject": "Close Project",
     "mcpSettings": "MCP Settings"
   },
@@ -87,5 +88,9 @@
   },
   "languageSwitcher": {
     "language": "Language"
+  },
+  "dragDrop": {
+    "dropHere": "Drop project folder here",
+    "dropSubtitle": "Release to analyze"
   }
 }

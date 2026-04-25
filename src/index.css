@@ -152,3 +152,51 @@ html {
     transform: rotate(360deg);
   }
 }
+
+/* Drag & Drop Zone */
+.drag-drop-zone {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.15s ease;
+  border: 2px dashed transparent;
+  pointer-events: none;
+}
+
+.drag-drop-zone.drag-active {
+  border-color: var(--acc);
+  background: rgba(0, 255, 157, 0.05);
+}
+
+.drag-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--t1);
+  pointer-events: none;
+}
+
+.drag-drop-content svg {
+  color: var(--acc);
+  opacity: 0.8;
+}
+
+.drag-drop-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--t0);
+  text-align: center;
+}
+
+.drag-drop-subtitle {
+  font-size: 13px;
+  color: var(--t2);
+  text-align: center;
+}

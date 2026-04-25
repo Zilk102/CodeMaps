@@ -104,6 +104,10 @@ export class OracleService extends EventEmitter {
 
     this.emitGraphUpdated();
     setTimeout(() => this.emit('parsing-progress', null), 2000);
+
+    const projectName = path.basename(normalizedBaseDir);
+    oracleStore.getState().addRecentProject(normalizedBaseDir, projectName);
+
     return this.graphRepository.getGraph();
   }
 }

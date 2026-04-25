@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('api', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
   analyzeProject: (projectPath?: string) => ipcRenderer.invoke('analyze-project', projectPath),
   getMcpStatus: () => ipcRenderer.invoke('mcp-status'),
   minimize: () => ipcRenderer.invoke('window-minimize'),
@@ -23,4 +24,9 @@ contextBridge.exposeInMainWorld('api', {
   removeUpdaterListener: () => {
     ipcRenderer.removeAllListeners('updater:state-changed');
   },
+
+  // Recent Projects
+  getRecentProjects: () => ipcRenderer.invoke('get-recent-projects'),
+  clearRecentProjects: () => ipcRenderer.invoke('clear-recent-projects'),
+  openRecentProject: (projectPath: string) => ipcRenderer.invoke('open-recent-project', projectPath),
 });

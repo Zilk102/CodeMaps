@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
 import { getMcpStatus, setupMcpServer } from './mcp';
 import { oracle } from './oracle';
+import { oracleStore } from './store';
 import { initAutoUpdater } from './autoUpdater';
 
 let mainWindow: BrowserWindow | null = null;
@@ -60,6 +61,15 @@ app.on('window-all-closed', () => {
 });
 
 ipcMain.handle('select-directory', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+// Alias for dialog:open-directory (fallback button)
+ipcMain.handle('dialog:open-directory', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],

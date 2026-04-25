@@ -1,4 +1,44 @@
 import { createStore } from 'zustand/vanilla';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { app } from 'electron';
+
+function getUserDataDir(): string {
+  try {
+    if (typeof app?.getPath === 'function') {
+      return app.getPath('userData');
+    }
+  } catch {
+    // Fallback when Electron app context is unavailable.
+  }
+  return process.env.LOCALAPPDATA || process.env.APPDATA || path.join(os.homedir(), '.codemaps');
+}
+
+function getRecentProjectsFile(): string {
+  return path.join(getUserDataDir(), 'codemaps-recent-projects.json');
+}
+
+function loadRecentProjects(): RecentProject[] {
+  try {
+    const data = fs.readFileSync(getRecentProjectsFile(), 'utf-8');
+    const parsed = JSON.parse(data) as RecentProject[];
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // File doesn't exist or is corrupt.
+  }
+  return [];
+}
+
+function saveRecentProjects(projects: RecentProject[]) {
+  try {
+    const file = getRecentProjectsFile();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(projects, null, 2));
+  } catch (err) {
+    console.error('[RecentProjects] Failed to save:', err);
+  }
+}
 
 export interface GraphNode {
   id: string;
@@ -28,6 +68,12 @@ export interface GraphData {
   projectRoot: string;
 }
 
+export interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: string;
+}
+
 export interface GraphDiff {
   nodesAdded: GraphNode[];
   nodesRemoved: string[];
@@ -42,6 +88,7 @@ export interface OracleState {
   churnMap: Map<string, number>;
   nodeRevision: number;
   linkRevision: number;
+  recentProjects: RecentProject[];
 
   // Actions
   setBaseDir: (dir: string) => void;
@@ -66,6 +113,10 @@ export interface OracleState {
   pendingDiff: GraphDiff;
   resetDiff: () => void;
   getAndResetDiff: () => GraphDiff;
+
+  // Recent projects
+  addRecentProject: (projectPath: string, projectName: string) => void;
+  clearRecentProjects: () => void;
 }
 
 export const oracleStore = createStore<OracleState>()((set, get) => ({
@@ -76,7 +127,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
   nodeRevision: 0,
   linkRevision: 0,
   pendingDiff: { nodesAdded: [], nodesRemoved: [], linksAdded: [], linksRemoved: [] },
-
+  recentProjects: loadRecentProjects(),
   setBaseDir: (dir) => set({ baseDir: dir }),
 
   setChurnMap: (map) => set({ churnMap: map }),
@@ -363,5 +414,20 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     const diff = get().pendingDiff;
     set({ pendingDiff: { nodesAdded: [], nodesRemoved: [], linksAdded: [], linksRemoved: [] } });
     return diff;
+  },
+
+  addRecentProject: (projectPath, projectName) => {
+    set((state) => {
+      const normalizedPath = projectPath.replace(/\\/g, '/');
+      const filtered = state.recentProjects.filter((p) => p.path !== normalizedPath);
+      const next = [{ path: normalizedPath, name: projectName, lastOpened: new Date().toISOString() }, ...filtered].slice(0, 10);
+      saveRecentProjects(next);
+      return { recentProjects: next };
+    });
+  },
+
+  clearRecentProjects: () => {
+    saveRecentProjects([]);
+    set({ recentProjects: [] });
   },
 }));

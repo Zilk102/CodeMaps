@@ -135,7 +135,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     openProject: async () => {
-      const dirPath = await (window as any).api.selectDirectory();
+      const dirPath = await (window as any).api.openDirectory?.() ?? await (window as any).api.selectDirectory?.();
       if (dirPath) {
         await get().fetchGraph(dirPath);
       }
