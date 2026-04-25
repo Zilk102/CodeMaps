@@ -83,6 +83,14 @@
     "adr": "ADR",
     "edges": "Связи (линии)"
   },
+  "recentProjects": {
+    "tagline": "Живая схема кода",
+    "title": "Недавние проекты",
+    "clearHistory": "Очистить историю",
+    "noProjects": "Нет недавних проектов",
+    "openFolder": "Открыть папку",
+    "opening": "Открытие..."
+  },
   "app": {
     "loading": "Загрузка…"
   },

@@ -83,6 +83,14 @@
     "adr": "ADR",
     "edges": "边（线）"
   },
+  "recentProjects": {
+    "tagline": "代码的活体蓝图",
+    "title": "最近的项目",
+    "clearHistory": "清除历史",
+    "noProjects": "没有最近的项目",
+    "openFolder": "打开文件夹",
+    "opening": "打开中..."
+  },
   "app": {
     "loading": "加载中…"
   },

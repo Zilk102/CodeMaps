@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import * as http from 'http';
+import * as path from 'path';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import * as z from 'zod/v4';
@@ -438,6 +439,13 @@ const createMcpServer = () => {
     async ({ projectPath }) => {
       const graph = await ensureGraphLoaded(projectPath);
       const summary = createGraphSummary(graph);
+
+      // Save to recent projects when analyzed via MCP
+      if (graph.projectRoot) {
+        const projectName = path.basename(graph.projectRoot);
+        oracleStore.getState().addRecentProject(graph.projectRoot, projectName);
+      }
+
       return {
         content: [
           {

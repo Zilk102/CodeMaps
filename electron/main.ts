@@ -90,6 +90,24 @@ ipcMain.handle('mcp-status', () => {
   return getMcpStatus();
 });
 
+// Recent Projects IPC
+ipcMain.handle('get-recent-projects', () => {
+  return oracleStore.getState().recentProjects;
+});
+
+ipcMain.handle('clear-recent-projects', () => {
+  oracleStore.getState().clearRecentProjects();
+});
+
+ipcMain.handle('open-recent-project', async (_, projectPath: string) => {
+  try {
+    const data = await oracle.analyzeProject(projectPath);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Проксируем события Оракула в UI
 oracle.on('parsing-progress', (progress) => {
   if (mainWindow) {

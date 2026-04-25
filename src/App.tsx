@@ -7,6 +7,9 @@ const FileTree = React.lazy(() =>
 const GraphView = React.lazy(() =>
   import('./components/GraphView').then((m) => ({ default: m.GraphView }))
 );
+const RecentProjects = React.lazy(() =>
+  import('./components/RecentProjects').then((m) => ({ default: m.RecentProjects }))
+);
 const McpSettingsModal = React.lazy(() =>
   import('./components/McpSettingsModal').then((m) => ({ default: m.McpSettingsModal }))
 );
@@ -46,6 +49,7 @@ const App: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
+  const graphData = useStore((state) => state.graphData);
   const initializeWatcher = useStore((state) => state.initializeWatcher);
   const initializeWebSocket = useStore((state) => state.initializeWebSocket);
   const parsingProgress = useStore((state) => state.parsingProgress);
@@ -216,10 +220,10 @@ const App: React.FC = () => {
           }}
         />
 
-        {/* Граф */}
+        {/* Основная область */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0, backgroundColor: 'var(--bg0)' }}>
           <Suspense fallback={<LazyFallback />}>
-            <GraphView />
+            {graphData ? <GraphView /> : <RecentProjects />}
           </Suspense>
         </div>
       </div>

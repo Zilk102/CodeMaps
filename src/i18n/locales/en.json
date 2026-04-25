@@ -83,6 +83,14 @@
     "adr": "ADR",
     "edges": "Edges (lines)"
   },
+  "recentProjects": {
+    "tagline": "Living Blueprint for Code",
+    "title": "Recent Projects",
+    "clearHistory": "Clear History",
+    "noProjects": "No recent projects",
+    "openFolder": "Open Folder",
+    "opening": "Opening..."
+  },
   "app": {
     "loading": "Loading…"
   },
