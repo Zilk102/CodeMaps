@@ -1,0 +1,22 @@
+{
+  "name": "codemaps",
+  "productName": "CodeMaps",
+  "version": "1.0.0",
+  "description": "Living Blueprint for Code",
+  "main": "dist-electron/main.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "chokidar": "^5.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "fast-glob": "^3.3.3",
+    "piscina": "^5.1.4",
+    "simple-git": "^3.36.0",
+    "tree-sitter-wasms": "^0.1.13",
+    "typescript": "^5.0.0",
+    "web-tree-sitter": "0.22.2",
+    "ws": "^8.20.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  }
+}

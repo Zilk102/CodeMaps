@@ -39,6 +39,7 @@ dist/
 
 # Electron / electron-builder artifacts
 dist-electron/
+dist-renderer
 release/
 out/
 build/
