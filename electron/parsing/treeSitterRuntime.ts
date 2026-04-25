@@ -1,34 +1,15 @@
 import * as path from 'path';
 import type { LanguageDefinition } from './types';
 
-// web-tree-sitter types (0.22.x compatible)
-interface ParserStatic {
-  init(moduleOptions?: object): Promise<void>;
-  new (): ParserInstance;
-  Language: {
-    load(input: string | Uint8Array): Promise<LanguageInstance>;
-  };
-}
+import { Parser, Language, Query } from 'web-tree-sitter';
 
-interface ParserInstance {
-  setLanguage(language?: LanguageInstance | null): void;
-  parse(input: string): any;
-}
-
-interface LanguageInstance {
-  // Language interface
-}
-
-// Use require for CommonJS module
-const Parser: ParserStatic = require('web-tree-sitter');
-
-let parserInstance: ParserInstance | null = null;
+let parserInstance: Parser | null = null;
 let isParserInitialized = false;
-const loadedLanguages = new Map<string, LanguageInstance>();
+const loadedLanguages = new Map<string, Language>();
 
 const getWasmDirectory = () => path.join(__dirname, '..', '..', 'node_modules', 'tree-sitter-wasms', 'out');
 
-export const getParserInstance = async (): Promise<ParserInstance> => {
+export const getParserInstance = async (): Promise<Parser> => {
   if (!isParserInitialized) {
     await Parser.init();
     parserInstance = new Parser();
@@ -42,7 +23,7 @@ export const getParserInstance = async (): Promise<ParserInstance> => {
   return parserInstance;
 };
 
-export const loadTreeSitterLanguage = async (definition: LanguageDefinition): Promise<LanguageInstance | null> => {
+export const loadTreeSitterLanguage = async (definition: LanguageDefinition): Promise<Language | null> => {
   if (!definition.wasmName) {
     return null;
   }
@@ -52,7 +33,8 @@ export const loadTreeSitterLanguage = async (definition: LanguageDefinition): Pr
   }
 
   const wasmPath = path.join(getWasmDirectory(), `tree-sitter-${definition.wasmName}.wasm`);
-  const language = await Parser.Language.load(wasmPath);
+  const language = await Language.load(wasmPath);
   loadedLanguages.set(definition.id, language);
   return language;
 };
+

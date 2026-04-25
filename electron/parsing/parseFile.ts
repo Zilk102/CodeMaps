@@ -64,6 +64,9 @@ export const parseFile = async ({ filePath, activeLanguageIds, baseDir }: ParseW
 
     parser.setLanguage(language);
     const tree = parser.parse(text);
+    if (!tree) {
+      return emptyResult(definition.id, adr);
+    }
     return extractWithTreeSitterQuery(tree, language, definition, adr);
   } catch {
     return emptyResult(definition.id);

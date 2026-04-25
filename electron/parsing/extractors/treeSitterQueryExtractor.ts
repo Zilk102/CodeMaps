@@ -1,3 +1,4 @@
+import { Query, Tree, Language } from 'web-tree-sitter';
 import { LanguageDefinition, ParseResult } from '../types';
 
 const normalizeImportPath = (value: string) => value.replace(/['"`]/g, '').trim();
@@ -9,8 +10,8 @@ const normalizeImportEntity = (value: string) => {
 };
 
 export const extractWithTreeSitterQuery = (
-  tree: any,
-  language: any,
+  tree: Tree,
+  language: Language,
   definition: LanguageDefinition,
   adr?: string
 ): ParseResult => {
@@ -35,7 +36,7 @@ export const extractWithTreeSitterQuery = (
     };
   }
 
-  const query = language.query(definition.query);
+  const query = new Query(language, definition.query);
   const importsMap = new Map<string, Set<string>>();
   const entityKeys = new Set<string>();
   const variableSet = new Set<string>();
@@ -52,11 +53,11 @@ export const extractWithTreeSitterQuery = (
   };
 
   const matches = query.matches(tree.rootNode);
-  matches.forEach((match: any) => {
+  matches.forEach((match) => {
     let importPath: string | null = null;
     const importEntities = new Set<string>();
 
-    match.captures.forEach((capture: any) => {
+    match.captures.forEach((capture) => {
       const captureText = capture.node.text;
 
       switch (capture.name) {
