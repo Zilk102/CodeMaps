@@ -1,3 +1,4 @@
+import log from 'electron-log/main';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -13,7 +14,7 @@ export interface ProjectCacheSnapshot {
 }
 
 export class CacheManager {
-  private saveTimeout: NodeJS.Timeout | null = null;
+  private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private getCacheDir() {
     try {
@@ -84,7 +85,7 @@ export class CacheManager {
       try {
         await this.save(baseDir);
       } catch (error) {
-        console.error('Failed to write cache:', error);
+        log.error('Failed to write cache:', error);
       }
     }, 1000);
   }

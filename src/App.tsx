@@ -81,7 +81,7 @@ const App: React.FC = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, []);
+  }, [initializeWatcher, initializeWebSocket]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

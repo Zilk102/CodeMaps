@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { ElkEdgeSection, ElkPoint } from 'elkjs/lib/elk.bundled';
+import { ElkPoint } from 'elkjs/lib/elk.bundled';
 import { useStore } from '../store/useStore';
 import { FilterPanel } from './FilterPanel';
 import { useGraphLayout } from '../hooks/useGraphLayout';
@@ -109,7 +109,7 @@ export const GraphView: React.FC = () => {
                     const strokeDasharray = isAdr ? '5,5' : 'none';
                     const marker = isAdr ? 'url(#arrowhead-adr)' : 'url(#arrowhead)';
 
-                    const d = edge.sections.map((sec: ElkEdgeSection) => {
+                    const d = edge.sections.map((sec) => {
                       let pathData = `M ${sec.startPoint.x} ${sec.startPoint.y} `;
                       if (sec.bendPoints) {
                         pathData += sec.bendPoints.map((b: ElkPoint) => `L ${b.x} ${b.y} `).join('');

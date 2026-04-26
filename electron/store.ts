@@ -1,3 +1,4 @@
+import log from 'electron-log/main';
 import { createStore } from 'zustand/vanilla';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -36,7 +37,7 @@ function saveRecentProjects(projects: RecentProject[]) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(projects, null, 2));
   } catch (err) {
-    console.error('[RecentProjects] Failed to save:', err);
+    log.error('[RecentProjects] Failed to save:', err);
   }
 }
 

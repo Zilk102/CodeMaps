@@ -1,4 +1,5 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
+import type { ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { GraphData, GraphFilters, GraphLink, GraphNode, LayoutMode } from '../types/graph';
 
 const elk = new ELK();
@@ -15,8 +16,12 @@ export interface LayoutNode {
 
 export interface LayoutEdge {
   id: string;
-  sections: any[];
-  data: any;
+  sections: Array<{
+    startPoint: { x: number; y: number };
+    endPoint: { x: number; y: number };
+    bendPoints?: Array<{ x: number; y: number }>;
+  }>;
+  data: GraphLink;
   sourceId: string;
   targetId: string;
 }
@@ -301,12 +306,12 @@ const runHierarchyLayout = async (
   filters: GraphFilters
 ): Promise<LayoutResult> => {
   const { nodeIndex, validNodes } = buildVisibleContext(graphData, filters, true);
-  const elkNodesMap = new Map<string, any>();
+  const elkNodesMap = new Map<string, ElkNode>();
   validNodes.forEach((node) => {
     elkNodesMap.set(node.id, createElkNode(node, 'hierarchy'));
   });
 
-  const rootChildren: any[] = [];
+  const rootChildren: ElkNode[] = [];
   validNodes.forEach((node) => {
     if (node.id === PROJECT_ROOT_ID) return;
     const elkNode = elkNodesMap.get(node.id);
@@ -318,26 +323,30 @@ const runHierarchyLayout = async (
 
     if (parentId && elkNodesMap.has(parentId)) {
       const parentElkNode = elkNodesMap.get(parentId);
-      if (!parentElkNode.children) parentElkNode.children = [];
-      parentElkNode.children.push(elkNode);
+      if (parentElkNode) {
+        if (!parentElkNode.children) parentElkNode.children = [];
+        if (elkNode) parentElkNode.children.push(elkNode);
+      }
     } else {
-      rootChildren.push(elkNode);
+      if (elkNode) rootChildren.push(elkNode);
     }
   });
 
   const projectRootElkNode = elkNodesMap.get(PROJECT_ROOT_ID);
-  projectRootElkNode.children = rootChildren;
-  projectRootElkNode.layoutOptions = {
-    ...projectRootElkNode.layoutOptions,
-    'elk.algorithm': 'box',
-    'elk.spacing.nodeNode': '64',
-    'elk.padding': '[top=56,left=28,bottom=28,right=28]',
-  };
+  if (projectRootElkNode) {
+    projectRootElkNode.children = rootChildren;
+    projectRootElkNode.layoutOptions = {
+      ...projectRootElkNode.layoutOptions,
+      'elk.algorithm': 'box',
+      'elk.spacing.nodeNode': '64',
+      'elk.padding': '[top=56,left=28,bottom=28,right=28]',
+    };
+  }
 
   // Stabilize the order of children inside containers so that layout doesn't depend on the set of visible edges.
   elkNodesMap.forEach((elkNode) => {
     if (!elkNode.children?.length) return;
-    elkNode.children.sort((a: any, b: any) => {
+    elkNode.children.sort((a: ElkNode, b: ElkNode) => {
       const nodeA = validNodes.get(a.id)!;
       const nodeB = validNodes.get(b.id)!;
       return sortNodesForLayout(nodeA, nodeB);
@@ -356,8 +365,8 @@ const runHierarchyLayout = async (
     return sortNodesForLayout(nodeA, nodeB);
   });
 
-  const assignDimensions = (node: any) => {
-    if (!node.children || node.children.length === 0) {
+  const assignDimensions = (node: ElkNode) => {
+    if (!node.children || (node.children as ElkNode[]).length === 0) {
       const sourceNode = validNodes.get(node.id);
       if (sourceNode) {
         const dimensions = getNodeDimensions(sourceNode, 'hierarchy');
@@ -378,17 +387,17 @@ const runHierarchyLayout = async (
       'elk.spacing.componentComponent': '72',
       'elk.padding': '[top=24,left=24,bottom=24,right=24]',
     },
-    children: [projectRootElkNode],
+    children: projectRootElkNode ? [projectRootElkNode] : [],
     edges: [],
   };
 
-  const layouted: any = await elk.layout(graph as any);
+  const layouted: ElkNode = await elk.layout(graph as ElkNode);
   const flatNodes: LayoutNode[] = [];
-  const computeAbsolute = (node: any, absX: number, absY: number) => {
+  const computeAbsolute = (node: ElkNode, absX: number, absY: number) => {
     const x = absX + (node.x || 0);
     const y = absY + (node.y || 0);
 
-    if (validNodes.has(node.id)) {
+    if (node.id && validNodes.has(node.id)) {
       flatNodes.push({
         id: node.id,
         x,
@@ -401,11 +410,11 @@ const runHierarchyLayout = async (
     }
 
     if (node.children) {
-      node.children.forEach((c: any) => computeAbsolute(c, x, y));
+      node.children.forEach((c: ElkNode) => computeAbsolute(c, x, y));
     }
   };
 
-  layouted.children?.forEach((c: any) => computeAbsolute(c, 0, 0));
+  layouted.children?.forEach((c: ElkNode) => computeAbsolute(c, 0, 0));
   normalizeFlatNodes(flatNodes);
 
   const nodeLayoutIndex = new Map(flatNodes.map((node) => [node.id, node]));
@@ -548,14 +557,14 @@ const runDependencyLayout = async (
       })),
   };
 
-  const layouted: any = await elk.layout(graph as any);
-  const flatNodes: LayoutNode[] = (layouted.children || []).map((node: any) => ({
-    id: node.id,
+  const layouted: ElkNode = await elk.layout(graph as ElkNode);
+  const flatNodes: LayoutNode[] = (layouted.children || []).map((node: ElkNode) => ({
+    id: node.id || '',
     x: node.x || 0,
     y: node.y || 0,
     width: node.width || 0,
     height: node.height || 0,
-    data: validNodes.get(node.id)!,
+    data: validNodes.get(node.id || '')!,
     isContainer: false,
   }));
   normalizeFlatNodes(flatNodes);
@@ -563,12 +572,13 @@ const runDependencyLayout = async (
   const nodeLayoutIndex = new Map(flatNodes.map((node) => [node.id, node]));
   const edgeDataById = new Map(dependencyEdges.map((edge) => [edge.id, edge.data]));
   const flatEdges: LayoutEdge[] = filters.showEdges
-    ? (layouted.edges || []).flatMap((edge: any) => {
+    ? (layouted.edges || []).flatMap((edge: NonNullable<ElkNode['edges']>[0] & { sources?: string[]; targets?: string[] }) => {
         const sourceId = edge.sources?.[0];
         const targetId = edge.targets?.[0];
         const sourceNode = nodeLayoutIndex.get(sourceId);
         const targetNode = nodeLayoutIndex.get(targetId);
-        if (!sourceNode || !targetNode) {
+        const edgeData = edgeDataById.get(edge.id);
+        if (!sourceNode || !targetNode || !edgeData) {
           return [];
         }
 
@@ -576,7 +586,7 @@ const runDependencyLayout = async (
           {
             id: edge.id,
             sections: buildOrthogonalSections(sourceNode, targetNode),
-            data: edgeDataById.get(edge.id),
+            data: edgeData,
             sourceId,
             targetId,
           },

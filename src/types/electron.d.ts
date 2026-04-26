@@ -23,14 +23,14 @@ export interface ElectronAPI {
   analyzeProject: (
     projectPath?: string
   ) => Promise<{ success: boolean; data?: GraphData; error?: string }>;
-  getMcpStatus: () => Promise<any>;
+  getMcpStatus: () => Promise<unknown>;
   minimize: () => Promise<void>;
   maximize: () => Promise<void>;
   close: () => Promise<void>;
-  onGraphUpdate: (callback: (data: any) => void) => void;
-  onParsingProgress: (callback: (data: any) => void) => void;
+  onGraphUpdate: (callback: (data: GraphData) => void) => void;
+  onParsingProgress: (callback: (data: { current: number; total: number; filename: string }) => void) => void;
   // Updater
-  checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
+  checkForUpdates: () => Promise<{ success: boolean; updateInfo?: unknown; error?: string }>;
   installUpdate: () => Promise<void>;
   getUpdaterState: () => Promise<UpdateState>;
   onUpdaterStateChange: (callback: (state: UpdateState) => void) => void;
@@ -39,7 +39,7 @@ export interface ElectronAPI {
   // Recent Projects
   getRecentProjects: () => Promise<RecentProject[]>;
   clearRecentProjects: () => Promise<void>;
-  openRecentProject: (projectPath: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  openRecentProject: (projectPath: string) => Promise<{ success: boolean; data?: GraphData; error?: string }>;
 }
 
 declare global {

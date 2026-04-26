@@ -36,18 +36,21 @@ export const useGraphLayout = (
     if (!graphData) return;
     let isMounted = true;
 
-    setIsCalculating(true);
-    runLayout(graphData, filters, layoutMode, selectedNode?.id)
-      .then((res) => {
+    const performLayout = async () => {
+      setIsCalculating(true);
+      try {
+        const res = await runLayout(graphData, filters, layoutMode, selectedNode?.id);
         if (isMounted) {
           setLayoutData(res);
           setIsCalculating(false);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('Layout error', err);
         if (isMounted) setIsCalculating(false);
-      });
+      }
+    };
+    
+    performLayout();
 
     return () => {
       isMounted = false;

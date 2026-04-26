@@ -113,3 +113,15 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+
+# ==============================================================================
+# PROJECT SPECIFIC GARBAGE & BUILD ARTIFACTS
+# ==============================================================================
+.release-app/
+*.wasm
+tree-sitter-runtime.js
+electron/tree-sitter-runtime.js
+electron/parsing/tree-sitter-runtime.js
+electron/parsing/treeSitterRuntime.js
+lint_output.txt
+lint_results.json

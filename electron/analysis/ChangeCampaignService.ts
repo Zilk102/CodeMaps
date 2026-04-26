@@ -1,5 +1,4 @@
-import { GraphData, GraphLink, GraphNode } from '../store';
-import { buildGraphAdjacency } from './graphAnalysisUtils';
+import { GraphData, GraphNode } from '../store';
 import {
   ArchitectureInsightService,
   ArchitectureLayer,
@@ -123,7 +122,6 @@ export class ChangeCampaignService {
       input.depth || 2,
       input.maxFiles || DEFAULT_MAX_FILES
     );
-    const campaignFileIds = new Set(affectedFiles.map((node) => node.id));
     const campaignStructuralIds = new Set(affectedFiles.map((node) => toStructuralNodeId(node.id)));
     const patterns = this.patternDetectionAnalyzer
       .analyze(graph)

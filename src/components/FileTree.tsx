@@ -20,7 +20,7 @@ const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
   </svg>
 );
 
-const FileIcon = ({ name, isDir, expanded }: { name: string, isDir: boolean, expanded: boolean }) => {
+const FileIcon = ({ name, isDir }: { name: string, isDir: boolean }) => {
   if (isDir) {
     return (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ minWidth: 16 }}>
@@ -147,7 +147,7 @@ const FileTreeNode: React.FC<{
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', marginRight: 6 }}>
-          <FileIcon name={node.name} isDir={node.isDir} expanded={isExpanded} />
+          <FileIcon name={node.name} isDir={node.isDir} />
         </div>
         
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -193,7 +193,7 @@ const FileTreeNode: React.FC<{
 
 export const FileTree: React.FC = () => {
   const { t } = useTranslation();
-  const { graphData, selectedNode, selectedPath, isLoading, error, setSelectedNode, setSelectedPath, openProject } = useStore();
+  const { graphData, selectedPath, isLoading, error, setSelectedNode, setSelectedPath, openProject } = useStore();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   const toggleFolder = (path: string) => {

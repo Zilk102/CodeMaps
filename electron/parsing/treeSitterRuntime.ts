@@ -1,7 +1,7 @@
 import * as path from 'path';
 import type { LanguageDefinition } from './types';
 
-import { Parser, Language, Query } from 'web-tree-sitter';
+import { Parser, Language } from 'web-tree-sitter';
 
 let parserInstance: Parser | null = null;
 let isParserInitialized = false;

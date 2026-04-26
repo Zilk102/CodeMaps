@@ -37,7 +37,7 @@ export class FileWatcher {
     await this.close();
 
     this.watcher = chokidar.watch(baseDir, {
-      ignored: [/(^|[\/\\])\../, /node_modules/, /dist/, /dist-electron/, /release/, /build/],
+      ignored: [/(^|[/\\])\../, /node_modules/, /dist/, /dist-electron/, /release/, /build/],
       persistent: true,
       ignoreInitial: true,
     });

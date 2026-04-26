@@ -1,4 +1,4 @@
-import { GraphData, GraphNode } from '../store';
+import { GraphData } from '../store';
 import { buildGraphAdjacency, getHierarchyDepth, hasKnownParent } from './graphAnalysisUtils';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 

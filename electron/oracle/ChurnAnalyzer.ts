@@ -1,3 +1,4 @@
+import log from 'electron-log/main';
 import * as path from 'path';
 import simpleGit from 'simple-git';
 import { normalizePath } from './shared';
@@ -22,7 +23,7 @@ export class ChurnAnalyzer {
           churnMap.set(absolutePath, (churnMap.get(absolutePath) || 0) + 1);
         });
     } catch (error) {
-      console.warn('Git history extraction failed:', error);
+      log.warn('Git history extraction failed:', error);
     }
 
     return churnMap;

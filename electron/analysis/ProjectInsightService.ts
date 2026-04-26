@@ -3,7 +3,6 @@ import { buildGraphAdjacency } from './graphAnalysisUtils';
 import {
   ArchitectureInsightService,
   ArchitectureLayer,
-  ArchitectureNodeClassification,
   ArchitectureOverview,
 } from './ArchitectureInsightService';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';

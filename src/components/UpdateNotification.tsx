@@ -49,13 +49,6 @@ const UpdateNotification: React.FC = () => {
     setDismissed(true);
   }, []);
 
-  const handleCheck = useCallback(() => {
-    window.api?.checkForUpdates?.();
-    setState((prev) =>
-      prev ? { ...prev, checking: true } : { checking: true, available: false, downloaded: false }
-    );
-  }, []);
-
   if (dismissed) {
     // Show a small dot indicator if update is available but dismissed
     if (state?.available || state?.downloaded) {

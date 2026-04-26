@@ -1,9 +1,24 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
+import log from 'electron-log/main';
 import { getMcpStatus, setupMcpServer } from './mcp';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
 import { initAutoUpdater } from './autoUpdater';
+
+// Initialize structured logging
+log.initialize({ preload: true });
+log.transports.file.level = 'info';
+log.transports.console.level = 'debug';
+
+// Crash Reporting (Global error handlers)
+process.on('uncaughtException', (error) => {
+  log.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  log.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 let mainWindow: BrowserWindow | null = null;
 

@@ -10,7 +10,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { oracle } from './oracle';
-import { GraphData, GraphLink, GraphNode, oracleStore } from './store';
+import { GraphData, oracleStore } from './store';
 import { BlastRadiusAnalyzer } from './analysis/BlastRadiusAnalyzer';
 import { HealthScoreAnalyzer } from './analysis/HealthScoreAnalyzer';
 import { PatternDetectionAnalyzer } from './analysis/PatternDetectionAnalyzer';
@@ -21,6 +21,8 @@ import { AgentContextService } from './analysis/AgentContextService';
 import { ProjectInsightService } from './analysis/ProjectInsightService';
 import { TaskIntelligenceService } from './analysis/TaskIntelligenceService';
 import { ChangeCampaignService } from './analysis/ChangeCampaignService';
+
+import log from 'electron-log/main';
 
 const MCP_HOST = '127.0.0.1';
 const MCP_PORT = 3005;
@@ -1365,7 +1367,7 @@ export function setupMcpServer() {
 
       await record.transport.handleRequest(req, res, req.body);
     } catch (error) {
-      console.error('Error handling MCP POST request:', error);
+      log.error('Error handling MCP POST request:', error);
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: '2.0',
@@ -1434,8 +1436,8 @@ export function setupMcpServer() {
   });
 
   server.listen(MCP_PORT, MCP_HOST, () => {
-    console.log(`[MCP] Streamable HTTP endpoint: ${MCP_HTTP_URL}`);
-    console.log(`[WS] Graph updates endpoint: ${MCP_WS_URL}`);
+    log.info(`[MCP] Streamable HTTP endpoint: ${MCP_HTTP_URL}`);
+    log.info(`[WS] Graph updates endpoint: ${MCP_WS_URL}`);
   });
 
   mcpService = {

@@ -1,3 +1,4 @@
+import log from 'electron-log/main';
 import { autoUpdater } from 'electron-updater';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
@@ -40,7 +41,7 @@ export function initAutoUpdater(window: BrowserWindow) {
 
   // Only check for updates in packaged mode
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-    console.log('[AutoUpdater] Skipping update checks in development mode');
+    log.info('[AutoUpdater] Skipping update checks in development mode');
     return;
   }
 
@@ -81,7 +82,7 @@ export function initAutoUpdater(window: BrowserWindow) {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('[AutoUpdater] Error:', err.message);
+    log.error('[AutoUpdater] Error:', err.message);
     updateState = { checking: false, available: false, downloaded: false, error: err.message };
     sendUpdateState();
   });
@@ -89,7 +90,7 @@ export function initAutoUpdater(window: BrowserWindow) {
   // Check for updates on startup (with a small delay to not block app launch)
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
-      console.error('[AutoUpdater] Failed to check for updates:', err.message);
+      log.error('[AutoUpdater] Failed to check for updates:', err.message);
     });
   }, 5000);
 

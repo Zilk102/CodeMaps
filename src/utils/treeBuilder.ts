@@ -1,4 +1,4 @@
-import type { GraphNode } from '../types/graph';
+import type { GraphLink, GraphNode } from '../types/graph';
 
 export interface TreeNode {
   data: GraphNode;
@@ -6,7 +6,7 @@ export interface TreeNode {
 }
 
 export const buildTree = (
-  graphData: { nodes: GraphNode[]; links: any[] } | null,
+  graphData: { nodes: GraphNode[]; links: GraphLink[] } | null,
   filters: {
     showDirectories: boolean;
     showFiles: boolean;

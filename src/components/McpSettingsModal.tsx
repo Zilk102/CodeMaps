@@ -48,7 +48,7 @@ export const McpSettingsModal: React.FC = () => {
     if (!isOpen) return;
 
     window.api?.getMcpStatus?.()
-      .then((nextStatus: McpStatus) => setStatus(nextStatus))
+      .then((nextStatus) => setStatus(nextStatus as McpStatus))
       .catch(() => setStatus(null));
   }, [isOpen]);
 

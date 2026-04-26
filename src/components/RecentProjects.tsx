@@ -49,17 +49,18 @@ export const RecentProjects: React.FC = () => {
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadRecent = async () => {
-    try {
-      const projects = await window.api.getRecentProjects();
-      setRecentProjects(projects || []);
-    } catch {
-      setRecentProjects([]);
-    }
-  };
-
   useEffect(() => {
+    let isMounted = true;
+    const loadRecent = async () => {
+      try {
+        const projects = await window.api.getRecentProjects();
+        if (isMounted) setRecentProjects(projects || []);
+      } catch {
+        if (isMounted) setRecentProjects([]);
+      }
+    };
     loadRecent();
+    return () => { isMounted = false; };
   }, []);
 
   const handleOpenProject = async (projectPath: string) => {
@@ -77,7 +78,7 @@ export const RecentProjects: React.FC = () => {
     try {
       await window.api.clearRecentProjects();
       setRecentProjects([]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to clear history:', error);
     }
   };
@@ -175,7 +176,7 @@ export const RecentProjects: React.FC = () => {
             </div>
           ) : (
             <div>
-              {recentProjects.map((project) => (
+              {recentProjects.map((project: RecentProject) => (
                 <button
                   key={project.path}
                   onClick={() => handleOpenProject(project.path)}

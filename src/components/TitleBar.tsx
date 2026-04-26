@@ -22,10 +22,10 @@ const TitleBar: React.FC = () => {
         WebkitAppRegion: 'drag',
         userSelect: 'none',
         flexShrink: 0
-      } as any}
+      } as React.CSSProperties}
     >
       {/* Left side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', WebkitAppRegion: 'no-drag', height: '100%' } as any}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', WebkitAppRegion: 'no-drag', height: '100%' } as React.CSSProperties}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
           <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg, var(--acc), var(--cyan))', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg0)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
@@ -54,9 +54,9 @@ const TitleBar: React.FC = () => {
       </div>
 
       {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', height: '100%', WebkitAppRegion: 'no-drag' } as any}>
+      <div style={{ display: 'flex', alignItems: 'center', height: '100%', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {/* Window buttons (Windows) */}
-        <div style={{ display: 'flex', WebkitAppRegion: 'no-drag', height: '100%', alignItems: 'center' } as any}>
+        <div style={{ display: 'flex', WebkitAppRegion: 'no-drag', height: '100%', alignItems: 'center' } as React.CSSProperties}>
           <div 
             className="window-control"
             style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 

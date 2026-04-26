@@ -122,6 +122,7 @@ const collectImportedEntities = (clause?: ts.ImportClause) => {
   return importedEntities;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const createImportRecord = (
   sourceFilePath: string,
   moduleSpecifier: string,

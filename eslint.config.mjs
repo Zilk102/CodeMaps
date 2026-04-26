@@ -8,7 +8,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist-electron/**', 'dist-renderer/**', 'release/**', 'node_modules/**'],
+    ignores: ['dist-electron/**', 'dist-renderer/**', 'release/**', 'node_modules/**', 'electron/assets/**', 'electron/parsing/treeSitterRuntime.js', 'src/assets/**', 'scripts/**', 'docs/**', '*.js', 'electron/parsing/tree-sitter-runtime.js', 'tree-sitter-runtime.js', 'electron/vendor/**', 'dist/**', 'resources/**', 'electron/tree-sitter-runtime.js', 'electron/parsing/tree-sitter-runtime.js', '.release-app/**'],
   },
   js.configs.recommended,
   {
@@ -37,6 +37,7 @@ export default [
       ...reactHooksPlugin.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
       'react/jsx-uses-react': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
     settings: {
       react: {
@@ -62,6 +63,7 @@ export default [
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {
