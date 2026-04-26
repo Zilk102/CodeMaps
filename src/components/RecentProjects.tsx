@@ -51,7 +51,7 @@ export const RecentProjects: React.FC = () => {
 
   const loadRecent = async () => {
     try {
-      const projects = await (window as any).api.getRecentProjects();
+      const projects = await window.api.getRecentProjects();
       setRecentProjects(projects || []);
     } catch {
       setRecentProjects([]);
@@ -66,7 +66,7 @@ export const RecentProjects: React.FC = () => {
     setIsLoading(true);
     try {
       await fetchGraph(projectPath);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to open recent project:', error);
     } finally {
       setIsLoading(false);
@@ -75,7 +75,7 @@ export const RecentProjects: React.FC = () => {
 
   const handleClearHistory = async () => {
     try {
-      await (window as any).api.clearRecentProjects();
+      await window.api.clearRecentProjects();
       setRecentProjects([]);
     } catch (error: any) {
       console.error('Failed to clear history:', error);

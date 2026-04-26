@@ -60,21 +60,21 @@ const TitleBar: React.FC = () => {
           <div 
             className="window-control"
             style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 
-            onClick={() => (window as any).api.minimize()}
+            onClick={() => window.api.minimize?.()}
           >
             <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,5 L 10,5" stroke="currentColor" strokeWidth="1"/></svg>
           </div>
           <div 
             className="window-control"
             style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 
-            onClick={() => (window as any).api.maximize()}
+            onClick={() => window.api.maximize?.()}
           >
             <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,0 L 10,0 L 10,10 L 0,10 Z" fill="none" stroke="currentColor" strokeWidth="1"/></svg>
           </div>
           <div 
             className="window-control close"
             style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)', transition: 'background-color 0.1s' }} 
-            onClick={() => (window as any).api.close()}
+            onClick={() => window.api.close?.()}
           >
             <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,0 L 10,10 M 10,0 L 0,10" stroke="currentColor" strokeWidth="1"/></svg>
           </div>

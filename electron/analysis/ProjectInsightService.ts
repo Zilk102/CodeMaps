@@ -247,15 +247,15 @@ export class ProjectInsightService {
       layers.has('analysis') &&
       layers.has('parsing')
     ) {
-      return 'Многослойная система с отдельными UI, orchestration, analysis и parsing зонами.';
+      return 'Multi-layered system with distinct UI, orchestration, analysis, and parsing zones.';
     }
     if (layers.has('presentation') && layers.has('application')) {
-      return 'Приложение с явным разделением UI и orchestration.';
+      return 'Application with a clear separation of UI and orchestration.';
     }
     if (layers.has('analysis') || layers.has('parsing')) {
-      return 'Инструментально-аналитический проект с доминирующим backend/analysis ядром.';
+      return 'Tooling/analytical project with a dominant backend/analysis core.';
     }
-    return 'Структура проекта распознана частично; стоит углубить классификацию и entry points.';
+    return 'Project structure is partially recognized; consider deepening the classification and entry points.';
   }
 
   private getArchitectureMaturity(
@@ -297,7 +297,7 @@ export class ProjectInsightService {
 
     return {
       primaryGoal:
-        'Сформировать для агента рабочую архитектурную модель проекта до начала изменений или review.',
+        'Form a working architectural mental model of the project for the agent before starting changes or reviews.',
       preferredSequence,
       recommendedStartingNodes: unique([
         ...mentalModel.entryPoints.map((node) => node.id),
@@ -316,37 +316,37 @@ export class ProjectInsightService {
     mentalModel: ProjectInsightResult['mentalModel']
   ) {
     const nextSteps = [
-      'Сначала прочитать entry points и core orchestrators, чтобы зафиксировать реальные потоки управления по проекту.',
-      'После общего обзора использовать prepare_change_context для любой нетривиальной правки и prepare_review_context для аудита/валидации.',
+      'First read entry points and core orchestrators to fix real control flows across the project.',
+      'After a general overview, use prepare_change_context for any non-trivial change and prepare_review_context for audit/validation.',
     ];
 
     if (mentalModel.sharedFoundations.length > 0) {
       nextSteps.push(
-        'Отдельно проверить shared foundations: это узлы с высоким повторным использованием и потенциально широким blast radius.'
+        'Separately check shared foundations: these are nodes with high reuse and potentially wide blast radius.'
       );
     }
 
     if (patterns.length > 0) {
       nextSteps.push(
-        'Разобрать hotspot-паттерны и понять, какие из них являются реальными архитектурными рисками, а какие допустимыми центрами координации.'
+        'Analyze hotspot patterns and understand which are real architectural risks and which are acceptable coordination centers.'
       );
     }
 
     if (securityFindings.length > 0) {
       nextSteps.unshift(
-        'До изменений разобрать security findings и исключить небезопасные точки работы с процессами, файлами и пользовательским вводом.'
+        'Before making changes, review security findings and eliminate unsafe practices with processes, files, and user input.'
       );
     }
 
     if (health.issues.length > 0) {
       nextSteps.push(
-        'Сверить health issues с фактической структурой проекта и скорректировать эвристики там, где они шумят.'
+        'Compare health issues with the actual project structure and adjust heuristics where they are noisy.'
       );
     }
 
     if (architecture.summary.violationCount > 0 || architecture.summary.unknownNodes > 0) {
       nextSteps.push(
-        'Закрыть архитектурные разрывы в классификации слоёв и boundary rules, иначе автопилот агента будет менее точным.'
+        'Close architectural gaps in layer classification and boundary rules, otherwise the agent autopilot will be less accurate.'
       );
     }
 
@@ -359,28 +359,28 @@ export class ProjectInsightService {
 
     if (layers.has('presentation') && layers.has('state')) {
       workflows.push(
-        'UI -> state: пользовательские действия проходят через presentation и хранятся в state-слое.'
+        'UI -> state: User actions pass through presentation and are stored in the state layer.'
       );
     }
     if (layers.has('integration') && layers.has('application')) {
       workflows.push(
-        'Integration -> application: входные адаптеры и MCP/entrypoints координируют backend orchestration.'
+        'Integration -> application: Input adapters and MCP/entrypoints coordinate backend orchestration.'
       );
     }
     if (layers.has('application') && layers.has('parsing')) {
       workflows.push(
-        'Application -> parsing: orchestration-слой запускает языковой парсинг и индексирование проекта.'
+        'Application -> parsing: Orchestration layer triggers language parsing and project indexing.'
       );
     }
     if (layers.has('analysis') && layers.has('state')) {
       workflows.push(
-        'Analysis -> state: аналитические сервисы опираются на нормализованный граф и store-представление.'
+        'Analysis -> state: Analytics services rely on the normalized graph and store representation.'
       );
     }
 
     if (workflows.length === 0) {
       workflows.push(
-        'Явные системные workflow распознаны частично; стоит расширить модель entry points и runtime flow.'
+        'Explicit system workflows are partially recognized; consider expanding the entry points and runtime flow model.'
       );
     }
 

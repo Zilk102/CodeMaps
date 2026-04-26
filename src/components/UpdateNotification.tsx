@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface UpdateState {
   checking: boolean;
@@ -10,16 +11,17 @@ interface UpdateState {
 }
 
 const UpdateNotification: React.FC = () => {
+  const { t } = useTranslation();
   const [state, setState] = useState<UpdateState | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !(window as any).api?.onUpdaterStateChange) {
+    if (typeof window === 'undefined' || !window.api?.onUpdaterStateChange) {
       return;
     }
 
     // Get initial state
-    (window as any).api.getUpdaterState?.().then((initialState: UpdateState) => {
+    window.api.getUpdaterState?.().then((initialState: UpdateState) => {
       if (initialState.available || initialState.downloaded) {
         setState(initialState);
       }
@@ -32,15 +34,15 @@ const UpdateNotification: React.FC = () => {
       }
     };
 
-    (window as any).api.onUpdaterStateChange(handler);
+    window.api.onUpdaterStateChange(handler);
 
     return () => {
-      (window as any).api.removeUpdaterListener?.();
+      window.api.removeUpdaterListener?.();
     };
   }, []);
 
   const handleRestart = useCallback(() => {
-    (window as any).api?.installUpdate?.();
+    window.api?.installUpdate?.();
   }, []);
 
   const handleLater = useCallback(() => {
@@ -48,7 +50,7 @@ const UpdateNotification: React.FC = () => {
   }, []);
 
   const handleCheck = useCallback(() => {
-    (window as any).api?.checkForUpdates?.();
+    window.api?.checkForUpdates?.();
     setState((prev) =>
       prev ? { ...prev, checking: true } : { checking: true, available: false, downloaded: false }
     );
@@ -67,7 +69,7 @@ const UpdateNotification: React.FC = () => {
             cursor: 'pointer',
           }}
           onClick={() => setDismissed(false)}
-          title="Доступно обновление"
+          title={t('updateNotification.updateAvailable')}
         >
           <div
             style={{
@@ -105,7 +107,10 @@ const UpdateNotification: React.FC = () => {
         }}
       >
         <div style={{ flex: 1 }}>
-          Загрузка обновления {state.version ? `v${state.version}` : ''}… {state.progress}%
+          {t('updateNotification.downloadingUpdate', {
+            version: state.version ? `v${state.version}` : '',
+            progress: state.progress
+          })}
         </div>
         <div
           style={{
@@ -166,8 +171,13 @@ const UpdateNotification: React.FC = () => {
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           <span>
-            Обновление <strong style={{ color: 'var(--cyan)' }}>v{state.version}</strong> готово к
-            установке!
+            <Trans
+              i18nKey="updateNotification.updateReady"
+              values={{ version: state.version }}
+              components={{
+                1: <strong style={{ color: 'var(--cyan)' }} />
+              }}
+            />
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -183,7 +193,7 @@ const UpdateNotification: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            Позже
+            {t('updateNotification.later')}
           </button>
           <button
             onClick={handleRestart}
@@ -198,7 +208,7 @@ const UpdateNotification: React.FC = () => {
               fontWeight: 600,
             }}
           >
-            Перезапустить
+            {t('updateNotification.restart')}
           </button>
         </div>
       </div>
@@ -235,7 +245,7 @@ const UpdateNotification: React.FC = () => {
             animation: 'spin 1s linear infinite',
           }}
         />
-        <span>Проверка обновлений…</span>
+        <span>{t('updateNotification.checkingForUpdates')}</span>
       </div>
     );
   }

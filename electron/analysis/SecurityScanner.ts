@@ -34,28 +34,28 @@ const SANITIZED_CONTENT_RULES: Array<{
     severity: 'critical',
     pattern: /\b(?:window\.)?(?:localStorage|sessionStorage)\s*(?:\.|\[)/,
     message:
-      'Найдено использование browser storage. Для auth и чувствительных данных используйте только HTTP-only Secure Cookies.',
+      'Browser storage usage found. For auth and sensitive data, use HTTP-only Secure Cookies exclusively.',
   },
   {
     ruleId: 'dynamic_code_execution',
     severity: 'high',
     pattern: /\b(?:eval\s*\(|new Function\s*\()/,
     message:
-      'Найдено динамическое выполнение кода (`eval`/`Function`), что увеличивает риск RCE/XSS.',
+      'Dynamic code execution (`eval`/`Function`) found, increasing RCE/XSS risk.',
   },
   {
     ruleId: 'child_process_shell',
     severity: 'high',
     pattern: /\b(?:exec|execSync|spawn|spawnSync)\s*\(/,
     message:
-      'Найден shell/process execution API. Проверьте sandboxing, валидацию аргументов и blast radius.',
+      'Shell/process execution API found. Check sandboxing, argument validation, and blast radius.',
   },
   {
     ruleId: 'hardcoded_secret',
     severity: 'high',
     pattern: /\b(?:api[_-]?key|secret|token|password)\b\s*[:=]\s*['"`][^'"`\s]{8,}['"`]/i,
     message:
-      'Похоже на hardcoded credential. Вынесите секрет в переменные окружения и secret management.',
+      'Looks like a hardcoded credential. Move the secret to environment variables and secret management.',
   },
 ];
 
@@ -93,7 +93,7 @@ export class SecurityScanner {
           ruleId: 'sensitive_file_name',
           severity: normalizedLabel === '.env' ? 'high' : 'medium',
           nodeId: node.id,
-          message: 'Имя файла выглядит как потенциальный носитель секрета или ключевого материала.',
+          message: 'The file name looks like a potential carrier of a secret or key material.',
         });
       }
 
@@ -102,7 +102,7 @@ export class SecurityScanner {
           ruleId: 'public_secret_exposure',
           severity: 'critical',
           nodeId: node.id,
-          message: 'Потенциально чувствительный файл расположен в публичном каталоге.',
+          message: 'A potentially sensitive file is located in a public directory.',
         });
       }
 
@@ -112,7 +112,7 @@ export class SecurityScanner {
           severity: 'low',
           nodeId: node.id,
           message:
-            'Инфраструктурный файл находится внутри source tree; проверьте разделение runtime и delivery-артефактов.',
+            'An infrastructure file is located inside the source tree; check the separation of runtime and delivery artifacts.',
         });
       }
 
@@ -146,7 +146,7 @@ export class SecurityScanner {
             ruleId: 'insecure_http_url',
             severity: 'medium',
             nodeId: node.id,
-            message: 'Найден незащищенный HTTP URL вне localhost.',
+            message: 'Found an insecure HTTP URL outside of localhost.',
           });
         }
       } catch {

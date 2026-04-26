@@ -47,7 +47,7 @@ export const McpSettingsModal: React.FC = () => {
   useEffect(() => {
     if (!isOpen) return;
 
-    (window as any).api?.getMcpStatus?.()
+    window.api?.getMcpStatus?.()
       .then((nextStatus: McpStatus) => setStatus(nextStatus))
       .catch(() => setStatus(null));
   }, [isOpen]);
@@ -114,7 +114,7 @@ Do not wait until after file inspection to use it.
 
 ## Routing Rules
 
-- Bug, incident, regression, "не работает", "ломается":
+- Bug, incident, regression, "not working", "broken":
   Start with \`prepare_task_context\`.
 - Broad migration, replace SDK/library everywhere, cross-cutting refactor:
   Start with \`prepare_task_context\` and follow \`prepare_change_campaign\` if selected.
@@ -227,7 +227,7 @@ The agent should behave like it has a project-aware architectural map:
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'start' }}>
             <div>
               <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span>{tool.title}</span>
+                <span>{t(`mcpSettings.tools.${tool.name}.title`, { defaultValue: tool.title })}</span>
                 {tool.preferredForAgents && (
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'var(--accbg)', border: '1px solid var(--acc)', color: 'var(--acc)' }}>
                     {t('mcpSettings.recommendedForAgent')}
@@ -238,11 +238,11 @@ The agent should behave like it has a project-aware architectural map:
             </div>
           </div>
           <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
-            {tool.description}
+            {t(`mcpSettings.tools.${tool.name}.description`, { defaultValue: tool.description })}
           </div>
           {tool.recommendedWhen && (
             <div style={{ marginTop: '8px', color: 'var(--text-primary)', fontSize: '11px', lineHeight: 1.4 }}>
-              {t('mcpSettings.whenToUse')}: {tool.recommendedWhen}
+              {t('mcpSettings.whenToUse')}: {t(`mcpSettings.tools.${tool.name}.recommendedWhen`, { defaultValue: tool.recommendedWhen })}
             </div>
           )}
         </div>
@@ -250,12 +250,14 @@ The agent should behave like it has a project-aware architectural map:
     </div>
   );
 
+  const getResourceKey = (uri: string) => uri.split('//')[1].replace('/', '_').replace('-', '_');
+
   const renderResources = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {resourceDetails.map((resource) => (
         <div key={resource.uri} style={commonSectionStyle}>
           <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span>{resource.title}</span>
+            <span>{t(`mcpSettings.resources.${getResourceKey(resource.uri)}.title`, { defaultValue: resource.title })}</span>
             {resource.preferredForAgents && (
               <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'var(--accbg)', border: '1px solid var(--acc)', color: 'var(--acc)' }}>
                 {t('mcpSettings.forAutopilot')}
@@ -264,7 +266,7 @@ The agent should behave like it has a project-aware architectural map:
           </div>
           <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>{resource.uri}</div>
           <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
-            {resource.description}
+            {t(`mcpSettings.resources.${getResourceKey(resource.uri)}.description`, { defaultValue: resource.description })}
           </div>
         </div>
       ))}

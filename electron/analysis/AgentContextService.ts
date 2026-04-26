@@ -495,7 +495,7 @@ export class AgentContextService {
         severity: 'critical',
         title: 'Security Findings',
         reason:
-          'В проекте есть критичные security findings; их нужно разобрать раньше любой архитектурной косметики.',
+          'The project has critical security findings; they must be addressed before any architectural cosmetics.',
         nodeIds: unique(
           securityFindings
             .filter((finding) => finding.severity === 'critical')
@@ -509,7 +509,7 @@ export class AgentContextService {
         severity: architecture.violations.length > 10 ? 'high' : 'medium',
         title: 'Architecture Violations',
         reason:
-          'Нарушения межслоевых зависимостей бьют по maintainability и делают impact analysis менее предсказуемым.',
+          'Layer dependency violations harm maintainability and make impact analysis less predictable.',
         nodeIds: unique(
           architecture.violations
             .slice(0, 10)
@@ -524,7 +524,7 @@ export class AgentContextService {
         severity: 'high',
         title: 'High-Severity Patterns',
         reason:
-          'Граф содержит hotspot-ы и anti-pattern candidates, которые повышают blast radius и churn risk.',
+          'The graph contains hotspots and anti-pattern candidates that increase blast radius and churn risk.',
         nodeIds: unique(severePatterns.flatMap((pattern) => pattern.nodeIds)).slice(0, 10),
       });
     }
@@ -534,7 +534,7 @@ export class AgentContextService {
         severity: health.grade === 'F' || health.grade === 'D' ? 'high' : 'medium',
         title: 'Health Issues',
         reason:
-          'Health score уже сигнализирует о структурных потерях: review должен покрыть эти деградации явно.',
+          'Health score already signals structural degradation: the review must explicitly cover these issues.',
         nodeIds: [],
       });
     }
@@ -543,7 +543,7 @@ export class AgentContextService {
       priorities.push({
         severity: 'low',
         title: 'Focused Review Scope',
-        reason: `Есть явный focus-запрос "${focus.query}", поэтому стоит дополнительно проверить локальные зависимости и слой целевой области.`,
+        reason: `There is an explicit focus query "${focus.query}", so it is worth double-checking local dependencies and the layer of the target area.`,
         nodeIds: focus.matches.map((node) => node.id),
       });
     }
@@ -559,35 +559,35 @@ export class AgentContextService {
     hasFocus: boolean
   ) {
     const nextSteps = [
-      'Начать review с узлов, попавших в top architecture violations и severe patterns.',
-      'Проверить, не скрывают ли high fan-in/high fan-out узлы избыточную ответственность и неправильные границы модуля.',
+      'Start the review with nodes that fell into top architecture violations and severe patterns.',
+      'Check if high fan-in/high fan-out nodes hide excessive responsibility and incorrect module boundaries.',
     ];
 
     if (securityFindings.length > 0) {
-      nextSteps.unshift('Сначала разобрать security findings, особенно критичные и high severity.');
+      nextSteps.unshift('Address security findings first, especially critical and high severity ones.');
     }
 
     if (health.issues.length > 0) {
       nextSteps.push(
-        'Сверить health issues с фактическим кодом и определить, что является реальной проблемой, а что эвристическим шумом.'
+        'Cross-check health issues with the actual code and determine what is a real problem and what is heuristic noise.'
       );
     }
 
     if (architecture.summary.unknownNodes > 0) {
       nextSteps.push(
-        'Уточнить правила классификации слоёв для unknown nodes, чтобы агент и review опирались на более точную модель.'
+        'Refine layer classification rules for unknown nodes so the agent and review rely on a more accurate model.'
       );
     }
 
     if (patterns.length === 0) {
       nextSteps.push(
-        'Явных structural patterns не найдено; review стоит сфокусировать на кодовых контрактах и runtime-поведении.'
+        'No obvious structural patterns found; the review should focus on code contracts and runtime behavior.'
       );
     }
 
     if (hasFocus) {
       nextSteps.push(
-        'После общего обзора сделать отдельный локальный review для focus-области и проверить её blast radius вручную.'
+        'After a general overview, do a separate local review for the focus area and check its blast radius manually.'
       );
     }
 
@@ -615,7 +615,10 @@ export class AgentContextService {
 
     return {
       primaryGoal: args.changeIntent || this.describeChangeModeGoal(args.taskMode),
-      whyThisTarget: `${targetKind} выбран по причине ${args.resolvedTarget.resolutionReason}.`,
+      whyThisTarget:
+        args.resolvedTarget.resolutionReason === 'exact_id_match'
+          ? `${targetKind} selected because it is an exact match.`
+          : `${targetKind} selected due to ${args.resolvedTarget.resolutionReason}.`,
       preferredNextAction,
       shouldFallbackToLowLevelTools:
         args.resolvedTarget.alternatives.length > 0 && !args.resolvedTarget.exactMatch,
@@ -664,13 +667,13 @@ export class AgentContextService {
 
     if (args.blastRadius.confidence === 'high' && args.blastRadius.affectedNodes.length > 0) {
       risks.push(
-        `Изменение имеет подтверждённый impact на ${args.blastRadius.affectedNodes.length} зависимых узлов.`
+        `The change has a confirmed impact on ${args.blastRadius.affectedNodes.length} dependent nodes.`
       );
     }
 
     if (args.targetViolations.length > 0) {
       risks.push(
-        'Целевая область уже участвует в layer violations; локальная правка может закрепить архитектурный smell.'
+        'The target area is already involved in layer violations; a local fix may solidify the architectural smell.'
       );
     }
 
@@ -680,13 +683,13 @@ export class AgentContextService {
       )
     ) {
       risks.push(
-        'Цель лежит рядом с hotspot-узлами высокой связности; нужна осторожность с новыми зависимостями.'
+        'The target lies near high-coupling hotspot nodes; caution is needed with new dependencies.'
       );
     }
 
     if (args.securityFindings.length > 0) {
       risks.push(
-        'В смежных файлах уже есть security findings; изменение нужно сверять с безопасностью данных и API.'
+        'There are already security findings in adjacent files; the change must be verified against data and API security.'
       );
     }
 
@@ -695,13 +698,13 @@ export class AgentContextService {
       args.targetClassification.layer === 'domain'
     ) {
       risks.push(
-        `Цель находится в слое ${args.targetClassification.layer}, поэтому blast radius может выходить далеко за локальный модуль.`
+        `The target is in the ${args.targetClassification.layer} layer, so the blast radius may extend far beyond the local module.`
       );
     }
 
     if (risks.length === 0) {
       risks.push(
-        'Явных структурных red flags не найдено, но всё равно проверьте runtime-контракты и обратные зависимости.'
+        'No obvious structural red flags found, but still verify runtime contracts and reverse dependencies.'
       );
     }
 
@@ -717,23 +720,23 @@ export class AgentContextService {
     securityFindings: SecurityFinding[];
   }) {
     const nextSteps = [
-      `Сначала перечитать целевой узел ${args.target.id} и ближайшие файлы из recommendedFilesToInspect.`,
-      'Проверить, не создаёт ли изменение новых layer violations и лишних import edges.',
+      `First, re-read the target node ${args.target.id} and the closest files from recommendedFilesToInspect.`,
+      'Check if the change creates new layer violations or unnecessary import edges.',
     ];
 
     if (args.changeIntent) {
-      nextSteps.unshift(`Уточнить change intent: ${args.changeIntent}.`);
+      nextSteps.unshift(`Clarify change intent: ${args.changeIntent}.`);
     }
 
     if (args.blastRadius.affectedNodes.length > 0) {
       nextSteps.push(
-        'После правки перепроверить affected nodes из blast radius и убедиться, что контракты не деградировали.'
+        'After editing, double-check the affected nodes from the blast radius and ensure contracts have not degraded.'
       );
     }
 
     if (args.securityFindings.length > 0) {
       nextSteps.push(
-        'Отдельно перепроверить безопасную работу с секретами, shell/process APIs и browser storage.'
+        'Separately re-verify safe handling of secrets, shell/process APIs, and browser storage.'
       );
     }
 
@@ -742,7 +745,7 @@ export class AgentContextService {
       args.targetClassification.layer === 'integration'
     ) {
       nextSteps.push(
-        'Убедиться, что orchestration/integration код не начинает тянуть presentation детали или лишнее состояние.'
+        'Ensure that orchestration/integration code does not start pulling presentation details or extra state.'
       );
     }
 
@@ -871,28 +874,28 @@ export class AgentContextService {
   private describeChangeModeGoal(taskMode: ChangeTaskMode) {
     switch (taskMode) {
       case 'feature':
-        return 'Найти безопасную точку интеграции для новой функциональности.';
+        return 'Find a safe integration point for new functionality.';
       case 'refactor':
-        return 'Изменить структуру без регресса по зависимостям и слоям.';
+        return 'Modify the structure without regressing dependencies and layers.';
       case 'explore':
-        return 'Понять область изменений и собрать минимально достаточный контекст.';
+        return 'Understand the scope of changes and gather minimally sufficient context.';
       case 'bugfix':
       default:
-        return 'Найти и исправить дефект с минимальным blast radius.';
+        return 'Find and fix the defect with minimal blast radius.';
     }
   }
 
   private describeReviewModeGoal(taskMode: ReviewTaskMode) {
     switch (taskMode) {
       case 'architecture':
-        return 'Проверить архитектурные границы, слои и ответственность модулей.';
+        return 'Check architectural boundaries, layers, and module responsibilities.';
       case 'security':
-        return 'Найти и приоритизировать security risks и небезопасные паттерны.';
+        return 'Find and prioritize security risks and unsafe patterns.';
       case 'stabilization':
-        return 'Найти точки структурной нестабильности и деградации maintainability.';
+        return 'Identify points of structural instability and maintainability degradation.';
       case 'review':
       default:
-        return 'Собрать архитектурный и качественный контекст для осмысленного review.';
+        return 'Gather architectural and qualitative context for a meaningful review.';
     }
   }
 

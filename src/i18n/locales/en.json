@@ -28,8 +28,101 @@
   "mcpSettings": {
     "title": "MCP Server Settings",
     "overview": "Overview",
-    "tools": "Tools",
-    "resources": "Resources",
+    "tools": {
+      "analyze_project": {
+        "title": "Analyze Project",
+        "description": "Indexes the project and loads the graph into CodeMaps. Usually, the agent should call this automatically when changing projects.",
+        "recommendedWhen": "When the project is not open yet or you need to switch the active workspace."
+      },
+      "get_graph_context": {
+        "title": "Get Graph Context",
+        "description": "Returns a graph summary or the full graph payload. Useful as a low-level fallback when the raw graph is needed.",
+        "recommendedWhen": "When the composite context is insufficient and the agent needs a full snapshot of the graph."
+      },
+      "get_node_dependencies": {
+        "title": "Get Node Dependencies",
+        "description": "Shows incoming and outgoing links of a specific node. Usually needed as a fallback after prepare_change_context.",
+        "recommendedWhen": "When you need to manually expand the local dependency context."
+      },
+      "search_graph": {
+        "title": "Search Graph",
+        "description": "Searches nodes by label or id, optionally filtered by type. Low-level search for ambiguous targets.",
+        "recommendedWhen": "When target resolution in a composite context requires manual refinement."
+      },
+      "get_blast_radius": {
+        "title": "Get Blast Radius",
+        "description": "Calculates the direct and transitive impact of changing a node.",
+        "recommendedWhen": "When planning a risky change and needing to assess the impact."
+      },
+      "get_architecture_overview": {
+        "title": "Get Architecture Overview",
+        "description": "Returns layer classifications, cross-layer dependencies, and boundary violations.",
+        "recommendedWhen": "When analyzing the overall structure or verifying architectural compliance."
+      },
+      "get_health_score": {
+        "title": "Get Health Score",
+        "description": "Computes structural graph health metrics and an overall score.",
+        "recommendedWhen": "When assessing technical debt or evaluating the impact of a refactor."
+      },
+      "detect_patterns": {
+        "title": "Detect Patterns",
+        "description": "Finds architectural hotspots and anti-pattern candidates in the graph.",
+        "recommendedWhen": "When looking for refactoring opportunities or reviewing code quality."
+      },
+      "run_security_scan": {
+        "title": "Run Security Scan",
+        "description": "Scans indexed source files for high-risk patterns and suspicious artifacts.",
+        "recommendedWhen": "When performing a security review or checking for hardcoded secrets."
+      },
+      "search_signatures": {
+        "title": "Search Signatures",
+        "description": "Searches declaration-like code signatures across indexed source files.",
+        "recommendedWhen": "When looking for specific function or class definitions."
+      },
+      "prepare_project_context": {
+        "title": "Prepare Project Context",
+        "description": "Creates a project-level mental model so an agent can understand architecture before editing or review.",
+        "recommendedWhen": "Immediately after opening a project to build an architectural understanding."
+      },
+      "prepare_task_context": {
+        "title": "Prepare Task Context",
+        "description": "Routes a natural-language user request into the right CodeMaps composite workflow with prepared context.",
+        "recommendedWhen": "When the user describes a problem, feature, or review in natural language."
+      },
+      "prepare_change_campaign": {
+        "title": "Prepare Change Campaign",
+        "description": "Prepares a phased multi-target migration/refactor context for broad codebase changes.",
+        "recommendedWhen": "For mass migrations, library switches, and broad refactoring campaigns."
+      },
+      "prepare_change_context": {
+        "title": "Prepare Change Context",
+        "description": "Prepares a high-level change context so an agent can edit code with architectural awareness.",
+        "recommendedWhen": "Before starting a bugfix, feature implementation, or local refactor."
+      },
+      "prepare_review_context": {
+        "title": "Prepare Review Context",
+        "description": "Prepares a comprehensive context for code review, including architecture, patterns, and security.",
+        "recommendedWhen": "When reviewing code, assessing architecture, or validating post-change impact."
+      }
+    },
+    "resources": {
+      "project_summary": {
+        "title": "Project Summary",
+        "description": "Brief summary of the project graph: root, node count, link count, and node types."
+      },
+      "graph_full": {
+        "title": "Full Graph",
+        "description": "Full JSON graph of the project for advanced analysis, client integrations, and debugging."
+      },
+      "agent_playbook": {
+        "title": "Agent Playbook",
+        "description": "How the agent should use CodeMaps automatically: preferred tools, fallback path, and execution order."
+      },
+      "agent_project_brain": {
+        "title": "Project Brain",
+        "description": "Ready-to-use architectural mental model of the current project for an agent-first start without manual tool orchestration."
+      }
+    },
     "clients": "Connection",
     "agentSkill": "Agent Skill",
     "close": "Close",
@@ -91,8 +184,18 @@
     "openFolder": "Open Folder",
     "opening": "Opening..."
   },
+  "updateNotification": {
+    "updateAvailable": "Update available",
+    "downloadingUpdate": "Downloading update {{version}}… {{progress}}%",
+    "updateReady": "Update <1>v{{version}}</1> is ready to install!",
+    "later": "Later",
+    "restart": "Restart",
+    "checkingForUpdates": "Checking for updates…"
+  },
   "app": {
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "indexing_files": "Indexing files...",
+    "indexing_complete": "Indexing complete"
   },
   "languageSwitcher": {
     "language": "Language"

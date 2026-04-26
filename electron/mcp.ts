@@ -75,26 +75,26 @@ const MCP_RESOURCES: McpStatusResourceDescriptor[] = [
   {
     uri: 'codemaps://project/summary',
     title: 'Project Summary',
-    description: 'Краткая сводка по графу проекта: корень, количество узлов, связей и типы узлов.',
+    description: 'Brief summary of the project graph: root, node count, link count, and node types.',
   },
   {
     uri: 'codemaps://graph/full',
     title: 'Full Graph',
     description:
-      'Полный JSON-граф проекта для продвинутого анализа, клиентских интеграций и отладки.',
+      'Full JSON graph of the project for advanced analysis, client integrations, and debugging.',
   },
   {
     uri: 'codemaps://agent/playbook',
     title: 'Agent Playbook',
     description:
-      'Как агенту использовать CodeMaps автоматически: preferred tools, fallback path и порядок действий.',
+      'How the agent should use CodeMaps automatically: preferred tools, fallback path, and execution order.',
     preferredForAgents: true,
   },
   {
     uri: 'codemaps://agent/project-brain',
     title: 'Project Brain',
     description:
-      'Готовая архитектурная ментальная модель текущего проекта для agent-first старта без ручной оркестрации tools.',
+      'Ready-to-use architectural mental model of the current project for an agent-first start without manual tool orchestration.',
     preferredForAgents: true,
   },
 ];
@@ -104,115 +104,115 @@ const MCP_TOOLS: McpStatusToolDescriptor[] = [
     name: 'analyze_project',
     title: 'Analyze Project',
     description:
-      'Индексирует проект и загружает граф в CodeMaps. Обычно агенту достаточно вызывать его автоматически при смене проекта.',
-    recommendedWhen: 'Когда проект ещё не открыт или нужно переключить активный workspace.',
+      'Indexes the project and loads the graph into CodeMaps. Usually, the agent should call this automatically when changing projects.',
+    recommendedWhen: 'When the project is not open yet or you need to switch the active workspace.',
   },
   {
     name: 'get_graph_context',
     title: 'Get Graph Context',
     description:
-      'Возвращает summary графа или полный graph payload. Полезен как низкоуровневый fallback, когда нужен сырой граф.',
-    recommendedWhen: 'Когда composite context недостаточен и агенту нужен полный снимок графа.',
+      'Returns a graph summary or the full graph payload. Useful as a low-level fallback when the raw graph is needed.',
+    recommendedWhen: 'When the composite context is insufficient and the agent needs a full snapshot of the graph.',
   },
   {
     name: 'get_node_dependencies',
     title: 'Get Node Dependencies',
     description:
-      'Показывает входящие и исходящие связи конкретного узла. Обычно нужен как fallback после prepare_change_context.',
-    recommendedWhen: 'Когда нужно вручную расширить локальный dependency context.',
+      'Shows incoming and outgoing links of a specific node. Usually needed as a fallback after prepare_change_context.',
+    recommendedWhen: 'When you need to manually expand the local dependency context.',
   },
   {
     name: 'search_graph',
     title: 'Search Graph',
     description:
-      'Ищет узлы по label или id, при необходимости с фильтром по типу. Низкоуровневый поиск для неоднозначных целей.',
-    recommendedWhen: 'Когда target resolution в composite context требует ручного уточнения.',
+      'Searches nodes by label or id, optionally filtered by type. Low-level search for ambiguous targets.',
+    recommendedWhen: 'When target resolution in a composite context requires manual refinement.',
   },
   {
     name: 'get_blast_radius',
     title: 'Get Blast Radius',
     description:
-      'Считает прямое и транзитивное влияние изменений для выбранного узла. Обычно уже включён в prepare_change_context.',
-    recommendedWhen: 'Когда нужно отдельно углубить impact analysis по конкретному узлу.',
+      'Calculates the direct and transitive impact of changes for a selected node. Usually already included in prepare_change_context.',
+    recommendedWhen: 'When you need to separately deepen the impact analysis for a specific node.',
   },
   {
     name: 'get_health_score',
     title: 'Get Health Score',
     description:
-      'Оценивает здоровье графа и архитектурные риски в виде score/grade. Обычно уже включён в prepare_review_context.',
-    recommendedWhen: 'Когда нужно быстро перепроверить общую деградацию после серии изменений.',
+      'Evaluates graph health and architectural risks as a score/grade. Usually already included in prepare_review_context.',
+    recommendedWhen: 'When you need to quickly re-verify overall degradation after a series of changes.',
   },
   {
     name: 'get_architecture_overview',
     title: 'Get Architecture Overview',
     description:
-      'Классифицирует слои, показывает межслоевые зависимости и boundary violations. Обычно уже включён в prepare_review_context.',
-    recommendedWhen: 'Когда нужен детальный слойный обзор вне composite review context.',
+      'Classifies layers, shows cross-layer dependencies, and boundary violations. Usually already included in prepare_review_context.',
+    recommendedWhen: 'When a detailed layer overview is needed outside of a composite review context.',
   },
   {
     name: 'detect_patterns',
     title: 'Detect Patterns',
     description:
-      'Ищет hotspot-ы, fan-in/fan-out проблемы и архитектурные anti-pattern candidates. Обычно уже включён в prepare_review_context.',
-    recommendedWhen: 'Когда нужен отдельный structural hotspot scan.',
+      'Finds hotspots, fan-in/fan-out issues, and architectural anti-pattern candidates. Usually already included in prepare_review_context.',
+    recommendedWhen: 'When a separate structural hotspot scan is needed.',
   },
   {
     name: 'run_security_scan',
     title: 'Run Security Scan',
     description:
-      'Сканирует индексированные файлы на рискованные и подозрительные паттерны. Обычно уже включён в prepare_review_context или prepare_change_context.',
-    recommendedWhen: 'Когда review сфокусирован на security или рядом с target уже есть findings.',
+      'Scans indexed files for risky and suspicious patterns. Usually already included in prepare_review_context or prepare_change_context.',
+    recommendedWhen: 'When the review is focused on security or there are already findings near the target.',
   },
   {
     name: 'search_signatures',
     title: 'Search Signatures',
     description:
-      'Ищет declaration-like сигнатуры по исходникам и символам. Используется как fallback для точного поиска declaration-level целей.',
-    recommendedWhen: 'Когда нужно быстро найти declaration-like код по имени или regex.',
+      'Searches declaration-like signatures across source code and symbols. Used as a fallback for precise declaration-level target search.',
+    recommendedWhen: 'When you need to quickly find declaration-like code by name or regex.',
   },
   {
     name: 'prepare_task_context',
     title: 'Prepare Task Context',
     description:
-      'Главный agent-first инструмент для естественного запроса пользователя: определяет intent, выбирает правильный composite flow и по возможности сразу готовит change/review context.',
+      'Main agent-first tool for natural language user requests: determines intent, selects the right composite flow, and prepares change/review context if possible.',
     preferredForAgents: true,
     recommendedWhen:
-      'Использовать первым при обычном человеческом запросе вроде "авторизация ломается", "найди причину", "добавь фичу" или "проведи review".',
+      'Use first for standard human requests like "auth is broken", "find the cause", "add a feature", or "do a review".',
   },
   {
     name: 'prepare_change_campaign',
     title: 'Prepare Change Campaign',
     description:
-      'Campaign-level инструмент для массовых миграций и широких refactor-задач: собирает seed targets, расширенный scope, execution waves и campaign risks.',
+      'Campaign-level tool for mass migrations and broad refactoring tasks: gathers seed targets, expanded scope, execution waves, and campaign risks.',
     preferredForAgents: true,
     recommendedWhen:
-      'Использовать для задач вроде "переведи все сервисы оплаты на новую библиотеку", "замени SDK по всему backend" или других multi-file кампаний.',
+      'Use for tasks like "migrate all payment services to the new library", "replace SDK across the backend", or other multi-file campaigns.',
   },
   {
     name: 'prepare_project_context',
     title: 'Prepare Project Context',
     description:
-      'Предпочтительный стартовый инструмент для агента: собирает проектную ментальную модель, entry points, orchestrators, boundaries и стратегию дальнейшей работы.',
+      'Preferred starting tool for the agent: builds a project mental model, entry points, orchestrators, boundaries, and future work strategy.',
     preferredForAgents: true,
     recommendedWhen:
-      'Использовать сразу после analyze_project, когда агенту нужно быстро понять любой новый проект как систему.',
+      'Use immediately after analyze_project when the agent needs to quickly understand any new project as a system.',
   },
   {
     name: 'prepare_change_context',
     title: 'Prepare Change Context',
     description:
-      'Предпочтительный инструмент для агента перед bugfix/feature/refactor: собирает target, зависимости, blast radius, архитектурные риски и рекомендации.',
+      'Preferred tool for the agent before bugfix/feature/refactor: gathers target, dependencies, blast radius, architectural risks, and recommendations.',
     preferredForAgents: true,
-    recommendedWhen: 'Использовать по умолчанию перед любыми нетривиальными изменениями кода.',
+    recommendedWhen: 'Use by default before any non-trivial code changes.',
   },
   {
     name: 'prepare_review_context',
     title: 'Prepare Review Context',
     description:
-      'Предпочтительный инструмент для агента перед review: собирает health, architecture, patterns, security и приоритеты проверки.',
+      'Preferred tool for the agent before review: gathers health, architecture, patterns, security, and check priorities.',
     preferredForAgents: true,
     recommendedWhen:
-      'Использовать по умолчанию для review, аудита архитектуры и post-change проверки.',
+      'Use by default for reviews, architecture audits, and post-change validation.',
   },
 ];
 
@@ -274,7 +274,7 @@ const createTextContent = (payload: unknown) => JSON.stringify(payload, null, 2)
 
 const createAgentPlaybook = () => ({
   version: 4,
-  goal: 'Обычный пользователь подключает CodeMaps к агенту, а агент сам выбирает нужные инструменты без знания MCP-команд.',
+  goal: 'A regular user connects CodeMaps to the agent, and the agent chooses the right tools automatically without needing MCP command knowledge.',
   preferredDefaultFlow: {
     openProject: 'analyze_project',
     naturalLanguageRequest: 'prepare_task_context',
@@ -284,13 +284,13 @@ const createAgentPlaybook = () => ({
     review: 'prepare_review_context',
   },
   rules: [
-    'Если проект ещё не открыт, сначала вызвать analyze_project.',
-    'Если пользователь говорит обычным естественным языком о проблеме, фиче, деградации или review, агенту стоит сначала вызвать prepare_task_context.',
-    'Сразу после открытия проекта агенту стоит вызвать prepare_project_context, чтобы построить ментальную модель entry points, orchestrators и architectural boundaries.',
-    'Для массовых миграций, library switch и широких refactor-кампаний использовать prepare_change_campaign вместо single-target prepare_change_context.',
-    'Для bugfix/feature/refactor сначала вызывать prepare_change_context.',
-    'Для review, архитектурной оценки и post-change validation сначала вызывать prepare_review_context.',
-    'Низкоуровневые tools использовать только как fallback, когда composite context недостаточен.',
+    'If the project is not open yet, call analyze_project first.',
+    'If the user describes a problem, feature, degradation, or review in natural language, the agent should call prepare_task_context first.',
+    'Immediately after opening a project, the agent should call prepare_project_context to build a mental model of entry points, orchestrators, and architectural boundaries.',
+    'For mass migrations, library switches, and broad refactoring campaigns, use prepare_change_campaign instead of single-target prepare_change_context.',
+    'For bugfix/feature/refactor, call prepare_change_context first.',
+    'For review, architectural assessment, and post-change validation, call prepare_review_context first.',
+    'Use low-level tools only as a fallback when the composite context is insufficient.',
   ],
   fallbackTools: [
     'search_graph',

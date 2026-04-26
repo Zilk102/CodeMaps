@@ -105,7 +105,7 @@ export class ProjectIndexer {
     let processed = 0;
 
     if (totalToParse > 0 && onProgress) {
-      onProgress({ status: 'Индексация файлов...', current: 0, total: totalToParse, filename: '' });
+      onProgress({ status: 'indexing_files', current: 0, total: totalToParse, filename: '' });
     }
 
     await Promise.all(
@@ -114,7 +114,7 @@ export class ProjectIndexer {
         processed += 1;
         if (onProgress && processed % 10 === 0) {
           onProgress({
-            status: 'Индексация файлов...',
+            status: 'indexing_files',
             current: processed,
             total: totalToParse,
             filename: path.basename(filePath),
@@ -125,7 +125,7 @@ export class ProjectIndexer {
 
     if (onProgress && totalToParse > 0) {
       onProgress({
-        status: 'Индексация завершена',
+        status: 'indexing_complete',
         current: totalToParse,
         total: totalToParse,
         filename: '',

@@ -28,8 +28,101 @@
   "mcpSettings": {
     "title": "MCP 服务器设置",
     "overview": "概览",
-    "tools": "工具",
-    "resources": "资源",
+    "tools": {
+      "analyze_project": {
+        "title": "分析项目",
+        "description": "索引项目并将图加载到 CodeMaps 中。通常，代理在更改项目时应自动调用此功能。",
+        "recommendedWhen": "当项目尚未打开或需要切换活动工作区时。"
+      },
+      "get_graph_context": {
+        "title": "获取图上下文",
+        "description": "返回图摘要或完整图。当需要原始图时可用作低级后备。",
+        "recommendedWhen": "当复合上下文不足且代理需要图的完整快照时。"
+      },
+      "get_node_dependencies": {
+        "title": "获取节点依赖",
+        "description": "显示特定节点的传入和传出链接。通常在 prepare_change_context 之后作为后备需要。",
+        "recommendedWhen": "当需要手动扩展局部依赖上下文时。"
+      },
+      "search_graph": {
+        "title": "搜索图",
+        "description": "按标签或 ID 搜索节点，可按类型过滤。针对模糊目标的低级搜索。",
+        "recommendedWhen": "当复合上下文中的目标解析需要手动细化时。"
+      },
+      "get_blast_radius": {
+        "title": "获取爆炸半径",
+        "description": "计算更改节点的直接和传递影响。",
+        "recommendedWhen": "在计划有风险的更改并需要评估影响时。"
+      },
+      "get_architecture_overview": {
+        "title": "获取架构概览",
+        "description": "返回层分类、跨层依赖关系和边界违规。",
+        "recommendedWhen": "在分析整体结构或验证架构合规性时。"
+      },
+      "get_health_score": {
+        "title": "获取健康评分",
+        "description": "计算结构图健康指标和总分。",
+        "recommendedWhen": "在评估技术债务或重构影响时。"
+      },
+      "detect_patterns": {
+        "title": "检测模式",
+        "description": "在图中查找架构热点和反模式候选者。",
+        "recommendedWhen": "在寻找重构机会或审查代码质量时。"
+      },
+      "run_security_scan": {
+        "title": "运行安全扫描",
+        "description": "扫描索引的源文件以查找高风险模式和可疑工件。",
+        "recommendedWhen": "在执行安全审查或检查硬编码机密时。"
+      },
+      "search_signatures": {
+        "title": "搜索签名",
+        "description": "跨索引的源文件搜索类似声明的代码签名。",
+        "recommendedWhen": "在寻找特定函数或类定义时。"
+      },
+      "prepare_project_context": {
+        "title": "准备项目上下文",
+        "description": "创建项目级心智模型，以便代理在编辑或审查之前了解架构。",
+        "recommendedWhen": "打开项目后立即建立架构理解。"
+      },
+      "prepare_task_context": {
+        "title": "准备任务上下文",
+        "description": "将自然语言用户请求路由到具有准备好的上下文的正确 CodeMaps 复合工作流中。",
+        "recommendedWhen": "当用户用自然语言描述问题、功能或审查时。"
+      },
+      "prepare_change_campaign": {
+        "title": "准备变更活动",
+        "description": "为广泛的代码库更改准备分阶段的多目标迁移/重构上下文。",
+        "recommendedWhen": "用于大规模迁移、库切换和广泛的重构活动。"
+      },
+      "prepare_change_context": {
+        "title": "准备变更上下文",
+        "description": "准备高级更改上下文，以便代理可以利用架构意识编辑代码。",
+        "recommendedWhen": "在开始错误修复、功能实现或局部重构之前。"
+      },
+      "prepare_review_context": {
+        "title": "准备审查上下文",
+        "description": "准备全面的代码审查上下文，包括架构、模式和安全性。",
+        "recommendedWhen": "在审查代码、评估架构或验证更改后的影响时。"
+      }
+    },
+    "resources": {
+      "project_summary": {
+        "title": "项目摘要",
+        "description": "项目图的简要摘要：根、节点计数、链接计数和节点类型。"
+      },
+      "graph_full": {
+        "title": "完整图",
+        "description": "用于高级分析、客户端集成和调试的项目的完整 JSON 图。"
+      },
+      "agent_playbook": {
+        "title": "代理剧本",
+        "description": "代理应如何自动使用 CodeMaps：首选工具、后备路径和执行顺序。"
+      },
+      "agent_project_brain": {
+        "title": "项目大脑",
+        "description": "当前项目的即用型架构心智模型，用于代理优先启动，无需手动工具编排。"
+      }
+    },
     "clients": "连接",
     "agentSkill": "代理技能",
     "close": "关闭",
