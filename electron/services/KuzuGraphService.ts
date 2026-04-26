@@ -1,6 +1,7 @@
 import kuzu from 'kuzu';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
 
 export interface GraphNode {
   id: string;
@@ -29,6 +30,10 @@ export class KuzuGraphService {
   constructor(projectPath?: string) {
     if (projectPath) {
       this.dbPath = path.join(projectPath, '.codemaps', 'graph.db');
+      const dir = path.dirname(this.dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
     } else {
       this.dbPath = path.join(os.tmpdir(), 'codemaps-graph.db');
     }
@@ -47,7 +52,7 @@ export class KuzuGraphService {
         label STRING,
         filePath STRING,
         line INT64,
-        column INT64,
+        col INT64,
         language STRING,
         meta STRING
       )
@@ -60,10 +65,6 @@ export class KuzuGraphService {
         meta STRING
       )
     `);
-
-    await this.conn.query('CREATE INDEX idx_type ON FileNode(type)');
-    await this.conn.query('CREATE INDEX idx_path ON FileNode(filePath)');
-    await this.conn.query('CREATE INDEX idx_edge_type ON FileEdge(type)');
 
     this.initialized = true;
     console.log('[KuzuGraph] Initialized at:', this.dbPath);
@@ -79,7 +80,7 @@ export class KuzuGraphService {
         label: '${node.label.replace(/'/g, "''")}',
         filePath: '${node.filePath.replace(/'/g, "''")}',
         line: ${node.line || 0},
-        column: ${node.column || 0},
+        col: ${node.column || 0},
         language: '${(node.language || '').replace(/'/g, "''")}',
         meta: '${metaStr}'
       })
@@ -114,10 +115,15 @@ export class KuzuGraphService {
       MATCH (n:FileNode {id: '${safeId}'})-[r:FileEdge]->(m:FileNode)
       RETURN m.id, m.type, m.label, m.filePath, r.type as edgeType
       UNION
-      MATCH (n:FileNode {id: '${safeId}'})<-[r:FileEdge]-(m:FileNode)
+      MATCH (n:FileNode {id: '${safeId}'})\u003c-[r:FileEdge]-(m:FileNode)
       RETURN m.id, m.type, m.label, m.filePath, r.type as edgeType
     `);
     return result.getAll();
+  }
+
+  async query(cypherQuery: string): Promise<any> {
+    if (!this.initialized) await this.init();
+    return this.conn.query(cypherQuery);
   }
 
   async getStats(): Promise<{ nodes: number; edges: number }> {
@@ -133,11 +139,6 @@ export class KuzuGraphService {
     if (!this.initialized) return;
     await this.conn.query('MATCH ()-[r:FileEdge]->() DELETE r');
     await this.conn.query('MATCH (n:FileNode) DELETE n');
-  }
-
-  async query(cypherQuery: string): Promise<any> {
-    if (!this.initialized) await this.init();
-    return this.conn.query(cypherQuery);
   }
 
   async close(): Promise<void> {
