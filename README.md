@@ -23,18 +23,66 @@
   - **Security Scanner**: Basic search for potential vulnerabilities in the code structure.
 - **Local Execution**: All analysis happens locally on your machine; source code is never sent anywhere.
 
+---
+
+## 🖼️ Screenshots
+
+### Interactive Code Graph
+Visualize your entire codebase as an interactive graph with files, classes, functions, and their relationships.
+
+![Main Graph](screenshots/main-graph.jpg)
+
+### MCP Server Settings — Overview
+CodeMaps runs an MCP server with HTTP and WebSocket endpoints, providing AI agents with structured access to your project's architecture.
+
+![MCP Overview](screenshots/mcp-overview.jpg)
+
+### MCP Tools
+10+ built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
+
+![MCP Tools](screenshots/mcp-tools.jpg)
+
+### MCP Resources
+Resources provide AI agents with high-level project summaries, full graph exports, and autonomous execution playbooks.
+
+![MCP Resources](screenshots/mcp-resources.jpg)
+
+---
+
 ## 📦 Installation
 
 Download the portable version from the [Releases](https://github.com/Zilk102/CodeMaps/releases) page.
-The application requires no complex installation and works right out of the box on Windows.
 
-## 🛠 Development
+The application requires no complex installation and works right out of the box on **Windows**, **Linux**, and **macOS**.
 
-The project is built on the following stack: **Electron + React + TypeScript + Vite**. Cytoscape / Sigma are used for graph visualization.
+### Quick Start
+
+```bash
+# Download the latest release for your platform
+# Windows: CodeMaps-x.x.x-win-x64.exe
+# Linux: CodeMaps-x.x.x-linux-x86_64.AppImage (or .deb, .rpm)
+
+# Run it — no installation needed!
+```
+
+---
+
+## 🛠️ Development
+
+The project is built on the following stack: **Electron + React + TypeScript + Vite**. Sigma.js is used for graph visualization.
+
+### Prerequisites
+
+- Node.js 20+
+- npm or yarn
 
 ### Run Locally
 
 ```bash
+# Clone the repository
+git clone https://github.com/Zilk102/CodeMaps.git
+cd CodeMaps
+
 # Install dependencies
 npm install
 
@@ -47,11 +95,18 @@ npm run dev
 ```bash
 # Create a production build (Portable)
 npm run build:portable
+
+# Or build all formats
+npm run build
 ```
+
+---
 
 ## 🤝 Contributing
 
 We welcome any help in developing the project! Please read the [Contributing Guide](CONTRIBUTING.md) before creating a Pull Request.
+
+---
 
 ## 📄 License
 
