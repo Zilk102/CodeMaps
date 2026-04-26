@@ -164,3 +164,21 @@ ipcMain.handle('analyze-pr-impact', async (_, projectPath: string, baseBranch: s
     return { success: false, error: error.message };
   }
 });
+
+// Activity Heatmap
+ipcMain.handle('analyze-activity-heatmap', async (_, projectPath: string, since?: string, until?: string) => {
+  try {
+    const { GitActivityService } = await import('./services/GitActivityService.js');
+    const service = new GitActivityService(projectPath);
+    await service.init();
+    const result = service.analyzeChurn(
+      since ? new Date(since) : undefined,
+      until ? new Date(until) : undefined
+    );
+    await service.close();
+    return { success: true, data: result };
+  } catch (error: any) {
+    log.error('[Heatmap] Analysis failed:', error.message);
+    return { success: false, error: error.message };
+  }
+});

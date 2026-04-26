@@ -235,5 +235,27 @@
       "critical": "关键风险"
     },
     "error": "分析失败"
+  },
+  "activityHeatmap": {
+    "title": "活动热图",
+    "analyze": "分析",
+    "loading": "加载中...",
+    "error": "加载热图失败",
+    "last7days": "最近7天",
+    "last30days": "最近30天",
+    "last90days": "最近90天",
+    "lastYear": "最近一年",
+    "filesAnalyzed": "已分析文件",
+    "maxCommits": "最多提交",
+    "maxChanges": "最多更改",
+    "intensity": "强度",
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "veryHigh": "非常高",
+    "critical": "严重",
+    "commits": "提交",
+    "andMore": "还有 {{count}} 个...",
+    "noData": "未找到活动数据。请确保这是 git 仓库。"
   }
 }

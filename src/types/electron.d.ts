@@ -63,6 +63,26 @@ export interface ElectronAPI {
     };
     error?: string;
   }>;
+
+  // Activity Heatmap
+  analyzeActivityHeatmap: (projectPath: string, since?: string, until?: string) => Promise<{
+    success: boolean;
+    data?: {
+      files: Array<{
+        filePath: string;
+        commits: number;
+        additions: number;
+        deletions: number;
+        lastModified: string;
+        authors: string[];
+      }>;
+      maxCommits: number;
+      maxChanges: number;
+      totalFiles: number;
+      timeRange: { from: string; to: string };
+    };
+    error?: string;
+  }>;
 }
 
 declare global {

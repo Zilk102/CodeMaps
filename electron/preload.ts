@@ -38,4 +38,8 @@ contextBridge.exposeInMainWorld('api', {
   // PR Impact Analysis
   analyzePRImpact: (projectPath: string, baseBranch: string, headBranch: string) =>
     ipcRenderer.invoke('analyze-pr-impact', projectPath, baseBranch, headBranch),
+
+  // Activity Heatmap
+  analyzeActivityHeatmap: (projectPath: string, since?: string, until?: string) =>
+    ipcRenderer.invoke('analyze-activity-heatmap', projectPath, since, until),
 });

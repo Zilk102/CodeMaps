@@ -245,5 +245,27 @@
       "critical": "Critical Risk"
     },
     "error": "Analysis failed"
+  },
+  "activityHeatmap": {
+    "title": "Activity Heatmap",
+    "analyze": "Analyze",
+    "loading": "Loading...",
+    "error": "Failed to load heatmap",
+    "last7days": "Last 7 days",
+    "last30days": "Last 30 days",
+    "last90days": "Last 90 days",
+    "lastYear": "Last year",
+    "filesAnalyzed": "files analyzed",
+    "maxCommits": "max commits",
+    "maxChanges": "max changes",
+    "intensity": "Intensity",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "veryHigh": "Very High",
+    "critical": "Critical",
+    "commits": "commits",
+    "andMore": "And {{count}} more...",
+    "noData": "No activity data found. Make sure this is a git repository."
   }
 }
