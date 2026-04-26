@@ -24,10 +24,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Update version from git tag
         if: startsWith(github.ref, 'refs/tags/v')
