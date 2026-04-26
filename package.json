@@ -137,7 +137,10 @@
     ],
     "asarUnpack": [
       "**/*.node",
-      "**/*.wasm"
+      "**/*.wasm",
+      "dist-electron/worker.js",
+      "dist-electron/oracle/**/*",
+      "dist-electron/parsing/**/*"
     ]
   },
   "dependencies": {
