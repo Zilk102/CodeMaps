@@ -1,4 +1,4 @@
-import kuzu from 'kuzu';
+import kuzu from 'kuzu-wasm';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -26,8 +26,12 @@ export class KuzuGraphService {
   private conn: any;
   private dbPath: string;
   private initialized: boolean = false;
+  private available: boolean;
 
   constructor(projectPath?: string) {
+    this.available = true;
+    
+    // Always init dbPath
     if (projectPath) {
       this.dbPath = path.join(projectPath, '.codemaps', 'graph.db');
       const dir = path.dirname(this.dbPath);
