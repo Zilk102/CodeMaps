@@ -149,3 +149,18 @@ oracle.on('graph-updated', async (graphData) => {
     log.error('[KuzuDB] Failed to persist graph:', err.message);
   }
 });
+
+// PR Impact Analysis
+ipcMain.handle('analyze-pr-impact', async (_, projectPath: string, baseBranch: string, headBranch: string) => {
+  try {
+    const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
+    const analyzer = new PRImpactAnalyzer(projectPath);
+    await analyzer.init();
+    const result = await analyzer.analyzePR(baseBranch, headBranch);
+    await analyzer.close();
+    return { success: true, data: result };
+  } catch (error: any) {
+    log.error('[PRImpact] Analysis failed:', error.message);
+    return { success: false, error: error.message };
+  }
+});

@@ -226,5 +226,24 @@
       "diskFull": "Disk space is running low. Graph may not be saved.",
       "corrupted": "Graph database appears corrupted. Re-analyzing project..."
     }
+  },
+  "prImpact": {
+    "title": "PR Impact Analysis",
+    "analyzeButton": "Analyze Impact",
+    "analyzing": "Analyzing...",
+    "baseBranch": "Base Branch",
+    "headBranch": "Head Branch",
+    "changedFiles": "Changed Files",
+    "affectedNodes": "Affected Nodes",
+    "blastRadius": "Blast Radius",
+    "changedFilesList": "Changed Files",
+    "recommendations": "Recommendations",
+    "risk": {
+      "low": "Low Risk",
+      "medium": "Medium Risk",
+      "high": "High Risk",
+      "critical": "Critical Risk"
+    },
+    "error": "Analysis failed"
   }
 }

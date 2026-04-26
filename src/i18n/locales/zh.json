@@ -216,5 +216,24 @@
       "diskFull": "磁盘空间不足。图表可能无法保存。",
       "corrupted": "图表数据库似乎已损坏。正在重新分析项目..."
     }
+  },
+  "prImpact": {
+    "title": "PR 影响分析",
+    "analyzeButton": "分析影响",
+    "analyzing": "分析中...",
+    "baseBranch": "基础分支",
+    "headBranch": "当前分支",
+    "changedFiles": "更改的文件",
+    "affectedNodes": "受影响的节点",
+    "blastRadius": "影响半径",
+    "changedFilesList": "更改的文件",
+    "recommendations": "建议",
+    "risk": {
+      "low": "低风险",
+      "medium": "中等风险",
+      "high": "高风险",
+      "critical": "关键风险"
+    },
+    "error": "分析失败"
   }
 }

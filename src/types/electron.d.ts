@@ -40,6 +40,29 @@ export interface ElectronAPI {
   getRecentProjects: () => Promise<RecentProject[]>;
   clearRecentProjects: () => Promise<void>;
   openRecentProject: (projectPath: string) => Promise<{ success: boolean; data?: GraphData; error?: string }>;
+
+  // Graph Persistence
+  saveGraphToKuzu: (projectPath: string, graphData: GraphData) => Promise<{ success: boolean; error?: string }>;
+  loadGraphFromKuzu: (projectPath: string) => Promise<{ success: boolean; stats?: { nodes: number; edges: number }; error?: string }>;
+  clearGraphCache: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
+
+  // PR Impact Analysis
+  analyzePRImpact: (projectPath: string, baseBranch: string, headBranch: string) => Promise<{
+    success: boolean;
+    data?: {
+      changedFiles: Array<{
+        path: string;
+        status: 'added' | 'modified' | 'deleted';
+        additions: number;
+        deletions: number;
+      }>;
+      affectedNodes: string[];
+      blastRadius: number;
+      riskScore: 'low' | 'medium' | 'high' | 'critical';
+      recommendations: string[];
+    };
+    error?: string;
+  }>;
 }
 
 declare global {
