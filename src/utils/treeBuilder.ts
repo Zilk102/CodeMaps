@@ -39,10 +39,10 @@ export const buildTree = (
     }
   });
 
-  // 3. Строим дерево из плоского списка
+  // 3. Build tree from flat list
   const nodeMap = new Map<string, TreeNode>();
   graphData.nodes.forEach((node) => {
-    // Применяем фильтры видимости прямо на этапе сборки дерева
+    // Apply visibility filters right during tree construction
     let isHidden = false;
     if (node.type === 'directory' && !filters.showDirectories) isHidden = true;
     if (node.type === 'file' && !filters.showFiles) isHidden = true;

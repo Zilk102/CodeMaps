@@ -334,7 +334,7 @@ const runHierarchyLayout = async (
     'elk.padding': '[top=56,left=28,bottom=28,right=28]',
   };
 
-  // Стабилизируем порядок детей внутри контейнеров, чтобы layout не зависел от набора видимых связей.
+  // Stabilize the order of children inside containers so that layout doesn't depend on the set of visible edges.
   elkNodesMap.forEach((elkNode) => {
     if (!elkNode.children?.length) return;
     elkNode.children.sort((a: any, b: any) => {

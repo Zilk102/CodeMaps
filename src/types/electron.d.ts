@@ -1,5 +1,7 @@
 // Global types for Electron API exposed via preload.ts
 
+import type { GraphData } from './graph';
+
 export interface UpdateState {
   checking: boolean;
   available: boolean;
@@ -17,9 +19,10 @@ export interface RecentProject {
 
 export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>;
+  openDirectory: () => Promise<string | null>;
   analyzeProject: (
     projectPath?: string
-  ) => Promise<{ success: boolean; data?: any; error?: string }>;
+  ) => Promise<{ success: boolean; data?: GraphData; error?: string }>;
   getMcpStatus: () => Promise<any>;
   minimize: () => Promise<void>;
   maximize: () => Promise<void>;

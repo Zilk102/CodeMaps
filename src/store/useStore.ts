@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { LayoutResult } from '../utils/layoutEngine';
 import type { GraphData, GraphFilters, GraphNode, LayoutMode } from '../types/graph';
 
+import { WebSocketClient } from '../services/WebSocketClient';
+
 interface StoreState {
   graphData: GraphData | null;
   layoutData: LayoutResult | null;
@@ -34,8 +36,6 @@ interface StoreState {
 
 export const useStore = create<StoreState>((set, get) => {
   let isWatcherInitialized = false;
-  let isWsInitialized = false;
-  let ws: WebSocket | null = null;
 
   return {
     graphData: null,
@@ -68,66 +68,30 @@ export const useStore = create<StoreState>((set, get) => {
     initializeWatcher: () => {
       if (isWatcherInitialized) return;
       isWatcherInitialized = true;
-      if ((window as any).api?.onGraphUpdate) {
-        (window as any).api.onGraphUpdate((data: GraphData) => {
+      if (window.api?.onGraphUpdate) {
+        window.api.onGraphUpdate((data: GraphData) => {
           set({ graphData: data });
         });
       }
-      if ((window as any).api?.onParsingProgress) {
-        (window as any).api.onParsingProgress((progress: any) => {
+      if (window.api?.onParsingProgress) {
+        window.api.onParsingProgress((progress: any) => {
           set({ parsingProgress: progress });
         });
       }
     },
 
     initializeWebSocket: () => {
-      if (isWsInitialized) return;
-      isWsInitialized = true;
-
-      const connect = () => {
-        ws = new WebSocket('ws://localhost:3005');
-
-        ws.onopen = () => {
-          console.log('[WS] Connected to Oracle server');
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'graph-updated') {
-              set({ graphData: data.payload });
-            } else if (data.type === 'graph-diff') {
-              // Инкрементальное обновление (diff)
-              const { graph, diff } = data.payload;
-              // Для простоты и гарантии консистентности UI пока принимаем полный граф
-              // Но архитектурно мы готовы обрабатывать только diff, если граф станет гигантским
-              set({ graphData: graph });
-            } else if (data.type === 'parsing-progress') {
-              set({ parsingProgress: data.payload });
-            }
-          } catch (e) {
-            console.error('Failed to parse WS message', e);
-          }
-        };
-
-        ws.onclose = () => {
-          console.log('[WS] Disconnected. Reconnecting in 3s...');
-          isWsInitialized = false;
-          setTimeout(connect, 3000);
-        };
-      };
-
-      connect();
+      WebSocketClient.getInstance().connect();
     },
 
     fetchGraph: async (path?: string) => {
       set({ isLoading: true, error: null, selectedNode: null, selectedPath: null });
       try {
-        const result = await (window as any).api.analyzeProject(path);
-        if (result.success) {
+        const result = await window.api.analyzeProject(path);
+        if (result.success && result.data) {
           set({ graphData: result.data, isLoading: false });
         } else {
-          set({ error: result.error, isLoading: false });
+          set({ error: result.error || 'Unknown error', isLoading: false });
         }
       } catch (error: any) {
         set({ error: error.message, isLoading: false });
@@ -135,7 +99,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     openProject: async () => {
-      const dirPath = await (window as any).api.openDirectory?.() ?? await (window as any).api.selectDirectory?.();
+      const dirPath = await window.api.openDirectory?.() ?? await window.api.selectDirectory?.();
       if (dirPath) {
         await get().fetchGraph(dirPath);
       }

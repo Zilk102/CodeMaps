@@ -44,6 +44,7 @@ const LazyFallback: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const { t } = useTranslation();
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const isDragging = useRef(false);
   const [dragOver, setDragOver] = useState(false);
@@ -114,17 +115,17 @@ const App: React.FC = () => {
 
     // Look for directory entries
     const getPathFromItem = async (item: DataTransferItem) => {
-      const entry = item.webkitGetAsEntry?.() || (item as any).getAsEntry?.();
+      const entry = item.webkitGetAsEntry?.() || ('getAsEntry' in item ? (item as unknown as { getAsEntry: () => FileSystemEntry | null }).getAsEntry() : null);
       if (!entry) return null;
 
       if (entry.isDirectory) {
         // Use FileSystemDirectoryEntry path if available
-        if ((entry as any).fullPath) {
+        if ('fullPath' in entry) {
           // In Electron, we can use the path property from the file object
           const file = item.getAsFile();
-          if (file && (file as any).path) {
+          if (file && 'path' in file) {
             // For directories dropped from OS, the path points to the directory
-            return (file as any).path;
+            return (file as unknown as { path: string }).path;
           }
         }
         // Fallback: read directory name, can't get full path securely from web API alone
@@ -133,8 +134,8 @@ const App: React.FC = () => {
 
       // If a file was dropped, try to use its parent directory
       const file = item.getAsFile();
-      if (file && (file as any).path) {
-        const path = (file as any).path as string;
+      if (file && 'path' in file) {
+        const path = (file as unknown as { path: string }).path;
         return path.substring(0, path.lastIndexOf('/')) || path.substring(0, path.lastIndexOf('\\'));
       }
 
@@ -177,7 +178,7 @@ const App: React.FC = () => {
       </Suspense>
       
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {/* Левая панель */}
+        {/* Left Panel */}
         <div
           style={{
             width: sidebarWidth,
@@ -195,7 +196,7 @@ const App: React.FC = () => {
           </Suspense>
         </div>
 
-        {/* Сплиттер (Drag Handle) */}
+        {/* Splitter (Drag Handle) */}
         <div
           onMouseDown={() => {
             isDragging.current = true;
@@ -220,7 +221,7 @@ const App: React.FC = () => {
           }}
         />
 
-        {/* Основная область */}
+        {/* Main Area */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0, backgroundColor: 'var(--bg0)' }}>
           <Suspense fallback={<LazyFallback />}>
             {graphData ? <GraphView /> : <RecentProjects />}
@@ -233,32 +234,37 @@ const App: React.FC = () => {
         <DragDropZone isActive={dragOver} />
       </Suspense>
 
-      {/* Прогресс парсинга */}
+      {/* Parsing Progress */}
       {parsingProgress && (
         <div
           style={{
-            position: 'fixed',
+            position: 'absolute',
             bottom: 20,
             right: 20,
-            background: 'var(--bg1)',
-            padding: '15px 20px',
-            borderRadius: 8,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            backgroundColor: 'var(--bg1)',
+            padding: '16px',
+            borderRadius: '8px',
             border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 15,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             zIndex: 1000,
-            fontFamily: 'var(--font-family)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            minWidth: '250px',
           }}
         >
-          <div style={{ color: 'var(--acc)' }}>{parsingProgress.status}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 'bold' }}>
+              {t(`indexing.status.${parsingProgress.status}`, { defaultValue: 'Indexing...' })}
+            </span>
+            <span>{Math.round((parsingProgress.current / parsingProgress.total) * 100)}%</span>
+          </div>
           <div
             style={{
-              width: 150,
-              height: 6,
-              background: 'var(--bg3)',
-              borderRadius: 3,
+              width: '100%',
+              height: '4px',
+              backgroundColor: 'var(--bg2)',
+              borderRadius: '2px',
               overflow: 'hidden',
             }}
           >
@@ -266,26 +272,25 @@ const App: React.FC = () => {
               style={{
                 width: `${(parsingProgress.current / parsingProgress.total) * 100}%`,
                 height: '100%',
-                background: 'var(--acc)',
-                transition: 'width 0.1s linear',
+                backgroundColor: 'var(--accent)',
+                transition: 'width 0.3s ease',
               }}
             />
           </div>
-          <div
-            style={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: 300,
-              marginRight: 10,
-              color: 'var(--t3)',
-            }}
-          >
-            {parsingProgress.filename}
-          </div>
-          <div style={{ color: 'var(--t1)' }}>
-            {parsingProgress.current} / {parsingProgress.total}
-          </div>
+          {parsingProgress.filename && (
+            <div
+              style={{
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={parsingProgress.filename}
+            >
+              {parsingProgress.filename}
+            </div>
+          )}
         </div>
       )}
 

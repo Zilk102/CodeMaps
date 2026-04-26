@@ -6,6 +6,7 @@ export const ORACLE_IGNORE_GLOBS = [
   '**/node_modules/**',
   '**/dist/**',
   '**/dist-electron/**',
+  '**/dist-renderer/**',
   '**/build/**',
   '**/release/**',
   '**/.git/**',
@@ -62,6 +63,7 @@ export const shouldIgnorePath = (filePath: string) => {
     normalized.includes('/.git/') ||
     normalized.includes('/dist/') ||
     normalized.includes('/dist-electron/') ||
+    normalized.includes('/dist-renderer/') ||
     normalized.includes('/release/') ||
     normalized.includes('/build/') ||
     normalized.includes('/coverage/') ||

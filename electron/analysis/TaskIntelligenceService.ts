@@ -326,7 +326,7 @@ export class TaskIntelligenceService {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_change_campaign',
         rationale:
-          'Запрос выглядит как массовая миграция или крупный refactor, поэтому агенту нужен campaign-level план, а не single-target change context.',
+          'The request looks like a massive migration or major refactor, so the agent needs a campaign-level plan, not a single-target change context.',
         shouldInspectCodeImmediately: true,
         fallbackTools: ['search_graph', 'get_node_dependencies', 'get_blast_radius'],
       };
@@ -337,7 +337,7 @@ export class TaskIntelligenceService {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_change_context',
         rationale:
-          'Запрос похож на изменение или bugfix, и CodeMaps смог привязать его к конкретной кодовой цели.',
+          'The request looks like a modification or bugfix, and CodeMaps successfully linked it to a specific code target.',
         shouldInspectCodeImmediately: true,
         fallbackTools: ['get_node_dependencies', 'get_blast_radius', 'search_graph'],
       };
@@ -349,8 +349,8 @@ export class TaskIntelligenceService {
         selectedCompositeTool: 'prepare_review_context',
         rationale:
           targetCandidates.length > 0
-            ? 'Запрос требует диагностики/аудита, поэтому агенту полезнее начать с review-style контекста по найденной focus-области.'
-            : 'Запрос пока не удалось жёстко привязать к одной кодовой цели, поэтому безопаснее начать с review-style контекста.',
+            ? 'The request requires diagnostics/audit, so it is more useful for the agent to start with a review-style context on the found focus area.'
+            : 'The request could not be strictly linked to a single code target yet, so it is safer to start with a review-style context.',
         shouldInspectCodeImmediately: targetCandidates.length > 0,
         fallbackTools: ['search_graph', 'get_architecture_overview', 'detect_patterns'],
       };
@@ -360,7 +360,7 @@ export class TaskIntelligenceService {
       initialTool: 'prepare_task_context',
       selectedCompositeTool: 'prepare_project_context',
       rationale:
-        'Запрос слишком общий или недостаточно привязан к кодовой области, поэтому агенту нужно начать с общей ментальной модели проекта.',
+        'The request is too general or not sufficiently tied to a code area, so the agent needs to start with a general mental model of the project.',
       shouldInspectCodeImmediately: false,
       fallbackTools: ['prepare_review_context', 'search_graph', 'get_graph_context'],
     };
@@ -373,32 +373,32 @@ export class TaskIntelligenceService {
     selectedContext: TaskContextResult['selectedContext']
   ) {
     const nextSteps = [
-      `Агент уже понял intent как "${inferredIntent.taskKind}" и выбрал основной composite tool "${route.selectedCompositeTool}".`,
+      `The agent has understood the intent as "${inferredIntent.taskKind}" and selected the primary composite tool "${route.selectedCompositeTool}".`,
     ];
 
     if (targetCandidates.length > 0) {
-      nextSteps.push(`Первый кандидат цели: ${targetCandidates[0].id}.`);
+      nextSteps.push(`First target candidate: ${targetCandidates[0].id}.`);
     } else {
       nextSteps.push(
-        'Явная кодовая цель пока не найдена; стоит использовать focus-кандидаты и проектную ментальную модель для уточнения области.'
+        'No clear code target found yet; use focus candidates and project mental model to refine the scope.'
       );
     }
 
     if (selectedContext?.kind === 'change') {
       nextSteps.push(
-        'Дальше агенту стоит читать change-context risks, blast radius и recommendedFilesToInspect перед правкой.'
+        'Next, the agent should read change-context risks, blast radius, and recommendedFilesToInspect before editing.'
       );
     } else if (selectedContext?.kind === 'campaign') {
       nextSteps.push(
-        'Дальше агенту стоит читать execution waves, affected files и campaign risks, а затем выполнять миграцию фазами.'
+        'Next, the agent should read execution waves, affected files, and campaign risks, then perform the migration in phases.'
       );
     } else if (selectedContext?.kind === 'review') {
       nextSteps.push(
-        'Дальше агенту стоит читать review priorities, patterns и architecture summary перед углублением в код.'
+        'Next, the agent should read review priorities, patterns, and architecture summary before diving deep into the code.'
       );
     } else {
       nextSteps.push(
-        'Дальше агенту стоит выбрать focusQuery из candidateQueries и затем углубиться в review/change context.'
+        'Next, the agent should select a focusQuery from candidateQueries and then dive into the review/change context.'
       );
     }
 
@@ -413,9 +413,9 @@ export class TaskIntelligenceService {
     const has = (hints: string[]) => hints.some((hint) => normalized.includes(hint));
 
     if (has(BUGFIX_HINTS)) {
-      reasoning.push('Обнаружены сигналы bugfix/incident.');
+      reasoning.push('Bugfix/incident signals detected.');
       if (has(SECURITY_HINTS) && !normalized.includes('ломает')) {
-        reasoning.push('В запросе есть security-сигналы.');
+        reasoning.push('Security signals found in the request.');
         return { taskKind: 'security', confidence: 'medium', reasoning, extractedKeywords };
       }
       return { taskKind: 'bugfix', confidence: 'high', reasoning, extractedKeywords };
@@ -428,41 +428,41 @@ export class TaskIntelligenceService {
         normalized.includes('нов') ||
         normalized.includes('библиотек'))
     ) {
-      reasoning.push('Обнаружены сигналы массовой миграции или широкого refactor-изменения.');
+      reasoning.push('Signals of massive migration or broad refactor change detected.');
       return { taskKind: 'refactor', confidence: 'high', reasoning, extractedKeywords };
     }
 
     if (has(REFACTOR_HINTS)) {
-      reasoning.push('Обнаружены сигналы рефакторинга.');
+      reasoning.push('Refactoring signals detected.');
       return { taskKind: 'refactor', confidence: 'high', reasoning, extractedKeywords };
     }
 
     if (has(FEATURE_HINTS)) {
-      reasoning.push('Обнаружены сигналы feature request.');
+      reasoning.push('Feature request signals detected.');
       return { taskKind: 'feature', confidence: 'high', reasoning, extractedKeywords };
     }
 
     if (has(SECURITY_HINTS)) {
-      reasoning.push('Обнаружены сигналы security-задачи.');
+      reasoning.push('Security task signals detected.');
       return { taskKind: 'security', confidence: 'medium', reasoning, extractedKeywords };
     }
 
     if (has(ARCHITECTURE_HINTS)) {
-      reasoning.push('Обнаружены сигналы архитектурного анализа.');
+      reasoning.push('Architecture analysis signals detected.');
       return { taskKind: 'architecture', confidence: 'medium', reasoning, extractedKeywords };
     }
 
     if (has(REVIEW_HINTS)) {
-      reasoning.push('Обнаружены сигналы review/audit-задачи.');
+      reasoning.push('Review/audit task signals detected.');
       return { taskKind: 'review', confidence: 'medium', reasoning, extractedKeywords };
     }
 
     if (has(STABILIZATION_HINTS)) {
-      reasoning.push('Обнаружены сигналы стабилизации/деградации.');
+      reasoning.push('Stabilization/degradation signals detected.');
       return { taskKind: 'stabilization', confidence: 'medium', reasoning, extractedKeywords };
     }
 
-    reasoning.push('Явный task intent не извлечён, выбран explore-путь.');
+    reasoning.push('No explicit task intent extracted, explore path selected.');
     return { taskKind: 'explore', confidence: 'low', reasoning, extractedKeywords };
   }
 

@@ -37,7 +37,7 @@ export class PatternDetectionAnalyzer {
         severity: highFanInNodes.some(({ fanIn }) => fanIn >= 15) ? 'high' : 'medium',
         title: 'Hub Nodes',
         description:
-          'Узлы с чрезмерно высоким fan-in могут стать bottleneck и точкой массового влияния.',
+          'Nodes with excessively high fan-in can become bottlenecks and points of massive impact.',
         nodeIds: highFanInNodes.map(({ node }) => node.id),
       });
     }
@@ -55,7 +55,7 @@ export class PatternDetectionAnalyzer {
         severity: highFanOutFiles.some(({ fanOut }) => fanOut >= 20) ? 'high' : 'medium',
         title: 'High Fan-Out Files',
         description:
-          'Файлы с большим количеством исходящих зависимостей перегружены ответственностью.',
+          'Files with a large number of outgoing dependencies are overloaded with responsibilities.',
         nodeIds: highFanOutFiles.map(({ node }) => node.id),
       });
     }
@@ -70,7 +70,7 @@ export class PatternDetectionAnalyzer {
         id: 'deep_nesting',
         severity: deepNestedNodes.length > 10 ? 'medium' : 'low',
         title: 'Deep Nesting',
-        description: 'Слишком глубокая вложенность каталогов усложняет навигацию и ownership.',
+        description: 'Excessively deep directory nesting complicates navigation and ownership.',
         nodeIds: deepNestedNodes.map((node) => node.id),
       });
     }
@@ -86,7 +86,7 @@ export class PatternDetectionAnalyzer {
         severity: churnHotspots.some((node) => node.churn >= 25) ? 'high' : 'medium',
         title: 'Churn Hotspots',
         description:
-          'Файлы с высоким churn обычно содержат нестабильную или перегруженную бизнес-логику.',
+          'Files with high churn usually contain unstable or overloaded business logic.',
         nodeIds: churnHotspots.map((node) => node.id),
       });
     }
@@ -110,7 +110,7 @@ export class PatternDetectionAnalyzer {
         severity: 'low',
         title: 'Broad ADR Impact',
         description:
-          'ADR связан с большим количеством файлов, стоит проверить granular ownership и traceability.',
+          'ADR is linked to a large number of files, consider checking granular ownership and traceability.',
         nodeIds: overlyBroadAdr,
       });
     }
@@ -136,7 +136,7 @@ export class PatternDetectionAnalyzer {
         severity: isolatedFiles.length >= 8 ? 'medium' : 'low',
         title: 'Isolated Files',
         description:
-          'Файлы не участвуют ни в зависимостях, ни в иерархических группах; проверьте игнор-листы, парсинг или фактическую связность проекта.',
+          'Files are not involved in dependencies or hierarchical groups; check ignore lists, parsing, or actual project connectivity.',
         nodeIds: isolatedFiles.map((node) => node.id),
       });
     }
@@ -147,7 +147,7 @@ export class PatternDetectionAnalyzer {
         severity: architecture.violations.length > 10 ? 'high' : 'medium',
         title: 'Layer Violations',
         description:
-          'Обнаружены зависимости, нарушающие ожидаемые архитектурные границы между слоями.',
+          'Dependencies violating expected architectural boundaries between layers were detected.',
         nodeIds: architecture.violations
           .slice(0, 15)
           .flatMap((violation) => [violation.sourceId, violation.targetId]),
@@ -164,7 +164,7 @@ export class PatternDetectionAnalyzer {
         severity: 'low',
         title: 'Unknown Architecture Layer',
         description:
-          'Часть узлов не укладывается в архитектурную модель, из-за чего ИИ и инструменты теряют структурное понимание системы.',
+          'Some nodes do not fit into the architectural model, causing AI and tools to lose structural understanding of the system.',
         nodeIds: unknownLayerNodes.map((record) => record.nodeId),
       });
     }
