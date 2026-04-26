@@ -61,7 +61,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-builds
-          path: release/CodeMaps-*
+          path: |
+            release/CodeMaps-*
+            release/latest*.yml
           retention-days: 1
 
   build-windows:
@@ -106,7 +108,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-builds
-          path: release/CodeMaps-*
+          path: |
+            release/CodeMaps-*
+            release/latest*.yml
           retention-days: 1
 
   publish:
@@ -143,7 +147,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          files: artifacts/CodeMaps-*
+          files: |
+            artifacts/CodeMaps-*
+            artifacts/latest*.yml
           generate_release_notes: true
           draft: false
           prerelease: false
