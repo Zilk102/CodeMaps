@@ -40,7 +40,7 @@ Examples:
 `);
 }
 
-async function analyze(projectPath: string, options: any) {
+async function analyze(projectPath: string) {
   try {
     const absolutePath = path.resolve(projectPath);
     console.log(`🔍 Analyzing ${absolutePath}...`);
@@ -48,13 +48,17 @@ async function analyze(projectPath: string, options: any) {
     // This would call the electron main process
     console.log('✅ Analysis complete (placeholder - requires Electron runtime)');
     
-  } catch (error: any) {
-    console.error('❌ Analysis failed:', error.message);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('❌ Analysis failed:', error.message);
+    } else {
+      console.error('❌ Analysis failed:', error);
+    }
     process.exit(1);
   }
 }
 
-async function exportGraph(projectPath: string, options: any) {
+async function exportGraph(projectPath: string, options: Record<string, unknown>) {
   try {
     const absolutePath = path.resolve(projectPath);
     console.log(`📤 Exporting graph from ${absolutePath}...`);
@@ -62,21 +66,25 @@ async function exportGraph(projectPath: string, options: any) {
     // This would call ExportService
     console.log(`✅ Exported to ${options.output || 'output.json'}`);
     
-  } catch (error: any) {
-    console.error('❌ Export failed:', error.message);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('❌ Export failed:', error.message);
+    } else {
+      console.error('❌ Export failed:', error);
+    }
     process.exit(1);
   }
 }
 
-async function startMcp(options: any) {
+async function startMcp(options: Record<string, unknown>) {
   const port = options.port || 3005;
   console.log(`🤖 Starting MCP server on port ${port}...`);
   console.log('⚠️ MCP server requires Electron runtime');
 }
 
 // Parse options
-function parseOptions(args: string[]): any {
-  const options: any = {};
+function parseOptions(args: string[]): Record<string, unknown> {
+  const options: Record<string, unknown> = {};
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-o' || args[i] === '--output') {
       options.output = args[++i];
@@ -109,7 +117,7 @@ async function main() {
         showHelp();
         process.exit(1);
       }
-      await analyze(args[1], options);
+      await analyze(args[1]);
       break;
 
     case 'export':

@@ -7,13 +7,16 @@ import { oracleStore } from './store';
 import { initAutoUpdater } from './autoUpdater';
 // Lazy-load KuzuIntegration to prevent startup crash on Windows if native module fails
 let KuzuIntegration: any = null;
-try {
-  const kuzuModule = require('./services/KuzuIntegration');
+import('./services/KuzuIntegration.js').then((kuzuModule) => {
   KuzuIntegration = kuzuModule.KuzuIntegration;
   log.info('[App] KuzuIntegration loaded successfully');
-} catch (err: any) {
-  log.error('[App] KuzuIntegration failed to load:', err.message);
-}
+}).catch((err: unknown) => {
+  if (err instanceof Error) {
+    log.error('[App] KuzuIntegration failed to load:', err.message);
+  } else {
+    log.error('[App] KuzuIntegration failed to load:', err);
+  }
+});
 
 // Initialize structured logging
 log.initialize({ preload: true });

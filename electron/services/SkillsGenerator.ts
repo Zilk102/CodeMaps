@@ -36,7 +36,7 @@ export class SkillsGenerator {
     const type = node['n.type'];
 
     // Get neighbors
-    const neighbors = await this.graphService.queryNeighbors(nodeId);
+    // const neighbors = await this.graphService.queryNeighbors(nodeId);
     
     // Get patterns/anti-patterns
     const patterns = await this.detectPatterns(nodeId);

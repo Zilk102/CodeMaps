@@ -167,7 +167,10 @@ export class AgentContextService {
     const architecture = this.architectureInsightService.analyze(graph);
     const targetClassification =
       architecture.classifications.find((record) => record.nodeId === resolvedTarget.node.id) ||
-      this.architectureInsightService.classifyNode(resolvedTarget.node);
+      this.architectureInsightService.classifyNode(
+        resolvedTarget.node,
+        this.architectureInsightService.getActiveRules(graph.projectRoot)
+      );
     const dependencies = this.getNodeDependencies(graph, resolvedTarget.node.id);
     const blastRadius = this.blastRadiusAnalyzer.analyze(
       graph,

@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { GraphData, GraphNode } from '../store';
 
 export type ArchitectureLayer =
@@ -11,6 +13,19 @@ export type ArchitectureLayer =
   | 'shared'
   | 'configuration'
   | 'unknown';
+
+const ALL_LAYERS: ArchitectureLayer[] = [
+  'presentation',
+  'application',
+  'domain',
+  'analysis',
+  'parsing',
+  'integration',
+  'state',
+  'shared',
+  'configuration',
+  'unknown',
+];
 
 export interface ArchitectureNodeClassification {
   nodeId: string;
@@ -52,17 +67,44 @@ export interface ArchitectureOverview {
   };
 }
 
-const ALL_LAYERS: ArchitectureLayer[] = [
-  'presentation',
-  'application',
-  'domain',
-  'analysis',
-  'parsing',
-  'integration',
-  'state',
-  'shared',
-  'configuration',
-  'unknown',
+export interface ArchitectureRule {
+  pattern: RegExp;
+  layer: ArchitectureLayer;
+  reason: string;
+}
+
+const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
+  // Configuration, Automation, and Documentation
+  { pattern: /\.(json|ya?ml|md|env.*|config\.[jt]s|rc)$/i, layer: 'configuration', reason: 'config_or_doc_file' },
+  { pattern: /(^\/|\\|\/)(scripts|\.github|\.husky)\//i, layer: 'configuration', reason: 'automation_scripts' },
+  { pattern: /(^\/|\\|\/)(test|__tests__|spec)\//i, layer: 'configuration', reason: 'test_or_support_path' },
+
+  // Presentation / UI Layer
+  { pattern: /(^\/|\\|\/)(components|views|pages|ui|screens|layouts|hooks|i18n|locales)\//i, layer: 'presentation', reason: 'ui_layer' },
+  { pattern: /(^\/|\\|\/)(assets|public|static)\//i, layer: 'presentation', reason: 'static_assets' },
+  { pattern: /\.(css|scss|sass|less|styl)$/i, layer: 'presentation', reason: 'stylesheet_path' },
+
+  // State Management
+  { pattern: /(^\/|\\|\/)(store|state|reducers|actions|context)\//i, layer: 'state', reason: 'state_management' },
+
+  // Application / Services Layer
+  { pattern: /(^\/|\\|\/)(services|usecases|application|features|controllers)\//i, layer: 'application', reason: 'application_logic' },
+
+  // Domain / Core Layer
+  { pattern: /(^\/|\\|\/)(domain|models|entities|core)\//i, layer: 'domain', reason: 'domain_logic' },
+
+  // Infrastructure / Integration Layer
+  { pattern: /(^\/|\\|\/)(infrastructure|db|database|api|clients|repositories|integration|bin)\//i, layer: 'integration', reason: 'infrastructure_integration' },
+  { pattern: /(^\/|\\|\/)(electron|main|preload|mcp)\.ts$/i, layer: 'integration', reason: 'entrypoint_or_adapter_path' },
+
+  // Shared / Utilities
+  { pattern: /(^\/|\\|\/)(utils|shared|helpers|common|types|interfaces)\//i, layer: 'shared', reason: 'shared_utilities' },
+  { pattern: /\.d\.ts$/i, layer: 'shared', reason: 'type_declaration_path' },
+  
+  // CodeMaps Specific Fallbacks (to maintain backward compatibility with its own internal structure)
+  { pattern: /(^\/|\\|\/)(analysis)\//i, layer: 'analysis', reason: 'analysis_path' },
+  { pattern: /(^\/|\\|\/)(parsing)\//i, layer: 'parsing', reason: 'parsing_path' },
+  { pattern: /(^\/|\\|\/)(oracle)\//i, layer: 'application', reason: 'orchestration_path' },
 ];
 
 const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
@@ -70,8 +112,46 @@ const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
 const normalizeNodePath = (node: GraphNode) => node.id.replace(/\\/g, '/').toLowerCase();
 
 export class ArchitectureInsightService {
+  private defaultRules: ArchitectureRule[];
+  private cachedProjectRoot: string | null = null;
+  private cachedCustomRules: ArchitectureRule[] | null = null;
+
+  constructor(customRules?: ArchitectureRule[]) {
+    this.defaultRules = customRules || DEFAULT_ARCHITECTURE_RULES;
+  }
+
+  getActiveRules(projectRoot: string): ArchitectureRule[] {
+    if (this.cachedProjectRoot === projectRoot && this.cachedCustomRules) {
+      return this.cachedCustomRules;
+    }
+
+    this.cachedProjectRoot = projectRoot;
+    
+    try {
+      const configPath = path.join(projectRoot, '.codemaps', 'architecture.json');
+      if (fs.existsSync(configPath)) {
+        const configData = fs.readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(configData);
+        if (parsed && Array.isArray(parsed.rules)) {
+          this.cachedCustomRules = parsed.rules.map((r: any) => ({
+            pattern: new RegExp(r.pattern, 'i'),
+            layer: r.layer as ArchitectureLayer,
+            reason: r.reason || 'custom_rule'
+          }));
+          return this.cachedCustomRules!;
+        }
+      }
+    } catch (e) {
+      console.error('[ArchitectureInsightService] Failed to load custom rules:', e);
+    }
+
+    this.cachedCustomRules = this.defaultRules;
+    return this.defaultRules;
+  }
+
   analyze(graph: GraphData): ArchitectureOverview {
-    const classifications = graph.nodes.map((node) => this.classifyNode(node));
+    const activeRules = this.getActiveRules(graph.projectRoot);
+    const classifications = graph.nodes.map((node) => this.classifyNode(node, activeRules));
     const layerByNodeId = new Map(classifications.map((record) => [record.nodeId, record.layer]));
 
     const layers = ALL_LAYERS.map((layer) => {
@@ -157,136 +237,18 @@ export class ArchitectureInsightService {
     };
   }
 
-  classifyNode(node: GraphNode): ArchitectureNodeClassification {
+  classifyNode(node: GraphNode, activeRules: ArchitectureRule[]): ArchitectureNodeClassification {
     const normalizedPath = normalizeNodePath(node);
     const filePath = toStructuralNodeId(normalizedPath);
 
-    if (this.isConfigurationNode(filePath)) {
-      return { nodeId: node.id, layer: 'configuration', reason: 'config_or_script_path' };
-    }
-
-    if (filePath.endsWith('/electron') || filePath.includes('/electron/')) {
-      if (filePath.endsWith('/electron/analysis')) {
-        return { nodeId: node.id, layer: 'analysis', reason: 'analysis_directory_path' };
+    // Apply the regex-based rules to determine the architecture layer
+    for (const rule of activeRules) {
+      if (rule.pattern.test(filePath)) {
+        return { nodeId: node.id, layer: rule.layer, reason: rule.reason };
       }
-      if (filePath.endsWith('/electron/parsing')) {
-        return { nodeId: node.id, layer: 'parsing', reason: 'parsing_directory_path' };
-      }
-      if (filePath.endsWith('/electron/oracle')) {
-        return { nodeId: node.id, layer: 'application', reason: 'application_directory_path' };
-      }
-      if (filePath.endsWith('/electron') && node.type === 'directory') {
-        return { nodeId: node.id, layer: 'integration', reason: 'electron_root_directory' };
-      }
-    }
-
-    if (filePath.endsWith('/src') && node.type === 'directory') {
-      return { nodeId: node.id, layer: 'presentation', reason: 'frontend_root_directory' };
-    }
-
-    if (filePath.endsWith('/src/components') || filePath.includes('/src/components/')) {
-      return { nodeId: node.id, layer: 'presentation', reason: 'ui_component_path' };
-    }
-
-    if (filePath.endsWith('/src/store') || filePath.includes('/src/store/')) {
-      return { nodeId: node.id, layer: 'state', reason: 'state_store_path' };
-    }
-
-    if (filePath.endsWith('/src/utils') || filePath.includes('/src/utils/')) {
-      return { nodeId: node.id, layer: 'shared', reason: 'shared_utility_path' };
-    }
-
-    if (filePath.endsWith('/src/types') || filePath.includes('/src/types/')) {
-      return { nodeId: node.id, layer: 'shared', reason: 'shared_type_contract_path' };
-    }
-
-    if (filePath.endsWith('.css')) {
-      return { nodeId: node.id, layer: 'presentation', reason: 'stylesheet_path' };
-    }
-
-    if (filePath.endsWith('.d.ts')) {
-      return { nodeId: node.id, layer: 'shared', reason: 'type_declaration_path' };
-    }
-
-    if (
-      filePath.includes('/src/components/') ||
-      filePath.includes('/src/app.') ||
-      filePath.includes('/src/main.')
-    ) {
-      return { nodeId: node.id, layer: 'presentation', reason: 'ui_component_path' };
-    }
-
-    if (
-      filePath.includes('/src/store/') ||
-      filePath.endsWith('/store.ts') ||
-      filePath.endsWith('/usestore.ts')
-    ) {
-      return { nodeId: node.id, layer: 'state', reason: 'state_store_path' };
-    }
-
-    if (filePath.includes('/analysis/')) {
-      return { nodeId: node.id, layer: 'analysis', reason: 'analysis_path' };
-    }
-
-    if (
-      filePath.includes('/parsing/') ||
-      filePath.endsWith('/queries.ts') ||
-      filePath.endsWith('/worker.ts')
-    ) {
-      return { nodeId: node.id, layer: 'parsing', reason: 'parsing_path' };
-    }
-
-    if (filePath.includes('/oracle/') || filePath.endsWith('/oracle.ts')) {
-      return { nodeId: node.id, layer: 'application', reason: 'orchestration_path' };
-    }
-
-    if (
-      filePath.endsWith('/mcp.ts') ||
-      filePath.endsWith('/main.ts') ||
-      filePath.endsWith('/preload.ts')
-    ) {
-      return { nodeId: node.id, layer: 'integration', reason: 'entrypoint_or_adapter_path' };
-    }
-
-    if (
-      filePath.includes('/domain/') ||
-      filePath.includes('/core/') ||
-      filePath.includes('/entities/') ||
-      filePath.includes('/models/')
-    ) {
-      return { nodeId: node.id, layer: 'domain', reason: 'domain_path' };
-    }
-
-    if (
-      filePath.includes('/shared/') ||
-      filePath.includes('/utils/') ||
-      filePath.endsWith('/shared.ts')
-    ) {
-      return { nodeId: node.id, layer: 'shared', reason: 'shared_utility_path' };
-    }
-
-    if (filePath.endsWith('/test.ts') || filePath.includes('/test/')) {
-      return { nodeId: node.id, layer: 'configuration', reason: 'test_or_support_path' };
     }
 
     return { nodeId: node.id, layer: 'unknown', reason: 'no_rule_matched' };
-  }
-
-  private isConfigurationNode(filePath: string) {
-    if (filePath.endsWith('/scripts')) {
-      return true;
-    }
-
-    return (
-      filePath.endsWith('/package.json') ||
-      filePath.endsWith('/tsconfig.json') ||
-      filePath.endsWith('/vite.config.ts') ||
-      filePath.endsWith('/index.html') ||
-      filePath.includes('/scripts/') ||
-      filePath.endsWith('/.env') ||
-      filePath.endsWith('/dockerfile') ||
-      filePath.endsWith('/docker-compose.yml')
-    );
   }
 
   private getViolationReason(sourceLayer: ArchitectureLayer, targetLayer: ArchitectureLayer) {

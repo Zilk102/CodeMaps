@@ -22,8 +22,7 @@ const DragDropZone = React.lazy(() =>
 
 import TitleBar from './components/TitleBar';
 import LanguageSwitcher from './components/LanguageSwitcher';
-import { PersistenceStatus } from './components/PersistenceStatus';
-import { PersistenceSettings } from './components/PersistenceSettings';
+import PersistenceStatus from './components/PersistenceStatus';
 import { useStore } from './store/useStore';
 
 const LazyFallback: React.FC = () => {

@@ -120,7 +120,7 @@ export class KuzuGraphService {
     return result.getAll();
   }
 
-  async queryNeighbors(nodeId: string, edgeType?: string): Promise<any[]> {
+  async queryNeighbors(nodeId: string): Promise<any[]> {
     if (!this.initialized) await this.init();
     const safeId = nodeId.replace(/'/g, "''");
     const result = await this.conn.query(`

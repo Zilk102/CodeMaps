@@ -1,5 +1,5 @@
-import { KuzuGraphService } from './electron/services/KuzuGraphService';
-import { KuzuIntegration } from './electron/services/KuzuIntegration';
+import { KuzuGraphService } from '../electron/services/KuzuGraphService.js';
+import { KuzuIntegration } from '../electron/services/KuzuIntegration.js';
 
 // Simulate graph data from analyzer
 const mockGraphData = {

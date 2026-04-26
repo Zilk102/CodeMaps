@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
 
