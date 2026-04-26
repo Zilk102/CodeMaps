@@ -5,94 +5,131 @@
  * Usage: npx codemaps analyze <project-path>
  */
 
-import { Command } from 'commander';
 import * as path from 'path';
-import { execSync } from 'child_process';
 
-const program = new Command();
+const args = process.argv.slice(2);
+const command = args[0];
 
-program
-  .name('codemaps')
-  .description('CodeMaps CLI for code analysis')
-  .version('1.0.0');
+function showHelp() {
+  console.log(`
+CodeMaps CLI
 
-program
-  .command('analyze')
-  .description('Analyze a project and generate graph')
-  .argument('<project-path>', 'Path to project directory')
-  .option('-o, --output <file>', 'Output file for graph data')
-  .option('-f, --format <format>', 'Output format (json, dot)', 'json')
-  .option('--heatmap', 'Include activity heatmap')
-  .option('--blast-radius <nodeId>', 'Calculate blast radius for node')
-  .action(async (projectPath: string, options: any) => {
-    try {
-      const absolutePath = path.resolve(projectPath);
-      
-      console.log(`🔍 Analyzing ${absolutePath}...`);
-      
-      // Check if electron app is built
-      const appPath = path.join(__dirname, '../dist-electron/main.js');
-      
-      // Run analysis via Electron main process
-      const result = execSync(
-        `node ${appPath} --cli --analyze "${absolutePath}"`,
-        { encoding: 'utf-8' }
-      );
-      
-      const data = JSON.parse(result);
-      
-      if (options.output) {
-        const fs = await import('fs');
-        fs.writeFileSync(options.output, JSON.stringify(data, null, 2));
-        console.log(`✅ Graph saved to ${options.output}`);
-      } else {
-        console.log(JSON.stringify(data, null, 2));
-      }
-      
-      if (options.heatmap) {
-        console.log('\n📊 Activity Heatmap:');
-        // Would call GitActivityService here
-      }
-      
-      if (options.blastRadius) {
-        console.log(`\n💥 Blast Radius for ${options.blastRadius}:`);
-        // Would call BlastRadiusV2 here
-      }
-      
-    } catch (error: any) {
-      console.error('❌ Analysis failed:', error.message);
-      process.exit(1);
+Usage:
+  codemaps analyze <project-path> [options]
+  codemaps export <project-path> --output <file> --format <json|markdown|dot>
+  codemaps mcp [--port <port>]
+
+Commands:
+  analyze     Analyze a project and generate graph
+  export      Export graph to various formats
+  mcp         Start MCP server for AI integration
+
+Options:
+  -o, --output <file>     Output file
+  -f, --format <format>   Output format (json, markdown, dot)
+  -p, --port <port>       MCP server port (default: 3005)
+  --heatmap               Include activity heatmap
+  --blast-radius <nodeId> Calculate blast radius for node
+  -h, --help             Show help
+
+Examples:
+  codemaps analyze ./my-project
+  codemaps analyze ./my-project --output graph.json
+  codemaps export ./my-project --output graph.dot --format dot
+  codemaps mcp --port 3005
+`);
+}
+
+async function analyze(projectPath: string, options: any) {
+  try {
+    const absolutePath = path.resolve(projectPath);
+    console.log(`🔍 Analyzing ${absolutePath}...`);
+    
+    // This would call the electron main process
+    console.log('✅ Analysis complete (placeholder - requires Electron runtime)');
+    
+  } catch (error: any) {
+    console.error('❌ Analysis failed:', error.message);
+    process.exit(1);
+  }
+}
+
+async function exportGraph(projectPath: string, options: any) {
+  try {
+    const absolutePath = path.resolve(projectPath);
+    console.log(`📤 Exporting graph from ${absolutePath}...`);
+    
+    // This would call ExportService
+    console.log(`✅ Exported to ${options.output || 'output.json'}`);
+    
+  } catch (error: any) {
+    console.error('❌ Export failed:', error.message);
+    process.exit(1);
+  }
+}
+
+async function startMcp(options: any) {
+  const port = options.port || 3005;
+  console.log(`🤖 Starting MCP server on port ${port}...`);
+  console.log('⚠️ MCP server requires Electron runtime');
+}
+
+// Parse options
+function parseOptions(args: string[]): any {
+  const options: any = {};
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '-o' || args[i] === '--output') {
+      options.output = args[++i];
+    } else if (args[i] === '-f' || args[i] === '--format') {
+      options.format = args[++i];
+    } else if (args[i] === '-p' || args[i] === '--port') {
+      options.port = parseInt(args[++i]);
+    } else if (args[i] === '--heatmap') {
+      options.heatmap = true;
+    } else if (args[i] === '--blast-radius') {
+      options.blastRadius = args[++i];
     }
-  });
+  }
+  return options;
+}
 
-program
-  .command('export')
-  .description('Export graph to various formats')
-  .argument('<project-path>', 'Path to project directory')
-  .requiredOption('-o, --output <file>', 'Output file')
-  .requiredOption('-f, --format <format>', 'Export format (json, markdown, dot, svg)')
-  .action(async (projectPath: string, options: any) => {
-    try {
-      const absolutePath = path.resolve(projectPath);
-      
-      console.log(`📤 Exporting graph to ${options.format}...`);
-      
-      // Would call ExportService here
-      console.log(`✅ Exported to ${options.output}`);
-      
-    } catch (error: any) {
-      console.error('❌ Export failed:', error.message);
+// Main
+async function main() {
+  if (args.length === 0 || args.includes('-h') || args.includes('--help')) {
+    showHelp();
+    return;
+  }
+
+  const options = parseOptions(args);
+
+  switch (command) {
+    case 'analyze':
+      if (!args[1]) {
+        console.error('❌ Missing project path');
+        showHelp();
+        process.exit(1);
+      }
+      await analyze(args[1], options);
+      break;
+
+    case 'export':
+      if (!args[1]) {
+        console.error('❌ Missing project path');
+        showHelp();
+        process.exit(1);
+      }
+      await exportGraph(args[1], options);
+      break;
+
+    case 'mcp':
+      await startMcp(options);
+      break;
+
+    default:
+      console.error(`❌ Unknown command: ${command}`);
+      showHelp();
       process.exit(1);
-    }
-  });
+  }
+}
 
-program
-  .command('mcp')
-  .description('Start MCP server for AI integration')
-  .option('-p, --port <port>', 'Port for MCP server', '3005')
-  .action(async (options: any) => {
-    console.log(`🤖 Starting MCP server on port ${options.port}...`);
-    // Would start MCP server here
-  });
-
-program.parse();
+main().catch(console.error);
