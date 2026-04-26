@@ -338,8 +338,8 @@ The agent should behave like it has a project-aware architectural map:
         </h2>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>{t('mcpSettings.overview')}</TabButton>
-          <TabButton active={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>{t('mcpSettings.tools')}</TabButton>
-          <TabButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>{t('mcpSettings.resources')}</TabButton>
+          <TabButton active={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>{t('mcpSettings.toolsTab')}</TabButton>
+          <TabButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>{t('mcpSettings.resourcesTab')}</TabButton>
           <TabButton active={activeTab === 'clients'} onClick={() => setActiveTab('clients')}>{t('mcpSettings.clients')}</TabButton>
           <TabButton active={activeTab === 'agent-skill'} onClick={() => setActiveTab('agent-skill')}>{t('mcpSettings.agentSkill')}</TabButton>
         </div>

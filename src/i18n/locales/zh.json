@@ -28,6 +28,8 @@
   "mcpSettings": {
     "title": "MCP 服务器设置",
     "overview": "概览",
+    "toolsTab": "工具",
+    "resourcesTab": "资源",
     "tools": {
       "analyze_project": {
         "title": "分析项目",

@@ -28,6 +28,8 @@
   "mcpSettings": {
     "title": "Настройки MCP Сервера",
     "overview": "Обзор",
+    "toolsTab": "Инструменты",
+    "resourcesTab": "Ресурсы",
     "tools": {
       "analyze_project": {
         "title": "Анализ проекта",
