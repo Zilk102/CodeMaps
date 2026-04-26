@@ -174,6 +174,24 @@ const MCP_TOOLS: McpStatusToolDescriptor[] = [
     recommendedWhen: 'When you need to quickly find declaration-like code by name or regex.',
   },
   {
+    name: 'analyze_pr_impact',
+    title: 'Analyze PR Impact',
+    description: 'Analyzes the architectural blast radius of a Pull Request (or branch comparison).',
+    recommendedWhen: 'When reviewing a PR or assessing the impact of a branch before merging.',
+  },
+  {
+    name: 'analyze_activity_heatmap',
+    title: 'Analyze Activity Heatmap',
+    description: 'Generates a git churn heatmap to identify frequently modified files (hotspots).',
+    recommendedWhen: 'When looking for technical debt or unstable code areas.',
+  },
+  {
+    name: 'calculate_blast_radius_v2',
+    title: 'Calculate Blast Radius V2',
+    description: 'Return advanced direct and transitive impact using KuzuDB',
+    recommendedWhen: 'When a deep transitive dependency analysis is needed.',
+  },
+  {
     name: 'prepare_task_context',
     title: 'Prepare Task Context',
     description:

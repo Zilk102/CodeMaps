@@ -15,17 +15,15 @@ export interface PersistenceSlice {
   clearPersistenceError: () => void;
 }
 
-const STORAGE_KEY = 'codemaps-persistence-enabled';
 
 export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], PersistenceSlice> = (set) => ({
-  persistenceEnabled: localStorage.getItem(STORAGE_KEY) !== 'false',
+  persistenceEnabled: true, // В памяти (in-memory state)
   isLoadingGraph: false,
   isSavingGraph: false,
   lastSavedGraph: null,
   persistenceError: null,
 
   setPersistenceEnabled: (enabled) => {
-    localStorage.setItem(STORAGE_KEY, enabled.toString());
     set({ persistenceEnabled: enabled });
   },
   setLoadingGraph: (isLoading) => set({ isLoadingGraph: isLoading }),

@@ -13,6 +13,10 @@ import { ProjectInsightService } from '../analysis/ProjectInsightService';
 import { TaskIntelligenceService } from '../analysis/TaskIntelligenceService';
 import { ChangeCampaignService } from '../analysis/ChangeCampaignService';
 
+import { PRImpactAnalyzer } from '../services/PRImpactAnalyzer.js';
+import { GitActivityService } from '../services/GitActivityService.js';
+import { BlastRadiusV2 } from '../services/BlastRadiusV2.js';
+
 import {
   ensureGraphLoaded,
   createGraphSummary,
@@ -392,6 +396,111 @@ export function registerTools(
           },
         ],
       };
+    }
+  );
+
+  server.registerTool(
+    'analyze_pr_impact',
+    {
+      title: 'Analyze PR Impact',
+      description: 'Analyze the architectural blast radius of a PR or branch comparison',
+      inputSchema: {
+        baseBranch: z.string().describe('Base branch name to compare against'),
+        headBranch: z.string().describe('Head branch name with changes'),
+      },
+    },
+    async ({ baseBranch, headBranch }) => {
+      const graph = await ensureGraphLoaded();
+      if (!graph.projectRoot) {
+        throw new Error('Project root is required to run PR impact analysis');
+      }
+      
+      const analyzer = new PRImpactAnalyzer(graph.projectRoot);
+      await analyzer.init();
+      try {
+        const result = await analyzer.analyzePR(baseBranch, headBranch);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: createTextContent({ status: 'ok', ...result }),
+            },
+          ],
+        };
+      } finally {
+        await analyzer.close();
+      }
+    }
+  );
+
+  server.registerTool(
+    'analyze_activity_heatmap',
+    {
+      title: 'Analyze Activity Heatmap',
+      description: 'Generate a git churn heatmap to identify hotspots',
+      inputSchema: {
+        since: z.string().optional().describe('ISO date string for start of period'),
+        until: z.string().optional().describe('ISO date string for end of period'),
+      },
+    },
+    async ({ since, until }) => {
+      const graph = await ensureGraphLoaded();
+      if (!graph.projectRoot) {
+        throw new Error('Project root is required to run heatmap analysis');
+      }
+
+      const service = new GitActivityService(graph.projectRoot);
+      await service.init();
+      try {
+        const result = service.analyzeChurn(
+          since ? new Date(since) : undefined,
+          until ? new Date(until) : undefined
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: createTextContent({ status: 'ok', ...result }),
+            },
+          ],
+        };
+      } finally {
+        await service.close();
+      }
+    }
+  );
+
+  server.registerTool(
+    'calculate_blast_radius_v2',
+    {
+      title: 'Calculate Blast Radius V2',
+      description: 'Return advanced direct and transitive impact using KuzuDB',
+      inputSchema: {
+        nodeId: z.string().describe('Exact node id from the graph'),
+        maxDepth: z.number().int().min(1).max(20).optional().describe('Optional traversal depth limit'),
+      },
+    },
+    async ({ nodeId, maxDepth }) => {
+      const graph = await ensureGraphLoaded();
+      if (!graph.projectRoot) {
+        throw new Error('Project root is required to calculate blast radius v2');
+      }
+
+      const analyzer = new BlastRadiusV2(graph.projectRoot);
+      await analyzer.init();
+      try {
+        const result = await analyzer.calculate(nodeId, maxDepth || 5);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: createTextContent({ status: 'ok', ...result }),
+            },
+          ],
+        };
+      } finally {
+        await analyzer.close();
+      }
     }
   );
 
