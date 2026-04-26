@@ -46,6 +46,32 @@ export interface ElectronAPI {
   loadGraphFromKuzu: (projectPath: string) => Promise<{ success: boolean; stats?: { nodes: number; edges: number }; error?: string }>;
   clearGraphCache: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
 
+  // Blast Radius v2
+  calculateBlastRadius: (projectPath: string, nodeId: string, maxDepth?: number) => Promise<{
+    success: boolean;
+    data?: {
+      targetNode: string;
+      directDependencies: Array<{
+        id: string;
+        label: string;
+        type: string;
+        distance: number;
+        path: string[];
+      }>;
+      transitiveDependencies: Array<{
+        id: string;
+        label: string;
+        type: string;
+        distance: number;
+        path: string[];
+      }>;
+      totalAffected: number;
+      maxDepth: number;
+      riskPaths: string[][];
+    };
+    error?: string;
+  }>;
+
   // PR Impact Analysis
   analyzePRImpact: (projectPath: string, baseBranch: string, headBranch: string) => Promise<{
     success: boolean;

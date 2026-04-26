@@ -257,5 +257,17 @@
     "commits": "提交",
     "andMore": "还有 {{count}} 个...",
     "noData": "未找到活动数据。请确保这是 git 仓库。"
+  },
+  "blastRadius": {
+    "title": "爆炸半径 v2",
+    "calculate": "计算",
+    "calculating": "计算中...",
+    "error": "计算失败",
+    "nodeIdPlaceholder": "输入节点 ID...",
+    "depth": "深度",
+    "totalAffected": "总共影响",
+    "direct": "直接",
+    "transitive": "传递",
+    "riskPaths": "风险路径"
   }
 }

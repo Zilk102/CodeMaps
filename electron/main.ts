@@ -182,3 +182,18 @@ ipcMain.handle('analyze-activity-heatmap', async (_, projectPath: string, since?
     return { success: false, error: error.message };
   }
 });
+
+// Blast Radius v2
+ipcMain.handle('calculate-blast-radius', async (_, projectPath: string, nodeId: string, maxDepth?: number) => {
+  try {
+    const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
+    const analyzer = new BlastRadiusV2(projectPath);
+    await analyzer.init();
+    const result = await analyzer.calculate(nodeId, maxDepth || 5);
+    await analyzer.close();
+    return { success: true, data: result };
+  } catch (error: any) {
+    log.error('[BlastRadius] Calculation failed:', error.message);
+    return { success: false, error: error.message };
+  }
+});

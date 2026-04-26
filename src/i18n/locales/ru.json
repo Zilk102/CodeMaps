@@ -267,5 +267,17 @@
     "commits": "коммитов",
     "andMore": "И ещё {{count}}...",
     "noData": "Данные об активности не найдены. Убедитесь, что это git-репозиторий."
+  },
+  "blastRadius": {
+    "title": "Радиус поражения v2",
+    "calculate": "Рассчитать",
+    "calculating": "Расчёт...",
+    "error": "Ошибка расчёта",
+    "nodeIdPlaceholder": "Введите ID узла...",
+    "depth": "глубина",
+    "totalAffected": "Всего затронуто",
+    "direct": "Прямые",
+    "transitive": "Транзитивные",
+    "riskPaths": "Риск-пути"
   }
 }

@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('api', {
   analyzePRImpact: (projectPath: string, baseBranch: string, headBranch: string) =>
     ipcRenderer.invoke('analyze-pr-impact', projectPath, baseBranch, headBranch),
 
+  // Blast Radius v2
+  calculateBlastRadius: (projectPath: string, nodeId: string, maxDepth?: number) =>
+    ipcRenderer.invoke('calculate-blast-radius', projectPath, nodeId, maxDepth),
+
   // Activity Heatmap
   analyzeActivityHeatmap: (projectPath: string, since?: string, until?: string) =>
     ipcRenderer.invoke('analyze-activity-heatmap', projectPath, since, until),

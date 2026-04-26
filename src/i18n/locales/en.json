@@ -267,5 +267,17 @@
     "commits": "commits",
     "andMore": "And {{count}} more...",
     "noData": "No activity data found. Make sure this is a git repository."
+  },
+  "blastRadius": {
+    "title": "Blast Radius v2",
+    "calculate": "Calculate",
+    "calculating": "Calculating...",
+    "error": "Calculation failed",
+    "nodeIdPlaceholder": "Enter node ID...",
+    "depth": "depth",
+    "totalAffected": "Total Affected",
+    "direct": "Direct",
+    "transitive": "Transitive",
+    "riskPaths": "Risk Paths"
   }
 }
