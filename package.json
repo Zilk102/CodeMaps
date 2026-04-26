@@ -68,7 +68,22 @@
           ]
         }
       ],
-      "artifactName": "CodeMaps-${version}-win-${arch}.${ext}"
+      "artifactName": "CodeMaps-${version}-win-${arch}.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CodeMaps",
+      "license": "LICENSE.md",
+      "artifactName": "CodeMaps-${version}-setup-${arch}.${ext}",
+      "deleteAppDataOnUninstall": true
     },
     "linux": {
       "target": [
@@ -103,8 +118,22 @@
     "files": [
       "dist-renderer/**/*",
       "dist-electron/**/*",
+      "build/**/*",
       "package.json",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "!node_modules/@types/**/*",
+      "!node_modules/typescript/**/*",
+      "!node_modules/eslint*/**/*",
+      "!node_modules/prettier/**/*",
+      "!node_modules/vitest/**/*",
+      "!node_modules/vite/**/*",
+      "!node_modules/@vitejs/**/*",
+      "!node_modules/concurrently/**/*",
+      "!node_modules/cross-env/**/*",
+      "!node_modules/electron-builder/**/*",
+      "!node_modules/electron/**/*",
+      "!node_modules/wait-on/**/*",
+      "!node_modules/.bin/**/*"
     ],
     "asarUnpack": [
       "**/*.node",
