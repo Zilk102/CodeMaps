@@ -5,6 +5,7 @@ import { getMcpStatus, setupMcpServer } from './mcp';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
 import { initAutoUpdater } from './autoUpdater';
+import { KuzuIntegration } from './services/KuzuIntegration';
 
 // Initialize structured logging
 log.initialize({ preload: true });
@@ -130,8 +131,21 @@ oracle.on('parsing-progress', (progress) => {
   }
 });
 
-oracle.on('graph-updated', (graphData) => {
+oracle.on('graph-updated', async (graphData) => {
   if (mainWindow) {
     mainWindow.webContents.send('graph-updated', graphData);
+  }
+  
+  // Store in KuzuDB for persistence and querying
+  try {
+    const projectPath = graphData.projectRoot;
+    const kuzu = new KuzuIntegration(projectPath);
+    await kuzu.init();
+    await kuzu.storeGraph(graphData);
+    const stats = await kuzu.getStats();
+    log.info('[KuzuDB] Graph persisted:', stats);
+    await kuzu.close();
+  } catch (err: any) {
+    log.error('[KuzuDB] Failed to persist graph:', err.message);
   }
 });
