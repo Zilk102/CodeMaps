@@ -39,6 +39,24 @@ export function initAutoUpdater(window: BrowserWindow) {
     autoUpdater.setFeedURL(publishConfig);
   }
 
+  // IPC handlers (always register, even in dev mode)
+  ipcMain.handle('updater:check', async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return { success: true, updateInfo: result?.updateInfo };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('updater:install', () => {
+    autoUpdater.quitAndInstall(true, true);
+  });
+
+  ipcMain.handle('updater:get-state', () => {
+    return updateState;
+  });
+
   // Only check for updates in packaged mode
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
     log.info('[AutoUpdater] Skipping update checks in development mode');
@@ -101,24 +119,6 @@ export function initAutoUpdater(window: BrowserWindow) {
     },
     4 * 60 * 60 * 1000
   );
-
-  // IPC handlers
-  ipcMain.handle('updater:check', async () => {
-    try {
-      const result = await autoUpdater.checkForUpdates();
-      return { success: true, updateInfo: result?.updateInfo };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
-
-  ipcMain.handle('updater:install', () => {
-    autoUpdater.quitAndInstall(true, true);
-  });
-
-  ipcMain.handle('updater:get-state', () => {
-    return updateState;
-  });
 }
 
 function sendUpdateState() {
