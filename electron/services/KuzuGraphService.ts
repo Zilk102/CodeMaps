@@ -135,6 +135,11 @@ export class KuzuGraphService {
     await this.conn.query('MATCH (n:FileNode) DELETE n');
   }
 
+  async query(cypherQuery: string): Promise<any> {
+    if (!this.initialized) await this.init();
+    return this.conn.query(cypherQuery);
+  }
+
   async close(): Promise<void> {
     if (this.conn) await this.conn.close();
     if (this.db) await this.db.close();

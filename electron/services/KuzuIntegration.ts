@@ -1,5 +1,29 @@
 import { KuzuGraphService, GraphNode, GraphEdge } from './KuzuGraphService';
-import type { GraphData, GraphNode as AppGraphNode, GraphLink } from '../types/graph';
+
+// Local type definitions to avoid cross-project imports
+interface GraphData {
+  projectRoot: string;
+  nodes: Array<{
+    id: string;
+    label: string;
+    group: number;
+    type: string;
+    churn?: number;
+    adr?: string;
+    path?: string;
+    line?: number;
+    column?: number;
+    language?: string;
+    meta?: Record<string, any>;
+  }>;
+  links: Array<{
+    source: string | { id: string };
+    target: string | { id: string };
+    value: number;
+    type?: string;
+    meta?: Record<string, any>;
+  }>;
+}
 
 export class KuzuIntegration {
   private service: KuzuGraphService;
