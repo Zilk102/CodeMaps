@@ -29,4 +29,9 @@ contextBridge.exposeInMainWorld('api', {
   getRecentProjects: () => ipcRenderer.invoke('get-recent-projects'),
   clearRecentProjects: () => ipcRenderer.invoke('clear-recent-projects'),
   openRecentProject: (projectPath: string) => ipcRenderer.invoke('open-recent-project', projectPath),
+
+  // Graph Persistence
+  saveGraphToKuzu: (projectPath: string, graphData: any) => ipcRenderer.invoke('save-graph-to-kuzu', projectPath, graphData),
+  loadGraphFromKuzu: (projectPath: string) => ipcRenderer.invoke('load-graph-from-kuzu', projectPath),
+  clearGraphCache: (projectPath: string) => ipcRenderer.invoke('clear-graph-cache', projectPath),
 });

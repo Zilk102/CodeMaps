@@ -205,5 +205,26 @@
   "dragDrop": {
     "dropHere": "Drop project folder here",
     "dropSubtitle": "Release to analyze"
+  },
+  "persistence": {
+    "graphSaved": "Graph saved to local database",
+    "graphLoaded": "Graph loaded from local database",
+    "savingGraph": "Saving graph to database...",
+    "loadingGraph": "Loading graph from database...",
+    "cacheCleared": "Local graph cache cleared",
+    "clearCache": "Clear Graph Cache",
+    "clearCacheConfirm": "Are you sure you want to clear the local graph cache? This will require re-analyzing the project.",
+    "settings": "Graph Persistence",
+    "enablePersistence": "Enable graph persistence",
+    "enablePersistenceDescription": "Save graph to local database for instant loading on next open",
+    "persistenceEnabled": "Graph persistence enabled",
+    "persistenceDisabled": "Graph persistence disabled",
+    "error": {
+      "saveFailed": "Failed to save graph: {{message}}",
+      "loadFailed": "Failed to load graph: {{message}}",
+      "clearFailed": "Failed to clear cache: {{message}}",
+      "diskFull": "Disk space is running low. Graph may not be saved.",
+      "corrupted": "Graph database appears corrupted. Re-analyzing project..."
+    }
   }
 }

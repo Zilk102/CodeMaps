@@ -195,5 +195,26 @@
   "dragDrop": {
     "dropHere": "将项目文件夹拖放到此处",
     "dropSubtitle": "松开以进行分析"
+  },
+  "persistence": {
+    "graphSaved": "图表已保存到本地数据库",
+    "graphLoaded": "已从本地数据库加载图表",
+    "savingGraph": "正在保存图表到数据库...",
+    "loadingGraph": "正在从数据库加载图表...",
+    "cacheCleared": "本地图表缓存已清除",
+    "clearCache": "清除图表缓存",
+    "clearCacheConfirm": "确定要清除本地图表缓存吗？这将需要重新分析项目。",
+    "settings": "图表持久化",
+    "enablePersistence": "启用图表持久化",
+    "enablePersistenceDescription": "将图表保存到本地数据库，以便下次打开时立即加载",
+    "persistenceEnabled": "图表持久化已启用",
+    "persistenceDisabled": "图表持久化已禁用",
+    "error": {
+      "saveFailed": "保存图表失败: {{message}}",
+      "loadFailed": "加载图表失败: {{message}}",
+      "clearFailed": "清除缓存失败: {{message}}",
+      "diskFull": "磁盘空间不足。图表可能无法保存。",
+      "corrupted": "图表数据库似乎已损坏。正在重新分析项目..."
+    }
   }
 }

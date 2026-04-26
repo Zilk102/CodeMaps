@@ -22,6 +22,8 @@ const DragDropZone = React.lazy(() =>
 
 import TitleBar from './components/TitleBar';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import { PersistenceStatus } from './components/PersistenceStatus';
+import { PersistenceSettings } from './components/PersistenceSettings';
 import { useStore } from './store/useStore';
 
 const LazyFallback: React.FC = () => {
@@ -297,6 +299,8 @@ const App: React.FC = () => {
       <Suspense fallback={<LazyFallback />}>
         <McpSettingsModal />
       </Suspense>
+
+      <PersistenceStatus />
       
       <LanguageSwitcher />
     </div>
