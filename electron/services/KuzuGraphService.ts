@@ -45,26 +45,34 @@ export class KuzuGraphService {
     this.db = new kuzu.Database(this.dbPath);
     this.conn = new kuzu.Connection(this.db);
 
-    await this.conn.query(`
-      CREATE NODE TABLE FileNode (
-        id STRING PRIMARY KEY,
-        type STRING,
-        label STRING,
-        filePath STRING,
-        line INT64,
-        col INT64,
-        language STRING,
-        meta STRING
-      )
-    `);
+    try {
+      await this.conn.query(`
+        CREATE NODE TABLE FileNode (
+          id STRING PRIMARY KEY,
+          type STRING,
+          label STRING,
+          filePath STRING,
+          line INT64,
+          col INT64,
+          language STRING,
+          meta STRING
+        )
+      `);
+    } catch (e: any) {
+      if (!e.message?.includes('already exists')) throw e;
+    }
 
-    await this.conn.query(`
-      CREATE REL TABLE FileEdge (
-        FROM FileNode TO FileNode,
-        type STRING,
-        meta STRING
-      )
-    `);
+    try {
+      await this.conn.query(`
+        CREATE REL TABLE FileEdge (
+          FROM FileNode TO FileNode,
+          type STRING,
+          meta STRING
+        )
+      `);
+    } catch (e: any) {
+      if (!e.message?.includes('already exists')) throw e;
+    }
 
     this.initialized = true;
     console.log('[KuzuGraph] Initialized at:', this.dbPath);
