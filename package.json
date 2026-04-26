@@ -39,7 +39,8 @@
       }
     ],
     "appId": "com.codemaps.app",
-    "npmRebuild": false,
+    "npmRebuild": true,
+    "buildDependenciesFromSource": false,
     "directories": {
       "output": "release"
     },
