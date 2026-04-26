@@ -27,8 +27,12 @@ export class OracleService extends EventEmitter {
 
   constructor() {
     super();
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST;
+    const workerPath = isTest
+      ? path.join(__dirname, '..', 'dist-electron', 'worker.js')
+      : path.join(__dirname, 'worker.js');
     this.pool = new Piscina({
-      filename: path.join(__dirname, 'worker.js'),
+      filename: workerPath,
     });
     this.graphRepository = new GraphRepository();
     this.cacheManager = new CacheManager();

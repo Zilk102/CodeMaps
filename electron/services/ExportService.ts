@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
 
 export type ExportFormat = 'json' | 'markdown' | 'svg' | 'dot';

@@ -352,4 +352,49 @@ export const languageQueries: Record<string, string> = {
     (line_comment) @comment
     (multiline_comment) @comment
   `,
+  bash: `
+    ; Variables
+    (variable_assignment name: (variable_name) @variable)
+    
+    ; Functions
+    (function_definition name: (word) @function)
+
+    ; Calls
+    (command name: (command_name) @call)
+
+    ; Comments
+    (comment) @comment
+  `,
+  html: `
+    ; Entities
+    (element (start_tag (tag_name) @class))
+
+    ; Comments
+    (comment) @comment
+  `,
+  css: `
+    ; Entities
+    (class_selector (class_name) @class)
+    (id_selector (id_name) @class)
+
+    ; Comments
+    (comment) @comment
+  `,
+  vue: `
+    ; Imports
+    (script_element (raw_text) @import_path)
+
+    ; Entities
+    (element (start_tag (tag_name) @class))
+
+    ; Comments
+    (comment) @comment
+  `,
+  yaml: `
+    ; Comments
+    (comment) @comment
+  `,
+  json: `
+    ; JSON has no comments or typical entities for this graph, but we define an empty query to avoid errors
+  `,
 };

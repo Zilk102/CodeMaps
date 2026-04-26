@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
@@ -96,7 +95,7 @@ export class RenameTool {
 
     // Update imports in all source files
     const importPattern = new RegExp(
-      `(import|require|from)\\s+['\"].*${oldPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['\"]`,
+      `(import|require|from)\\s+['"].*${oldPath.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}['"]`,
       'g'
     );
 

@@ -74,8 +74,8 @@ export class KuzuMcpTools {
     return { ...stats, types };
   }
 
-  async graphNeighbors(nodeId: string, edgeType?: string): Promise<any[]> {
-    return this.service.queryNeighbors(nodeId, edgeType);
+  async graphNeighbors(nodeId: string): Promise<any[]> {
+    return this.service.queryNeighbors(nodeId);
   }
 
   async close(): Promise<void> {

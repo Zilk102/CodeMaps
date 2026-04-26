@@ -8,7 +8,7 @@ interface PersistenceStatusProps {
   error?: string | null;
 }
 
-export const PersistenceStatus: React.FC<PersistenceStatusProps> = ({
+const PersistenceStatus: React.FC<PersistenceStatusProps> = ({
   isLoading = false,
   isSaving = false,
   lastSaved = null,
@@ -16,36 +16,63 @@ export const PersistenceStatus: React.FC<PersistenceStatusProps> = ({
 }) => {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
-  const [message, setMessage] = useState('');
-  const [type, setType] = useState<'info' | 'success' | 'error'>('info');
 
   useEffect(() => {
-    if (error) {
-      setMessage(error);
-      setType('error');
-      setVisible(true);
-      const timer = setTimeout(() => setVisible(false), 5000);
-      return () => clearTimeout(timer);
+    let isMounted = true;
+    
+    // We defer the visibility update slightly to avoid synchronous setState during effect evaluation
+    const initialTimer = setTimeout(() => {
+      if (isMounted) {
+        if (error || isSaving || isLoading || lastSaved) {
+          setVisible(true);
+        } else {
+          setVisible(false);
+        }
+      }
+    }, 0);
+    
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+    
+    if (error || isSaving || isLoading || lastSaved) {
+      let timeout = 0;
+      if (error) {
+        timeout = 5000;
+      } else if (lastSaved) {
+        timeout = 3000;
+      }
+      
+      if (timeout > 0) {
+        timeoutTimer = setTimeout(() => {
+          if (isMounted) setVisible(false);
+        }, timeout);
+      }
     }
-
-    if (isSaving) {
-      setMessage(t('persistence.savingGraph'));
-      setType('info');
-      setVisible(true);
-    } else if (isLoading) {
-      setMessage(t('persistence.loadingGraph'));
-      setType('info');
-      setVisible(true);
-    } else if (lastSaved) {
-      setMessage(t('persistence.graphSaved'));
-      setType('success');
-      setVisible(true);
-      const timer = setTimeout(() => setVisible(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, isSaving, lastSaved, error, t]);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(initialTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+    };
+  }, [isLoading, isSaving, lastSaved, error]);
 
   if (!visible) return null;
+
+  let message = '';
+  let type: 'info' | 'success' | 'error' = 'info';
+
+  if (error) {
+    message = error;
+    type = 'error';
+  } else if (isSaving) {
+    message = t('persistence.savingGraph');
+    type = 'info';
+  } else if (isLoading) {
+    message = t('persistence.loadingGraph');
+    type = 'info';
+  } else if (lastSaved) {
+    message = t('persistence.graphSaved');
+    type = 'success';
+  }
 
   const bgColors = {
     info: 'bg-blue-500/90',
@@ -87,3 +114,5 @@ export const PersistenceStatus: React.FC<PersistenceStatusProps> = ({
     </div>
   );
 };
+
+export default PersistenceStatus;

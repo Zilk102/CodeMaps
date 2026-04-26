@@ -23,6 +23,21 @@ const SECRET_FILE_RE = /\.(env|pem|key|p12|pfx|crt|cert)$/i;
 const SENSITIVE_NAME_RE =
   /(secret|token|password|passwd|credential|private[-_]?key|access[-_]?key)/i;
 const INFRA_FILE_RE = /(dockerfile|docker-compose|compose\.ya?ml|k8s|helm|terraform|\.tf$)/i;
+const RAW_CONTENT_RULES: Array<{
+  ruleId: string;
+  severity: SecurityFinding['severity'];
+  pattern: RegExp;
+  message: string;
+}> = [
+  {
+    ruleId: 'hardcoded_secret',
+    severity: 'high',
+    pattern: /\b(?:api[_-]?key|secret|token|password)\b\s*[:=]\s*['"`][^'"`\s]{8,}['"`]/i,
+    message:
+      'Looks like a hardcoded credential. Move the secret to environment variables and secret management.',
+  },
+];
+
 const SANITIZED_CONTENT_RULES: Array<{
   ruleId: string;
   severity: SecurityFinding['severity'];
@@ -49,13 +64,6 @@ const SANITIZED_CONTENT_RULES: Array<{
     pattern: /\b(?:exec|execSync|spawn|spawnSync)\s*\(/,
     message:
       'Shell/process execution API found. Check sandboxing, argument validation, and blast radius.',
-  },
-  {
-    ruleId: 'hardcoded_secret',
-    severity: 'high',
-    pattern: /\b(?:api[_-]?key|secret|token|password)\b\s*[:=]\s*['"`][^'"`\s]{8,}['"`]/i,
-    message:
-      'Looks like a hardcoded credential. Move the secret to environment variables and secret management.',
   },
 ];
 
@@ -122,6 +130,17 @@ export class SecurityScanner {
 
         for (const rule of SANITIZED_CONTENT_RULES) {
           if (rule.pattern.test(sanitizedContent)) {
+            findings.push({
+              ruleId: rule.ruleId,
+              severity: rule.severity,
+              nodeId: node.id,
+              message: rule.message,
+            });
+          }
+        }
+
+        for (const rule of RAW_CONTENT_RULES) {
+          if (rule.pattern.test(content)) {
             findings.push({
               ruleId: rule.ruleId,
               severity: rule.severity,

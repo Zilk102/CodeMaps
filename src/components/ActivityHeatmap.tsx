@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface FileChurn {
@@ -53,8 +53,12 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
       } else {
         throw new Error('Activity heatmap not available');
       }
-    } catch (err: any) {
-      setError(err.message || t('activityHeatmap.error'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || t('activityHeatmap.error'));
+      } else {
+        setError(t('activityHeatmap.error'));
+      }
     } finally {
       setIsLoading(false);
     }

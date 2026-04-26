@@ -19,11 +19,13 @@ const UpdateNotification = React.lazy(() =>
 const DragDropZone = React.lazy(() =>
   import('./components/DragDropZone').then((m) => ({ default: m.default }))
 );
+const ToolsPanel = React.lazy(() =>
+  import('./components/ToolsPanel').then((m) => ({ default: m.ToolsPanel }))
+);
 
 import TitleBar from './components/TitleBar';
 import LanguageSwitcher from './components/LanguageSwitcher';
-import { PersistenceStatus } from './components/PersistenceStatus';
-import { PersistenceSettings } from './components/PersistenceSettings';
+import PersistenceStatus from './components/PersistenceStatus';
 import { useStore } from './store/useStore';
 
 const LazyFallback: React.FC = () => {
@@ -53,6 +55,7 @@ const App: React.FC = () => {
   const dragCounter = useRef(0);
 
   const graphData = useStore((state) => state.graphData);
+  const isToolsPanelOpen = useStore((state) => state.isToolsPanelOpen);
   const initializeWatcher = useStore((state) => state.initializeWatcher);
   const initializeWebSocket = useStore((state) => state.initializeWebSocket);
   const parsingProgress = useStore((state) => state.parsingProgress);
@@ -229,6 +232,13 @@ const App: React.FC = () => {
             {graphData ? <GraphView /> : <RecentProjects />}
           </Suspense>
         </div>
+
+        {/* Right Panel (Tools) */}
+        {graphData && isToolsPanelOpen && (
+          <Suspense fallback={<LazyFallback />}>
+            <ToolsPanel projectPath={graphData.projectRoot} />
+          </Suspense>
+        )}
       </div>
 
       {/* Drag & Drop Overlay */}

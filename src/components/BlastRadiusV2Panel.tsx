@@ -5,12 +5,19 @@ interface BlastRadiusV2PanelProps {
   projectPath: string;
 }
 
+interface BlastRadiusResult {
+  totalAffected: number;
+  directDependencies: unknown[];
+  transitiveDependencies: unknown[];
+  riskPaths: string[][];
+}
+
 export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const [nodeId, setNodeId] = useState('');
   const [maxDepth, setMaxDepth] = useState(5);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<BlastRadiusResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleCalculate = async () => {
@@ -23,15 +30,19 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
       if (window.api?.calculateBlastRadius) {
         const response = await window.api.calculateBlastRadius(projectPath, nodeId, maxDepth);
         if (response.success && response.data) {
-          setResult(response.data);
+          setResult(response.data as BlastRadiusResult);
         } else {
           throw new Error(response.error || 'Unknown error');
         }
       } else {
         throw new Error('Blast Radius v2 not available');
       }
-    } catch (err: any) {
-      setError(err.message || t('blastRadius.error'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || t('blastRadius.error'));
+      } else {
+        setError(t('blastRadius.error'));
+      }
     } finally {
       setIsCalculating(false);
     }

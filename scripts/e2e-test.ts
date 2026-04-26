@@ -1,29 +1,31 @@
-import { KuzuGraphService } from './electron/services/KuzuGraphService';
-import { KuzuIntegration } from './electron/services/KuzuIntegration';
-
-// Simulate graph data from analyzer
-const mockGraphData = {
-  projectRoot: '/tmp/test-project',
-  nodes: [
-    { id: 'src/App.tsx', label: 'App.tsx', group: 1, type: 'file', churn: 5 },
-    { id: 'src/utils.ts', label: 'utils.ts', group: 1, type: 'file', churn: 3 },
-    { id: 'src/App', label: 'App', group: 2, type: 'function', churn: 2 },
-    { id: 'src/helper', label: 'helper', group: 2, type: 'function', churn: 1 }
-  ],
-  links: [
-    { source: 'src/App.tsx', target: 'src/utils.ts', value: 1, type: 'import' },
-    { source: 'src/App', target: 'src/helper', value: 1, type: 'call' }
-  ]
-};
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { KuzuGraphService } from '../electron/services/KuzuGraphService.js';
+import { KuzuIntegration } from '../electron/services/KuzuIntegration.js';
+import { OracleService } from '../electron/oracle.js';
 
 async function runTests() {
   console.log('🧪 Starting CodeMaps End-to-End Tests\n');
   let passed = 0;
   let failed = 0;
 
+  const testProjectDir = path.join(os.tmpdir(), 'codemaps-test-project');
+  if (fs.existsSync(testProjectDir)) {
+    fs.rmSync(testProjectDir, { recursive: true, force: true });
+  }
+  fs.mkdirSync(testProjectDir, { recursive: true });
+  fs.writeFileSync(path.join(testProjectDir, 'utils.ts'), 'export function helper() {}');
+  fs.writeFileSync(path.join(testProjectDir, 'App.tsx'), 'import { helper } from "./utils";\nhelper();');
+
+  const oracle = new OracleService();
+  console.log('⏳ Analyzing real project directory...');
+  const realGraphData = await oracle.analyzeProject(testProjectDir);
+  console.log('✅ Project analyzed. Nodes:', realGraphData.nodes.length);
+
   // Test 1: KuzuGraphService initialization
   try {
-    const service = new KuzuGraphService('/tmp/test-project');
+    const service = new KuzuGraphService(testProjectDir);
     await service.init();
     console.log('✅ Test 1: KuzuGraphService initialized');
     passed++;
@@ -35,9 +37,9 @@ async function runTests() {
 
   // Test 2: Store graph data
   try {
-    const integration = new KuzuIntegration('/tmp/test-project');
+    const integration = new KuzuIntegration(testProjectDir);
     await integration.init();
-    await integration.storeGraph(mockGraphData);
+    await integration.storeGraph(realGraphData);
     const stats = await integration.getStats();
     console.log('✅ Test 2: Graph stored -', JSON.stringify(stats));
     passed++;
@@ -49,7 +51,7 @@ async function runTests() {
 
   // Test 3: Query nodes
   try {
-    const service = new KuzuGraphService('/tmp/test-project');
+    const service = new KuzuGraphService(testProjectDir);
     await service.init();
     const nodes = await service.queryNodes('file');
     console.log('✅ Test 3: Query nodes -', nodes.length, 'files found');
@@ -62,9 +64,9 @@ async function runTests() {
 
   // Test 4: Query neighbors (blast radius)
   try {
-    const service = new KuzuGraphService('/tmp/test-project');
+    const service = new KuzuGraphService(testProjectDir);
     await service.init();
-    const neighbors = await service.queryNeighbors('src/App.tsx');
+    const neighbors = await service.queryNeighbors('App.tsx');
     console.log('✅ Test 4: Blast radius -', neighbors.length, 'connected nodes');
     passed++;
     await service.close();
@@ -75,7 +77,7 @@ async function runTests() {
 
   // Test 5: Cypher query
   try {
-    const service = new KuzuGraphService('/tmp/test-project');
+    const service = new KuzuGraphService(testProjectDir);
     await service.init();
     const result = await service.query('MATCH (n:FileNode) RETURN n.id, n.label');
     const rows = await result.getAll();
@@ -89,12 +91,12 @@ async function runTests() {
 
   // Test 6: Persistence (close and reopen)
   try {
-    const service1 = new KuzuGraphService('/tmp/test-project');
+    const service1 = new KuzuGraphService(testProjectDir);
     await service1.init();
     const stats1 = await service1.getStats();
     await service1.close();
 
-    const service2 = new KuzuGraphService('/tmp/test-project');
+    const service2 = new KuzuGraphService(testProjectDir);
     await service2.init();
     const stats2 = await service2.getStats();
     await service2.close();

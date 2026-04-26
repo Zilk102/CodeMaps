@@ -1,5 +1,4 @@
 import { execSync } from 'child_process';
-import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
 
 export interface PRImpactResult {

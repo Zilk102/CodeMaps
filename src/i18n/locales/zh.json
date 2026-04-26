@@ -78,8 +78,23 @@
       },
       "search_signatures": {
         "title": "搜索签名",
-        "description": "跨索引的源文件搜索类似声明的代码签名。",
-        "recommendedWhen": "在寻找特定函数或类定义时。"
+        "description": "在索引的源文件中搜索类似声明的代码签名。",
+        "recommendedWhen": "查找特定的函数或类定义时。"
+      },
+      "analyze_pr_impact": {
+        "title": "PR 影响",
+        "description": "分析 Pull Request（或分支比较）的架构爆炸半径。",
+        "recommendedWhen": "审查 PR 或在合并前评估分支影响时。"
+      },
+      "analyze_activity_heatmap": {
+        "title": "活动热图",
+        "description": "生成 git 变更热图以识别频繁修改的文件（热点）。",
+        "recommendedWhen": "寻找技术债务或不稳定代码区域时。"
+      },
+      "calculate_blast_radius_v2": {
+        "title": "爆炸半径 V2",
+        "description": "使用 KuzuDB 返回高级直接和间接影响分析",
+        "recommendedWhen": "需要深层间接依赖分析时。"
       },
       "prepare_project_context": {
         "title": "准备项目上下文",
@@ -187,7 +202,9 @@
     "opening": "打开中..."
   },
   "app": {
-    "loading": "加载中…"
+    "loading": "加载中…",
+    "indexing_files": "Indexing files...",
+    "indexing_complete": "Indexing complete"
   },
   "languageSwitcher": {
     "language": "语言"
@@ -265,9 +282,22 @@
     "error": "计算失败",
     "nodeIdPlaceholder": "输入节点 ID...",
     "depth": "深度",
-    "totalAffected": "总共影响",
+    "totalAffected": "受影响总数",
     "direct": "直接",
-    "transitive": "传递",
+    "transitive": "间接",
     "riskPaths": "风险路径"
+  },
+  "tools": {
+    "blastRadius": "爆炸半径",
+    "heatmap": "活动热图",
+    "prImpact": "PR 影响"
+  },
+  "updateNotification": {
+    "updateAvailable": "Update available",
+    "downloadingUpdate": "Downloading update {{version}}… {{progress}}%",
+    "updateReady": "Update <1>v{{version}}</1> is ready to install!",
+    "later": "Later",
+    "restart": "Restart",
+    "checkingForUpdates": "Checking for updates…"
   }
 }

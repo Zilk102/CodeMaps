@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface PRImpactPanelProps {
   projectPath: string;
-  onAnalyze?: (baseBranch: string, headBranch: string) => void;
+}
+
+interface PRImpactResult {
+  riskScore: string;
+  changedFiles: Record<string, unknown>[];
+  affectedNodes: unknown[];
+  blastRadius: number;
+  recommendations: string[];
 }
 
 export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
   projectPath,
-  onAnalyze,
 }) => {
   const { t } = useTranslation();
   const [baseBranch, setBaseBranch] = useState('main');
   const [headBranch, setHeadBranch] = useState('HEAD');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<PRImpactResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
@@ -23,13 +29,21 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
     
     try {
       if (window.api?.analyzePRImpact) {
-        const data = await window.api.analyzePRImpact(projectPath, baseBranch, headBranch);
-        setResult(data);
+        const response = await window.api.analyzePRImpact(projectPath, baseBranch, headBranch);
+        if (response.success && response.data) {
+          setResult(response.data as PRImpactResult);
+        } else {
+          throw new Error(response.error || 'Unknown error');
+        }
       } else {
         throw new Error('PR Impact analysis not available');
       }
-    } catch (err: any) {
-      setError(err.message || t('prImpact.error'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || t('prImpact.error'));
+      } else {
+        setError(t('prImpact.error'));
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -152,7 +166,7 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
               {t('prImpact.changedFilesList')}
             </h4>
             <ul className="space-y-1">
-              {result.changedFiles.map((file: any, index: number) => (
+              {result.changedFiles.map((file: Record<string, unknown>, index: number) => (
                 <li key={index} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${
@@ -160,10 +174,10 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
                       file.status === 'deleted' ? 'bg-red-500' :
                       'bg-yellow-500'
                     }`} />
-                    <span className="text-gray-700 dark:text-gray-300">{file.path}</span>
+                    <span className="text-gray-700 dark:text-gray-300">{file.path as string}</span>
                   </span>
                   <span className="text-gray-500 text-xs">
-                    +{file.additions} -{file.deletions}
+                    +{(file.additions as number)} -{(file.deletions as number)}
                   </span>
                 </li>
               ))}
