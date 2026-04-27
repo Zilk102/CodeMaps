@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 
 :root {
   --bg0: #0a0a0c;
@@ -58,7 +58,7 @@ html {
   white-space: nowrap;
   min-height: 32px;
   transition: all 0.2s ease;
-  webkitappregion: no-drag;
+  -webkit-app-region: no-drag;
 }
 
 .btn-glass:hover {

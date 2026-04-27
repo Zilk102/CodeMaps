@@ -2,11 +2,17 @@ export function getIDBStorage(dbName: string, storeName: string) {
   // Fallback to 'readonly' and 'readwrite' string literals if IDBTransactionMode is not available globally
 type TransactionMode = 'readonly' | 'readwrite';
 
-const initDB = (): Promise<IDBDatabase> => {
+let dbInstance: IDBDatabase | null = null;
+
+  const initDB = (): Promise<IDBDatabase> => {
+    if (dbInstance) return Promise.resolve(dbInstance);
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(dbName, 1);
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        dbInstance = request.result;
+        resolve(dbInstance);
+      };
       request.onupgradeneeded = () => {
         request.result.createObjectStore(storeName);
       };
