@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../store/useStore';
+import { useGraphStore, useUIStore } from '../store/useStore';
 
 interface McpStatusToolDescriptor {
   name: string;
@@ -37,9 +37,8 @@ type SettingsTab = 'overview' | 'tools' | 'resources' | 'clients' | 'agent-skill
 
 export const McpSettingsModal: React.FC = () => {
   const { t } = useTranslation();
-  const isOpen = useStore(state => state.isMcpSettingsOpen);
-  const setOpen = useStore(state => state.setMcpSettingsOpen);
-  const graphData = useStore(state => state.graphData);
+  const { isMcpSettingsOpen: isOpen, setMcpSettingsOpen: setOpen } = useUIStore();
+  const { graphData } = useGraphStore();
   const [status, setStatus] = useState<McpStatus | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SettingsTab>('overview');

@@ -1,5 +1,9 @@
 import { GraphData, oracleStore } from '../store';
 import { oracle } from '../oracle';
+import * as path from 'path';
+import pLimit from 'p-limit';
+
+const analyzeLimit = pLimit(1); // Only 1 analyzeProject at a time to prevent OOM
 
 export const normalizePath = (value?: string) => value?.replace(/\\/g, '/');
 
@@ -14,22 +18,44 @@ export const getGraphCountsByType = (graph: GraphData) => {
   }, {});
 };
 
-export const createGraphSummary = (graph: GraphData) => ({
-  projectRoot: graph.projectRoot,
-  nodesCount: graph.nodes.length,
-  linksCount: graph.links.length,
-  nodeTypes: getGraphCountsByType(graph),
-});
+export const createGraphSummary = (graph: GraphData) => {
+  const nodesCount = graph.nodes.length;
+  const linksCount = graph.links.length;
+  const nodeTypes = getGraphCountsByType(graph);
+  
+  return {
+    projectRoot: graph.projectRoot,
+    nodesCount,
+    linksCount,
+    nodeTypes,
+  };
+};
 
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
   const state = oracleStore.getState();
-  const targetPath = normalizePath(projectPath) || state.baseDir || normalizePath(process.cwd())!;
+  const SAFE_ROOT = process.env.CODEMAPS_ROOT || process.cwd();
+  
+  if (projectPath) {
+    const resolved = path.resolve(SAFE_ROOT, projectPath);
+    if (!resolved.startsWith(SAFE_ROOT)) {
+      throw new Error('Path traversal detected');
+    }
+  }
+
+  const targetPath = normalizePath(projectPath) || state.baseDir || normalizePath(SAFE_ROOT)!;
 
   if (
     !state.baseDir ||
     (projectPath && normalizePath(state.baseDir) !== normalizePath(projectPath))
   ) {
-    return oracle.analyzeProject(targetPath);
+    return analyzeLimit(async () => {
+      // Create a timeout promise
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('oracle.analyzeProject timed out')), 60000)
+      );
+      // Race the analyzeProject call against the timeout
+      return Promise.race([oracle.analyzeProject(targetPath), timeout]);
+    });
   }
 
   return oracle.getGraph();
@@ -55,7 +81,10 @@ export const searchGraph = (graph: GraphData, query: string, type?: string, limi
     .slice(0, limit);
 };
 
-export const createTextContent = (payload: unknown) => JSON.stringify(payload, null, 2);
+export const createTextContent = (payload: unknown) => {
+  if (typeof payload === 'string') return payload;
+  return `\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+};
 
 export const createAgentPlaybook = () => ({
   version: 4,

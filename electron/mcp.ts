@@ -17,11 +17,13 @@ import { PatternDetectionAnalyzer } from './analysis/PatternDetectionAnalyzer';
 import { SecurityScanner } from './analysis/SecurityScanner';
 import { SignatureSearchService } from './analysis/SignatureSearchService';
 import { ArchitectureInsightService } from './analysis/ArchitectureInsightService';
-import { AgentContextService } from './analysis/AgentContextService';
+import { ChangeContextService } from './analysis/ChangeContextService';
+import { ReviewContextService } from './analysis/ReviewContextService';
 import { ProjectInsightService } from './analysis/ProjectInsightService';
 import { TaskIntelligenceService } from './analysis/TaskIntelligenceService';
 import { ChangeCampaignService } from './analysis/ChangeCampaignService';
 import { getGraphSnapshot, ensureGraphLoaded, getNodeDependencies } from './mcp/utils';
+import { ServiceRegistry } from './mcp/ServiceRegistry';
 
 import log from 'electron-log/main';
 
@@ -262,27 +264,31 @@ const createMcpServer = () => {
   const securityScanner = new SecurityScanner();
   const signatureSearchService = new SignatureSearchService();
   const architectureInsightService = new ArchitectureInsightService();
-  const agentContextService = new AgentContextService();
+  const changeContextService = new ChangeContextService();
+  const reviewContextService = new ReviewContextService();
   const projectInsightService = new ProjectInsightService();
   const taskIntelligenceService = new TaskIntelligenceService(
     projectInsightService,
-    agentContextService
+    changeContextService,
+    reviewContextService
   );
   const changeCampaignService = new ChangeCampaignService();
 
+  const registry = ServiceRegistry.getInstance();
+  registry.register('blastRadiusAnalyzer', blastRadiusAnalyzer);
+  registry.register('healthScoreAnalyzer', healthScoreAnalyzer);
+  registry.register('patternDetectionAnalyzer', patternDetectionAnalyzer);
+  registry.register('securityScanner', securityScanner);
+  registry.register('signatureSearchService', signatureSearchService);
+  registry.register('architectureInsightService', architectureInsightService);
+  registry.register('changeContextService', changeContextService);
+  registry.register('reviewContextService', reviewContextService);
+  registry.register('projectInsightService', projectInsightService);
+  registry.register('taskIntelligenceService', taskIntelligenceService);
+  registry.register('changeCampaignService', changeCampaignService);
+
   registerResources(server, projectInsightService);
-  registerTools(server, {
-    blastRadiusAnalyzer,
-    healthScoreAnalyzer,
-    patternDetectionAnalyzer,
-    securityScanner,
-    signatureSearchService,
-    architectureInsightService,
-    agentContextService,
-    projectInsightService,
-    taskIntelligenceService,
-    changeCampaignService,
-  });
+  registerTools(server, registry);
 
   return server;
 };
@@ -479,6 +485,20 @@ export function setupMcpServer() {
     for (const client of clients) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
+      }
+    }
+
+    for (const sessionId in transports) {
+      const record = transports[sessionId];
+      try {
+        record.server.server.notification({
+          method: 'notifications/resources/list_changed'
+        });
+        record.server.server.notification({
+          method: 'notifications/tools/list_changed'
+        });
+      } catch (e) {
+        log.error(`Failed to send MCP list_changed notification to session ${sessionId}:`, e);
       }
     }
   });

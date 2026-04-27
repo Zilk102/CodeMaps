@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { ElectronAPI } from '../src/types/electron';
 
-contextBridge.exposeInMainWorld('api', {
+const api: ElectronAPI = {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
   analyzeProject: (projectPath?: string) => ipcRenderer.invoke('analyze-project', projectPath),
@@ -8,17 +9,17 @@ contextBridge.exposeInMainWorld('api', {
   minimize: () => ipcRenderer.invoke('window-minimize'),
   maximize: () => ipcRenderer.invoke('window-maximize'),
   close: () => ipcRenderer.invoke('window-close'),
-  onGraphUpdate: (callback: (data: any) => void) => {
+  onGraphUpdate: (callback) => {
     ipcRenderer.on('graph-updated', (_event, data) => callback(data));
   },
-  onParsingProgress: (callback: (data: any) => void) => {
+  onParsingProgress: (callback) => {
     ipcRenderer.on('parsing-progress', (_event, data) => callback(data));
   },
   // Updater IPC
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   installUpdate: () => ipcRenderer.invoke('updater:install'),
   getUpdaterState: () => ipcRenderer.invoke('updater:get-state'),
-  onUpdaterStateChange: (callback: (state: any) => void) => {
+  onUpdaterStateChange: (callback) => {
     ipcRenderer.on('updater:state-changed', (_event, state) => callback(state));
   },
   removeUpdaterListener: () => {
@@ -31,19 +32,21 @@ contextBridge.exposeInMainWorld('api', {
   openRecentProject: (projectPath: string) => ipcRenderer.invoke('open-recent-project', projectPath),
 
   // Graph Persistence
-  saveGraphToKuzu: (projectPath: string, graphData: any) => ipcRenderer.invoke('save-graph-to-kuzu', projectPath, graphData),
-  loadGraphFromKuzu: (projectPath: string) => ipcRenderer.invoke('load-graph-from-kuzu', projectPath),
-  clearGraphCache: (projectPath: string) => ipcRenderer.invoke('clear-graph-cache', projectPath),
+  saveGraphToKuzu: (projectPath, graphData) => ipcRenderer.invoke('save-graph-to-kuzu', projectPath, graphData),
+  loadGraphFromKuzu: (projectPath) => ipcRenderer.invoke('load-graph-from-kuzu', projectPath),
+  clearGraphCache: (projectPath) => ipcRenderer.invoke('clear-graph-cache', projectPath),
 
   // PR Impact Analysis
-  analyzePRImpact: (projectPath: string, baseBranch: string, headBranch: string) =>
+  analyzePRImpact: (projectPath, baseBranch, headBranch) =>
     ipcRenderer.invoke('analyze-pr-impact', projectPath, baseBranch, headBranch),
 
   // Blast Radius v2
-  calculateBlastRadius: (projectPath: string, nodeId: string, maxDepth?: number) =>
+  calculateBlastRadius: (projectPath, nodeId, maxDepth) =>
     ipcRenderer.invoke('calculate-blast-radius', projectPath, nodeId, maxDepth),
 
   // Activity Heatmap
-  analyzeActivityHeatmap: (projectPath: string, since?: string, until?: string) =>
+  analyzeActivityHeatmap: (projectPath, since, until) =>
     ipcRenderer.invoke('analyze-activity-heatmap', projectPath, since, until),
-});
+};
+
+contextBridge.exposeInMainWorld('api', api);

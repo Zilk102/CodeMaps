@@ -26,10 +26,21 @@ log.transports.console.level = 'debug';
 // Crash Reporting (Global error handlers)
 process.on('uncaughtException', (error) => {
   log.error('Uncaught Exception:', error);
+  dialog.showErrorBox(
+    'Critical Application Error',
+    `A critical error occurred and CodeMaps may become unstable.\n\nError: ${error.message || error}\n\nPlease restart the application if you experience issues.`
+  );
+  // Sentry.captureException(error); // Placeholder for Sentry/Bugsnag
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   log.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  const message = reason instanceof Error ? reason.message : String(reason);
+  dialog.showErrorBox(
+    'Background Task Failed',
+    `An unexpected error occurred in a background process.\n\nError: ${message}`
+  );
+  // Sentry.captureException(reason); // Placeholder for Sentry/Bugsnag
 });
 
 let mainWindow: BrowserWindow | null = null;

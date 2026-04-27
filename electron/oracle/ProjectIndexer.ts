@@ -33,19 +33,31 @@ export class ProjectIndexer {
     return detectProjectLanguages(filePaths.map((filePath) => normalizePath(filePath)));
   }
 
-  async reindexFile(filePath: string, baseDir: string, languageProfile: ProjectLanguageProfile) {
+  async reindexFile(filePath: string, baseDir: string, languageProfile: ProjectLanguageProfile, retryCount = 0): Promise<void> {
     const normalizedPath = normalizePath(filePath);
     const churn = oracleStore.getState().churnMap.get(normalizedPath) || 1;
-    const result = await this.pool.run({
-      filePath: normalizedPath,
-      activeLanguageIds: languageProfile.activeLanguageIds,
-      baseDir,
-    });
+    
+    try {
+      const result = await this.pool.run({
+        filePath: normalizedPath,
+        activeLanguageIds: languageProfile.activeLanguageIds,
+        baseDir,
+      });
 
-    // Always clear the previous file-level graph artifacts before applying a fresh parse.
-    // This prevents stale symbol nodes and import links from surviving cache restore + reindex.
-    this.graphBuilder.removeFileArtifacts(normalizedPath);
-    this.graphBuilder.applyParsedFile(normalizedPath, baseDir, churn, result);
+      // Always clear the previous file-level graph artifacts before applying a fresh parse.
+      // This prevents stale symbol nodes and import links from surviving cache restore + reindex.
+      this.graphBuilder.removeFileArtifacts(normalizedPath);
+      this.graphBuilder.applyParsedFile(normalizedPath, baseDir, churn, result);
+    } catch (error) {
+      if (retryCount < 2) {
+        console.warn(`[ProjectIndexer] Retrying parse for ${filePath} (attempt ${retryCount + 1})`, error);
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+        return this.reindexFile(filePath, baseDir, languageProfile, retryCount + 1);
+      }
+      console.error(`[ProjectIndexer] Failed to parse ${filePath} after ${retryCount} retries`, error);
+      // Optional: Add empty file node to prevent graph break
+      this.graphBuilder.removeFileArtifacts(normalizedPath);
+    }
   }
 
   async indexProject(
