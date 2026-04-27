@@ -141,7 +141,10 @@ export const GraphView: React.FC = () => {
           maxScale={5}
           centerOnInit={true}
           limitToBounds={false}
-          wheel={{ step: 0.1 }}
+          smooth={false}
+          wheel={{ step: 0.045 }}
+          pinch={{ step: 4 }}
+          zoomAnimation={{ size: 0.18, animationTime: 160, animationType: 'easeOut' }}
         >
           <TransformComponent wrapperClass="w-full h-full">
             {layoutData && (

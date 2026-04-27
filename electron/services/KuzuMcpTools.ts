@@ -68,7 +68,9 @@ export class KuzuMcpTools {
     const types: Record<string, number> = {};
     const typeRows = await typeResult.getAll();
     for (const row of typeRows) {
-      types[row.type] = row.count;
+      const type = String(row.type ?? 'unknown');
+      const count = Number(row.count ?? 0);
+      types[type] = count;
     }
 
     return { ...stats, types };

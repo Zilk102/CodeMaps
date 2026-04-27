@@ -1,10 +1,4 @@
 {
-  "titleBar": {
-    "openProject": "Open Project",
-    "openFolder": "Open Project",
-    "closeProject": "Close Project",
-    "mcpSettings": "MCP Settings"
-  },
   "graphView": {
     "recalculatingGraph": "Recalculating graph...",
     "mode": "Mode",
@@ -208,6 +202,19 @@
     "later": "Later",
     "restart": "Restart",
     "checkingForUpdates": "Checking for updates…"
+  },
+  "titleBar": {
+    "openProject": "Open Project",
+    "openFolder": "Open Project",
+    "closeProject": "Close Project",
+    "mcpSettings": "MCP Settings",
+    "tools": "Tools"
+  },
+  "indexing": {
+    "status": {
+      "indexing_files": "Indexing files...",
+      "indexing_complete": "Indexing complete"
+    }
   },
   "app": {
     "loading": "Loading…",

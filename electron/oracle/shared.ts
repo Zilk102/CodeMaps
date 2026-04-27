@@ -52,6 +52,7 @@ export const ORACLE_IGNORE_GLOBS = [
   '**/*.bin',
   '**/*.pyc',
   '**/*.class',
+  '**/*.asar',
 ];
 
 export const normalizePath = (value: string) => value.replace(/\\/g, '/');
@@ -67,7 +68,8 @@ export const shouldIgnorePath = (filePath: string) => {
     normalized.includes('/release/') ||
     normalized.includes('/build/') ||
     normalized.includes('/coverage/') ||
-    normalized.includes('/out/')
+    normalized.includes('/out/') ||
+    normalized.endsWith('.asar')
   );
 };
 

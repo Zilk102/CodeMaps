@@ -1,4 +1,4 @@
-import kuzu from 'kuzu-wasm';
+import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -21,142 +21,298 @@ export interface GraphEdge {
   meta?: Record<string, any>;
 }
 
+type KuzuAction =
+  | 'init'
+  | 'addNode'
+  | 'addEdge'
+  | 'query'
+  | 'queryNodes'
+  | 'queryNeighbors'
+  | 'getStats'
+  | 'clear'
+  | 'close';
+
+interface KuzuRequest {
+  id: number;
+  action: KuzuAction;
+  dbPath: string;
+  dbDir: string;
+  params?: Record<string, unknown>;
+}
+
+interface KuzuResponse {
+  id: number;
+  ok: boolean;
+  result?: unknown;
+  error?: {
+    name: string;
+    message: string;
+    stack?: string;
+  };
+}
+
+class SerializableQueryResult {
+  constructor(private readonly rows: Record<string, unknown>[]) {}
+
+  async getAll(): Promise<Record<string, unknown>[]> {
+    return this.rows;
+  }
+}
+
+class KuzuProcessManager {
+  private static instance: KuzuProcessManager | null = null;
+
+  private child: ChildProcess | null = null;
+  private nextRequestId = 1;
+  private readonly pending = new Map<
+    number,
+    {
+      resolve: (value: unknown) => void;
+      reject: (reason?: unknown) => void;
+      timeout: NodeJS.Timeout;
+    }
+  >();
+
+  static getInstance(): KuzuProcessManager {
+    if (!this.instance) {
+      this.instance = new KuzuProcessManager();
+    }
+    return this.instance;
+  }
+
+  private constructor() {
+    process.once('exit', () => {
+      this.dispose();
+    });
+  }
+
+  async request<T>(action: KuzuAction, dbPath: string, dbDir: string, params?: Record<string, unknown>): Promise<T> {
+    const child = this.ensureChild();
+    const id = this.nextRequestId++;
+
+    return new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Kuzu background worker timeout for action "${action}"`));
+      }, 120_000);
+
+      this.pending.set(id, {
+        resolve: (value) => resolve(value as T),
+        reject,
+        timeout,
+      });
+
+      const request: KuzuRequest = {
+        id,
+        action,
+        dbPath,
+        dbDir,
+        params,
+      };
+
+      child.send(request, (error) => {
+        if (!error) {
+          return;
+        }
+
+        const entry = this.pending.get(id);
+        if (!entry) {
+          return;
+        }
+
+        clearTimeout(entry.timeout);
+        this.pending.delete(id);
+        reject(error);
+      });
+    });
+  }
+
+  dispose(): void {
+    if (this.child) {
+      this.child.kill();
+      this.child = null;
+    }
+  }
+
+  private ensureChild(): ChildProcess {
+    if (this.child && this.child.connected) {
+      return this.child;
+    }
+
+    const workerScript = path.join(__dirname, 'KuzuNativeProcess.js');
+    const child = fork(workerScript, [], {
+      execPath: this.resolveNodeExecutable(),
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
+
+    child.on('message', (message) => {
+      this.handleMessage(message);
+    });
+
+    child.on('exit', (code, signal) => {
+      const reason =
+        code !== null
+          ? `Kuzu background worker exited with code ${code}`
+          : `Kuzu background worker exited with signal ${signal ?? 'unknown'}`;
+      this.rejectAllPending(new Error(reason));
+      this.child = null;
+    });
+
+    child.on('error', (error) => {
+      this.rejectAllPending(error);
+      this.child = null;
+    });
+
+    child.stdout?.on('data', (chunk: Buffer | string) => {
+      const text = chunk.toString().trim();
+      if (text) {
+        console.log(`[KuzuWorker] ${text}`);
+      }
+    });
+
+    child.stderr?.on('data', (chunk: Buffer | string) => {
+      const text = chunk.toString().trim();
+      if (text) {
+        console.error(`[KuzuWorker] ${text}`);
+      }
+    });
+
+    this.child = child;
+    return child;
+  }
+
+  private handleMessage(message: unknown): void {
+    if (!message || typeof message !== 'object') {
+      return;
+    }
+
+    const response = message as Partial<KuzuResponse>;
+    if (typeof response.id !== 'number' || typeof response.ok !== 'boolean') {
+      return;
+    }
+
+    const entry = this.pending.get(response.id);
+    if (!entry) {
+      return;
+    }
+
+    clearTimeout(entry.timeout);
+    this.pending.delete(response.id);
+
+    if (response.ok) {
+      entry.resolve(response.result);
+      return;
+    }
+
+    const errorMessage = response.error?.message ?? 'Unknown Kuzu worker error';
+    const error = new Error(errorMessage);
+    error.name = response.error?.name ?? 'KuzuWorkerError';
+    if (response.error?.stack) {
+      error.stack = response.error.stack;
+    }
+    entry.reject(error);
+  }
+
+  private rejectAllPending(error: Error): void {
+    for (const [id, entry] of this.pending.entries()) {
+      clearTimeout(entry.timeout);
+      entry.reject(error);
+      this.pending.delete(id);
+    }
+  }
+
+  private resolveNodeExecutable(): string {
+    const candidates = [
+      process.env.CODEMAPS_NODE_EXECUTABLE,
+      process.env.npm_node_execpath,
+      process.env.NODE,
+    ].filter((candidate): candidate is string => Boolean(candidate));
+
+    for (const candidate of candidates) {
+      if (candidate === 'node' || fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return 'node';
+  }
+}
+
 export class KuzuGraphService {
-  private db: any;
-  private conn: any;
+  private static readonly processManager = KuzuProcessManager.getInstance();
+
   private dbPath: string;
+  private dbDir: string;
   private initialized: boolean = false;
-  private available: boolean;
 
   constructor(projectPath?: string) {
-    this.available = true;
-    
-    // Always init dbPath
     if (projectPath) {
-      this.dbPath = path.join(projectPath, '.codemaps', 'graph.db');
-      const dir = path.dirname(this.dbPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      this.dbDir = path.join(projectPath, '.codemaps');
+      this.dbPath = path.join(this.dbDir, 'graph.db');
     } else {
-      this.dbPath = path.join(os.tmpdir(), 'codemaps-graph.db');
+      this.dbDir = path.join(os.tmpdir(), 'codemaps-graph');
+      this.dbPath = path.join(this.dbDir, 'graph.db');
+    }
+
+    if (!fs.existsSync(this.dbDir)) {
+      fs.mkdirSync(this.dbDir, { recursive: true });
     }
   }
 
   async init(): Promise<void> {
     if (this.initialized) return;
-
-    this.db = new kuzu.Database(this.dbPath);
-    this.conn = new kuzu.Connection(this.db);
-
-    try {
-      await this.conn.query(`
-        CREATE NODE TABLE FileNode (
-          id STRING PRIMARY KEY,
-          type STRING,
-          label STRING,
-          filePath STRING,
-          line INT64,
-          col INT64,
-          language STRING,
-          meta STRING
-        )
-      `);
-    } catch (e: any) {
-      if (!e.message?.includes('already exists')) throw e;
-    }
-
-    try {
-      await this.conn.query(`
-        CREATE REL TABLE FileEdge (
-          FROM FileNode TO FileNode,
-          type STRING,
-          meta STRING
-        )
-      `);
-    } catch (e: any) {
-      if (!e.message?.includes('already exists')) throw e;
-    }
-
+    await this.invoke<void>('init');
     this.initialized = true;
-    console.log('[KuzuGraph] Initialized at:', this.dbPath);
   }
 
   async addNode(node: GraphNode): Promise<void> {
     if (!this.initialized) await this.init();
-    const metaStr = JSON.stringify(node.meta || {}).replace(/'/g, "''");
-    const query = `
-      CREATE (n:FileNode {
-        id: '${node.id.replace(/'/g, "''")}',
-        type: '${node.type}',
-        label: '${node.label.replace(/'/g, "''")}',
-        filePath: '${node.filePath.replace(/'/g, "''")}',
-        line: ${node.line || 0},
-        col: ${node.column || 0},
-        language: '${(node.language || '').replace(/'/g, "''")}',
-        meta: '${metaStr}'
-      })
-    `;
-    await this.conn.query(query);
+    await this.invoke<void>('addNode', { node });
   }
 
   async addEdge(edge: GraphEdge): Promise<void> {
     if (!this.initialized) await this.init();
-    const metaStr = JSON.stringify(edge.meta || {}).replace(/'/g, "''");
-    const query = `
-      MATCH (a:FileNode {id: '${edge.sourceId.replace(/'/g, "''")}'}),
-            (b:FileNode {id: '${edge.targetId.replace(/'/g, "''")}'})
-      CREATE (a)-[:FileEdge {type: '${edge.type}', meta: '${metaStr}'}]->(b)
-    `;
-    await this.conn.query(query);
+    await this.invoke<void>('addEdge', { edge });
   }
 
   async queryNodes(type?: string, filePath?: string): Promise<any[]> {
     if (!this.initialized) await this.init();
-    let whereClause = '';
-    if (type) whereClause += ` WHERE n.type = '${type}'`;
-    if (filePath) whereClause += (whereClause ? ' AND' : ' WHERE') + ` n.filePath = '${filePath.replace(/'/g, "''")}'`;
-    const result = await this.conn.query(`MATCH (n:FileNode)${whereClause} RETURN n.id, n.type, n.label, n.filePath, n.line, n.language, n.meta`);
-    return result.getAll();
+    return this.invoke<any[]>('queryNodes', { type, filePath });
   }
 
   async queryNeighbors(nodeId: string): Promise<any[]> {
     if (!this.initialized) await this.init();
-    const safeId = nodeId.replace(/'/g, "''");
-    const result = await this.conn.query(`
-      MATCH (n:FileNode {id: '${safeId}'})-[r:FileEdge]->(m:FileNode)
-      RETURN m.id, m.type, m.label, m.filePath, r.type as edgeType
-      UNION
-      MATCH (n:FileNode {id: '${safeId}'})\u003c-[r:FileEdge]-(m:FileNode)
-      RETURN m.id, m.type, m.label, m.filePath, r.type as edgeType
-    `);
-    return result.getAll();
+    return this.invoke<any[]>('queryNeighbors', { nodeId });
   }
 
-  async query(cypherQuery: string): Promise<any> {
+  async query(cypherQuery: string): Promise<SerializableQueryResult> {
     if (!this.initialized) await this.init();
-    return this.conn.query(cypherQuery);
+    const rows = await this.invoke<Record<string, unknown>[]>('query', { query: cypherQuery });
+    return new SerializableQueryResult(rows);
   }
 
   async getStats(): Promise<{ nodes: number; edges: number }> {
     if (!this.initialized) await this.init();
-    const nodeResult = await this.conn.query('MATCH (n:FileNode) RETURN COUNT(n) as count');
-    const edgeResult = await this.conn.query('MATCH ()-[r:FileEdge]->() RETURN COUNT(r) as count');
-    const nodes = await nodeResult.getAll();
-    const edges = await edgeResult.getAll();
-    return { nodes: nodes[0]?.count || 0, edges: edges[0]?.count || 0 };
+    return this.invoke<{ nodes: number; edges: number }>('getStats');
   }
 
   async clear(): Promise<void> {
     if (!this.initialized) return;
-    await this.conn.query('MATCH ()-[r:FileEdge]->() DELETE r');
-    await this.conn.query('MATCH (n:FileNode) DELETE n');
+    await this.invoke<void>('clear');
   }
 
   async close(): Promise<void> {
-    if (this.conn) await this.conn.close();
-    if (this.db) await this.db.close();
+    if (!this.initialized) {
+      return;
+    }
+
+    await this.invoke<void>('close');
     this.initialized = false;
+  }
+
+  private async invoke<T>(action: KuzuAction, params?: Record<string, unknown>): Promise<T> {
+    return KuzuGraphService.processManager.request<T>(action, this.dbPath, this.dbDir, params);
   }
 }
 

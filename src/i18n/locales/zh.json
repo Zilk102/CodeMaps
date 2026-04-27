@@ -1,10 +1,4 @@
 {
-  "titleBar": {
-    "openProject": "打开项目",
-    "openFolder": "打开项目",
-    "closeProject": "关闭项目",
-    "mcpSettings": "MCP 设置"
-  },
   "graphView": {
     "recalculatingGraph": "重新计算图形...",
     "mode": "模式",
@@ -200,6 +194,19 @@
     "noProjects": "没有最近的项目",
     "openFolder": "打开文件夹",
     "opening": "打开中..."
+  },
+  "titleBar": {
+    "openProject": "打开项目",
+    "openFolder": "打开项目",
+    "closeProject": "关闭项目",
+    "mcpSettings": "MCP 设置",
+    "tools": "工具"
+  },
+  "indexing": {
+    "status": {
+      "indexing_files": "正在索引文件...",
+      "indexing_complete": "索引完成"
+    }
   },
   "app": {
     "loading": "加载中…",

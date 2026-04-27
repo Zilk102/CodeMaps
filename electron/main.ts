@@ -1,10 +1,48 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import log from 'electron-log/main';
 import { getMcpStatus, setupMcpServer } from './mcp';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
 import { initAutoUpdater } from './autoUpdater';
+
+function ensureSafeProcessCwd(): void {
+  try {
+    const currentCwd = process.cwd();
+    if (fs.existsSync(currentCwd)) {
+      return;
+    }
+  } catch (error: any) {
+    // Fall through to pick a known-good directory.
+  }
+
+  const candidates = [
+    process.env.CODEMAPS_ROOT,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'CodeMaps') : undefined,
+    process.env.APPDATA ? path.join(process.env.APPDATA, 'CodeMaps') : undefined,
+    path.resolve(__dirname, '..'),
+    path.dirname(process.execPath),
+    os.tmpdir(),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) {
+        fs.mkdirSync(candidate, { recursive: true });
+      }
+      process.chdir(candidate);
+      console.warn('[App] Restored invalid process.cwd() to:', candidate);
+      return;
+    } catch (error: any) {
+      // Try the next candidate.
+    }
+  }
+}
+
+ensureSafeProcessCwd();
+
 // Lazy-load KuzuIntegration to prevent startup crash on Windows if native module fails
 let KuzuIntegration: any = null;
 import('./services/KuzuIntegration.js').then((kuzuModule) => {
