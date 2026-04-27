@@ -1,6 +1,8 @@
 import * as fs from 'fs/promises';
 import { GraphData } from '../store';
 
+import safeRegex from 'safe-regex';
+
 export interface SignatureSearchMatch {
   nodeId: string;
   symbolId?: string;
@@ -91,6 +93,9 @@ export class SignatureSearchService {
 
   private createPattern(query: string, regex: boolean, caseSensitive: boolean) {
     if (regex) {
+      if (!safeRegex(query)) {
+        throw new Error('Potentially unsafe regex');
+      }
       return new RegExp(query, caseSensitive ? '' : 'i');
     }
 

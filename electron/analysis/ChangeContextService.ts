@@ -6,12 +6,17 @@ import {
   ArchitectureViolation,
 } from './ArchitectureInsightService';
 import { BlastRadiusAnalyzer, BlastRadiusResult } from './BlastRadiusAnalyzer';
-import { HealthScoreAnalyzer, HealthScoreResult } from './HealthScoreAnalyzer';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import {
+  createGraphSummary,
+  promoteCodeTarget,
+  searchGraph,
+  toStructuralNodeId,
+  unique,
+} from './AgentContextUtils';
 
 export type ChangeTaskMode = 'bugfix' | 'feature' | 'refactor' | 'explore';
-export type ReviewTaskMode = 'review' | 'architecture' | 'security' | 'stabilization';
 
 export interface PrepareChangeContextInput {
   target: string;
@@ -20,15 +25,6 @@ export interface PrepareChangeContextInput {
   depth?: number;
   includeSecurityFindings?: boolean;
   taskMode?: ChangeTaskMode;
-}
-
-export interface PrepareReviewContextInput {
-  focusQuery?: string;
-  type?: string;
-  limit?: number;
-  includeSecurityFindings?: boolean;
-  includeClassifications?: boolean;
-  taskMode?: ReviewTaskMode;
 }
 
 export interface ResolvedTargetContext {
@@ -85,75 +81,16 @@ export interface ChangeContextResult {
   nextSteps: string[];
 }
 
-export interface ReviewPriority {
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
-  reason: string;
-  nodeIds: string[];
-}
-
-export interface ReviewContextResult {
-  graphSummary: {
-    projectRoot: string;
-    nodesCount: number;
-    linksCount: number;
-    nodeTypes: Record<string, number>;
-  };
-  taskMode: ReviewTaskMode;
-  health: HealthScoreResult;
-  architecture: {
-    summary: ArchitectureOverview['summary'];
-    layers: ArchitectureOverview['layers'];
-    dependencies: ArchitectureOverview['dependencies'];
-    violations: ArchitectureOverview['violations'];
-    classifications?: ArchitectureOverview['classifications'];
-  };
-  patterns: DetectedPattern[];
-  security: {
-    summary: {
-      total: number;
-      critical: number;
-      high: number;
-      medium: number;
-      low: number;
-    };
-    findings: SecurityFinding[];
-  };
-  focus: null | {
-    query: string;
-    matches: GraphNode[];
-    classifications: ArchitectureNodeClassification[];
-    relatedPatterns: DetectedPattern[];
-    relatedViolations: ArchitectureViolation[];
-  };
-  reviewPriorities: ReviewPriority[];
-  autopilotPlan: {
-    primaryGoal: string;
-    preferredOrder: Array<'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'>;
-    shouldFallbackToLowLevelTools: boolean;
-  };
-  nextSteps: string[];
-}
-
 const MAX_ALTERNATIVES = 5;
 const MAX_RELATED_NODES = 12;
 const MAX_RELATED_PATTERNS = 8;
 const MAX_RELATED_FINDINGS = 10;
-const MAX_REVIEW_PATTERNS = 12;
-const MAX_REVIEW_FINDINGS = 20;
-
-const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
-const NORMALIZED_CODE_NODE_TYPES = ['file', 'class', 'function', 'adr'];
 const CHANGE_TASK_MODES: ChangeTaskMode[] = ['bugfix', 'feature', 'refactor', 'explore'];
-const REVIEW_TASK_MODES: ReviewTaskMode[] = ['review', 'architecture', 'security', 'stabilization'];
 
-const unique = <T>(items: T[]) => Array.from(new Set(items));
-
-export class AgentContextService {
+export class ChangeContextService {
   constructor(
     private readonly architectureInsightService = new ArchitectureInsightService(),
     private readonly blastRadiusAnalyzer = new BlastRadiusAnalyzer(),
-    private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
     private readonly securityScanner = new SecurityScanner()
   ) {}
@@ -218,7 +155,7 @@ export class AgentContextService {
     ]).slice(0, 15);
 
     return {
-      graphSummary: this.createGraphSummary(graph),
+      graphSummary: createGraphSummary(graph),
       taskMode,
       target: resolvedTarget,
       changeIntent: input.changeIntent || null,
@@ -276,71 +213,6 @@ export class AgentContextService {
     };
   }
 
-  async prepareReviewContext(
-    graph: GraphData,
-    input: PrepareReviewContextInput
-  ): Promise<ReviewContextResult> {
-    const taskMode = this.normalizeReviewTaskMode(input.taskMode);
-    const architecture = this.architectureInsightService.analyze(graph);
-    const health = this.healthScoreAnalyzer.analyze(graph);
-    const patterns = this.patternDetectionAnalyzer
-      .analyze(graph)
-      .patterns.slice(0, input.limit || MAX_REVIEW_PATTERNS);
-    const security =
-      input.includeSecurityFindings === false
-        ? {
-            findings: [],
-            summary: {
-              total: 0,
-              critical: 0,
-              high: 0,
-              medium: 0,
-              low: 0,
-            },
-          }
-        : await this.securityScanner.analyze(graph);
-    const focus = this.prepareFocusContext(graph, architecture, patterns, input);
-
-    return {
-      graphSummary: this.createGraphSummary(graph),
-      taskMode,
-      health,
-      architecture: {
-        summary: architecture.summary,
-        layers: architecture.layers,
-        dependencies: architecture.dependencies.slice(0, input.limit || MAX_REVIEW_PATTERNS),
-        violations: architecture.violations.slice(0, input.limit || MAX_REVIEW_PATTERNS),
-        classifications: input.includeClassifications ? architecture.classifications : undefined,
-      },
-      patterns,
-      security: {
-        summary: security.summary,
-        findings: security.findings.slice(0, MAX_REVIEW_FINDINGS),
-      },
-      focus,
-      reviewPriorities: this.buildReviewPriorities(
-        health,
-        architecture,
-        patterns,
-        security.findings,
-        focus
-      ),
-      autopilotPlan: this.buildReviewAutopilotPlan(
-        taskMode,
-        security.findings,
-        architecture,
-        focus
-      ),
-      nextSteps: this.buildReviewNextSteps(
-        health,
-        architecture,
-        patterns,
-        security.findings,
-        Boolean(focus)
-      ),
-    };
-  }
-
   private resolveTarget(graph: GraphData, query: string, type?: string): ResolvedTargetContext {
     const normalizedQuery = query.trim().toLowerCase();
     const exactIdMatch = graph.nodes.find(
@@ -356,12 +228,12 @@ export class AgentContextService {
       };
     }
 
-    const matches = this.searchGraph(graph, query, type, MAX_ALTERNATIVES + 1);
+    const matches = searchGraph(graph, query, type, MAX_ALTERNATIVES + 1);
     if (matches.length === 0) {
       throw new Error(`Node not found for query: ${query}`);
     }
 
-    const promotedMatch = this.promoteCodeTarget(matches, normalizedQuery);
+    const promotedMatch = promoteCodeTarget(matches, normalizedQuery);
     if (promotedMatch) {
       const remaining = matches.filter((node) => node.id !== promotedMatch.id);
       matches.splice(0, matches.length, promotedMatch, ...remaining);
@@ -375,32 +247,6 @@ export class AgentContextService {
       alternatives: matches.slice(1, MAX_ALTERNATIVES + 1),
       resolutionReason: this.describeMatchReason(matches[0], normalizedQuery),
     };
-  }
-
-  private searchGraph(graph: GraphData, query: string, type?: string, limit = 20) {
-    const normalizedQuery = query.trim().toLowerCase();
-    return graph.nodes
-      .filter((node) => {
-        if (type && node.type !== type) return false;
-        if (!normalizedQuery) return true;
-        return (
-          node.label.toLowerCase().includes(normalizedQuery) ||
-          node.id.toLowerCase().includes(normalizedQuery)
-        );
-      })
-      .map((node) => ({
-        node,
-        score: this.scoreNodeMatch(node, normalizedQuery),
-      }))
-      .filter(({ score }) => score > 0)
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          this.getNodeTypePriority(b.node.type) - this.getNodeTypePriority(a.node.type) ||
-          a.node.label.localeCompare(b.node.label)
-      )
-      .slice(0, limit)
-      .map(({ node }) => node);
   }
 
   private getNodeDependencies(graph: GraphData, nodeId: string) {
@@ -433,170 +279,6 @@ export class AgentContextService {
     };
   }
 
-  private prepareFocusContext(
-    graph: GraphData,
-    architecture: ArchitectureOverview,
-    patterns: DetectedPattern[],
-    input: PrepareReviewContextInput
-  ): ReviewContextResult['focus'] {
-    if (!input.focusQuery?.trim()) {
-      return null;
-    }
-
-    const normalizedQuery = input.focusQuery.trim().toLowerCase();
-    const matches = this.searchGraph(graph, input.focusQuery, input.type, MAX_ALTERNATIVES);
-    if (matches.length === 0) {
-      return {
-        query: input.focusQuery,
-        matches: [],
-        classifications: [],
-        relatedPatterns: [],
-        relatedViolations: [],
-      };
-    }
-
-    const promotedMatch = this.promoteCodeTarget(matches, normalizedQuery);
-    if (promotedMatch) {
-      const remaining = matches.filter((node) => node.id !== promotedMatch.id);
-      matches.splice(0, matches.length, promotedMatch, ...remaining);
-    }
-
-    const focusIds = new Set(matches.map((node) => node.id));
-    const focusStructuralIds = new Set(matches.map((node) => toStructuralNodeId(node.id)));
-
-    return {
-      query: input.focusQuery,
-      matches,
-      classifications: architecture.classifications.filter(
-        (record) =>
-          focusIds.has(record.nodeId) || focusStructuralIds.has(toStructuralNodeId(record.nodeId))
-      ),
-      relatedPatterns: patterns.filter((pattern) =>
-        pattern.nodeIds.some(
-          (nodeId) => focusIds.has(nodeId) || focusStructuralIds.has(toStructuralNodeId(nodeId))
-        )
-      ),
-      relatedViolations: architecture.violations.filter(
-        (violation) =>
-          focusStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
-          focusStructuralIds.has(toStructuralNodeId(violation.targetId))
-      ),
-    };
-  }
-
-  private buildReviewPriorities(
-    health: HealthScoreResult,
-    architecture: ArchitectureOverview,
-    patterns: DetectedPattern[],
-    securityFindings: SecurityFinding[],
-    focus: ReviewContextResult['focus']
-  ): ReviewPriority[] {
-    const priorities: ReviewPriority[] = [];
-
-    if (securityFindings.some((finding) => finding.severity === 'critical')) {
-      priorities.push({
-        severity: 'critical',
-        title: 'Security Findings',
-        reason:
-          'The project has critical security findings; they must be addressed before any architectural cosmetics.',
-        nodeIds: unique(
-          securityFindings
-            .filter((finding) => finding.severity === 'critical')
-            .map((finding) => finding.nodeId)
-        ).slice(0, 10),
-      });
-    }
-
-    if (architecture.violations.length > 0) {
-      priorities.push({
-        severity: architecture.violations.length > 10 ? 'high' : 'medium',
-        title: 'Architecture Violations',
-        reason:
-          'Layer dependency violations harm maintainability and make impact analysis less predictable.',
-        nodeIds: unique(
-          architecture.violations
-            .slice(0, 10)
-            .flatMap((violation) => [violation.sourceId, violation.targetId])
-        ),
-      });
-    }
-
-    const severePatterns = patterns.filter((pattern) => pattern.severity === 'high');
-    if (severePatterns.length > 0) {
-      priorities.push({
-        severity: 'high',
-        title: 'High-Severity Patterns',
-        reason:
-          'The graph contains hotspots and anti-pattern candidates that increase blast radius and churn risk.',
-        nodeIds: unique(severePatterns.flatMap((pattern) => pattern.nodeIds)).slice(0, 10),
-      });
-    }
-
-    if (health.issues.length > 0) {
-      priorities.push({
-        severity: health.grade === 'F' || health.grade === 'D' ? 'high' : 'medium',
-        title: 'Health Issues',
-        reason:
-          'Health score already signals structural degradation: the review must explicitly cover these issues.',
-        nodeIds: [],
-      });
-    }
-
-    if (focus && focus.matches.length > 0) {
-      priorities.push({
-        severity: 'low',
-        title: 'Focused Review Scope',
-        reason: `There is an explicit focus query "${focus.query}", so it is worth double-checking local dependencies and the layer of the target area.`,
-        nodeIds: focus.matches.map((node) => node.id),
-      });
-    }
-
-    return priorities.slice(0, 6);
-  }
-
-  private buildReviewNextSteps(
-    health: HealthScoreResult,
-    architecture: ArchitectureOverview,
-    patterns: DetectedPattern[],
-    securityFindings: SecurityFinding[],
-    hasFocus: boolean
-  ) {
-    const nextSteps = [
-      'Start the review with nodes that fell into top architecture violations and severe patterns.',
-      'Check if high fan-in/high fan-out nodes hide excessive responsibility and incorrect module boundaries.',
-    ];
-
-    if (securityFindings.length > 0) {
-      nextSteps.unshift('Address security findings first, especially critical and high severity ones.');
-    }
-
-    if (health.issues.length > 0) {
-      nextSteps.push(
-        'Cross-check health issues with the actual code and determine what is a real problem and what is heuristic noise.'
-      );
-    }
-
-    if (architecture.summary.unknownNodes > 0) {
-      nextSteps.push(
-        'Refine layer classification rules for unknown nodes so the agent and review rely on a more accurate model.'
-      );
-    }
-
-    if (patterns.length === 0) {
-      nextSteps.push(
-        'No obvious structural patterns found; the review should focus on code contracts and runtime behavior.'
-      );
-    }
-
-    if (hasFocus) {
-      nextSteps.push(
-        'After a general overview, do a separate local review for the focus area and check its blast radius manually.'
-      );
-    }
-
-    return nextSteps;
-  }
-
   private buildChangeAutopilotPlan(args: {
     taskMode: ChangeTaskMode;
     changeIntent?: string;
@@ -625,36 +307,6 @@ export class AgentContextService {
       preferredNextAction,
       shouldFallbackToLowLevelTools:
         args.resolvedTarget.alternatives.length > 0 && !args.resolvedTarget.exactMatch,
-    };
-  }
-
-  private buildReviewAutopilotPlan(
-    taskMode: ReviewTaskMode,
-    securityFindings: SecurityFinding[],
-    architecture: ArchitectureOverview,
-    focus: ReviewContextResult['focus']
-  ) {
-    const preferredOrder: Array<
-      'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'
-    > = [];
-
-    if (taskMode === 'security' || securityFindings.length > 0) {
-      preferredOrder.push('security');
-    }
-    if (taskMode === 'architecture' || architecture.violations.length > 0) {
-      preferredOrder.push('architecture');
-    }
-    preferredOrder.push('patterns', 'health');
-    if (focus?.matches.length) {
-      preferredOrder.push('focused_area');
-    }
-
-    return {
-      primaryGoal: this.describeReviewModeGoal(taskMode),
-      preferredOrder: unique(preferredOrder),
-      shouldFallbackToLowLevelTools: Boolean(
-        focus?.matches.length && !focus.relatedPatterns.length && !focus.relatedViolations.length
-      ),
     };
   }
 
@@ -759,61 +411,6 @@ export class AgentContextService {
     return CHANGE_TASK_MODES.includes(taskMode || 'bugfix') ? taskMode || 'bugfix' : 'bugfix';
   }
 
-  private normalizeReviewTaskMode(taskMode?: ReviewTaskMode): ReviewTaskMode {
-    return REVIEW_TASK_MODES.includes(taskMode || 'review') ? taskMode || 'review' : 'review';
-  }
-
-  private scoreNodeMatch(node: GraphNode, normalizedQuery: string) {
-    const normalizedLabel = node.label.toLowerCase();
-    const normalizedId = node.id.toLowerCase();
-    const structuralId = toStructuralNodeId(normalizedId);
-    const basename = structuralId.split('/').pop() || structuralId;
-    const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
-    const structuralLabel = normalizedLabel.replace(/\.[^.]+$/u, '');
-    let score = 0;
-
-    if (normalizedLabel === normalizedQuery) score += 140;
-    if (basename === normalizedQuery) score += 180;
-    if (basenameWithoutExtension === normalizedQuery) score += 220;
-    if (structuralLabel === normalizedQuery) score += 160;
-    if (
-      normalizedId.endsWith(`/${normalizedQuery}`) ||
-      normalizedId.endsWith(`/${normalizedQuery}.ts`) ||
-      normalizedId.endsWith(`/${normalizedQuery}.tsx`)
-    ) {
-      score += 160;
-    }
-    if (normalizedLabel.startsWith(normalizedQuery)) score += 60;
-    if (basename.startsWith(normalizedQuery)) score += 80;
-    if (basenameWithoutExtension.startsWith(normalizedQuery)) score += 100;
-    if (normalizedLabel.includes(normalizedQuery)) score += 25;
-    if (normalizedId.includes(`/${normalizedQuery}`)) score += 20;
-
-    score += this.getNodeTypePriority(node.type) * 10;
-    if (NORMALIZED_CODE_NODE_TYPES.includes(node.type)) {
-      score += 20;
-    }
-
-    return score;
-  }
-
-  private getNodeTypePriority(type: string) {
-    switch (type) {
-      case 'function':
-        return 6;
-      case 'class':
-        return 5;
-      case 'file':
-        return 4;
-      case 'adr':
-        return 3;
-      case 'directory':
-        return 1;
-      default:
-        return 2;
-    }
-  }
-
   private isExactNodeMatch(node: GraphNode, normalizedQuery: string) {
     const normalizedLabel = node.label.toLowerCase();
     const structuralId = toStructuralNodeId(node.id.toLowerCase());
@@ -847,33 +444,6 @@ export class AgentContextService {
     return 'fuzzy_graph_match';
   }
 
-  private promoteCodeTarget(matches: GraphNode[], normalizedQuery: string) {
-    const current = matches[0];
-    if (!current || current.type !== 'directory') {
-      return null;
-    }
-
-    const preferred = matches.find((candidate) => {
-      if (!NORMALIZED_CODE_NODE_TYPES.includes(candidate.type)) {
-        return false;
-      }
-
-      const structuralId = toStructuralNodeId(candidate.id.toLowerCase());
-      const basename = structuralId.split('/').pop() || structuralId;
-      const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
-      const normalizedLabel = candidate.label.toLowerCase();
-
-      return (
-        basenameWithoutExtension === normalizedQuery ||
-        basename === normalizedQuery ||
-        normalizedLabel === normalizedQuery ||
-        normalizedLabel.startsWith(normalizedQuery)
-      );
-    });
-
-    return preferred || null;
-  }
-
   private describeChangeModeGoal(taskMode: ChangeTaskMode) {
     switch (taskMode) {
       case 'feature':
@@ -886,31 +456,5 @@ export class AgentContextService {
       default:
         return 'Find and fix the defect with minimal blast radius.';
     }
-  }
-
-  private describeReviewModeGoal(taskMode: ReviewTaskMode) {
-    switch (taskMode) {
-      case 'architecture':
-        return 'Check architectural boundaries, layers, and module responsibilities.';
-      case 'security':
-        return 'Find and prioritize security risks and unsafe patterns.';
-      case 'stabilization':
-        return 'Identify points of structural instability and maintainability degradation.';
-      case 'review':
-      default:
-        return 'Gather architectural and qualitative context for a meaningful review.';
-    }
-  }
-
-  private createGraphSummary(graph: GraphData) {
-    return {
-      projectRoot: graph.projectRoot,
-      nodesCount: graph.nodes.length,
-      linksCount: graph.links.length,
-      nodeTypes: graph.nodes.reduce<Record<string, number>>((acc, node) => {
-        acc[node.type] = (acc[node.type] || 0) + 1;
-        return acc;
-      }, {}),
-    };
   }
 }

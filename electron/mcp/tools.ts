@@ -8,14 +8,16 @@ import { PatternDetectionAnalyzer } from '../analysis/PatternDetectionAnalyzer';
 import { SecurityScanner } from '../analysis/SecurityScanner';
 import { SignatureSearchService } from '../analysis/SignatureSearchService';
 import { ArchitectureInsightService } from '../analysis/ArchitectureInsightService';
-import { AgentContextService } from '../analysis/AgentContextService';
+import { ChangeContextService } from '../analysis/ChangeContextService';
+import { ReviewContextService } from '../analysis/ReviewContextService';
 import { ProjectInsightService } from '../analysis/ProjectInsightService';
 import { TaskIntelligenceService } from '../analysis/TaskIntelligenceService';
 import { ChangeCampaignService } from '../analysis/ChangeCampaignService';
 
-import { PRImpactAnalyzer } from '../services/PRImpactAnalyzer.js';
-import { GitActivityService } from '../services/GitActivityService.js';
-import { BlastRadiusV2 } from '../services/BlastRadiusV2.js';
+import { PRImpactAnalyzer } from '../services/PRImpactAnalyzer';
+import { GitActivityService } from '../services/GitActivityService';
+import { BlastRadiusV2 } from '../services/BlastRadiusV2';
+import { ServiceRegistry } from './ServiceRegistry';
 
 import {
   ensureGraphLoaded,
@@ -28,19 +30,19 @@ import { oracleStore } from '../store';
 
 export function registerTools(
   server: McpServer,
-  services: {
-    blastRadiusAnalyzer: BlastRadiusAnalyzer;
-    healthScoreAnalyzer: HealthScoreAnalyzer;
-    patternDetectionAnalyzer: PatternDetectionAnalyzer;
-    securityScanner: SecurityScanner;
-    signatureSearchService: SignatureSearchService;
-    architectureInsightService: ArchitectureInsightService;
-    agentContextService: AgentContextService;
-    projectInsightService: ProjectInsightService;
-    taskIntelligenceService: TaskIntelligenceService;
-    changeCampaignService: ChangeCampaignService;
-  }
+  registry: ServiceRegistry
 ) {
+  const blastRadiusAnalyzer = registry.get<BlastRadiusAnalyzer>('blastRadiusAnalyzer');
+  const healthScoreAnalyzer = registry.get<HealthScoreAnalyzer>('healthScoreAnalyzer');
+  const patternDetectionAnalyzer = registry.get<PatternDetectionAnalyzer>('patternDetectionAnalyzer');
+  const securityScanner = registry.get<SecurityScanner>('securityScanner');
+  const signatureSearchService = registry.get<SignatureSearchService>('signatureSearchService');
+  const architectureInsightService = registry.get<ArchitectureInsightService>('architectureInsightService');
+  const changeContextService = registry.get<ChangeContextService>('changeContextService');
+  const reviewContextService = registry.get<ReviewContextService>('reviewContextService');
+  const projectInsightService = registry.get<ProjectInsightService>('projectInsightService');
+  const taskIntelligenceService = registry.get<TaskIntelligenceService>('taskIntelligenceService');
+  const changeCampaignService = registry.get<ChangeCampaignService>('changeCampaignService');
   server.registerTool(
     'analyze_project',
     {
@@ -53,7 +55,7 @@ export function registerTools(
           .describe('Absolute project path. Defaults to the current open project or process cwd.'),
       },
     },
-    async ({ projectPath }) => {
+    async ({ projectPath }: { projectPath?: string }) => {
       const graph = await ensureGraphLoaded(projectPath);
       const summary = createGraphSummary(graph);
 
@@ -88,9 +90,22 @@ export function registerTools(
           .describe('When true, return the full graph payload.'),
       },
     },
-    async ({ includeFullGraph = false }) => {
+    async ({ includeFullGraph = false }: { includeFullGraph?: boolean }) => {
       const graph = await ensureGraphLoaded();
-      const payload = includeFullGraph ? graph : createGraphSummary(graph);
+      let payload: any = createGraphSummary(graph);
+      
+      if (includeFullGraph) {
+        // Truncate nodes/links to avoid OOM in MCP
+        const maxNodes = 1000;
+        const maxLinks = 2000;
+        payload = {
+          ...graph,
+          nodes: graph.nodes.slice(0, maxNodes),
+          links: graph.links.slice(0, maxLinks),
+          truncated: graph.nodes.length > maxNodes || graph.links.length > maxLinks
+        };
+      }
+      
       return {
         content: [
           {
@@ -111,7 +126,7 @@ export function registerTools(
         nodeId: z.string().describe('Exact node id from the graph'),
       },
     },
-    async ({ nodeId }) => {
+    async ({ nodeId }: { nodeId: string }) => {
       const graph = await ensureGraphLoaded();
       const node = graph.nodes.find((candidate) => candidate.id === nodeId);
 
@@ -162,7 +177,7 @@ export function registerTools(
           .describe('Maximum number of matches to return'),
       },
     },
-    async ({ query, type, limit = 20 }) => {
+    async ({ query, type, limit = 20 }: { query: string; type?: string; limit?: number }) => {
       const graph = await ensureGraphLoaded();
       const matches = searchGraph(graph, query, type, limit);
       return {
@@ -196,9 +211,9 @@ export function registerTools(
           .describe('Optional traversal depth limit'),
       },
     },
-    async ({ nodeId, depth }) => {
+    async ({ nodeId, depth = 3 }: { nodeId: string; depth?: number }) => {
       const graph = await ensureGraphLoaded();
-      const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+      const node = graph.nodes.find((n) => n.id === nodeId);
 
       if (!node) {
         return {
@@ -212,15 +227,15 @@ export function registerTools(
         };
       }
 
-      const blastRadius = services.blastRadiusAnalyzer.analyze(graph, nodeId, depth);
+      const impact = blastRadiusAnalyzer.analyze(graph, nodeId, depth);
       return {
         content: [
           {
             type: 'text',
             text: createTextContent({
               status: 'ok',
-              node,
-              blastRadius,
+              nodeId,
+              impact,
             }),
           },
         ],
@@ -237,7 +252,7 @@ export function registerTools(
     },
     async () => {
       const graph = await ensureGraphLoaded();
-      const health = services.healthScoreAnalyzer.analyze(graph);
+      const health = healthScoreAnalyzer.analyze(graph);
       return {
         content: [
           {
@@ -265,9 +280,9 @@ export function registerTools(
           .describe('When true, include per-node layer classifications'),
       },
     },
-    async ({ includeClassifications = false }) => {
+    async ({ includeClassifications = false }: { includeClassifications?: boolean }) => {
       const graph = await ensureGraphLoaded();
-      const overview = services.architectureInsightService.analyze(graph);
+      const overview = architectureInsightService.analyze(graph);
       return {
         content: [
           {
@@ -304,9 +319,9 @@ export function registerTools(
           .describe('Optional maximum number of patterns to return'),
       },
     },
-    async ({ limit = 20 }) => {
+    async ({ limit = 20 }: { limit?: number }) => {
       const graph = await ensureGraphLoaded();
-      const result = services.patternDetectionAnalyzer.analyze(graph);
+      const result = patternDetectionAnalyzer.analyze(graph);
       return {
         content: [
           {
@@ -337,9 +352,9 @@ export function registerTools(
           .describe('Optional maximum number of findings to return'),
       },
     },
-    async ({ limit = 100 }) => {
+    async ({ limit = 100 }: { limit?: number }) => {
       const graph = await ensureGraphLoaded();
-      const scan = await services.securityScanner.analyze(graph);
+      const scan = await securityScanner.analyze(graph);
       return {
         content: [
           {
@@ -377,9 +392,9 @@ export function registerTools(
         regex: z.boolean().optional().describe('Treat query as a regular expression'),
       },
     },
-    async ({ query, type, limit = 20, caseSensitive = false, regex = false }) => {
+    async ({ query, type, limit = 20, caseSensitive = false, regex = false }: { query: string; type?: string; limit?: number; caseSensitive?: boolean; regex?: boolean }) => {
       const graph = await ensureGraphLoaded();
-      const result = await services.signatureSearchService.search(graph, query, {
+      const result = await signatureSearchService.search(graph, query, {
         type,
         limit,
         caseSensitive,
@@ -409,7 +424,7 @@ export function registerTools(
         headBranch: z.string().describe('Head branch name with changes'),
       },
     },
-    async ({ baseBranch, headBranch }) => {
+    async ({ baseBranch, headBranch }: { baseBranch: string; headBranch: string }) => {
       const graph = await ensureGraphLoaded();
       if (!graph.projectRoot) {
         throw new Error('Project root is required to run PR impact analysis');
@@ -443,7 +458,7 @@ export function registerTools(
         until: z.string().optional().describe('ISO date string for end of period'),
       },
     },
-    async ({ since, until }) => {
+    async ({ since, until }: { since?: string; until?: string }) => {
       const graph = await ensureGraphLoaded();
       if (!graph.projectRoot) {
         throw new Error('Project root is required to run heatmap analysis');
@@ -480,7 +495,7 @@ export function registerTools(
         maxDepth: z.number().int().min(1).max(20).optional().describe('Optional traversal depth limit'),
       },
     },
-    async ({ nodeId, maxDepth }) => {
+    async ({ nodeId, maxDepth }: { nodeId: string; maxDepth?: number }) => {
       const graph = await ensureGraphLoaded();
       if (!graph.projectRoot) {
         throw new Error('Project root is required to calculate blast radius v2');
@@ -539,9 +554,9 @@ export function registerTools(
       includeClassifications = false,
       includeSecurityFindings = false,
       limit = 10,
-    }) => {
+    }: { projectPath?: string; includeClassifications?: boolean; includeSecurityFindings?: boolean; limit?: number }) => {
       const graph = await ensureGraphLoaded(projectPath);
-      const context = await services.projectInsightService.prepareContext(graph, {
+      const context = await projectInsightService.prepareContext(graph, {
         includeClassifications,
         includeSecurityFindings,
         limit,
@@ -606,9 +621,9 @@ export function registerTools(
       includeClassifications = false,
       includeSecurityFindings = false,
       limit = 10,
-    }) => {
+    }: { userRequest: string; projectPath?: string; depth?: number; includeClassifications?: boolean; includeSecurityFindings?: boolean; limit?: number }) => {
       const graph = await ensureGraphLoaded(projectPath);
-      const taskResult = await services.taskIntelligenceService.prepareContext(graph, {
+      const taskResult = await taskIntelligenceService.prepareContext(graph, {
         userRequest,
         depth,
         includeClassifications,
@@ -691,9 +706,19 @@ export function registerTools(
       maxFiles = 50,
       seedNodeIds,
       candidateQueries,
+    }: {
+      userRequest: string;
+      projectPath?: string;
+      taskMode?: 'bugfix' | 'feature' | 'refactor' | 'explore';
+      depth?: number;
+      includeSecurityFindings?: boolean;
+      maxSeeds?: number;
+      maxFiles?: number;
+      seedNodeIds?: string[];
+      candidateQueries?: string[];
     }) => {
       const graph = await ensureGraphLoaded(projectPath);
-      const campaign = await services.changeCampaignService.prepareContext(graph, {
+      const campaign = await changeCampaignService.prepareContext(graph, {
         userRequest,
         taskMode,
         depth,
@@ -760,9 +785,17 @@ export function registerTools(
       projectPath,
       depth,
       includeSecurityFindings = false,
+    }: {
+      target: string;
+      taskMode?: 'bugfix' | 'feature' | 'refactor' | 'explore';
+      changeIntent?: string;
+      type?: string;
+      projectPath?: string;
+      depth?: number;
+      includeSecurityFindings?: boolean;
     }) => {
       const graph = await ensureGraphLoaded(projectPath);
-      const context = await services.agentContextService.prepareChangeContext(graph, {
+      const context = await changeContextService.prepareChangeContext(graph, {
         target,
         taskMode,
         changeIntent,
@@ -826,9 +859,16 @@ export function registerTools(
       includeClassifications = false,
       includeSecurityFindings = true,
       limit = 10,
+    }: {
+      taskMode?: 'review' | 'architecture' | 'security' | 'stabilization';
+      focusQuery?: string;
+      projectPath?: string;
+      includeClassifications?: boolean;
+      includeSecurityFindings?: boolean;
+      limit?: number;
     }) => {
       const graph = await ensureGraphLoaded(projectPath);
-      const context = await services.agentContextService.prepareReviewContext(graph, {
+      const context = await reviewContextService.prepareReviewContext(graph, {
         taskMode,
         focusQuery,
         includeClassifications,

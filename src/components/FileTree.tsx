@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../store/useStore';
+import { useGraphStore, useConnectionStore } from '../store/useStore';
 import type { GraphNode } from '../types/graph';
 
 interface TreeNode {
@@ -193,7 +193,8 @@ const FileTreeNode: React.FC<{
 
 export const FileTree: React.FC = () => {
   const { t } = useTranslation();
-  const { graphData, selectedPath, isLoading, error, setSelectedNode, setSelectedPath, openProject } = useStore();
+  const { graphData, selectedPath, isLoading, error, setSelectedNode, setSelectedPath } = useGraphStore();
+  const { openProject } = useConnectionStore();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   const toggleFolder = (path: string) => {

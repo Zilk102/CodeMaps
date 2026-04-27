@@ -26,22 +26,13 @@ const ToolsPanel = React.lazy(() =>
 import TitleBar from './components/TitleBar';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import PersistenceStatus from './components/PersistenceStatus';
-import { useStore } from './store/useStore';
+import ErrorBoundary from './components/ErrorBoundary';
+import { useStore, useUIStore, useGraphStore, useConnectionStore } from './store/useStore';
 
 const LazyFallback: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: 'var(--bg0)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--t2)',
-      }}
-    >
+    <div className="w-full h-full bg-[var(--bg0)] flex items-center justify-center text-[var(--t2)]">
       {t('app.loading')}
     </div>
   );
@@ -49,17 +40,13 @@ const LazyFallback: React.FC = () => {
 
 const App: React.FC = () => {
   const { t } = useTranslation();
-  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const { sidebarWidth, setSidebarWidth, isToolsPanelOpen, parsingProgress } = useUIStore();
+  const { graphData } = useGraphStore();
+  const { initializeWatcher, initializeWebSocket, fetchGraph } = useConnectionStore();
+  const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
-
-  const graphData = useStore((state) => state.graphData);
-  const isToolsPanelOpen = useStore((state) => state.isToolsPanelOpen);
-  const initializeWatcher = useStore((state) => state.initializeWatcher);
-  const initializeWebSocket = useStore((state) => state.initializeWebSocket);
-  const parsingProgress = useStore((state) => state.parsingProgress);
-  const fetchGraph = useStore((state) => state.fetchGraph);
 
   useEffect(() => {
     initializeWatcher();
@@ -68,25 +55,41 @@ const App: React.FC = () => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
       e.preventDefault();
-      const newWidth = Math.max(200, Math.min(e.clientX, window.innerWidth - 300));
+      
+      // Calculate responsive max width (e.g. 80% of screen for small screens, 50vw for large screens)
+      const isMobile = window.innerWidth <= 768;
+      const maxAllowedWidth = isMobile ? window.innerWidth * 0.8 : window.innerWidth - 300;
+      
+      const newWidth = Math.max(200, Math.min(e.clientX, maxAllowedWidth));
       setSidebarWidth(newWidth);
     };
 
     const handleMouseUp = () => {
       if (isDragging.current) {
         isDragging.current = false;
+        setIsDraggingState(false);
         document.body.style.cursor = 'default';
       }
+    };
+    
+    const handleResize = () => {
+      // Auto-collapse or adjust sidebar on window resize
+      const isMobile = window.innerWidth <= 768;
+      const maxAllowedWidth = isMobile ? window.innerWidth * 0.8 : window.innerWidth - 300;
+      const currentWidth = useStore.getState().sidebarWidth;
+      setSidebarWidth(Math.min(currentWidth, maxAllowedWidth));
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('resize', handleResize);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [initializeWatcher, initializeWebSocket]);
+  }, [initializeWatcher, initializeWebSocket, setSidebarWidth]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -163,39 +166,32 @@ const App: React.FC = () => {
   }, [fetchGraph]);
 
   return (
-    <div
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-        backgroundColor: 'var(--bg0)',
-      }}
-    >
-      <TitleBar />
-      <Suspense fallback={<LazyFallback />}>
-        <UpdateNotification />
-      </Suspense>
-      
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {/* Left Panel */}
-        <div
-          style={{
-            width: sidebarWidth,
-            minWidth: 200,
-            maxWidth: '50vw',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: 'var(--bg1)',
-            borderRight: '1px solid var(--border)',
-          }}
-        >
+    <ErrorBoundary>
+      <div
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className="flex flex-col w-screen h-screen overflow-hidden bg-[var(--bg0)]"
+      >
+        <TitleBar />
+        <Suspense fallback={<LazyFallback />}>
+          <UpdateNotification />
+        </Suspense>
+        
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Left Panel */}
+          <div
+            className="flex flex-col h-full bg-[var(--bg1)] border-r border-[var(--border)] transition-[width] duration-200 ease-in-out"
+            style={{
+              width: sidebarWidth,
+              minWidth: 200,
+              maxWidth: window.innerWidth <= 768 ? '80vw' : '50vw',
+              position: window.innerWidth <= 768 ? 'absolute' : 'relative',
+              zIndex: window.innerWidth <= 768 ? 20 : 1,
+              ...(isDraggingState ? { transition: 'none' } : {})
+            }}
+          >
           <Suspense fallback={<LazyFallback />}>
             <FileTree />
           </Suspense>
@@ -205,29 +201,18 @@ const App: React.FC = () => {
         <div
           onMouseDown={() => {
             isDragging.current = true;
+            setIsDraggingState(true);
             document.body.style.cursor = 'col-resize';
           }}
+          className="absolute h-full w-2 cursor-col-resize bg-transparent hover:bg-[var(--acc)] hover:opacity-30 transition-all"
           style={{
-            width: '8px',
-            cursor: 'col-resize',
-            background: 'transparent',
-            zIndex: 10,
-            position: 'absolute',
+            zIndex: window.innerWidth <= 768 ? 21 : 10,
             left: sidebarWidth - 4,
-            height: '100%',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--acc)';
-            e.currentTarget.style.opacity = '0.3';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.opacity = '1';
           }}
         />
 
         {/* Main Area */}
-        <div style={{ flex: 1, position: 'relative', minWidth: 0, backgroundColor: 'var(--bg0)' }}>
+        <div className="flex-1 relative min-w-0 bg-[var(--bg0)]">
           <Suspense fallback={<LazyFallback />}>
             {graphData ? <GraphView /> : <RecentProjects />}
           </Suspense>
@@ -249,55 +234,25 @@ const App: React.FC = () => {
       {/* Parsing Progress */}
       {parsingProgress && (
         <div
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            right: 20,
-            backgroundColor: 'var(--bg1)',
-            padding: '16px',
-            borderRadius: '8px',
-            border: '1px solid var(--border)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            minWidth: '250px',
-          }}
+          className="absolute bottom-5 right-5 bg-[var(--bg1)] p-4 rounded-lg border border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.1)] z-[1000] flex flex-col gap-2 min-w-[250px]"
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 'bold' }}>
+          <div className="flex justify-between items-center">
+            <span className="font-bold">
               {t(`indexing.status.${parsingProgress.status}`, { defaultValue: 'Indexing...' })}
             </span>
             <span>{Math.round((parsingProgress.current / parsingProgress.total) * 100)}%</span>
           </div>
-          <div
-            style={{
-              width: '100%',
-              height: '4px',
-              backgroundColor: 'var(--bg2)',
-              borderRadius: '2px',
-              overflow: 'hidden',
-            }}
-          >
+          <div className="w-full h-1 bg-[var(--bg2)] rounded-sm overflow-hidden">
             <div
+              className="h-full bg-[var(--acc)] transition-[width] duration-300 ease-in-out"
               style={{
                 width: `${(parsingProgress.current / parsingProgress.total) * 100}%`,
-                height: '100%',
-                backgroundColor: 'var(--accent)',
-                transition: 'width 0.3s ease',
               }}
             />
           </div>
           {parsingProgress.filename && (
             <div
-              style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
+              className="text-xs text-[var(--t2)] whitespace-nowrap overflow-hidden text-ellipsis"
               title={parsingProgress.filename}
             >
               {parsingProgress.filename}
@@ -314,6 +269,7 @@ const App: React.FC = () => {
       
       <LanguageSwitcher />
     </div>
+    </ErrorBoundary>
   );
 };
 

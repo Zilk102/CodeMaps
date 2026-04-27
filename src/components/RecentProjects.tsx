@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../store/useStore';
+import { useConnectionStore } from '../store/useStore';
 import type { RecentProject } from '../types/electron';
 
 const ClockIcon = () => (
@@ -45,7 +45,7 @@ function formatDate(isoString: string): string {
 
 export const RecentProjects: React.FC = () => {
   const { t } = useTranslation();
-  const { fetchGraph, openProject } = useStore();
+  const { fetchGraph, openProject } = useConnectionStore();
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 

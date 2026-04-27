@@ -7,7 +7,7 @@ import {
   ArchitectureViolation,
 } from './ArchitectureInsightService';
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
-import { ChangeTaskMode } from './AgentContextService';
+import { ChangeTaskMode } from './ChangeContextService';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
 

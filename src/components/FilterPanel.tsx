@@ -1,9 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../store/useStore';
+import { useGraphStore } from '../store/useStore';
 
 export const FilterPanel: React.FC = () => {
-  const { filters, layoutMode, setFilter, setLayoutMode } = useStore();
+  const { filters, layoutMode, setFilter, setLayoutMode } = useGraphStore();
   const { t } = useTranslation();
 
   const modeDescription = layoutMode === 'hierarchy'

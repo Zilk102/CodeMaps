@@ -1,11 +1,14 @@
 import { GraphData, GraphNode } from '../store';
 import {
-  AgentContextService,
   ChangeContextResult,
   ChangeTaskMode,
+  ChangeContextService,
+} from './ChangeContextService';
+import {
   ReviewContextResult,
   ReviewTaskMode,
-} from './AgentContextService';
+  ReviewContextService,
+} from './ReviewContextService';
 import {
   PrepareProjectContextInput,
   ProjectInsightResult,
@@ -233,7 +236,8 @@ const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
 export class TaskIntelligenceService {
   constructor(
     private readonly projectInsightService = new ProjectInsightService(),
-    private readonly agentContextService = new AgentContextService(),
+    private readonly changeContextService = new ChangeContextService(),
+    private readonly reviewContextService = new ReviewContextService(),
     private readonly changeCampaignService = new ChangeCampaignService()
   ) {}
 
@@ -291,7 +295,7 @@ export class TaskIntelligenceService {
     }
 
     if (this.isChangeIntent(inferredIntent.taskKind) && targetCandidates.length > 0) {
-      const context = await this.agentContextService.prepareChangeContext(graph, {
+      const context = await this.changeContextService.prepareChangeContext(graph, {
         target: targetCandidates[0].id,
         taskMode: this.toChangeTaskMode(inferredIntent.taskKind),
         changeIntent: input.userRequest,
@@ -303,7 +307,7 @@ export class TaskIntelligenceService {
 
     if (this.isReviewIntent(inferredIntent.taskKind) || candidateQueries.length > 0) {
       const focusQuery = targetCandidates[0]?.label || candidateQueries[0];
-      const context = await this.agentContextService.prepareReviewContext(graph, {
+      const context = await this.reviewContextService.prepareReviewContext(graph, {
         focusQuery,
         taskMode: this.toReviewTaskMode(inferredIntent.taskKind),
         limit: input.limit,

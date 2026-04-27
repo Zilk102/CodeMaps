@@ -1,15 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useStore } from '../store/useStore';
+import { useGraphStore, useUIStore, useConnectionStore } from '../store/useStore';
 
 const TitleBar: React.FC = () => {
   const { t } = useTranslation();
-  const openProject = useStore(state => state.openProject);
-  const closeProject = useStore(state => state.closeProject);
-  const setMcpSettingsOpen = useStore(state => state.setMcpSettingsOpen);
-  const toggleToolsPanel = useStore(state => state.toggleToolsPanel);
-  const isToolsPanelOpen = useStore(state => state.isToolsPanelOpen);
-  const graphData = useStore(state => state.graphData);
+  const { openProject } = useConnectionStore();
+  const { closeProject, graphData } = useGraphStore();
+  const { setMcpSettingsOpen, toggleToolsPanel, isToolsPanelOpen } = useUIStore();
 
   return (
     <div 
