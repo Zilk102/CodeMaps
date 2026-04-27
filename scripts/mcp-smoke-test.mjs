@@ -29,8 +29,13 @@ const parseFirstTextPayload = (response, toolName) => {
   }
 
   let payload;
+  let text = textItem.text;
+  if (text.startsWith('```json\n') && text.endsWith('\n```')) {
+    text = text.slice(8, -4);
+  }
+  
   try {
-    payload = JSON.parse(textItem.text);
+    payload = JSON.parse(text);
   } catch {
     throw new Error(`[MCP] ${toolName}: non-JSON payload: ${textItem.text}`);
   }
@@ -100,7 +105,10 @@ try {
   console.log(`[MCP] Resources (${resourceUris.length}): ${resourceUris.join(', ')}`);
 
   const expectedTools = [
+    'analyze_activity_heatmap',
+    'analyze_pr_impact',
     'analyze_project',
+    'calculate_blast_radius_v2',
     'get_graph_context',
     'get_node_dependencies',
     'search_graph',
@@ -176,8 +184,8 @@ try {
 
   // ─── 6. get_blast_radius ──────────────────────────────────
   const blast = await runTool('get_blast_radius', { nodeId: blastTarget.id, depth: 3 });
-  assert(blast?.node?.id === blastTarget.id, 'get_blast_radius: node mismatch');
-  assert(blast?.blastRadius !== undefined, 'get_blast_radius: expected blastRadius');
+  assert(blast?.nodeId === blastTarget.id, 'get_blast_radius: node mismatch');
+  assert(blast?.impact !== undefined, 'get_blast_radius: expected impact');
 
   // ─── 7. get_health_score ──────────────────────────────────
   const health = await runTool('get_health_score');
@@ -220,7 +228,7 @@ try {
     includeSecurityFindings: true,
     includeClassifications: false,
   });
-  assert(taskCtx?.context !== undefined, 'prepare_task_context: expected context');
+  assert(taskCtx?.taskResult !== undefined, 'prepare_task_context: expected taskResult');
 
   // ─── 14. prepare_change_campaign ───────────────────────────
   const campaign = await runTool('prepare_change_campaign', {
@@ -233,7 +241,7 @@ try {
     maxFiles: 24,
     includeSecurityFindings: true,
   });
-  assert(campaign?.context !== undefined, 'prepare_change_campaign: expected context');
+  assert(campaign?.campaign !== undefined, 'prepare_change_campaign: expected campaign');
 
   // ─── 15. prepare_change_context ─────────────────────────────
   const changeCtx = await runTool('prepare_change_context', {
@@ -243,7 +251,7 @@ try {
     depth: 3,
     includeSecurityFindings: true,
   });
-  assert(changeCtx?.context !== undefined, 'prepare_change_context: expected context');
+  assert(changeCtx?.changeContext !== undefined, 'prepare_change_context: expected changeContext');
 
   // ─── 16. prepare_review_context ─────────────────────────────
   const reviewCtx = await runTool('prepare_review_context', {
@@ -253,7 +261,7 @@ try {
     includeSecurityFindings: true,
     includeClassifications: false,
   });
-  assert(reviewCtx?.context !== undefined, 'prepare_review_context: expected context');
+  assert(reviewCtx?.reviewContext !== undefined, 'prepare_review_context: expected reviewContext');
 
   // ─── RESOURCES ────────────────────────────────────────────
   // 1. project summary

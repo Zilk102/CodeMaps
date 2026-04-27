@@ -1,10 +1,4 @@
 {
-  "titleBar": {
-    "openProject": "Открыть проект",
-    "openFolder": "Открыть проект",
-    "closeProject": "Закрыть проект",
-    "mcpSettings": "MCP Настройки"
-  },
   "graphView": {
     "recalculatingGraph": "Перерасчет графа...",
     "mode": "Режим",
@@ -208,6 +202,19 @@
     "later": "Позже",
     "restart": "Перезапустить",
     "checkingForUpdates": "Проверка обновлений…"
+  },
+  "titleBar": {
+    "tools": "Инструменты",
+    "openProject": "Открыть проект",
+    "openFolder": "Открыть проект",
+    "closeProject": "Закрыть проект",
+    "mcpSettings": "MCP Настройки"
+  },
+  "indexing": {
+    "status": {
+      "indexing_files": "Индексация файлов...",
+      "indexing_complete": "Индексация завершена"
+    }
   },
   "app": {
     "loading": "Загрузка…",
