@@ -185,7 +185,7 @@
     "graphology-components": "^1.5.4",
     "graphology-layout-forceatlas2": "^0.10.1",
     "graphology-types": "^0.24.8",
-    "jsdom": "^29.1.0",
+    "jsdom": "^29.1.1",
     "klayjs": "^0.4.1",
     "picomatch": "^2.3.2",
     "postcss": "^8.5.12",
