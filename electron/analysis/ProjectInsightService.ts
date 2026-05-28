@@ -1,5 +1,11 @@
+import * as path from 'path';
+import { getLanguageByExtension } from '../parsing/languageRegistry';
 import { GraphData, GraphNode } from '../store';
-import { buildGraphAdjacency } from './graphAnalysisUtils';
+import {
+  buildGraphAdjacency,
+  isContractSemanticLink,
+  isDiRuntimeLink,
+} from './graphAnalysisUtils';
 import {
   ArchitectureInsightService,
   ArchitectureLayer,
@@ -7,6 +13,8 @@ import {
 } from './ArchitectureInsightService';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { HealthScoreAnalyzer, HealthScoreResult } from './HealthScoreAnalyzer';
+import { DetectedStack, StackInsightService } from './StackInsightService';
+import { StackStructuralInsight, StackTopologyService } from './StackTopologyService';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
 
 export interface PrepareProjectContextInput {
@@ -24,6 +32,21 @@ export interface ProjectInsightResult {
   };
   projectProfile: {
     primaryTechnologies: Array<{ name: string; fileCount: number }>;
+    languageSupportSummary: Array<{
+      id: string;
+      displayName: string;
+      supportTier: 'semantic' | 'structural' | 'limited' | 'metadata';
+      fileCount: number;
+    }>;
+    stackProfile: {
+      packageManagers: DetectedStack[];
+      buildSystems: DetectedStack[];
+      frameworks: DetectedStack[];
+    };
+    stackTopology: {
+      frameworkInsights: StackStructuralInsight[];
+      buildInsights: StackStructuralInsight[];
+    };
     projectShape: string;
     architectureMaturity: 'strong' | 'fair' | 'weak';
   };
@@ -34,6 +57,44 @@ export interface ProjectInsightResult {
     classifications?: ArchitectureOverview['classifications'];
   };
   health: HealthScoreResult;
+  operationalTelemetry: {
+    watcher: {
+      flushCount: number;
+      batchedEventCount: number;
+      coalescedFlushes: number;
+      maxBatchSize: number;
+      lastBatchSize: number;
+      lastEvent: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir' | null;
+      recentBatchSizes: number[];
+    };
+    enrichment: {
+      skippedRefreshes: number;
+      rebuiltRefreshes: number;
+      runtimePriorityRebuilds: number;
+      directoryTriggeredRebuilds: number;
+      avgRefreshLatencyMs: number;
+      lastRefreshMode: 'skipped' | 'rebuilt' | null;
+      lastRefreshReason:
+        | 'no_stack_impact'
+        | 'directory_structure_changed'
+        | 'stack_runtime_path_changed'
+        | null;
+      recentLatencyMs: number[];
+      recentModes: Array<'skipped' | 'rebuilt'>;
+    };
+    trends: {
+      watcher: {
+        coalescingRatio: number;
+        batchSizeTrend: 'stable' | 'improving' | 'degrading';
+      };
+      enrichment: {
+        skipRate: number;
+        runtimePriorityRate: number;
+        latencyTrend: 'stable' | 'improving' | 'degrading';
+        degraded: boolean;
+      };
+    };
+  };
   patterns: DetectedPattern[];
   security: {
     summary: {
@@ -48,6 +109,8 @@ export interface ProjectInsightResult {
   mentalModel: {
     entryPoints: GraphNode[];
     coreOrchestrators: GraphNode[];
+    runtimeCompositionRoots: GraphNode[];
+    contractSurfaces: GraphNode[];
     sharedFoundations: GraphNode[];
     keyBoundaries: string[];
     likelyWorkflows: string[];
@@ -87,6 +150,8 @@ export class ProjectInsightService {
     private readonly architectureInsightService = new ArchitectureInsightService(),
     private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
+    private readonly stackInsightService = new StackInsightService(),
+    private readonly stackTopologyService = new StackTopologyService(),
     private readonly securityScanner = new SecurityScanner()
   ) {}
 
@@ -114,11 +179,50 @@ export class ProjectInsightService {
         : await this.securityScanner.analyze(graph);
     const graphSummary = this.createGraphSummary(graph);
     const mentalModel = this.buildMentalModel(graph, architecture);
+    const stackProfile = await this.stackInsightService.analyze(graph);
+    const stackTopology = await this.stackTopologyService.analyze(graph, stackProfile);
+    const operationalTelemetry = graph.refreshTelemetry || {
+      watcher: {
+        flushCount: 0,
+        batchedEventCount: 0,
+        coalescedFlushes: 0,
+        maxBatchSize: 0,
+        lastBatchSize: 0,
+        lastEvent: null,
+        recentBatchSizes: [],
+      },
+      enrichment: {
+        skippedRefreshes: 0,
+        rebuiltRefreshes: 0,
+        runtimePriorityRebuilds: 0,
+        directoryTriggeredRebuilds: 0,
+        avgRefreshLatencyMs: 0,
+        lastRefreshMode: null,
+        lastRefreshReason: null,
+        recentLatencyMs: [],
+        recentModes: [],
+      },
+      trends: {
+        watcher: {
+          coalescingRatio: 0,
+          batchSizeTrend: 'stable',
+        },
+        enrichment: {
+          skipRate: 0,
+          runtimePriorityRate: 0,
+          latencyTrend: 'stable',
+          degraded: false,
+        },
+      },
+    };
 
     return {
       graphSummary,
       projectProfile: {
         primaryTechnologies: this.detectPrimaryTechnologies(graph),
+        languageSupportSummary: this.detectLanguageSupportSummary(graph),
+        stackProfile,
+        stackTopology,
         projectShape: this.describeProjectShape(architecture),
         architectureMaturity: this.getArchitectureMaturity(health, architecture),
       },
@@ -129,6 +233,7 @@ export class ProjectInsightService {
         classifications: input.includeClassifications ? architecture.classifications : undefined,
       },
       health,
+      operationalTelemetry,
       patterns,
       security: {
         summary: security.summary,
@@ -141,7 +246,8 @@ export class ProjectInsightService {
         architecture,
         patterns,
         security.findings,
-        mentalModel
+        mentalModel,
+        operationalTelemetry
       ),
     };
   }
@@ -194,6 +300,27 @@ export class ProjectInsightService {
       .slice(0, FILE_LIMIT)
       .map(({ node }) => node);
 
+    const runtimeCompositionRoots = fileNodes
+      .map((node) => ({
+        node,
+        degree: (outgoingBySource.get(node.id) || []).filter((link) => isDiRuntimeLink(link)).length,
+      }))
+      .filter(({ degree }) => degree > 0)
+      .sort((a, b) => b.degree - a.degree || a.node.label.localeCompare(b.node.label))
+      .slice(0, FILE_LIMIT)
+      .map(({ node }) => node);
+
+    const contractSurfaces = fileNodes
+      .map((node) => ({
+        node,
+        degree: (outgoingBySource.get(node.id) || []).filter((link) => isContractSemanticLink(link))
+          .length,
+      }))
+      .filter(({ degree }) => degree > 0)
+      .sort((a, b) => b.degree - a.degree || a.node.label.localeCompare(b.node.label))
+      .slice(0, FILE_LIMIT)
+      .map(({ node }) => node);
+
     const sharedFoundations = fileNodes
       .filter((node) => ['shared', 'state'].includes(layerByNodeId.get(node.id) || ''))
       .map((node) => ({
@@ -213,9 +340,11 @@ export class ProjectInsightService {
     return {
       entryPoints,
       coreOrchestrators,
+      runtimeCompositionRoots,
+      contractSurfaces,
       sharedFoundations,
       keyBoundaries,
-      likelyWorkflows: this.buildLikelyWorkflows(architecture),
+      likelyWorkflows: this.buildLikelyWorkflows(architecture, graph),
     };
   }
 
@@ -236,6 +365,48 @@ export class ProjectInsightService {
       .map(([name, fileCount]) => ({ name, fileCount }))
       .sort((a, b) => b.fileCount - a.fileCount || a.name.localeCompare(b.name))
       .slice(0, 5);
+  }
+
+  private detectLanguageSupportSummary(
+    graph: GraphData
+  ): ProjectInsightResult['projectProfile']['languageSupportSummary'] {
+    const counts = new Map<
+      string,
+      {
+        id: string;
+        displayName: string;
+        supportTier: 'semantic' | 'structural' | 'limited' | 'metadata';
+        fileCount: number;
+      }
+    >();
+
+    for (const node of graph.nodes) {
+      if (node.type !== 'file') {
+        continue;
+      }
+
+      const definition = getLanguageByExtension(path.extname(toStructuralNodeId(node.id)).toLowerCase());
+      if (!definition) {
+        continue;
+      }
+
+      const existing = counts.get(definition.id);
+      if (existing) {
+        existing.fileCount += 1;
+        continue;
+      }
+
+      counts.set(definition.id, {
+        id: definition.id,
+        displayName: definition.displayName,
+        supportTier: definition.supportTier,
+        fileCount: 1,
+      });
+    }
+
+    return Array.from(counts.values())
+      .sort((a, b) => b.fileCount - a.fileCount || a.displayName.localeCompare(b.displayName))
+      .slice(0, 10);
   }
 
   private describeProjectShape(architecture: ArchitectureOverview) {
@@ -301,6 +472,8 @@ export class ProjectInsightService {
       recommendedStartingNodes: unique([
         ...mentalModel.entryPoints.map((node) => node.id),
         ...mentalModel.coreOrchestrators.map((node) => node.id),
+        ...mentalModel.runtimeCompositionRoots.map((node) => node.id),
+        ...mentalModel.contractSurfaces.map((node) => node.id),
       ]).slice(0, 10),
       shouldFallbackToLowLevelTools:
         architecture.summary.unknownNodes > 0 || mentalModel.entryPoints.length === 0,
@@ -312,7 +485,8 @@ export class ProjectInsightService {
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
     securityFindings: SecurityFinding[],
-    mentalModel: ProjectInsightResult['mentalModel']
+    mentalModel: ProjectInsightResult['mentalModel'],
+    operationalTelemetry: ProjectInsightResult['operationalTelemetry']
   ) {
     const nextSteps = [
       'First read entry points and core orchestrators to fix real control flows across the project.',
@@ -325,9 +499,43 @@ export class ProjectInsightService {
       );
     }
 
+    if (mentalModel.runtimeCompositionRoots.length > 0) {
+      nextSteps.push(
+        'Review runtime composition roots separately: these files wire provider bindings, bean factories, or service registrations and often hide non-import architectural coupling.'
+      );
+    }
+
+    if (mentalModel.contractSurfaces.length > 0) {
+      nextSteps.push(
+        'Inspect API contract surfaces separately: schema roots and generated/runtime bindings often widen impact beyond direct imports and file-local edits.'
+      );
+    }
+
+    if (operationalTelemetry.watcher.coalescedFlushes > 0) {
+      nextSteps.push(
+        'Validate watcher batching metrics and keep hot edit bursts coalesced, otherwise incremental refresh will waste cycles on repeated graph updates.'
+      );
+    }
+
+    if (operationalTelemetry.enrichment.runtimePriorityRebuilds > 0) {
+      nextSteps.push(
+        'Inspect runtime-priority rebuild paths and keep composition roots explicit, because they dominate incremental stack enrichment cost.'
+      );
+    }
+
     if (patterns.length > 0) {
       nextSteps.push(
         'Analyze hotspot patterns and understand which are real architectural risks and which are acceptable coordination centers.'
+      );
+    }
+
+    if (
+      patterns.some(
+        (pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files'
+      )
+    ) {
+      nextSteps.push(
+        'Prioritize decomposition of oversized modules: extract stack-specific rules, helpers, and orchestration seams before adding more responsibilities.'
       );
     }
 
@@ -352,7 +560,7 @@ export class ProjectInsightService {
     return nextSteps;
   }
 
-  private buildLikelyWorkflows(architecture: ArchitectureOverview) {
+  private buildLikelyWorkflows(architecture: ArchitectureOverview, graph: GraphData) {
     const layers = new Set(architecture.layers.map((entry) => entry.layer));
     const workflows: string[] = [];
 
@@ -374,6 +582,16 @@ export class ProjectInsightService {
     if (layers.has('analysis') && layers.has('state')) {
       workflows.push(
         'Analysis -> state: Analytics services rely on the normalized graph and store representation.'
+      );
+    }
+    if (graph.links.some((link) => isDiRuntimeLink(link))) {
+      workflows.push(
+        'Runtime DI contracts: Composition roots wire providers/services to concrete implementations beyond plain import dependencies.'
+      );
+    }
+    if (graph.links.some((link) => isContractSemanticLink(link))) {
+      workflows.push(
+        'API contract -> generated/runtime: OpenAPI and protobuf schemas bind to generated clients, handlers, and servers beyond plain import edges.'
       );
     }
 

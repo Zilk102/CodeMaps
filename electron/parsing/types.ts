@@ -1,5 +1,10 @@
 export type EntityType = 'class' | 'function';
 export type ParserEngine = 'tree-sitter' | 'markdown-adr' | 'typescript-semantic';
+export type LanguageSupportTier = 'semantic' | 'structural' | 'limited' | 'metadata';
+export type LanguageAdapterId =
+  | 'tree-sitter-query-adapter'
+  | 'markdown-adr-adapter'
+  | 'typescript-semantic-adapter';
 
 export interface ImportRecord {
   path: string;
@@ -31,6 +36,14 @@ export interface ParseResult {
   detectedLanguage?: string;
 }
 
+export interface ParseContext {
+  filePath: string;
+  text: string;
+  definition: LanguageDefinition;
+  adr?: string;
+  baseDir?: string;
+}
+
 export interface LanguageCapabilities {
   entities: boolean;
   imports: boolean;
@@ -42,7 +55,9 @@ export interface LanguageCapabilities {
 export interface LanguageDefinition {
   id: string;
   displayName: string;
+  adapterId: LanguageAdapterId;
   parserEngine: ParserEngine;
+  supportTier: LanguageSupportTier;
   wasmName?: string;
   extensions: string[];
   query?: string;
@@ -58,4 +73,12 @@ export interface ParseWorkerInput {
   filePath: string;
   activeLanguageIds?: string[];
   baseDir?: string;
+}
+
+export interface LanguageAdapter {
+  id: LanguageAdapterId;
+  parserEngines: ParserEngine[];
+  supportTiers?: LanguageSupportTier[];
+  supports: (definition: LanguageDefinition) => boolean;
+  parse: (context: ParseContext) => Promise<ParseResult>;
 }

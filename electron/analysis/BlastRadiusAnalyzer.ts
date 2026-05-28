@@ -1,5 +1,9 @@
 import { GraphData, GraphLink, GraphNode } from '../store';
-import { buildGraphAdjacency } from './graphAnalysisUtils';
+import {
+  buildGraphAdjacency,
+  isArchitecturalDependencyLink,
+  isStackAwareLink,
+} from './graphAnalysisUtils';
 
 export interface BlastRadiusResult {
   rootNodeId: string;
@@ -28,6 +32,9 @@ export class BlastRadiusAnalyzer {
       }
 
       for (const dependentLink of incomingByTarget.get(current) || []) {
+        if (!isArchitecturalDependencyLink(dependentLink) && dependentLink.type !== 'adr') {
+          continue;
+        }
         affectedLinks.push(dependentLink);
         const nextId = dependentLink.source;
         if (visited.has(nextId)) continue;
@@ -69,13 +76,14 @@ export class BlastRadiusAnalyzer {
     }
 
     const importLinks = affectedLinks.filter((link) => link.type === 'import').length;
+    const stackAwareLinks = affectedLinks.filter((link) => isStackAwareLink(link)).length;
     const adrLinks = affectedLinks.filter((link) => link.type === 'adr').length;
 
-    if (importLinks > 0 && adrLinks === 0) {
+    if ((importLinks > 0 || stackAwareLinks > 0) && adrLinks === 0) {
       return 'high';
     }
 
-    if (importLinks > 0) {
+    if (importLinks > 0 || stackAwareLinks > 0) {
       return 'medium';
     }
 

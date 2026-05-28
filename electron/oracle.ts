@@ -8,8 +8,10 @@ import { CacheManager } from './oracle/CacheManager';
 import { ChurnAnalyzer } from './oracle/ChurnAnalyzer';
 import { FileWatcher } from './oracle/FileWatcher';
 import { GraphBuilder } from './oracle/GraphBuilder';
+import { getOraclePerformanceConfig } from './oracle/performanceConfig';
 import { GraphRepository } from './oracle/GraphRepository';
 import { ProjectIndexer } from './oracle/ProjectIndexer';
+import { StackGraphEnrichmentService } from './oracle/StackGraphEnrichmentService';
 import { normalizePath } from './oracle/shared';
 
 export class OracleService extends EventEmitter {
@@ -20,6 +22,8 @@ export class OracleService extends EventEmitter {
   private graphBuilder: GraphBuilder;
   private projectIndexer: ProjectIndexer;
   private fileWatcher: FileWatcher;
+  private stackGraphEnrichmentService: StackGraphEnrichmentService;
+  private readonly performanceConfig = getOraclePerformanceConfig();
   private parsingProgressResetTimeout: ReturnType<typeof setTimeout> | null = null;
   private shutdownPromise: Promise<void> | null = null;
   private projectLanguageProfile: ProjectLanguageProfile = {
@@ -35,16 +39,18 @@ export class OracleService extends EventEmitter {
       : path.join(__dirname, 'worker.js');
     this.pool = new Piscina({
       filename: workerPath,
+      minThreads: this.performanceConfig.workerThreads.min,
+      maxThreads: this.performanceConfig.workerThreads.max,
     });
     this.graphRepository = new GraphRepository();
-    this.cacheManager = new CacheManager();
+    this.cacheManager = new CacheManager(this.performanceConfig);
     this.churnAnalyzer = new ChurnAnalyzer();
     this.graphBuilder = new GraphBuilder();
-    this.projectIndexer = new ProjectIndexer(this.pool, this.graphBuilder);
+    this.stackGraphEnrichmentService = new StackGraphEnrichmentService(this.graphBuilder);
+    this.projectIndexer = new ProjectIndexer(this.pool, this.graphBuilder, this.performanceConfig);
     this.fileWatcher = new FileWatcher(
       this.projectIndexer,
       this.graphBuilder,
-      this.graphRepository,
       this.cacheManager
     );
   }
@@ -75,7 +81,11 @@ export class OracleService extends EventEmitter {
   }
 
   private emitGraphUpdated() {
-    this.emit('graph-updated', this.graphRepository.getGraph());
+    const graph = this.graphRepository.getGraph();
+    if (graph.projectRoot && graph.refreshTelemetry) {
+      oracleStore.getState().updateRecentProjectTelemetry(graph.projectRoot, graph.refreshTelemetry);
+    }
+    this.emit('graph-updated', graph);
   }
 
   private clearParsingProgressResetTimeout() {
@@ -105,6 +115,7 @@ export class OracleService extends EventEmitter {
     );
 
     this.projectLanguageProfile = indexResult.languageProfile;
+    await this.stackGraphEnrichmentService.rebuild(this.graphRepository.getGraph());
     this.cacheManager.saveDebounced(normalizedBaseDir);
 
     await this.fileWatcher.start(
@@ -112,18 +123,27 @@ export class OracleService extends EventEmitter {
       () => this.projectLanguageProfile,
       (filePath, delta) => this.updateLanguageCount(filePath, delta),
       {
+        refreshStackGraphEnrichment: async (changedPaths, event) => {
+          await this.stackGraphEnrichmentService.rebuildForChangedPaths(
+            this.graphRepository.getGraph(),
+            changedPaths,
+            event
+          );
+        },
         emitGraphUpdated: () => this.emitGraphUpdated(),
       }
     );
+
+    const projectName = path.basename(normalizedBaseDir);
+    oracleStore
+      .getState()
+      .addRecentProject(normalizedBaseDir, projectName, this.graphRepository.getGraph().refreshTelemetry);
 
     this.emitGraphUpdated();
     this.parsingProgressResetTimeout = setTimeout(() => {
       this.parsingProgressResetTimeout = null;
       this.emit('parsing-progress', null);
     }, 2000);
-
-    const projectName = path.basename(normalizedBaseDir);
-    oracleStore.getState().addRecentProject(normalizedBaseDir, projectName);
 
     return this.graphRepository.getGraph();
   }

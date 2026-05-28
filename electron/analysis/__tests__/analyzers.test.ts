@@ -55,6 +55,21 @@ export function App() {
       fs.writeFileSync(path.join(testProjectDir, `utils${i}.ts`), `export function util${i}() { return ${i}; }`);
     }
 
+    fs.mkdirSync(path.join(testProjectDir, 'app', 'api', 'health'), { recursive: true });
+    fs.writeFileSync(
+      path.join(testProjectDir, 'app', 'layout.tsx'),
+      'export default function RootLayout({ children }: { children: React.ReactNode }) { return children; }'
+    );
+    fs.writeFileSync(
+      path.join(testProjectDir, 'app', 'page.tsx'),
+      'export default function HomePage() { return <div>Home</div>; }'
+    );
+    fs.writeFileSync(
+      path.join(testProjectDir, 'app', 'api', 'health', 'route.ts'),
+      'export async function GET() { return Response.json({ ok: true }); }'
+    );
+    fs.writeFileSync(path.join(testProjectDir, 'vite.config.ts'), 'export default {};');
+
     // A secret file
     fs.writeFileSync(path.join(testProjectDir, 'secret.key'), 'super_secret_key_material');
 
@@ -63,8 +78,25 @@ export function App() {
     fs.mkdirSync(deepDir, { recursive: true });
     fs.writeFileSync(path.join(deepDir, 'deep.ts'), 'export const deep = true;');
 
-    // A config file
-    fs.writeFileSync(path.join(testProjectDir, 'package.json'), '{"name":"test"}');
+    // Project manifests for stack detection
+    fs.writeFileSync(
+      path.join(testProjectDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'test',
+          packageManager: 'pnpm@10.0.0',
+          dependencies: {
+            react: '^19.0.0',
+            next: '^15.0.0',
+          },
+          devDependencies: {
+            vite: '^8.0.0',
+          },
+        },
+        null,
+        2
+      )
+    );
 
     const oracle = new OracleService();
     graphData = await oracle.analyzeProject(testProjectDir);
@@ -152,8 +184,45 @@ export function App() {
     
     expect(result.graphSummary).toBeDefined();
     expect(result.projectProfile).toBeDefined();
+    expect(result.projectProfile.languageSupportSummary.length).toBeGreaterThan(0);
+    expect(
+      result.projectProfile.languageSupportSummary.some(
+        (entry) => entry.id === 'typescript' && entry.supportTier === 'semantic'
+      )
+    ).toBe(true);
+    expect(
+      result.projectProfile.stackProfile.packageManagers.some((entry) => entry.id === 'pnpm')
+    ).toBe(true);
+    expect(
+      result.projectProfile.stackProfile.buildSystems.some((entry) => entry.id === 'vite')
+    ).toBe(true);
+    expect(
+      result.projectProfile.stackProfile.frameworks.some((entry) => entry.id === 'react')
+    ).toBe(true);
+    expect(
+      result.projectProfile.stackProfile.frameworks.some((entry) => entry.id === 'nextjs')
+    ).toBe(true);
+    expect(result.projectProfile.stackTopology.frameworkInsights.length).toBeGreaterThan(0);
+    expect(result.projectProfile.stackTopology.buildInsights.length).toBeGreaterThan(0);
+    expect(
+      result.projectProfile.stackTopology.frameworkInsights.some(
+        (entry) =>
+          entry.adapterId === 'nextjs-topology' &&
+          entry.routes.some((route) => route === 'app/page.tsx') &&
+          entry.modules.some((route) => route === 'app/api/health/route.ts')
+      )
+    ).toBe(true);
+    expect(
+      result.projectProfile.stackTopology.buildInsights.some(
+        (entry) =>
+          entry.adapterId === 'vite-build-topology' &&
+          entry.configFiles.some((file) => file === 'vite.config.ts')
+      )
+    ).toBe(true);
     expect(result.architecture).toBeDefined();
     expect(result.security).toBeDefined();
+    expect(result.operationalTelemetry.watcher.flushCount).toBeGreaterThanOrEqual(0);
+    expect(result.operationalTelemetry.enrichment.rebuiltRefreshes).toBeGreaterThanOrEqual(0);
   });
 
   it('TaskIntelligenceService infers task intent and plans route', async () => {

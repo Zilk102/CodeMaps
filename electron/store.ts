@@ -20,11 +20,50 @@ function getRecentProjectsFile(): string {
   return path.join(getUserDataDir(), 'codemaps-recent-projects.json');
 }
 
+type TrendState = 'stable' | 'improving' | 'degrading';
+type RefreshEvent = 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+type RefreshMode = 'skipped' | 'rebuilt';
+type RefreshReason =
+  | 'no_stack_impact'
+  | 'directory_structure_changed'
+  | 'stack_runtime_path_changed';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const asFiniteNumber = (value: unknown, fallback = 0) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const asBoolean = (value: unknown, fallback = false) =>
+  typeof value === 'boolean' ? value : fallback;
+
+const asString = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
+
+const asTrendState = (value: unknown): TrendState =>
+  value === 'improving' || value === 'degrading' ? value : 'stable';
+
+const asRefreshMode = (value: unknown): RefreshMode | null =>
+  value === 'skipped' || value === 'rebuilt' ? value : null;
+
+const asRefreshReason = (value: unknown): RefreshReason | null =>
+  value === 'no_stack_impact' ||
+  value === 'directory_structure_changed' ||
+  value === 'stack_runtime_path_changed'
+    ? value
+    : null;
+
+const normalizeProjectPath = (projectPath: string) => projectPath.replace(/\\/g, '/');
+
 function loadRecentProjects(): RecentProject[] {
   try {
     const data = fs.readFileSync(getRecentProjectsFile(), 'utf-8');
-    const parsed = JSON.parse(data) as RecentProject[];
-    if (Array.isArray(parsed)) return parsed;
+    const parsed = JSON.parse(data) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((project) => normalizeRecentProject(project))
+        .filter((project): project is RecentProject => project !== null)
+        .slice(0, 10);
+    }
   } catch {
     // File doesn't exist or is corrupt.
   }
@@ -61,18 +100,75 @@ export interface GraphLink {
   target: string;
   value: number;
   type?: string;
+  reason?: string;
 }
 
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
   projectRoot: string;
+  refreshTelemetry?: RefreshTelemetry;
+}
+
+export interface RefreshTelemetry {
+  watcher: {
+    flushCount: number;
+    batchedEventCount: number;
+    coalescedFlushes: number;
+    maxBatchSize: number;
+    lastBatchSize: number;
+    lastEvent: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir' | null;
+    recentBatchSizes: number[];
+  };
+  enrichment: {
+    skippedRefreshes: number;
+    rebuiltRefreshes: number;
+    runtimePriorityRebuilds: number;
+    directoryTriggeredRebuilds: number;
+    avgRefreshLatencyMs: number;
+    lastRefreshMode: 'skipped' | 'rebuilt' | null;
+    lastRefreshReason:
+      | 'no_stack_impact'
+      | 'directory_structure_changed'
+      | 'stack_runtime_path_changed'
+      | null;
+    recentLatencyMs: number[];
+    recentModes: Array<'skipped' | 'rebuilt'>;
+  };
+  trends: {
+    watcher: {
+      coalescingRatio: number;
+      batchSizeTrend: 'stable' | 'improving' | 'degrading';
+    };
+    enrichment: {
+      skipRate: number;
+      runtimePriorityRate: number;
+      latencyTrend: 'stable' | 'improving' | 'degrading';
+      degraded: boolean;
+    };
+  };
 }
 
 export interface RecentProject {
   path: string;
   name: string;
   lastOpened: string;
+  telemetry?: RecentProjectTelemetrySnapshot;
+}
+
+export interface RecentProjectTelemetrySnapshot {
+  updatedAt: string;
+  degraded: boolean;
+  avgRefreshLatencyMs: number;
+  skipRate: number;
+  coalescingRatio: number;
+  runtimePriorityRate: number;
+  latencyTrend: TrendState;
+  batchSizeTrend: TrendState;
+  maxBatchSize: number;
+  lastBatchSize: number;
+  lastRefreshMode: RefreshMode | null;
+  lastRefreshReason: RefreshReason | null;
 }
 
 export interface GraphDiff {
@@ -89,11 +185,20 @@ export interface OracleState {
   churnMap: Map<string, number>;
   nodeRevision: number;
   linkRevision: number;
+  telemetryRevision: number;
   recentProjects: RecentProject[];
+  refreshTelemetry: RefreshTelemetry;
 
   // Actions
   setBaseDir: (dir: string) => void;
   setChurnMap: (map: Map<string, number>) => void;
+  resetRefreshTelemetry: () => void;
+  recordWatcherFlush: (batchSize: number, event: RefreshEvent) => void;
+  recordEnrichmentRefresh: (entry: {
+    mode: RefreshMode;
+    reason: RefreshReason;
+    durationMs: number;
+  }) => void;
 
   // Atomic updates to avoid race conditions during parallel parsing
   upsertNode: (node: GraphNode) => void;
@@ -103,6 +208,7 @@ export interface OracleState {
   addLink: (link: GraphLink) => void;
   removeLinksBySource: (source: string) => void;
   removeLinksBySourceOrTarget: (id: string) => void;
+  removeLinksByTypes: (types: string[]) => void;
 
   // Batch updates for restoring from cache
   restoreCache: (nodes: GraphNode[], links: GraphLink[]) => void;
@@ -116,9 +222,176 @@ export interface OracleState {
   getAndResetDiff: () => GraphDiff;
 
   // Recent projects
-  addRecentProject: (projectPath: string, projectName: string) => void;
+  addRecentProject: (
+    projectPath: string,
+    projectName: string,
+    refreshTelemetry?: RefreshTelemetry
+  ) => void;
+  updateRecentProjectTelemetry: (projectPath: string, refreshTelemetry: RefreshTelemetry) => void;
   clearRecentProjects: () => void;
 }
+
+const TELEMETRY_HISTORY_LIMIT = 12;
+
+const pushLimited = <T>(items: T[], value: T) => [...items, value].slice(-TELEMETRY_HISTORY_LIMIT);
+
+const average = (values: number[]) =>
+  values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
+
+const computeBatchSizeTrend = (recentBatchSizes: number[]): 'stable' | 'improving' | 'degrading' => {
+  if (recentBatchSizes.length < 4) {
+    return 'stable';
+  }
+  const midpoint = Math.floor(recentBatchSizes.length / 2);
+  const firstHalf = average(recentBatchSizes.slice(0, midpoint));
+  const secondHalf = average(recentBatchSizes.slice(midpoint));
+
+  if (secondHalf >= firstHalf + 0.75) {
+    return 'improving';
+  }
+  if (secondHalf <= firstHalf - 0.75) {
+    return 'degrading';
+  }
+  return 'stable';
+};
+
+const computeLatencyTrend = (recentLatencyMs: number[]): 'stable' | 'improving' | 'degrading' => {
+  if (recentLatencyMs.length < 4) {
+    return 'stable';
+  }
+  const midpoint = Math.floor(recentLatencyMs.length / 2);
+  const firstHalf = average(recentLatencyMs.slice(0, midpoint));
+  const secondHalf = average(recentLatencyMs.slice(midpoint));
+
+  if (secondHalf >= firstHalf + 8) {
+    return 'degrading';
+  }
+  if (secondHalf <= Math.max(0, firstHalf - 8)) {
+    return 'improving';
+  }
+  return 'stable';
+};
+
+const buildRefreshTrends = (telemetry: Omit<RefreshTelemetry, 'trends'>): RefreshTelemetry['trends'] => {
+  const totalWatcherFlushes = telemetry.watcher.flushCount || 1;
+  const totalEnrichmentRefreshes =
+    telemetry.enrichment.skippedRefreshes + telemetry.enrichment.rebuiltRefreshes || 1;
+  const coalescingRatio = telemetry.watcher.coalescedFlushes / totalWatcherFlushes;
+  const skipRate = telemetry.enrichment.skippedRefreshes / totalEnrichmentRefreshes;
+  const runtimePriorityRate =
+    telemetry.enrichment.runtimePriorityRebuilds / totalEnrichmentRefreshes;
+  const latencyTrend = computeLatencyTrend(telemetry.enrichment.recentLatencyMs);
+
+  return {
+    watcher: {
+      coalescingRatio,
+      batchSizeTrend: computeBatchSizeTrend(telemetry.watcher.recentBatchSizes),
+    },
+    enrichment: {
+      skipRate,
+      runtimePriorityRate,
+      latencyTrend,
+      degraded:
+        latencyTrend === 'degrading' ||
+        telemetry.enrichment.avgRefreshLatencyMs >= 50 ||
+        skipRate >= 0.35,
+    },
+  };
+};
+
+const buildRecentProjectTelemetrySnapshot = (
+  refreshTelemetry: RefreshTelemetry
+): RecentProjectTelemetrySnapshot => ({
+  updatedAt: new Date().toISOString(),
+  degraded: refreshTelemetry.trends.enrichment.degraded,
+  avgRefreshLatencyMs: refreshTelemetry.enrichment.avgRefreshLatencyMs,
+  skipRate: refreshTelemetry.trends.enrichment.skipRate,
+  coalescingRatio: refreshTelemetry.trends.watcher.coalescingRatio,
+  runtimePriorityRate: refreshTelemetry.trends.enrichment.runtimePriorityRate,
+  latencyTrend: refreshTelemetry.trends.enrichment.latencyTrend,
+  batchSizeTrend: refreshTelemetry.trends.watcher.batchSizeTrend,
+  maxBatchSize: refreshTelemetry.watcher.maxBatchSize,
+  lastBatchSize: refreshTelemetry.watcher.lastBatchSize,
+  lastRefreshMode: refreshTelemetry.enrichment.lastRefreshMode,
+  lastRefreshReason: refreshTelemetry.enrichment.lastRefreshReason,
+});
+
+const normalizeRecentProjectTelemetry = (value: unknown): RecentProjectTelemetrySnapshot | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    updatedAt: asString(value.updatedAt, new Date(0).toISOString()),
+    degraded: asBoolean(value.degraded),
+    avgRefreshLatencyMs: asFiniteNumber(value.avgRefreshLatencyMs),
+    skipRate: asFiniteNumber(value.skipRate),
+    coalescingRatio: asFiniteNumber(value.coalescingRatio),
+    runtimePriorityRate: asFiniteNumber(value.runtimePriorityRate),
+    latencyTrend: asTrendState(value.latencyTrend),
+    batchSizeTrend: asTrendState(value.batchSizeTrend),
+    maxBatchSize: asFiniteNumber(value.maxBatchSize),
+    lastBatchSize: asFiniteNumber(value.lastBatchSize),
+    lastRefreshMode: asRefreshMode(value.lastRefreshMode),
+    lastRefreshReason: asRefreshReason(value.lastRefreshReason),
+  };
+};
+
+const normalizeRecentProject = (value: unknown): RecentProject | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const projectPath = asString(value.path);
+  const projectName = asString(value.name);
+  const lastOpened = asString(value.lastOpened);
+
+  if (!projectPath || !projectName || !lastOpened) {
+    return null;
+  }
+
+  return {
+    path: normalizeProjectPath(projectPath),
+    name: projectName,
+    lastOpened,
+    telemetry: normalizeRecentProjectTelemetry(value.telemetry),
+  };
+};
+
+const initialRefreshTelemetry: RefreshTelemetry = {
+  watcher: {
+    flushCount: 0,
+    batchedEventCount: 0,
+    coalescedFlushes: 0,
+    maxBatchSize: 0,
+    lastBatchSize: 0,
+    lastEvent: null,
+    recentBatchSizes: [],
+  },
+  enrichment: {
+    skippedRefreshes: 0,
+    rebuiltRefreshes: 0,
+    runtimePriorityRebuilds: 0,
+    directoryTriggeredRebuilds: 0,
+    avgRefreshLatencyMs: 0,
+    lastRefreshMode: null,
+    lastRefreshReason: null,
+    recentLatencyMs: [],
+    recentModes: [],
+  },
+  trends: {
+    watcher: {
+      coalescingRatio: 0,
+      batchSizeTrend: 'stable',
+    },
+    enrichment: {
+      skipRate: 0,
+      runtimePriorityRate: 0,
+      latencyTrend: 'stable',
+      degraded: false,
+    },
+  },
+};
 
 export const oracleStore = createStore<OracleState>()((set, get) => ({
   baseDir: '',
@@ -127,11 +400,83 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
   churnMap: new Map(),
   nodeRevision: 0,
   linkRevision: 0,
+  telemetryRevision: 0,
   pendingDiff: { nodesAdded: [], nodesRemoved: [], linksAdded: [], linksRemoved: [] },
   recentProjects: loadRecentProjects(),
+  refreshTelemetry: initialRefreshTelemetry,
   setBaseDir: (dir) => set({ baseDir: dir }),
 
   setChurnMap: (map) => set({ churnMap: map }),
+  resetRefreshTelemetry: () =>
+    set((state) => ({
+      refreshTelemetry: initialRefreshTelemetry,
+      telemetryRevision: state.telemetryRevision + 1,
+    })),
+  recordWatcherFlush: (batchSize, event) =>
+    set((state) => {
+      const watcher = {
+        watcher: {
+          flushCount: state.refreshTelemetry.watcher.flushCount + 1,
+          batchedEventCount: state.refreshTelemetry.watcher.batchedEventCount + batchSize,
+          coalescedFlushes:
+            state.refreshTelemetry.watcher.coalescedFlushes + (batchSize > 1 ? 1 : 0),
+          maxBatchSize: Math.max(state.refreshTelemetry.watcher.maxBatchSize, batchSize),
+          lastBatchSize: batchSize,
+          lastEvent: event,
+          recentBatchSizes: pushLimited(state.refreshTelemetry.watcher.recentBatchSizes, batchSize),
+        },
+        enrichment: state.refreshTelemetry.enrichment,
+      };
+
+      return {
+        refreshTelemetry: {
+          ...watcher,
+          trends: buildRefreshTrends(watcher),
+        },
+        telemetryRevision: state.telemetryRevision + 1,
+      };
+    }),
+  recordEnrichmentRefresh: ({ mode, reason, durationMs }) =>
+    set((state) => {
+      const previousCount =
+        state.refreshTelemetry.enrichment.skippedRefreshes +
+        state.refreshTelemetry.enrichment.rebuiltRefreshes;
+      const nextCount = previousCount + 1;
+      const nextAvgLatency =
+        previousCount === 0
+          ? durationMs
+          : (state.refreshTelemetry.enrichment.avgRefreshLatencyMs * previousCount + durationMs) /
+            nextCount;
+
+      const telemetry = {
+        watcher: state.refreshTelemetry.watcher,
+        enrichment: {
+          skippedRefreshes:
+            state.refreshTelemetry.enrichment.skippedRefreshes + (mode === 'skipped' ? 1 : 0),
+          rebuiltRefreshes:
+            state.refreshTelemetry.enrichment.rebuiltRefreshes + (mode === 'rebuilt' ? 1 : 0),
+          runtimePriorityRebuilds:
+            state.refreshTelemetry.enrichment.runtimePriorityRebuilds +
+            (reason === 'stack_runtime_path_changed' ? 1 : 0),
+          directoryTriggeredRebuilds:
+            state.refreshTelemetry.enrichment.directoryTriggeredRebuilds +
+            (reason === 'directory_structure_changed' ? 1 : 0),
+          avgRefreshLatencyMs: nextAvgLatency,
+          lastRefreshMode: mode,
+          lastRefreshReason: reason,
+          recentLatencyMs: pushLimited(state.refreshTelemetry.enrichment.recentLatencyMs, durationMs),
+          recentModes: pushLimited(state.refreshTelemetry.enrichment.recentModes, mode),
+        },
+      };
+
+      return {
+        refreshTelemetry: {
+          ...telemetry,
+          trends: buildRefreshTrends(telemetry),
+        },
+        telemetryRevision: state.telemetryRevision + 1,
+      };
+    }),
 
   upsertNode: (node) =>
     set((state) => {
@@ -217,6 +562,20 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
       };
     }),
 
+  removeLinksByTypes: (types) =>
+    set((state) => {
+      const typeSet = new Set(types);
+      const toRemove = state.links.filter((l) => l.type && typeSet.has(l.type));
+      return {
+        links: state.links.filter((l) => !l.type || !typeSet.has(l.type)),
+        linkRevision: state.linkRevision + 1,
+        pendingDiff: {
+          ...state.pendingDiff,
+          linksRemoved: [...state.pendingDiff.linksRemoved, ...toRemove],
+        },
+      };
+    }),
+
   restoreCache: (nodes, links) =>
     set((state) => {
       const baseDir = state.baseDir.replace(/\\/g, '/');
@@ -282,6 +641,8 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
       churnMap: new Map(),
       nodeRevision: 0,
       linkRevision: 0,
+      telemetryRevision: 0,
+      refreshTelemetry: initialRefreshTelemetry,
     }),
 
   getValidGraph: () => {
@@ -407,6 +768,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
       projectRoot: state.baseDir,
       nodes: Array.from(state.nodes.values()),
       links: validLinks,
+      refreshTelemetry: state.refreshTelemetry,
     };
   },
   resetDiff: () =>
@@ -417,11 +779,45 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     return diff;
   },
 
-  addRecentProject: (projectPath, projectName) => {
+  addRecentProject: (projectPath, projectName, refreshTelemetry) => {
     set((state) => {
-      const normalizedPath = projectPath.replace(/\\/g, '/');
-      const filtered = state.recentProjects.filter((p) => p.path !== normalizedPath);
-      const next = [{ path: normalizedPath, name: projectName, lastOpened: new Date().toISOString() }, ...filtered].slice(0, 10);
+      const normalizedPath = normalizeProjectPath(projectPath);
+      const existing = state.recentProjects.find((project) => project.path === normalizedPath);
+      const filtered = state.recentProjects.filter((project) => project.path !== normalizedPath);
+      const next = [
+        {
+          path: normalizedPath,
+          name: projectName,
+          lastOpened: new Date().toISOString(),
+          telemetry: refreshTelemetry
+            ? buildRecentProjectTelemetrySnapshot(refreshTelemetry)
+            : existing?.telemetry,
+        },
+        ...filtered,
+      ].slice(0, 10);
+      saveRecentProjects(next);
+      return { recentProjects: next };
+    });
+  },
+
+  updateRecentProjectTelemetry: (projectPath, refreshTelemetry) => {
+    set((state) => {
+      const normalizedPath = normalizeProjectPath(projectPath);
+      const hasProject = state.recentProjects.some((project) => project.path === normalizedPath);
+
+      if (!hasProject) {
+        return {};
+      }
+
+      const next = state.recentProjects.map((project) =>
+        project.path === normalizedPath
+          ? {
+              ...project,
+              telemetry: buildRecentProjectTelemetrySnapshot(refreshTelemetry),
+            }
+          : project
+      );
+
       saveRecentProjects(next);
       return { recentProjects: next };
     });

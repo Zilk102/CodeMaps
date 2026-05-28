@@ -1,25 +1,11 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getLanguageAdapter } from './languageAdapters';
 import { getLanguageByExtension } from './languageRegistry';
-import { extractMarkdownAdr } from './extractors/markdownAdrExtractor';
-import { extractWithTypeScriptSemantic } from './extractors/typescriptSemanticExtractor';
-import { extractWithTreeSitterQuery } from './extractors/treeSitterQueryExtractor';
-import { getParserInstance, loadTreeSitterLanguage } from './treeSitterRuntime';
+import { createEmptyParseResult, extractAdrReference } from './parseResultUtils';
 import { ParseResult, ParseWorkerInput } from './types';
 
 const MAX_FILE_SIZE = 300 * 1024;
-
-const emptyResult = (detectedLanguage?: string, adr?: string): ParseResult => ({
-  sizeExceeded: false,
-  imports: [],
-  entities: [],
-  exports: [],
-  adr,
-  variables: [],
-  calls: [],
-  comments: [],
-  detectedLanguage,
-});
 
 export const parseFile = async ({
   filePath,
@@ -30,48 +16,36 @@ export const parseFile = async ({
   const definition = getLanguageByExtension(extension);
 
   if (!definition) {
-    return emptyResult();
+    return createEmptyParseResult();
   }
 
   if (activeLanguageIds?.length && !activeLanguageIds.includes(definition.id)) {
-    return emptyResult(definition.id);
+    return createEmptyParseResult(definition.id);
   }
 
   try {
     const stat = await fs.stat(filePath);
     if (stat.size > MAX_FILE_SIZE) {
-      return { ...emptyResult(definition.id), sizeExceeded: true };
+      return { ...createEmptyParseResult(definition.id), sizeExceeded: true };
     }
 
     const text = await fs.readFile(filePath, 'utf-8');
 
-    if (definition.parserEngine === 'markdown-adr') {
-      return extractMarkdownAdr(filePath, text);
+    const adapter = getLanguageAdapter(definition);
+    const adr = definition.parserEngine === 'markdown-adr' ? undefined : extractAdrReference(text);
+
+    if (!adapter) {
+      return createEmptyParseResult(definition.id, adr);
     }
 
-    const adrMatch =
-      text.match(/^\s*(?:\/\/\s*|#\s*|\/\*\s*|\*\s*)@adr\s+(.+)$/im) ||
-      text.match(/^\s*(?:\/\/\s*|#\s*|\/\*\s*|\*\s*)ADR:\s+(.+)$/im);
-    const adr = adrMatch ? adrMatch[1].trim() : undefined;
-
-    if (definition.parserEngine === 'typescript-semantic') {
-      return extractWithTypeScriptSemantic(filePath, text, definition, adr, baseDir);
-    }
-
-    const parser = await getParserInstance();
-    const language = await loadTreeSitterLanguage(definition);
-
-    if (!language) {
-      return emptyResult(definition.id, adr);
-    }
-
-    parser.setLanguage(language);
-    const tree = parser.parse(text);
-    if (!tree) {
-      return emptyResult(definition.id, adr);
-    }
-    return extractWithTreeSitterQuery(tree, language, definition, adr);
+    return adapter.parse({
+      filePath,
+      text,
+      definition,
+      adr,
+      baseDir,
+    });
   } catch {
-    return emptyResult(definition.id);
+    return createEmptyParseResult(definition.id);
   }
 };

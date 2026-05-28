@@ -15,6 +15,7 @@ import {
   toStructuralNodeId,
   unique,
 } from './AgentContextUtils';
+import { isContractSemanticLink, isDiRuntimeLink } from './graphAnalysisUtils';
 
 export type ChangeTaskMode = 'bugfix' | 'feature' | 'refactor' | 'explore';
 
@@ -56,6 +57,10 @@ export interface ChangeContextResult {
     incomingLinks: GraphLink[];
     outgoingNodes: GraphNode[];
     incomingNodes: GraphNode[];
+    runtimeContractLinks: GraphLink[];
+    runtimeContractNodes: GraphNode[];
+    contractBindingLinks: GraphLink[];
+    contractBindingNodes: GraphNode[];
     relatedAdrNodes: GraphNode[];
   };
   blastRadius: {
@@ -119,6 +124,8 @@ export class ChangeContextService {
       resolvedTarget.node.id,
       ...dependencies.outgoingNodes.map((node) => node.id),
       ...dependencies.incomingNodes.map((node) => node.id),
+      ...dependencies.runtimeContractNodes.map((node) => node.id),
+      ...dependencies.contractBindingNodes.map((node) => node.id),
       ...blastRadius.directDependents.map((node) => node.id),
       ...blastRadius.affectedNodes.map((node) => node.id),
     ]);
@@ -150,6 +157,8 @@ export class ChangeContextService {
       toStructuralNodeId(resolvedTarget.node.id),
       ...dependencies.outgoingNodes.map((node) => toStructuralNodeId(node.id)),
       ...dependencies.incomingNodes.map((node) => toStructuralNodeId(node.id)),
+      ...dependencies.runtimeContractNodes.map((node) => toStructuralNodeId(node.id)),
+      ...dependencies.contractBindingNodes.map((node) => toStructuralNodeId(node.id)),
       ...blastRadius.directDependents.map((node) => toStructuralNodeId(node.id)),
       ...blastRadius.affectedNodes.map((node) => toStructuralNodeId(node.id)),
     ]).slice(0, 15);
@@ -170,6 +179,10 @@ export class ChangeContextService {
         incomingLinks: dependencies.incomingLinks.slice(0, MAX_RELATED_NODES),
         outgoingNodes: dependencies.outgoingNodes.slice(0, MAX_RELATED_NODES),
         incomingNodes: dependencies.incomingNodes.slice(0, MAX_RELATED_NODES),
+        runtimeContractLinks: dependencies.runtimeContractLinks.slice(0, MAX_RELATED_NODES),
+        runtimeContractNodes: dependencies.runtimeContractNodes.slice(0, MAX_RELATED_NODES),
+        contractBindingLinks: dependencies.contractBindingLinks.slice(0, MAX_RELATED_NODES),
+        contractBindingNodes: dependencies.contractBindingNodes.slice(0, MAX_RELATED_NODES),
         relatedAdrNodes: dependencies.relatedAdrNodes.slice(0, MAX_RELATED_NODES),
       },
       blastRadius: {
@@ -192,12 +205,16 @@ export class ChangeContextService {
         resolvedTarget,
         targetClassification,
         blastRadius,
+        runtimeContractLinks: dependencies.runtimeContractLinks,
+        contractBindingLinks: dependencies.contractBindingLinks,
         securityFindings,
       }),
       risks: this.buildChangeRisks({
         target: resolvedTarget.node,
         targetClassification,
         blastRadius,
+        runtimeContractNodes: dependencies.runtimeContractNodes,
+        contractBindingNodes: dependencies.contractBindingNodes,
         targetViolations,
         relevantPatterns,
         securityFindings,
@@ -208,6 +225,8 @@ export class ChangeContextService {
         targetClassification,
         recommendedFilesToInspect,
         blastRadius,
+        runtimeContractNodes: dependencies.runtimeContractNodes,
+        contractBindingNodes: dependencies.contractBindingNodes,
         securityFindings,
       }),
     };
@@ -253,11 +272,30 @@ export class ChangeContextService {
     const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
     const outgoingLinks = graph.links.filter((link) => link.source === nodeId);
     const incomingLinks = graph.links.filter((link) => link.target === nodeId);
+    const structuralNodeId = toStructuralNodeId(nodeId);
+    const runtimeContractLinks = graph.links.filter(
+      (link) =>
+        isDiRuntimeLink(link) &&
+        (toStructuralNodeId(link.source) === structuralNodeId ||
+          toStructuralNodeId(link.target) === structuralNodeId)
+    );
+    const contractBindingLinks = graph.links.filter(
+      (link) =>
+        isContractSemanticLink(link) &&
+        (toStructuralNodeId(link.source) === structuralNodeId ||
+          toStructuralNodeId(link.target) === structuralNodeId)
+    );
     const outgoingNodes = outgoingLinks
       .map((link) => nodeById.get(link.target))
       .filter((node): node is GraphNode => Boolean(node));
     const incomingNodes = incomingLinks
       .map((link) => nodeById.get(link.source))
+      .filter((node): node is GraphNode => Boolean(node));
+    const runtimeContractNodes = runtimeContractLinks
+      .flatMap((link) => [nodeById.get(toStructuralNodeId(link.source)), nodeById.get(toStructuralNodeId(link.target))])
+      .filter((node): node is GraphNode => Boolean(node));
+    const contractBindingNodes = contractBindingLinks
+      .flatMap((link) => [nodeById.get(toStructuralNodeId(link.source)), nodeById.get(toStructuralNodeId(link.target))])
       .filter((node): node is GraphNode => Boolean(node));
     const relatedAdrNodes = graph.links
       .filter(
@@ -275,6 +313,10 @@ export class ChangeContextService {
       incomingLinks,
       outgoingNodes,
       incomingNodes,
+      runtimeContractLinks,
+      runtimeContractNodes: unique(runtimeContractNodes),
+      contractBindingLinks,
+      contractBindingNodes: unique(contractBindingNodes),
       relatedAdrNodes: unique(relatedAdrNodes),
     };
   }
@@ -285,12 +327,18 @@ export class ChangeContextService {
     resolvedTarget: ResolvedTargetContext;
     targetClassification: ArchitectureNodeClassification;
     blastRadius: BlastRadiusResult;
+    runtimeContractLinks: GraphLink[];
+    contractBindingLinks: GraphLink[];
     securityFindings: SecurityFinding[];
   }): ChangeContextResult['autopilotPlan'] {
     const targetKind = `${args.resolvedTarget.node.type}:${args.resolvedTarget.node.label}`;
     const preferredNextAction: ChangeContextResult['autopilotPlan']['preferredNextAction'] =
       args.securityFindings.length > 0
         ? 'check_security'
+        : args.runtimeContractLinks.length > 0
+          ? 'review_dependencies'
+        : args.contractBindingLinks.length > 0
+          ? 'review_dependencies'
         : args.blastRadius.affectedNodes.length > 0
           ? 'review_dependencies'
           : args.targetClassification.layer === 'shared' ||
@@ -314,6 +362,8 @@ export class ChangeContextService {
     target: GraphNode;
     targetClassification: ArchitectureNodeClassification;
     blastRadius: BlastRadiusResult;
+    runtimeContractNodes: GraphNode[];
+    contractBindingNodes: GraphNode[];
     targetViolations: ArchitectureViolation[];
     relevantPatterns: DetectedPattern[];
     securityFindings: SecurityFinding[];
@@ -334,11 +384,27 @@ export class ChangeContextService {
 
     if (
       args.relevantPatterns.some(
-        (pattern) => pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files'
+        (pattern) =>
+          pattern.id === 'hub_nodes' ||
+          pattern.id === 'high_fan_out_files' ||
+          pattern.id === 'oversized_modules' ||
+          pattern.id === 'god_files' ||
+          pattern.id === 'di_runtime_contract_hubs' ||
+          pattern.id === 'contract_runtime_binding_hubs'
       )
     ) {
       risks.push(
         'The target lies near high-coupling hotspot nodes; caution is needed with new dependencies.'
+      );
+    }
+
+    if (
+      args.relevantPatterns.some(
+        (pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files'
+      )
+    ) {
+      risks.push(
+        'The target sits in an oversized or god-file module; extending it may entrench SRP violations and make future decomposition harder.'
       );
     }
 
@@ -357,6 +423,18 @@ export class ChangeContextService {
       );
     }
 
+    if (args.runtimeContractNodes.length > 0) {
+      risks.push(
+        'The target participates in runtime DI wiring; provider tokens, bean factories, or service registrations may expand impact beyond explicit imports.'
+      );
+    }
+
+    if (args.contractBindingNodes.length > 0) {
+      risks.push(
+        'The target participates in API contract/runtime bindings; schema roots, generated clients, handlers, or servers may widen impact beyond direct imports.'
+      );
+    }
+
     if (risks.length === 0) {
       risks.push(
         'No obvious structural red flags found, but still verify runtime contracts and reverse dependencies.'
@@ -372,6 +450,8 @@ export class ChangeContextService {
     targetClassification: ArchitectureNodeClassification;
     recommendedFilesToInspect: string[];
     blastRadius: BlastRadiusResult;
+    runtimeContractNodes: GraphNode[];
+    contractBindingNodes: GraphNode[];
     securityFindings: SecurityFinding[];
   }) {
     const nextSteps = [
@@ -389,6 +469,18 @@ export class ChangeContextService {
       );
     }
 
+    if (args.runtimeContractNodes.length > 0) {
+      nextSteps.push(
+        'Inspect DI runtime contracts separately from imports and verify provider bindings, bean factories, or service registrations after the change.'
+      );
+    }
+
+    if (args.contractBindingNodes.length > 0) {
+      nextSteps.push(
+        'Inspect API contract bindings separately from imports and verify schema roots, generated modules, and runtime handlers/clients after the change.'
+      );
+    }
+
     if (args.securityFindings.length > 0) {
       nextSteps.push(
         'Separately re-verify safe handling of secrets, shell/process APIs, and browser storage.'
@@ -401,6 +493,12 @@ export class ChangeContextService {
     ) {
       nextSteps.push(
         'Ensure that orchestration/integration code does not start pulling presentation details or extra state.'
+      );
+    }
+
+    if (args.target.churn >= 10) {
+      nextSteps.push(
+        'If the target is already a churn-heavy orchestration file, prefer extracting responsibilities instead of adding another branch, matcher, or adapter path.'
       );
     }
 

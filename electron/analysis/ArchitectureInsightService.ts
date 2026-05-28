@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { GraphData, GraphNode } from '../store';
+import { isArchitecturalDependencyLink } from './graphAnalysisUtils';
 
 export type ArchitectureLayer =
   | 'presentation'
@@ -164,10 +165,10 @@ export class ArchitectureInsightService {
     }).filter((summary) => summary.count > 0);
 
     const dependencyCounts = new Map<string, number>();
-    const dedupedImportEdges = new Map<string, { sourceId: string; targetId: string }>();
+    const dedupedDependencyEdges = new Map<string, { sourceId: string; targetId: string }>();
 
     for (const link of graph.links) {
-      if (link.type !== 'import') {
+      if (!isArchitecturalDependencyLink(link)) {
         continue;
       }
 
@@ -178,14 +179,14 @@ export class ArchitectureInsightService {
       }
 
       const dedupeKey = `${sourceId}->${targetId}`;
-      if (!dedupedImportEdges.has(dedupeKey)) {
-        dedupedImportEdges.set(dedupeKey, { sourceId, targetId });
+      if (!dedupedDependencyEdges.has(dedupeKey)) {
+        dedupedDependencyEdges.set(dedupeKey, { sourceId, targetId });
       }
     }
 
     const violations: ArchitectureViolation[] = [];
 
-    for (const { sourceId, targetId } of dedupedImportEdges.values()) {
+    for (const { sourceId, targetId } of dedupedDependencyEdges.values()) {
       const sourceLayer = layerByNodeId.get(sourceId) || 'unknown';
       const targetLayer = layerByNodeId.get(targetId) || 'unknown';
       const dependencyKey = `${sourceLayer}->${targetLayer}`;

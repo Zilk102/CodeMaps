@@ -4,11 +4,34 @@
     "mode": "Режим",
     "hierarchy": "Иерархия",
     "dependencies": "Зависимости",
+    "refreshTelemetry": "Телеметрия обновления графа",
+    "telemetry": {
+      "watcherLine": "Обновлений {{flushCount}} | объединено {{coalescedFlushes}} | макс. размер батча {{maxBatchSize}}",
+      "enrichmentLine": "Пересобрано {{rebuiltRefreshes}} | пропущено {{skippedRefreshes}} | приоритетных runtime-обновлений {{runtimePriorityRebuilds}}",
+      "latencyLine": "Средняя латентность {{avgRefreshLatencyMs}} ms | последний {{lastRefreshMode}} / {{lastRefreshReason}}",
+      "trendLine": "Тренд латентности {{latencyTrend}} | доля пропусков {{skipRate}}% | коалесcинг {{coalescingRatio}}%",
+      "historyLine": "Последние размеры батчей [{{recentBatchSizes}}] | последняя латентность [{{recentLatencyMs}}]",
+      "notAvailable": "н/д",
+      "modes": {
+        "skipped": "пропуск",
+        "rebuilt": "пересборка"
+      },
+      "reasons": {
+        "no_stack_impact": "нет влияния на стек",
+        "directory_structure_changed": "изменилась структура директорий",
+        "stack_runtime_path_changed": "изменился путь stack/runtime"
+      },
+      "trends": {
+        "stable": "стабильный",
+        "improving": "улучшается",
+        "degrading": "деградирует"
+      }
+    },
     "openProjectToAnalyze": "Откройте проект для анализа.",
     "error": "Ошибка",
     "hierarchySelectedDescription": "Показываются связи относительно выбранного узла: входящие {{incomingCount}}, исходящие {{outgoingCount}}.",
     "hierarchyDefaultDescription": "Выбери файл, класс или функцию, чтобы увидеть понятные входящие и исходящие зависимости внутри иерархии.",
-    "dependenciesSelectedDescription": "Показывается сфокусированный dependency-subgraph вокруг выбранного узла: входящие {{incomingCount}}, исходящие {{outgoingCount}}.",
+    "dependenciesSelectedDescription": "Показывается сфокусированный подграф зависимостей вокруг выбранного узла: входящие {{incomingCount}}, исходящие {{outgoingCount}}.",
     "dependenciesDefaultDescription": "Показывается обзор на уровне файлов и ADR. Выбери узел на графе или в дереве, чтобы сфокусироваться на его соседях."
   },
   "fileTree": {
@@ -20,7 +43,7 @@
     "error": "Ошибка загрузки"
   },
   "mcpSettings": {
-    "title": "Настройки MCP Сервера",
+    "title": "Настройки MCP-сервера",
     "overview": "Обзор",
     "toolsTab": "Инструменты",
     "resourcesTab": "Ресурсы",
@@ -32,12 +55,12 @@
       },
       "get_graph_context": {
         "title": "Получить контекст графа",
-        "description": "Возвращает сводку или полный граф. Полезно как низкоуровневый fallback, когда нужен сырой граф.",
+        "description": "Возвращает сводку или полный граф. Полезно как низкоуровневый резервный вариант, когда нужен сырой граф.",
         "recommendedWhen": "Когда композитного контекста недостаточно и агенту нужен полный снимок графа."
       },
       "get_node_dependencies": {
         "title": "Получить зависимости узла",
-        "description": "Показывает входящие и исходящие связи узла. Обычно нужно как fallback после prepare_change_context.",
+        "description": "Показывает входящие и исходящие связи узла. Обычно нужен как резервный шаг после `prepare_change_context`.",
         "recommendedWhen": "Когда нужно вручную расширить локальный контекст зависимостей."
       },
       "search_graph": {
@@ -68,7 +91,7 @@
       "run_security_scan": {
         "title": "Сканирование безопасности",
         "description": "Сканирует проиндексированные исходники на рискованные паттерны и подозрительные артефакты.",
-        "recommendedWhen": "При проведении security review или проверке на хардкод-секреты."
+        "recommendedWhen": "При проведении аудита безопасности или проверке на хардкод-секреты."
       },
       "search_signatures": {
         "title": "Поиск сигнатур",
@@ -77,7 +100,7 @@
       },
       "analyze_pr_impact": {
         "title": "Влияние PR",
-        "description": "Анализирует архитектурный радиус поражения Pull Request (или сравнения веток).",
+        "description": "Анализирует архитектурный радиус поражения запроса на слияние (PR) или сравнения веток.",
         "recommendedWhen": "При ревью PR или оценке влияния ветки перед слиянием."
       },
       "analyze_activity_heatmap": {
@@ -97,7 +120,7 @@
       },
       "prepare_task_context": {
         "title": "Подготовить контекст задачи",
-        "description": "Маршрутизирует запрос пользователя в нужный композитный workflow с подготовленным контекстом.",
+        "description": "Маршрутизирует запрос пользователя в нужный композитный сценарий с подготовленным контекстом.",
         "recommendedWhen": "Когда пользователь описывает проблему, фичу или ревью естественным языком."
       },
       "prepare_change_campaign": {
@@ -112,7 +135,7 @@
       },
       "prepare_review_context": {
         "title": "Подготовка контекста ревью",
-        "description": "Готовит исчерпывающий контекст для code review, включая архитектуру, паттерны и безопасность.",
+        "description": "Готовит исчерпывающий контекст для ревью кода, включая архитектуру, паттерны и безопасность.",
         "recommendedWhen": "При ревью кода, оценке архитектуры или валидации последствий изменения."
       }
     },
@@ -127,7 +150,7 @@
       },
       "agent_playbook": {
         "title": "Плейбук агента",
-        "description": "Как агент должен использовать CodeMaps автоматически: приоритетные инструменты, фоллбэки и порядок выполнения."
+        "description": "Как агент должен автоматически использовать CodeMaps: приоритетные инструменты, резервные сценарии и порядок выполнения."
       },
       "agent_project_brain": {
         "title": "Мозг проекта",
@@ -148,8 +171,8 @@
     "metricResources": "Ресурсы",
     "metricGraph": "Граф",
     "metricGraphHint": "узлы / связи",
-    "mcpEndpoint": "MCP Endpoint",
-    "websocketUI": "WebSocket для UI",
+    "mcpEndpoint": "Адрес MCP",
+    "websocketUI": "WebSocket для интерфейса",
     "activeProject": "Активный проект",
     "noProjectOpen": "Проект не открыт",
     "whatAgentGets": "Что это даёт агенту",
@@ -160,26 +183,26 @@
     "whyNeeded": "Зачем это нужно",
     "howToUse": "Как использовать",
     "readyTemplateSkill": "Готовый шаблон SKILL.md",
-    "streamableHttpServerDescription": "Streamable HTTP MCP сервер для агентов и отдельный WebSocket канал для UI.",
-    "agentBehaviorDescription": "Обычному пользователю не нужно помнить MCP-команды. Для нормального агента `CodeMaps` теперь должен работать так: агент сам открывает проект, сам запрашивает `prepare_change_context` перед правками и `prepare_review_context` для review, а низкоуровневые инструменты использует только как fallback.",
+    "streamableHttpServerDescription": "Потоковый HTTP MCP-сервер для агентов и отдельный WebSocket-канал для интерфейса.",
+    "agentBehaviorDescription": "Обычному пользователю не нужно помнить MCP-команды. Для нормального агента `CodeMaps` теперь должен работать так: агент сам открывает проект, сам запрашивает `prepare_change_context` перед правками и `prepare_review_context` для ревью, а низкоуровневые инструменты использует только как резервный вариант.",
     "skillSetupStep1": "1. Создай у агента новый навык, например в `.trae/skills/codemaps-agent-autopilot/SKILL.md`.",
     "skillSetupStep2": "2. Скопируй шаблон ниже без изменений.",
-    "skillSetupStep3": "3. После этого любой агент сможет постоянно работать через `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context` и `prepare_review_context`, а не только вручную вызывать низкоуровневые tools.",
+    "skillSetupStep3": "3. После этого любой агент сможет постоянно работать через `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context` и `prepare_review_context`, а не только вручную вызывать низкоуровневые инструменты.",
     "trae": "Trae",
-    "traeDescription": "HTTP MCP сервер добавляется по URL. Для локального CodeMaps используй streamable HTTP endpoint.",
+    "traeDescription": "HTTP MCP-сервер добавляется по URL. Для локального CodeMaps используй потоковый HTTP-эндпоинт.",
     "cursor": "Cursor",
-    "cursorDescription": "Для Cursor укажи transport как streamable HTTP и тот же локальный endpoint.",
+    "cursorDescription": "Для Cursor укажи транспорт как потоковый HTTP и тот же локальный эндпоинт.",
     "claudeCode": "Claude Code",
     "claudeCodeDescription": "Claude Code удобнее всего подключать CLI-командой, чтобы сразу зарегистрировать сервер в клиенте.",
     "skillTemplateDescription": "Если агент подключён к `codemaps`, но не имеет постоянной инструкции работать через него как через архитектурный мозг, он может использовать MCP слишком слабо или слишком поздно. Этот шаблон `SKILL.md` фиксирует правильное поведение: сначала `CodeMaps`, потом локальное чтение и правки."
   },
   "filterPanel": {
     "filters": "Фильтры",
-    "layoutMode": "Режим Layout",
+    "layoutMode": "Режим раскладки",
     "hierarchy": "Иерархия",
     "dependencies": "Зависимости",
     "hierarchyDescription": "Рамки и вложенность проекта. Связи лучше читать после выбора конкретного узла.",
-    "dependenciesDescription": "Обзор зависимостей на уровне файлов и ADR. После выбора узла показывается его локальный subgraph.",
+    "dependenciesDescription": "Обзор зависимостей на уровне файлов и ADR. После выбора узла показывается его локальный подграф.",
     "directories": "Папки",
     "files": "Файлы",
     "functions": "Функции",
@@ -193,7 +216,29 @@
     "clearHistory": "Очистить историю",
     "noProjects": "Нет недавних проектов",
     "openFolder": "Открыть папку",
-    "opening": "Открытие..."
+    "opening": "Открытие...",
+    "relative": {
+      "justNow": "только что",
+      "minutesAgo": "{{count}} мин назад",
+      "hoursAgo": "{{count}} ч назад",
+      "daysAgo": "{{count}} д назад"
+    },
+    "telemetry": {
+      "statusDegraded": "Деградация",
+      "statusStable": "Стабильно",
+      "latency": "Латентность",
+      "skipRate": "Доля пропусков",
+      "coalescing": "Коалесcинг",
+      "trend": "Тренд латентности",
+      "batchTrend": "Тренд батчей",
+      "runtimePriority": "Доля приоритетных runtime-обновлений",
+      "updated": "Обновлено",
+      "trends": {
+        "stable": "стабильный",
+        "improving": "улучшается",
+        "degrading": "деградирует"
+      }
+    }
   },
   "updateNotification": {
     "updateAvailable": "Доступно обновление",
@@ -208,7 +253,7 @@
     "openProject": "Открыть проект",
     "openFolder": "Открыть проект",
     "closeProject": "Закрыть проект",
-    "mcpSettings": "MCP Настройки"
+    "mcpSettings": "Настройки MCP"
   },
   "indexing": {
     "status": {

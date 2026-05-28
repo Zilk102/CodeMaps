@@ -15,6 +15,24 @@ export interface RecentProject {
   path: string;
   name: string;
   lastOpened: string;
+  telemetry?: {
+    updatedAt: string;
+    degraded: boolean;
+    avgRefreshLatencyMs: number;
+    skipRate: number;
+    coalescingRatio: number;
+    runtimePriorityRate: number;
+    latencyTrend: 'stable' | 'improving' | 'degrading';
+    batchSizeTrend: 'stable' | 'improving' | 'degrading';
+    maxBatchSize: number;
+    lastBatchSize: number;
+    lastRefreshMode: 'skipped' | 'rebuilt' | null;
+    lastRefreshReason:
+      | 'no_stack_impact'
+      | 'directory_structure_changed'
+      | 'stack_runtime_path_changed'
+      | null;
+  };
 }
 
 export interface ElectronAPI {

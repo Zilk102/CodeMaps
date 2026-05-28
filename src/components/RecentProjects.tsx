@@ -23,7 +23,10 @@ const TrashIcon = () => (
   </svg>
 );
 
-function formatDate(isoString: string): string {
+function formatDate(
+  isoString: string,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string {
   const date = new Date(isoString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -31,16 +34,48 @@ function formatDate(isoString: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return t('recentProjects.relative.justNow');
+  if (diffMins < 60) return t('recentProjects.relative.minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('recentProjects.relative.hoursAgo', { count: diffHours });
+  if (diffDays < 7) return t('recentProjects.relative.daysAgo', { count: diffDays });
 
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
+}
+
+function formatRate(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatLatency(value: number): string {
+  return `${value.toFixed(1)} ms`;
+}
+
+function translateTelemetryTrend(
+  trend: 'stable' | 'improving' | 'degrading',
+  t: (key: string, options?: Record<string, unknown>) => string
+) {
+  return t(`recentProjects.telemetry.trends.${trend}`);
+}
+
+function getTelemetryBadge(
+  project: RecentProject,
+  t: (key: string, options?: Record<string, unknown>) => string
+) {
+  if (!project.telemetry) {
+    return null;
+  }
+
+  return {
+    label: project.telemetry.degraded
+      ? t('recentProjects.telemetry.statusDegraded')
+      : t('recentProjects.telemetry.statusStable'),
+    color: project.telemetry.degraded ? 'var(--red)' : 'var(--acc)',
+    background: project.telemetry.degraded ? 'rgba(255, 92, 92, 0.12)' : 'rgba(68, 170, 255, 0.12)',
+  };
 }
 
 export const RecentProjects: React.FC = () => {
@@ -176,7 +211,10 @@ export const RecentProjects: React.FC = () => {
             </div>
           ) : (
             <div>
-              {recentProjects.map((project: RecentProject) => (
+              {recentProjects.map((project: RecentProject) => {
+                const telemetryBadge = getTelemetryBadge(project, t);
+
+                return (
                 <button
                   key={project.path}
                   onClick={() => handleOpenProject(project.path)}
@@ -184,7 +222,7 @@ export const RecentProjects: React.FC = () => {
                   style={{
                     width: '100%',
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     gap: 12,
                     padding: '12px 18px',
                     background: 'transparent',
@@ -199,22 +237,48 @@ export const RecentProjects: React.FC = () => {
                   onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--hover)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <div style={{ color: 'var(--acc)', opacity: 0.8, display: 'flex', alignItems: 'center' }}>
+                  <div style={{ color: 'var(--acc)', opacity: 0.8, display: 'flex', alignItems: 'center', paddingTop: 2 }}>
                     <FolderIcon />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: 'var(--t0)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        minWidth: 0,
                         marginBottom: 2,
                       }}
                     >
-                      {project.name}
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: 'var(--t0)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          minWidth: 0,
+                        }}
+                      >
+                        {project.name}
+                      </div>
+                      {telemetryBadge && (
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: telemetryBadge.color,
+                            background: telemetryBadge.background,
+                            borderRadius: 999,
+                            padding: '2px 7px',
+                            letterSpacing: '0.02em',
+                          }}
+                        >
+                          {telemetryBadge.label}
+                        </span>
+                      )}
                     </div>
                     <div
                       style={{
@@ -224,22 +288,57 @@ export const RecentProjects: React.FC = () => {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         fontFamily: 'monospace',
+                        marginBottom: project.telemetry ? 6 : 0,
                       }}
                     >
                       {project.path}
                     </div>
+                    {project.telemetry && (
+                      <>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--t2)',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {t('recentProjects.telemetry.latency')}: {formatLatency(project.telemetry.avgRefreshLatencyMs)} |{' '}
+                          {t('recentProjects.telemetry.skipRate')}: {formatRate(project.telemetry.skipRate)} |{' '}
+                          {t('recentProjects.telemetry.coalescing')}: {formatRate(project.telemetry.coalescingRatio)}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--t3)',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {t('recentProjects.telemetry.trend')}: {translateTelemetryTrend(project.telemetry.latencyTrend, t)} |{' '}
+                          {t('recentProjects.telemetry.batchTrend')}: {translateTelemetryTrend(project.telemetry.batchSizeTrend, t)} |{' '}
+                          {t('recentProjects.telemetry.runtimePriority')}: {formatRate(project.telemetry.runtimePriorityRate)}
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div
                     style={{
                       fontSize: 11,
                       color: 'var(--t3)',
                       whiteSpace: 'nowrap',
+                      textAlign: 'right',
+                      lineHeight: 1.45,
                     }}
                   >
-                    {formatDate(project.lastOpened)}
+                    <div>{formatDate(project.lastOpened, t)}</div>
+                    {project.telemetry && (
+                      <div style={{ marginTop: 4 }}>
+                        {t('recentProjects.telemetry.updated')}: {formatDate(project.telemetry.updatedAt, t)}
+                      </div>
+                    )}
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 

@@ -75,6 +75,8 @@ export class KuzuIntegration {
       'import': 'imports',
       'adr': 'references',
       'entity': 'depends_on',
+      'framework': 'depends_on',
+      'build': 'depends_on',
     };
     return mapping[type || ''] || 'depends_on';
   }
