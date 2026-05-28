@@ -9,6 +9,7 @@ import {
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { ChangeTaskMode } from './ChangeContextService';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
+import { isDiRuntimeLink } from './graphAnalysisUtils';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
 
 export interface PrepareChangeCampaignInput {
@@ -35,6 +36,7 @@ export interface ChangeCampaignResult {
     candidateQueries: string[];
     seedTargets: GraphNode[];
     directlyMatchedFiles: GraphNode[];
+    runtimeCompositionRoots: GraphNode[];
     affectedFiles: GraphNode[];
     breadth: 'small' | 'medium' | 'large';
   };
@@ -110,15 +112,16 @@ export class ChangeCampaignService {
       input.candidateQueries,
       input.maxSeeds || DEFAULT_MAX_SEEDS
     );
+    const runtimeCompositionRoots = this.collectRuntimeCompositionRoots(graph, directlyMatchedFiles);
     const affectedFiles = this.expandAffectedFiles(
       graph,
-      directlyMatchedFiles,
+      unique([...directlyMatchedFiles, ...runtimeCompositionRoots]),
       input.depth || 2,
       input.maxFiles || DEFAULT_MAX_FILES
     );
     const blastRadius = this.buildCampaignBlastRadius(
       graph,
-      directlyMatchedFiles,
+      unique([...directlyMatchedFiles, ...runtimeCompositionRoots]),
       input.depth || 2,
       input.maxFiles || DEFAULT_MAX_FILES
     );
@@ -145,7 +148,7 @@ export class ChangeCampaignService {
         campaignStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
         campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
     );
-    const waves = this.buildExecutionWaves(affectedFiles, layerByNodeId);
+    const waves = this.buildExecutionWaves(affectedFiles, layerByNodeId, runtimeCompositionRoots);
 
     return {
       graphSummary: this.createGraphSummary(graph),
@@ -155,6 +158,7 @@ export class ChangeCampaignService {
         candidateQueries: input.candidateQueries,
         seedTargets,
         directlyMatchedFiles,
+        runtimeCompositionRoots,
         affectedFiles,
         breadth: this.getBreadth(affectedFiles.length),
       },
@@ -178,10 +182,12 @@ export class ChangeCampaignService {
       executionPlan: {
         preferredExecutionMode: 'multi_target_campaign',
         waves,
-        shouldFallbackToLowLevelTools: directlyMatchedFiles.length === 0,
+        shouldFallbackToLowLevelTools:
+          directlyMatchedFiles.length === 0 && runtimeCompositionRoots.length === 0,
       },
       risks: this.buildRisks(
         affectedFiles,
+        runtimeCompositionRoots,
         layersInvolved,
         campaignViolations,
         patterns,
@@ -191,6 +197,7 @@ export class ChangeCampaignService {
         taskMode,
         directlyMatchedFiles,
         affectedFiles,
+        runtimeCompositionRoots,
         waves,
         securityFindings.length > 0
       ),
@@ -284,6 +291,16 @@ export class ChangeCampaignService {
     }
 
     return Array.from(fileNodes.values()).slice(0, maxSeeds);
+  }
+
+  private collectRuntimeCompositionRoots(graph: GraphData, files: GraphNode[]) {
+    const fileIds = new Set(files.map((node) => node.id));
+    const runtimeRoots = graph.links
+      .filter((link) => isDiRuntimeLink(link) && fileIds.has(toStructuralNodeId(link.source)))
+      .map((link) => graph.nodes.find((node) => node.id === toStructuralNodeId(link.source)))
+      .filter((node): node is GraphNode => node !== undefined && node.type === 'file');
+
+    return unique(runtimeRoots);
   }
 
   private expandAffectedFiles(
@@ -400,7 +417,8 @@ export class ChangeCampaignService {
 
   private buildExecutionWaves(
     affectedFiles: GraphNode[],
-    layerByNodeId: Map<string, ArchitectureNodeClassification>
+    layerByNodeId: Map<string, ArchitectureNodeClassification>,
+    runtimeCompositionRoots: GraphNode[]
   ) {
     const groups = new Map<
       string,
@@ -413,6 +431,12 @@ export class ChangeCampaignService {
       title: string;
       goal: string;
     }> = [
+      {
+        key: 'wave-runtime-contracts',
+        layers: ['integration', 'application'],
+        title: 'Wave 0: Runtime Contracts',
+        goal: 'Сначала проверить composition roots и DI wiring, чтобы миграция не сломала provider bindings и service registrations.',
+      },
       {
         key: 'wave-foundation',
         layers: ['shared', 'state', 'configuration'],
@@ -442,7 +466,14 @@ export class ChangeCampaignService {
       });
     }
 
+    for (const root of runtimeCompositionRoots) {
+      groups.get('wave-runtime-contracts')?.fileIds.push(root.id);
+    }
+
     for (const file of affectedFiles) {
+      if (runtimeCompositionRoots.some((root) => root.id === file.id)) {
+        continue;
+      }
       const layer = layerByNodeId.get(file.id)?.layer;
       const wave = waveDefinition.find((entry) => layer && entry.layers.includes(layer));
       if (wave) {
@@ -469,6 +500,7 @@ export class ChangeCampaignService {
 
   private buildRisks(
     affectedFiles: GraphNode[],
+    runtimeCompositionRoots: GraphNode[],
     layersInvolved: Array<{ layer: ArchitectureLayer; count: number }>,
     campaignViolations: ArchitectureViolation[],
     patterns: DetectedPattern[],
@@ -492,10 +524,32 @@ export class ChangeCampaignService {
       );
     }
     if (
-      patterns.some((pattern) => pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files')
+      patterns.some(
+        (pattern) =>
+          pattern.id === 'hub_nodes' ||
+          pattern.id === 'high_fan_out_files' ||
+          pattern.id === 'oversized_modules' ||
+          pattern.id === 'god_files' ||
+          pattern.id === 'di_runtime_contract_hubs' ||
+          pattern.id === 'contract_runtime_binding_hubs'
+      )
     ) {
       risks.push(
         'Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.'
+      );
+    }
+    if (
+      patterns.some(
+        (pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files'
+      )
+    ) {
+      risks.push(
+        'Кампания проходит через oversized/god modules; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.'
+      );
+    }
+    if (runtimeCompositionRoots.length > 0) {
+      risks.push(
+        'Кампания затрагивает runtime composition roots; provider bindings и service registrations нужно проверять как отдельный источник совместимости.'
       );
     }
     if (securityFindings.length > 0) {
@@ -516,6 +570,7 @@ export class ChangeCampaignService {
     taskMode: ChangeTaskMode,
     directlyMatchedFiles: GraphNode[],
     affectedFiles: GraphNode[],
+    runtimeCompositionRoots: GraphNode[],
     waves: ChangeCampaignResult['executionPlan']['waves'],
     hasSecurityFindings: boolean
   ) {
@@ -529,6 +584,21 @@ export class ChangeCampaignService {
       }.`,
       `После подтверждения выполнять миграцию волнами, а не пытаться править все ${affectedFiles.length} файлов за один проход.`,
     ];
+
+    if (runtimeCompositionRoots.length > 0) {
+      nextSteps.push(
+        `Отдельно подтвердить runtime composition roots: ${runtimeCompositionRoots
+          .map((node) => node.id)
+          .slice(0, 5)
+          .join(', ')}.`
+      );
+    }
+
+    if (affectedFiles.some((node) => node.churn >= 10)) {
+      nextSteps.push(
+        'Для churn-heavy orchestration файлов заранее определить extraction boundaries и не добавлять новую логику без декомпозиции.'
+      );
+    }
 
     for (const wave of waves.slice(0, 3)) {
       nextSteps.push(`${wave.title}: ${wave.fileIds.length} файлов. Цель: ${wave.goal}`);

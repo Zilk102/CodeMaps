@@ -209,6 +209,49 @@ const STABILIZATION_HINTS = [
   'hang',
   'зависает',
 ];
+const DI_RUNTIME_HINTS = [
+  'dependency injection',
+  'di ',
+  ' di',
+  'inject',
+  'injection',
+  'provider',
+  'binding',
+  'bean',
+  'registration',
+  'container',
+  'ioc',
+  'wiring',
+  'runtime contract',
+  'внедрен',
+  'инжект',
+  'провайдер',
+  'бин',
+  'регистрац',
+  'контракт',
+];
+const OPERATIONAL_REFRESH_HINTS = [
+  'watcher',
+  'refresh',
+  'reindex',
+  'incremental',
+  'batch',
+  'batching',
+  'coalesc',
+  'latency',
+  'debounce',
+  'stale graph',
+  'graph update',
+  'pipeline',
+  'watch',
+  'индексац',
+  'обновлен',
+  'обновля',
+  'батч',
+  'задержк',
+  'латент',
+  'пайплайн',
+];
 const CAMPAIGN_HINTS = [
   'все',
   'all',
@@ -247,16 +290,22 @@ export class TaskIntelligenceService {
   ): Promise<TaskContextResult> {
     const inferredIntent = this.inferIntent(input.userRequest);
     const candidateQueries = this.extractCandidateQueries(input.userRequest);
-    const targetCandidates = this.findTargetCandidates(graph, candidateQueries);
     const projectContext = await this.projectInsightService.prepareContext(graph, input);
+    const targetCandidates = this.findTargetCandidates(
+      graph,
+      candidateQueries,
+      projectContext,
+      input.userRequest
+    );
     const selectedContext = await this.prepareSelectedContext(
       graph,
       inferredIntent,
       targetCandidates,
       candidateQueries,
-      input
+      input,
+      projectContext
     );
-    const route = this.buildRoute(inferredIntent, targetCandidates, selectedContext);
+    const route = this.buildRoute(inferredIntent, targetCandidates, selectedContext, projectContext);
 
     return {
       graphSummary: projectContext.graphSummary,
@@ -278,9 +327,17 @@ export class TaskIntelligenceService {
     inferredIntent: TaskIntentInference,
     targetCandidates: GraphNode[],
     candidateQueries: string[],
-    input: PrepareTaskContextInput
+    input: PrepareTaskContextInput,
+    projectContext: ProjectInsightResult
   ): Promise<TaskContextResult['selectedContext']> {
-    if (this.shouldUseCampaignContext(input.userRequest, inferredIntent, targetCandidates)) {
+    if (
+      this.shouldUseCampaignContext(
+        input.userRequest,
+        inferredIntent,
+        targetCandidates,
+        projectContext
+      )
+    ) {
       const context = await this.changeCampaignService.prepareContext(graph, {
         userRequest: input.userRequest,
         candidateQueries,
@@ -323,14 +380,17 @@ export class TaskIntelligenceService {
   private buildRoute(
     inferredIntent: TaskIntentInference,
     targetCandidates: GraphNode[],
-    selectedContext: TaskContextResult['selectedContext']
+    selectedContext: TaskContextResult['selectedContext'],
+    projectContext: ProjectInsightResult
   ): TaskRoutePlan {
     if (selectedContext?.kind === 'campaign') {
       return {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_change_campaign',
         rationale:
-          'The request looks like a massive migration or major refactor, so the agent needs a campaign-level plan, not a single-target change context.',
+          selectedContext.context.scope.runtimeCompositionRoots.length > 0
+            ? 'The request affects runtime wiring and multiple composition roots, so the agent needs a campaign-level plan instead of a single-target edit.'
+            : 'The request looks like a massive migration or major refactor, so the agent needs a campaign-level plan, not a single-target change context.',
         shouldInspectCodeImmediately: true,
         fallbackTools: ['search_graph', 'get_node_dependencies', 'get_blast_radius'],
       };
@@ -341,7 +401,11 @@ export class TaskIntelligenceService {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_change_context',
         rationale:
-          'The request looks like a modification or bugfix, and CodeMaps successfully linked it to a specific code target.',
+          selectedContext.context.dependencies.runtimeContractLinks.length > 0
+            ? 'The request maps to a specific code target that also participates in runtime DI wiring, so a focused change context is the safest starting point.'
+            : selectedContext.context.dependencies.contractBindingLinks.length > 0
+              ? 'The request maps to a specific code target that also participates in API contract/runtime bindings, so a focused change context is the safest starting point.'
+            : 'The request looks like a modification or bugfix, and CodeMaps successfully linked it to a specific code target.',
         shouldInspectCodeImmediately: true,
         fallbackTools: ['get_node_dependencies', 'get_blast_radius', 'search_graph'],
       };
@@ -352,9 +416,13 @@ export class TaskIntelligenceService {
         initialTool: 'prepare_task_context',
         selectedCompositeTool: 'prepare_review_context',
         rationale:
-          targetCandidates.length > 0
-            ? 'The request requires diagnostics/audit, so it is more useful for the agent to start with a review-style context on the found focus area.'
-            : 'The request could not be strictly linked to a single code target yet, so it is safer to start with a review-style context.',
+          this.hasOperationalRefreshSignals(inferredIntent.extractedKeywords.join(' ')) &&
+          (projectContext.operationalTelemetry.watcher.flushCount > 0 ||
+            projectContext.operationalTelemetry.enrichment.runtimePriorityRebuilds > 0)
+            ? 'The request targets incremental refresh behavior, so the agent should start with a review-style context focused on watcher batching, refresh latency, and rebuild hotspots.'
+            : targetCandidates.length > 0
+              ? 'The request requires diagnostics/audit, so it is more useful for the agent to start with a review-style context on the found focus area.'
+              : 'The request could not be strictly linked to a single code target yet, so it is safer to start with a review-style context.',
         shouldInspectCodeImmediately: targetCandidates.length > 0,
         fallbackTools: ['search_graph', 'get_architecture_overview', 'detect_patterns'],
       };
@@ -364,7 +432,13 @@ export class TaskIntelligenceService {
       initialTool: 'prepare_task_context',
       selectedCompositeTool: 'prepare_project_context',
       rationale:
-        'The request is too general or not sufficiently tied to a code area, so the agent needs to start with a general mental model of the project.',
+        projectContext.mentalModel.runtimeCompositionRoots.length > 0 &&
+        this.hasDiRuntimeSignals(inferredIntent.extractedKeywords.join(' '))
+          ? 'The request mentions runtime wiring, but the scope is still too vague, so the agent should first load the broader project model and composition roots.'
+          : this.hasOperationalRefreshSignals(inferredIntent.extractedKeywords.join(' ')) &&
+              projectContext.operationalTelemetry.watcher.flushCount > 0
+            ? 'The request points to refresh/incremental behavior, but the target area is still vague, so the agent should start with the broader project model and operational telemetry.'
+          : 'The request is too general or not sufficiently tied to a code area, so the agent needs to start with a general mental model of the project.',
       shouldInspectCodeImmediately: false,
       fallbackTools: ['prepare_review_context', 'search_graph', 'get_graph_context'],
     };
@@ -392,14 +466,39 @@ export class TaskIntelligenceService {
       nextSteps.push(
         'Next, the agent should read change-context risks, blast radius, and recommendedFilesToInspect before editing.'
       );
+      if (selectedContext.context.dependencies.runtimeContractLinks.length > 0) {
+        nextSteps.push(
+          'Because the target touches runtime DI wiring, the agent should verify composition roots and concrete registrations before modifying contracts.'
+        );
+      }
+      if (selectedContext.context.dependencies.contractBindingLinks.length > 0) {
+        nextSteps.push(
+          'Because the target touches API contract/runtime bindings, the agent should verify schema roots, generated modules, and bound handlers/clients before editing the implementation.'
+        );
+      }
     } else if (selectedContext?.kind === 'campaign') {
       nextSteps.push(
         'Next, the agent should read execution waves, affected files, and campaign risks, then perform the migration in phases.'
       );
+      if (selectedContext.context.scope.runtimeCompositionRoots.length > 0) {
+        nextSteps.push(
+          'Campaign scope includes runtime composition roots, so migration should start from DI wiring and only then move to dependent files.'
+        );
+      }
     } else if (selectedContext?.kind === 'review') {
       nextSteps.push(
         'Next, the agent should read review priorities, patterns, and architecture summary before diving deep into the code.'
       );
+      if (
+        this.hasOperationalRefreshSignals(route.rationale.toLowerCase()) ||
+        selectedContext.context.reviewPriorities.some(
+          (priority) => priority.title === 'Incremental Refresh Pipeline'
+        )
+      ) {
+        nextSteps.push(
+          'Because the focus includes incremental refresh behavior, the agent should inspect watcher batching, skipped refreshes, and runtime-priority rebuild latency before editing pipeline code.'
+        );
+      }
     } else {
       nextSteps.push(
         'Next, the agent should select a focusQuery from candidateQueries and then dive into the review/change context.'
@@ -474,7 +573,7 @@ export class TaskIntelligenceService {
     const normalized = userRequest.toLowerCase();
     const quoted = Array.from(normalized.matchAll(/["'`](.+?)["'`]/gu), (match) => match[1].trim());
     const fileLike = Array.from(
-      normalized.matchAll(/[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md)/gu),
+      normalized.matchAll(/[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md|cs|java|kt)/gu),
       (match) => match[0]
     );
     const tokens = Array.from(
@@ -491,16 +590,55 @@ export class TaskIntelligenceService {
     if (normalized.includes('логин')) {
       ['login', 'auth', 'session'].forEach((term) => expanded.add(term));
     }
+    if (this.hasDiRuntimeSignals(normalized)) {
+      ['program', 'module', 'provider', 'binding', 'bean', 'registration', 'inject', 'wiring'].forEach(
+        (term) => expanded.add(term)
+      );
+    }
+    if (this.hasOperationalRefreshSignals(normalized)) {
+      [
+        'filewatcher',
+        'stackgraphenrichmentservice',
+        'graphrepository',
+        'projectindexer',
+        'refresh',
+        'watcher',
+        'incremental',
+        'latency',
+        'batching',
+      ].forEach((term) => expanded.add(term));
+    }
 
     return Array.from(expanded).filter(Boolean).slice(0, MAX_KEYWORDS);
   }
 
-  private findTargetCandidates(graph: GraphData, candidateQueries: string[]) {
+  private findTargetCandidates(
+    graph: GraphData,
+    candidateQueries: string[],
+    projectContext: ProjectInsightResult,
+    userRequest: string
+  ) {
     const scored = new Map<string, { node: GraphNode; score: number }>();
+    const runtimeRootIds = new Set(
+      projectContext.mentalModel.runtimeCompositionRoots.map((node) => toStructuralNodeId(node.id))
+    );
+    const hasDiRuntimeSignals = this.hasDiRuntimeSignals(userRequest.toLowerCase());
+    const hasOperationalRefreshSignals = this.hasOperationalRefreshSignals(userRequest.toLowerCase());
 
     for (const query of candidateQueries) {
       for (const node of graph.nodes) {
-        const score = this.scoreNodeMatch(node, query);
+        let score = this.scoreNodeMatch(node, query);
+        if (hasDiRuntimeSignals && runtimeRootIds.has(toStructuralNodeId(node.id))) {
+          score += 120;
+        }
+        if (
+          hasOperationalRefreshSignals &&
+          /(filewatcher|stackgraphenrichmentservice|graphrepository|projectindexer|cachemanager)/i.test(
+            node.id
+          )
+        ) {
+          score += 140;
+        }
         if (score <= 0) {
           continue;
         }
@@ -530,10 +668,27 @@ export class TaskIntelligenceService {
   private shouldUseCampaignContext(
     userRequest: string,
     inferredIntent: TaskIntentInference,
-    targetCandidates: GraphNode[]
+    targetCandidates: GraphNode[],
+    projectContext: ProjectInsightResult
   ) {
     const normalized = userRequest.toLowerCase();
     const hasCampaignHints = CAMPAIGN_HINTS.some((hint) => normalized.includes(hint));
+    const hasDiRuntimeSignals = this.hasDiRuntimeSignals(normalized);
+    const hasExplicitFileMention =
+      /[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md|cs|java|kt)/u.test(normalized);
+    const hasBroadRuntimeScope =
+      /(services|providers|registrations|bindings|contracts|modules|сервисы|провайдер|регистрац|контракт|модули)/u.test(
+        normalized
+      );
+
+    if (
+      hasExplicitFileMention &&
+      targetCandidates.length > 0 &&
+      targetCandidates[0].type === 'file' &&
+      !hasBroadRuntimeScope
+    ) {
+      return false;
+    }
 
     if (
       hasCampaignHints &&
@@ -546,7 +701,23 @@ export class TaskIntelligenceService {
       return false;
     }
 
+    if (
+      hasDiRuntimeSignals &&
+      projectContext.mentalModel.runtimeCompositionRoots.length > 0 &&
+      (hasBroadRuntimeScope || targetCandidates.length >= 2)
+    ) {
+      return true;
+    }
+
     return inferredIntent.taskKind === 'refactor' && targetCandidates.length >= 3;
+  }
+
+  private hasDiRuntimeSignals(text: string) {
+    return DI_RUNTIME_HINTS.some((hint) => text.includes(hint));
+  }
+
+  private hasOperationalRefreshSignals(text: string) {
+    return OPERATIONAL_REFRESH_HINTS.some((hint) => text.includes(hint));
   }
 
   private isReviewIntent(taskKind: RoutedTaskKind) {

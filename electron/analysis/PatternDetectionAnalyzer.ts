@@ -1,5 +1,14 @@
 import { GraphData } from '../store';
-import { buildGraphAdjacency, getHierarchyDepth, hasKnownParent } from './graphAnalysisUtils';
+import {
+  buildGraphAdjacency,
+  getChildCodeSymbolCount,
+  getFileLineCount,
+  getHierarchyDepth,
+  hasKnownParent,
+  isContractSemanticLink,
+  isDiRuntimeLink,
+  isStackAwareLink,
+} from './graphAnalysisUtils';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 
 export interface DetectedPattern {
@@ -23,6 +32,34 @@ export class PatternDetectionAnalyzer {
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } =
       buildGraphAdjacency(graph);
     const patterns: DetectedPattern[] = [];
+    const fileMetrics = graph.nodes
+      .filter((node) => node.type === 'file')
+      .map((node) => {
+        const lineCount = getFileLineCount(node.id);
+        const fanIn = (incomingByTarget.get(node.id) || []).length;
+        const fanOut = (outgoingBySource.get(node.id) || []).length;
+        const symbolCount = getChildCodeSymbolCount(node.id, childrenByParentId);
+        const stackAwareDegree = [...(incomingByTarget.get(node.id) || []), ...(outgoingBySource.get(node.id) || [])].filter((link) =>
+          isStackAwareLink(link)
+        ).length;
+        const diRuntimeDegree = [...(incomingByTarget.get(node.id) || []), ...(outgoingBySource.get(node.id) || [])].filter((link) =>
+          isDiRuntimeLink(link)
+        ).length;
+        const contractDegree = [...(incomingByTarget.get(node.id) || []), ...(outgoingBySource.get(node.id) || [])].filter((link) =>
+          isContractSemanticLink(link)
+        ).length;
+
+        return {
+          node,
+          lineCount,
+          fanIn,
+          fanOut,
+          symbolCount,
+          stackAwareDegree,
+          diRuntimeDegree,
+          contractDegree,
+        };
+      });
 
     const highFanInNodes = graph.nodes
       .filter((node) => ['file', 'class', 'function'].includes(node.type))
@@ -91,6 +128,77 @@ export class PatternDetectionAnalyzer {
       });
     }
 
+    const oversizedModules = fileMetrics
+      .filter(
+        ({ lineCount, symbolCount }) =>
+          (lineCount !== null && lineCount >= 600) || symbolCount >= 25
+      )
+      .sort(
+        (a, b) =>
+          (b.lineCount || b.symbolCount * 20) - (a.lineCount || a.symbolCount * 20) ||
+          b.symbolCount - a.symbolCount
+      )
+      .slice(0, 10);
+
+    if (oversizedModules.length > 0) {
+      patterns.push({
+        id: 'oversized_modules',
+        severity: oversizedModules.some(
+          ({ lineCount, symbolCount }) => (lineCount || 0) >= 1200 || symbolCount >= 40
+        )
+          ? 'high'
+          : 'medium',
+        title: 'Oversized Modules',
+        description:
+          'Some files are too large or too symbol-dense, making responsibilities unclear and architectural evolution harder.',
+        nodeIds: oversizedModules.map(({ node }) => node.id),
+      });
+    }
+
+    const godFiles = fileMetrics
+      .filter(
+        ({
+          lineCount,
+          symbolCount,
+          fanIn,
+          fanOut,
+          stackAwareDegree,
+          diRuntimeDegree,
+          contractDegree,
+          node,
+        }) =>
+          (lineCount !== null && lineCount >= 1500) ||
+          symbolCount >= 45 ||
+          (((lineCount !== null && lineCount >= 900) || symbolCount >= 30) &&
+            (fanIn + fanOut >= 12 ||
+              stackAwareDegree + diRuntimeDegree + contractDegree >= 6 ||
+              node.churn >= 10))
+      )
+      .sort(
+        (a, b) =>
+          ((b.lineCount || 0) +
+            b.symbolCount * 20 +
+            (b.fanIn + b.fanOut) * 10 +
+            (b.stackAwareDegree + b.diRuntimeDegree + b.contractDegree) * 15) -
+            ((a.lineCount || 0) +
+              a.symbolCount * 20 +
+              (a.fanIn + a.fanOut) * 10 +
+              (a.stackAwareDegree + a.diRuntimeDegree + a.contractDegree) * 15) ||
+          a.node.label.localeCompare(b.node.label)
+      )
+      .slice(0, 10);
+
+    if (godFiles.length > 0) {
+      patterns.push({
+        id: 'god_files',
+        severity: 'high',
+        title: 'God Files',
+        description:
+          'A few modules accumulate too much code, too many symbols, or too many architectural responsibilities, violating SRP and making safe changes harder.',
+        nodeIds: godFiles.map(({ node }) => node.id),
+      });
+    }
+
     const adrLinkedFiles = new Map<string, Set<string>>();
     graph.links
       .filter((link) => link.type === 'adr')
@@ -151,6 +259,78 @@ export class PatternDetectionAnalyzer {
         nodeIds: architecture.violations
           .slice(0, 15)
           .flatMap((violation) => [violation.sourceId, violation.targetId]),
+      });
+    }
+
+    const stackAwareHubs = graph.nodes
+      .filter((node) => node.type === 'file')
+      .map((node) => {
+        const relatedLinks = [
+          ...(incomingByTarget.get(node.id) || []),
+          ...(outgoingBySource.get(node.id) || []),
+        ].filter((link) => isStackAwareLink(link));
+        return { node, degree: relatedLinks.length };
+      })
+      .filter(({ degree }) => degree >= 4)
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 10);
+
+    if (stackAwareHubs.length > 0) {
+      patterns.push({
+        id: 'stack_orchestration_hubs',
+        severity: stackAwareHubs.some(({ degree }) => degree >= 8) ? 'high' : 'medium',
+        title: 'Stack Orchestration Hubs',
+        description:
+          'Framework/build orchestration is concentrated in a few files, increasing coupling between runtime entrypoints and stack infrastructure.',
+        nodeIds: stackAwareHubs.map(({ node }) => node.id),
+      });
+    }
+
+    const diRuntimeHubs = graph.nodes
+      .filter((node) => node.type === 'file')
+      .map((node) => {
+        const relatedLinks = [
+          ...(incomingByTarget.get(node.id) || []),
+          ...(outgoingBySource.get(node.id) || []),
+        ].filter((link) => isDiRuntimeLink(link));
+        return { node, degree: relatedLinks.length };
+      })
+      .filter(({ degree }) => degree >= 2)
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 10);
+
+    if (diRuntimeHubs.length > 0) {
+      patterns.push({
+        id: 'di_runtime_contract_hubs',
+        severity: diRuntimeHubs.some(({ degree }) => degree >= 5) ? 'high' : 'medium',
+        title: 'DI Runtime Contract Hubs',
+        description:
+          'Runtime contracts are concentrated in a few composition roots, so provider bindings and service registrations deserve explicit architectural review.',
+        nodeIds: diRuntimeHubs.map(({ node }) => node.id),
+      });
+    }
+
+    const contractRuntimeHubs = graph.nodes
+      .filter((node) => node.type === 'file')
+      .map((node) => {
+        const relatedLinks = [
+          ...(incomingByTarget.get(node.id) || []),
+          ...(outgoingBySource.get(node.id) || []),
+        ].filter((link) => isContractSemanticLink(link));
+        return { node, degree: relatedLinks.length };
+      })
+      .filter(({ degree }) => degree >= 2)
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 10);
+
+    if (contractRuntimeHubs.length > 0) {
+      patterns.push({
+        id: 'contract_runtime_binding_hubs',
+        severity: contractRuntimeHubs.some(({ degree }) => degree >= 5) ? 'high' : 'medium',
+        title: 'Contract Runtime Binding Hubs',
+        description:
+          'API contracts, generated artifacts, and runtime handlers/clients converge in a few files, so schema changes may propagate wider than import-based coupling suggests.',
+        nodeIds: contractRuntimeHubs.map(({ node }) => node.id),
       });
     }
 

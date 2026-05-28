@@ -1,12 +1,14 @@
 import fg from 'fast-glob';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import pLimit from 'p-limit';
 import Piscina from 'piscina';
 import { detectProjectLanguages } from '../parsing/projectLanguageDetector';
 import { ProjectLanguageProfile } from '../parsing/types';
 import { oracleStore } from '../store';
 import { ProjectCacheSnapshot } from './CacheManager';
 import { GraphBuilder } from './GraphBuilder';
+import { OraclePerformanceConfig } from './performanceConfig';
 import { ORACLE_IGNORE_GLOBS, normalizePath } from './shared';
 
 export interface IndexProjectResult {
@@ -18,7 +20,8 @@ export interface IndexProjectResult {
 export class ProjectIndexer {
   constructor(
     private readonly pool: Piscina,
-    private readonly graphBuilder: GraphBuilder
+    private readonly graphBuilder: GraphBuilder,
+    private readonly performanceConfig: OraclePerformanceConfig
   ) {}
 
   async discoverFiles(baseDir: string) {
@@ -105,13 +108,18 @@ export class ProjectIndexer {
     const fileStats: Record<string, number> = {};
     const filesToParse: string[] = [];
 
-    for (const filePath of filePaths) {
-      const fileStat = await fs.stat(filePath);
-      fileStats[filePath] = fileStat.mtimeMs;
-      if (cache?.fileStats?.[filePath] !== fileStat.mtimeMs) {
-        filesToParse.push(filePath);
-      }
-    }
+    const statLimit = pLimit(this.performanceConfig.indexing.fileStatConcurrency);
+    await Promise.all(
+      filePaths.map((filePath) =>
+        statLimit(async () => {
+          const fileStat = await fs.stat(filePath);
+          fileStats[filePath] = fileStat.mtimeMs;
+          if (cache?.fileStats?.[filePath] !== fileStat.mtimeMs) {
+            filesToParse.push(filePath);
+          }
+        })
+      )
+    );
 
     const totalToParse = filesToParse.length;
     let processed = 0;
@@ -120,19 +128,27 @@ export class ProjectIndexer {
       onProgress({ status: 'indexing_files', current: 0, total: totalToParse, filename: '' });
     }
 
+    const parseLimit = pLimit(this.performanceConfig.indexing.parseConcurrency);
     await Promise.all(
-      filesToParse.map(async (filePath) => {
-        await this.reindexFile(filePath, baseDir, languageProfile);
-        processed += 1;
-        if (onProgress && processed % 10 === 0) {
-          onProgress({
-            status: 'indexing_files',
-            current: processed,
-            total: totalToParse,
-            filename: path.basename(filePath),
-          });
-        }
-      })
+      filesToParse.map((filePath) =>
+        parseLimit(async () => {
+          await this.reindexFile(filePath, baseDir, languageProfile);
+          processed += 1;
+
+          if (
+            onProgress &&
+            (processed % this.performanceConfig.indexing.progressBatchSize === 0 ||
+              processed === totalToParse)
+          ) {
+            onProgress({
+              status: 'indexing_files',
+              current: processed,
+              total: totalToParse,
+              filename: path.basename(filePath),
+            });
+          }
+        })
+      )
     );
 
     if (onProgress && totalToParse > 0) {

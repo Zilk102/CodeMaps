@@ -15,6 +15,11 @@ import {
   toStructuralNodeId,
   unique,
 } from './AgentContextUtils';
+import {
+  isContractSemanticLink,
+  isDiRuntimeLink,
+  isStackAwareLink,
+} from './graphAnalysisUtils';
 
 export type ReviewTaskMode = 'review' | 'architecture' | 'security' | 'stabilization';
 
@@ -133,6 +138,7 @@ export class ReviewContextService {
       },
       focus,
       reviewPriorities: this.buildReviewPriorities(
+        graph,
         health,
         architecture,
         patterns,
@@ -143,7 +149,11 @@ export class ReviewContextService {
         taskMode,
         security.findings,
         architecture,
-        focus
+        focus,
+        health.summary.stackAwareLinks > 0,
+        health.summary.watcherFlushes > 0 ||
+          health.summary.skippedRefreshes > 0 ||
+          health.summary.runtimePriorityRebuilds > 0
       ),
       nextSteps: this.buildReviewNextSteps(
         health,
@@ -207,6 +217,7 @@ export class ReviewContextService {
   }
 
   private buildReviewPriorities(
+    graph: GraphData,
     health: HealthScoreResult,
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
@@ -264,6 +275,95 @@ export class ReviewContextService {
       });
     }
 
+    if (health.summary.stackAwareLinks > 0) {
+      priorities.push({
+        severity: health.summary.stackAwareLinks >= 12 ? 'high' : 'medium',
+        title: 'Stack-Aware Runtime Paths',
+        reason:
+          'Framework/build enrichment exposed runtime and assembly paths that should be reviewed together with direct imports.',
+        nodeIds: unique(
+          graph.nodes
+            .filter((node) =>
+              graph.links.some(
+                (link) =>
+                  isStackAwareLink(link) && (link.source === node.id || link.target === node.id)
+              )
+            )
+            .map((node) => node.id)
+        ).slice(0, 10),
+      });
+    }
+
+    if (health.summary.diRuntimeLinks > 0) {
+      priorities.push({
+        severity: health.summary.diRuntimeLinks >= 8 ? 'high' : 'medium',
+        title: 'DI Runtime Contracts',
+        reason:
+          'Provider bindings, bean factories, and service registrations define runtime wiring that may bypass plain import-based dependency intuition.',
+        nodeIds: unique(
+          graph.nodes
+            .filter((node) =>
+              graph.links.some(
+                (link) => isDiRuntimeLink(link) && (link.source === node.id || link.target === node.id)
+              )
+            )
+            .map((node) => node.id)
+        ).slice(0, 10),
+      });
+    }
+
+    if (health.summary.contractSemanticLinks > 0) {
+      priorities.push({
+        severity: health.summary.contractSemanticLinks >= 10 ? 'high' : 'medium',
+        title: 'Contract Runtime Bindings',
+        reason:
+          'OpenAPI/protobuf schemas, generated clients, and runtime handlers/servers are linked structurally, so contract changes should be reviewed beyond plain imports.',
+        nodeIds: unique(
+          graph.nodes
+            .filter((node) =>
+              graph.links.some(
+                (link) =>
+                  isContractSemanticLink(link) &&
+                  (toStructuralNodeId(link.source) === node.id ||
+                    toStructuralNodeId(link.target) === node.id)
+              )
+            )
+            .map((node) => node.id)
+        ).slice(0, 10),
+      });
+    }
+
+    if (health.summary.oversizedModules > 0 || health.summary.godFiles > 0) {
+      priorities.push({
+        severity: health.summary.godFiles > 0 ? 'high' : 'medium',
+        title: 'Oversized Modules',
+        reason:
+          'A few files are too large or too responsibility-dense, so the review should explicitly check SRP violations, extraction opportunities, and boundary leakage.',
+        nodeIds: unique(
+          patterns
+            .filter((pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files')
+            .flatMap((pattern) => pattern.nodeIds)
+        ).slice(0, 10),
+      });
+    }
+
+    if (
+      health.summary.watcherFlushes > 0 ||
+      health.summary.skippedRefreshes > 0 ||
+      health.summary.runtimePriorityRebuilds > 0
+    ) {
+      priorities.push({
+        severity:
+          health.summary.avgRefreshLatencyMs >= 50 || health.summary.runtimePriorityRebuilds >= 3
+            ? 'high'
+            : 'medium',
+        title: 'Incremental Refresh Pipeline',
+        reason:
+          'Watcher batching, skipped refreshes, and runtime-priority rebuilds indicate how stable and efficient incremental graph maintenance remains under real edit bursts.',
+        nodeIds: focus?.matches.map((node) => node.id) || [],
+      });
+    }
+
     if (focus && focus.matches.length > 0) {
       priorities.push({
         severity: 'low',
@@ -298,6 +398,40 @@ export class ReviewContextService {
       );
     }
 
+    if (health.summary.stackAwareLinks > 0) {
+      nextSteps.push(
+        'Review framework/build dependency paths separately from plain imports to verify entrypoints, routes, modules, and build descriptors.'
+      );
+    }
+
+    if (health.summary.diRuntimeLinks > 0) {
+      nextSteps.push(
+        'Inspect DI runtime contracts separately from imports: verify provider tokens, bean factories, and service registrations against the actual concrete implementations.'
+      );
+    }
+
+    if (health.summary.contractSemanticLinks > 0) {
+      nextSteps.push(
+        'Inspect API contract bindings separately from imports: verify schema roots, generated modules, and runtime handlers/clients against the actual operation/service symbols.'
+      );
+    }
+
+    if (health.summary.oversizedModules > 0 || health.summary.godFiles > 0) {
+      nextSteps.push(
+        'Inspect oversized modules separately: identify mixed responsibilities, extraction boundaries, and files that should stop accumulating new stack-specific logic.'
+      );
+    }
+
+    if (
+      health.summary.watcherFlushes > 0 ||
+      health.summary.skippedRefreshes > 0 ||
+      health.summary.runtimePriorityRebuilds > 0
+    ) {
+      nextSteps.push(
+        'Inspect incremental refresh telemetry separately: verify watcher batching, skipped refreshes, runtime-priority rebuild paths, and average refresh latency.'
+      );
+    }
+
     if (architecture.summary.unknownNodes > 0) {
       nextSteps.push(
         'Refine layer classification rules for unknown nodes so the agent and review rely on a more accurate model.'
@@ -323,7 +457,9 @@ export class ReviewContextService {
     taskMode: ReviewTaskMode,
     securityFindings: SecurityFinding[],
     architecture: ArchitectureOverview,
-    focus: ReviewContextResult['focus']
+    focus: ReviewContextResult['focus'],
+    hasStackAwareLinks?: boolean,
+    hasOperationalRefreshSignals?: boolean
   ) {
     const preferredOrder: Array<
       'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'
@@ -334,6 +470,12 @@ export class ReviewContextService {
     }
     if (taskMode === 'architecture' || architecture.violations.length > 0) {
       preferredOrder.push('architecture');
+    }
+    if (hasStackAwareLinks) {
+      preferredOrder.push('patterns');
+    }
+    if (hasOperationalRefreshSignals) {
+      preferredOrder.push('health');
     }
     preferredOrder.push('patterns', 'health');
     if (focus?.matches.length) {

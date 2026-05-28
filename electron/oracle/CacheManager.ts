@@ -4,7 +4,9 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { app } from 'electron';
+import pLimit from 'p-limit';
 import { GraphLink, GraphNode, oracleStore } from '../store';
+import { getOraclePerformanceConfig, OraclePerformanceConfig } from './performanceConfig';
 import { ORACLE_CACHE_VERSION } from './shared';
 
 export interface ProjectCacheSnapshot {
@@ -15,6 +17,11 @@ export interface ProjectCacheSnapshot {
 
 export class CacheManager {
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly performanceConfig: OraclePerformanceConfig;
+
+  constructor(performanceConfig: OraclePerformanceConfig = getOraclePerformanceConfig()) {
+    this.performanceConfig = performanceConfig;
+  }
 
   private getCacheDir() {
     try {
@@ -54,16 +61,21 @@ export class CacheManager {
     const { cacheDir, cacheFile } = this.getCacheFile(baseDir);
     const state = oracleStore.getState();
     const stats: Record<string, number> = {};
+    const statLimit = pLimit(this.performanceConfig.cache.statConcurrency);
 
-    for (const [id, node] of state.nodes) {
-      if (node.type !== 'file') continue;
-      try {
-        const fileStat = await fs.stat(id);
-        stats[id] = fileStat.mtimeMs;
-      } catch {
-        // Ignore deleted files between indexing and cache flush.
-      }
-    }
+    await Promise.all(
+      Array.from(state.nodes.entries()).map(([id, node]) =>
+        statLimit(async () => {
+          if (node.type !== 'file') return;
+          try {
+            const fileStat = await fs.stat(id);
+            stats[id] = fileStat.mtimeMs;
+          } catch {
+            // Ignore deleted files between indexing and cache flush.
+          }
+        })
+      )
+    );
 
     await fs.mkdir(cacheDir, { recursive: true }).catch(() => undefined);
     await fs.writeFile(

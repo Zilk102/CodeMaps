@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { ParseResult } from '../parsing/types';
-import { oracleStore } from '../store';
+import { GraphLink, oracleStore } from '../store';
 import { getParentDir, isLocalSpecifier, normalizePath } from './shared';
 
 export class GraphBuilder {
@@ -50,6 +50,18 @@ export class GraphBuilder {
     const store = oracleStore.getState();
     store.removeNode(dirPath);
     store.removeLinksBySourceOrTarget(dirPath);
+  }
+
+  removeLinksByTypes(types: string[]) {
+    const store = oracleStore.getState();
+    store.removeLinksByTypes(types);
+  }
+
+  applyEnrichmentLinks(links: GraphLink[]) {
+    const store = oracleStore.getState();
+    for (const link of links) {
+      store.addLink(link);
+    }
   }
 
   applyParsedFile(filePath: string, baseDir: string, churn: number, result: ParseResult) {

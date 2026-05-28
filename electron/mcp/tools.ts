@@ -61,7 +61,9 @@ export function registerTools(
 
       if (graph.projectRoot) {
         const projectName = path.basename(graph.projectRoot);
-        oracleStore.getState().addRecentProject(graph.projectRoot, projectName);
+        oracleStore
+          .getState()
+          .addRecentProject(graph.projectRoot, projectName, graph.refreshTelemetry);
       }
 
       return {

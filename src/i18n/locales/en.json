@@ -4,6 +4,29 @@
     "mode": "Mode",
     "hierarchy": "Hierarchy",
     "dependencies": "Dependencies",
+    "refreshTelemetry": "Refresh Telemetry",
+    "telemetry": {
+      "watcherLine": "Flushes {{flushCount}} | coalesced {{coalescedFlushes}} | max batch {{maxBatchSize}}",
+      "enrichmentLine": "Rebuilt {{rebuiltRefreshes}} | skipped {{skippedRefreshes}} | runtime priority {{runtimePriorityRebuilds}}",
+      "latencyLine": "Avg latency {{avgRefreshLatencyMs}} ms | last {{lastRefreshMode}} / {{lastRefreshReason}}",
+      "trendLine": "Latency {{latencyTrend}} | skip rate {{skipRate}}% | coalescing {{coalescingRatio}}%",
+      "historyLine": "Recent batches [{{recentBatchSizes}}] | recent latency [{{recentLatencyMs}}]",
+      "notAvailable": "n/a",
+      "modes": {
+        "skipped": "skipped",
+        "rebuilt": "rebuilt"
+      },
+      "reasons": {
+        "no_stack_impact": "no stack impact",
+        "directory_structure_changed": "directory structure changed",
+        "stack_runtime_path_changed": "stack/runtime path changed"
+      },
+      "trends": {
+        "stable": "stable",
+        "improving": "improving",
+        "degrading": "degrading"
+      }
+    },
     "openProjectToAnalyze": "Open a project to analyze.",
     "error": "Error",
     "hierarchySelectedDescription": "Showing connections relative to selected node: incoming {{incomingCount}}, outgoing {{outgoingCount}}.",
@@ -193,7 +216,29 @@
     "clearHistory": "Clear History",
     "noProjects": "No recent projects",
     "openFolder": "Open Folder",
-    "opening": "Opening..."
+    "opening": "Opening...",
+    "relative": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago"
+    },
+    "telemetry": {
+      "statusDegraded": "Degraded",
+      "statusStable": "Stable",
+      "latency": "Latency",
+      "skipRate": "Skip",
+      "coalescing": "Coalescing",
+      "trend": "Latency trend",
+      "batchTrend": "Batch trend",
+      "runtimePriority": "Runtime priority",
+      "updated": "Telemetry",
+      "trends": {
+        "stable": "stable",
+        "improving": "improving",
+        "degrading": "degrading"
+      }
+    }
   },
   "updateNotification": {
     "updateAvailable": "Update available",

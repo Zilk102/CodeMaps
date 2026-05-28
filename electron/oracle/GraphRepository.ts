@@ -6,7 +6,7 @@ export class GraphRepository {
 
   getGraph(): GraphData {
     const state = oracleStore.getState();
-    const cacheKey = `${state.baseDir}|${state.nodeRevision}|${state.linkRevision}`;
+    const cacheKey = `${state.baseDir}|${state.nodeRevision}|${state.linkRevision}|${state.telemetryRevision}`;
 
     if (this.cachedGraph && this.cachedKey === cacheKey) {
       return this.cachedGraph;
