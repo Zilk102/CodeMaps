@@ -20,6 +20,8 @@ export class OracleService extends EventEmitter {
   private graphBuilder: GraphBuilder;
   private projectIndexer: ProjectIndexer;
   private fileWatcher: FileWatcher;
+  private parsingProgressResetTimeout: ReturnType<typeof setTimeout> | null = null;
+  private shutdownPromise: Promise<void> | null = null;
   private projectLanguageProfile: ProjectLanguageProfile = {
     activeLanguageIds: [],
     languageFileCounts: {},
@@ -76,6 +78,13 @@ export class OracleService extends EventEmitter {
     this.emit('graph-updated', this.graphRepository.getGraph());
   }
 
+  private clearParsingProgressResetTimeout() {
+    if (this.parsingProgressResetTimeout) {
+      clearTimeout(this.parsingProgressResetTimeout);
+      this.parsingProgressResetTimeout = null;
+    }
+  }
+
   public async analyzeProject(baseDir: string) {
     const store = oracleStore.getState();
     const normalizedBaseDir = normalizePath(baseDir);
@@ -83,6 +92,7 @@ export class OracleService extends EventEmitter {
     store.setBaseDir(normalizedBaseDir);
 
     await this.fileWatcher.close();
+    this.clearParsingProgressResetTimeout();
 
     const churnMap = await this.churnAnalyzer.analyze(normalizedBaseDir);
     store.setChurnMap(churnMap);
@@ -107,12 +117,33 @@ export class OracleService extends EventEmitter {
     );
 
     this.emitGraphUpdated();
-    setTimeout(() => this.emit('parsing-progress', null), 2000);
+    this.parsingProgressResetTimeout = setTimeout(() => {
+      this.parsingProgressResetTimeout = null;
+      this.emit('parsing-progress', null);
+    }, 2000);
 
     const projectName = path.basename(normalizedBaseDir);
     oracleStore.getState().addRecentProject(normalizedBaseDir, projectName);
 
     return this.graphRepository.getGraph();
+  }
+
+  public async close() {
+    if (this.shutdownPromise) {
+      return this.shutdownPromise;
+    }
+
+    this.shutdownPromise = (async () => {
+      const baseDir = oracleStore.getState().baseDir;
+
+      this.clearParsingProgressResetTimeout();
+      await this.fileWatcher.close();
+      await this.cacheManager.close(baseDir || undefined);
+      await this.pool.destroy();
+      this.removeAllListeners();
+    })();
+
+    return this.shutdownPromise;
   }
 }
 

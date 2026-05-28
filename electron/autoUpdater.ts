@@ -17,6 +17,9 @@ let updateState: {
   available: false,
   downloaded: false,
 };
+let startupCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+let periodicCheckInterval: ReturnType<typeof setInterval> | null = null;
+let listenersRegistered = false;
 
 function getPublishConfig() {
   try {
@@ -66,59 +69,82 @@ export function initAutoUpdater(window: BrowserWindow) {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on('checking-for-update', () => {
-    updateState = { checking: true, available: false, downloaded: false };
-    sendUpdateState();
-  });
+  if (!listenersRegistered) {
+    autoUpdater.on('checking-for-update', () => {
+      updateState = { checking: true, available: false, downloaded: false };
+      sendUpdateState();
+    });
 
-  autoUpdater.on('update-available', (info) => {
-    updateState = { checking: false, available: true, downloaded: false, version: info.version };
-    sendUpdateState();
-  });
+    autoUpdater.on('update-available', (info) => {
+      updateState = { checking: false, available: true, downloaded: false, version: info.version };
+      sendUpdateState();
+    });
 
-  autoUpdater.on('update-not-available', () => {
-    updateState = { checking: false, available: false, downloaded: false };
-    sendUpdateState();
-  });
+    autoUpdater.on('update-not-available', () => {
+      updateState = { checking: false, available: false, downloaded: false };
+      sendUpdateState();
+    });
 
-  autoUpdater.on('download-progress', (progressObj) => {
-    updateState = {
-      ...updateState,
-      progress: Math.round(progressObj.percent),
-    };
-    sendUpdateState();
-  });
+    autoUpdater.on('download-progress', (progressObj) => {
+      updateState = {
+        ...updateState,
+        progress: Math.round(progressObj.percent),
+      };
+      sendUpdateState();
+    });
 
-  autoUpdater.on('update-downloaded', (info) => {
-    updateState = {
-      checking: false,
-      available: true,
-      downloaded: true,
-      version: info.version,
-    };
-    sendUpdateState();
-  });
+    autoUpdater.on('update-downloaded', (info) => {
+      updateState = {
+        checking: false,
+        available: true,
+        downloaded: true,
+        version: info.version,
+      };
+      sendUpdateState();
+    });
 
-  autoUpdater.on('error', (err) => {
-    log.error('[AutoUpdater] Error:', err.message);
-    updateState = { checking: false, available: false, downloaded: false, error: err.message };
-    sendUpdateState();
-  });
+    autoUpdater.on('error', (err) => {
+      log.error('[AutoUpdater] Error:', err.message);
+      updateState = { checking: false, available: false, downloaded: false, error: err.message };
+      sendUpdateState();
+    });
+
+    listenersRegistered = true;
+  }
 
   // Check for updates on startup (with a small delay to not block app launch)
-  setTimeout(() => {
+  startupCheckTimeout = setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
       log.error('[AutoUpdater] Failed to check for updates:', err.message);
     });
   }, 5000);
 
   // Periodic check every 4 hours
-  setInterval(
+  periodicCheckInterval = setInterval(
     () => {
       autoUpdater.checkForUpdates().catch(() => {});
     },
     4 * 60 * 60 * 1000
   );
+}
+
+export function shutdownAutoUpdater() {
+  if (startupCheckTimeout) {
+    clearTimeout(startupCheckTimeout);
+    startupCheckTimeout = null;
+  }
+
+  if (periodicCheckInterval) {
+    clearInterval(periodicCheckInterval);
+    periodicCheckInterval = null;
+  }
+
+  if (listenersRegistered) {
+    autoUpdater.removeAllListeners();
+    listenersRegistered = false;
+  }
+
+  mainWindow = null;
 }
 
 function sendUpdateState() {
