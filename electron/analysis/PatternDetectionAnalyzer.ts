@@ -1,8 +1,6 @@
 import { GraphData } from '../store';
 import {
   buildGraphAdjacency,
-  getChildCodeSymbolCount,
-  getFileLineCount,
   getHierarchyDepth,
   hasKnownParent,
   isContractSemanticLink,
@@ -10,6 +8,12 @@ import {
   isStackAwareLink,
 } from './graphAnalysisUtils';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
+import { analyzeModuleQuality, SourceClassMetric, SourceFunctionMetric } from './moduleQualityMetrics';
+
+export interface PatternEvidence {
+  nodeId: string;
+  message: string;
+}
 
 export interface DetectedPattern {
   id: string;
@@ -17,6 +21,7 @@ export interface DetectedPattern {
   title: string;
   description: string;
   nodeIds: string[];
+  evidence?: PatternEvidence[];
 }
 
 export interface PatternDetectionResult {
@@ -29,37 +34,10 @@ export class PatternDetectionAnalyzer {
     const layerByNodeId = new Map(
       architecture.classifications.map((record) => [record.nodeId, record.layer])
     );
+    const quality = analyzeModuleQuality(graph);
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } =
       buildGraphAdjacency(graph);
     const patterns: DetectedPattern[] = [];
-    const fileMetrics = graph.nodes
-      .filter((node) => node.type === 'file')
-      .map((node) => {
-        const lineCount = getFileLineCount(node.id);
-        const fanIn = (incomingByTarget.get(node.id) || []).length;
-        const fanOut = (outgoingBySource.get(node.id) || []).length;
-        const symbolCount = getChildCodeSymbolCount(node.id, childrenByParentId);
-        const stackAwareDegree = [...(incomingByTarget.get(node.id) || []), ...(outgoingBySource.get(node.id) || [])].filter((link) =>
-          isStackAwareLink(link)
-        ).length;
-        const diRuntimeDegree = [...(incomingByTarget.get(node.id) || []), ...(outgoingBySource.get(node.id) || [])].filter((link) =>
-          isDiRuntimeLink(link)
-        ).length;
-        const contractDegree = [...(incomingByTarget.get(node.id) || []), ...(outgoingBySource.get(node.id) || [])].filter((link) =>
-          isContractSemanticLink(link)
-        ).length;
-
-        return {
-          node,
-          lineCount,
-          fanIn,
-          fanOut,
-          symbolCount,
-          stackAwareDegree,
-          diRuntimeDegree,
-          contractDegree,
-        };
-      });
 
     const highFanInNodes = graph.nodes
       .filter((node) => ['file', 'class', 'function'].includes(node.type))
@@ -128,22 +106,10 @@ export class PatternDetectionAnalyzer {
       });
     }
 
-    const oversizedModules = fileMetrics
-      .filter(
-        ({ lineCount, symbolCount }) =>
-          (lineCount !== null && lineCount >= 600) || symbolCount >= 25
-      )
-      .sort(
-        (a, b) =>
-          (b.lineCount || b.symbolCount * 20) - (a.lineCount || a.symbolCount * 20) ||
-          b.symbolCount - a.symbolCount
-      )
-      .slice(0, 10);
-
-    if (oversizedModules.length > 0) {
+    if (quality.oversizedModules.length > 0) {
       patterns.push({
         id: 'oversized_modules',
-        severity: oversizedModules.some(
+        severity: quality.oversizedModules.some(
           ({ lineCount, symbolCount }) => (lineCount || 0) >= 1200 || symbolCount >= 40
         )
           ? 'high'
@@ -151,51 +117,113 @@ export class PatternDetectionAnalyzer {
         title: 'Oversized Modules',
         description:
           'Some files are too large or too symbol-dense, making responsibilities unclear and architectural evolution harder.',
-        nodeIds: oversizedModules.map(({ node }) => node.id),
+        nodeIds: quality.oversizedModules.map(({ node }) => node.id),
+        evidence: quality.oversizedModules.slice(0, 5).map(({ node, lineCount, symbolCount }) => ({
+          nodeId: node.id,
+          message: `${node.label}: ${lineCount || 0} LOC, ${symbolCount} symbols.`,
+        })),
       });
     }
 
-    const godFiles = fileMetrics
-      .filter(
-        ({
-          lineCount,
-          symbolCount,
-          fanIn,
-          fanOut,
-          stackAwareDegree,
-          diRuntimeDegree,
-          contractDegree,
-          node,
-        }) =>
-          (lineCount !== null && lineCount >= 1500) ||
-          symbolCount >= 45 ||
-          (((lineCount !== null && lineCount >= 900) || symbolCount >= 30) &&
-            (fanIn + fanOut >= 12 ||
-              stackAwareDegree + diRuntimeDegree + contractDegree >= 6 ||
-              node.churn >= 10))
-      )
-      .sort(
-        (a, b) =>
-          ((b.lineCount || 0) +
-            b.symbolCount * 20 +
-            (b.fanIn + b.fanOut) * 10 +
-            (b.stackAwareDegree + b.diRuntimeDegree + b.contractDegree) * 15) -
-            ((a.lineCount || 0) +
-              a.symbolCount * 20 +
-              (a.fanIn + a.fanOut) * 10 +
-              (a.stackAwareDegree + a.diRuntimeDegree + a.contractDegree) * 15) ||
-          a.node.label.localeCompare(b.node.label)
-      )
-      .slice(0, 10);
-
-    if (godFiles.length > 0) {
+    if (quality.godFiles.length > 0) {
       patterns.push({
         id: 'god_files',
         severity: 'high',
         title: 'God Files',
         description:
           'A few modules accumulate too much code, too many symbols, or too many architectural responsibilities, violating SRP and making safe changes harder.',
-        nodeIds: godFiles.map(({ node }) => node.id),
+        nodeIds: quality.godFiles.map(({ node }) => node.id),
+        evidence: quality.godFiles.slice(0, 5).map(
+          ({ node, responsibilityAxisCount, designSmellScore, sourceMetrics }) => ({
+            nodeId: node.id,
+            message: `${node.label}: smell score ${designSmellScore}, axes ${responsibilityAxisCount}, god classes ${sourceMetrics.godClasses.length}.`,
+          })
+        ),
+      });
+    }
+
+    if (quality.godClasses.length > 0) {
+      patterns.push({
+        id: 'god_classes',
+        severity: quality.godClasses.some(({ matchedClasses }) =>
+          matchedClasses.some((item) => item.lineCount >= 400 || item.methodCount >= 16)
+        )
+          ? 'high'
+          : 'medium',
+        title: 'God Classes',
+        description:
+          'Some classes expose too many methods or span too many lines, suggesting broken encapsulation and SRP violations.',
+        nodeIds: quality.godClasses.map(({ node }) => node.id),
+        evidence: quality.godClasses.flatMap(({ node, matchedClasses }) =>
+          matchedClasses.slice(0, 2).map((item) => ({
+            nodeId: node.id,
+            message: this.describeClassEvidence(node.label, item),
+          }))
+        ).slice(0, 8),
+      });
+    }
+
+    if (quality.longMethods.length > 0) {
+      patterns.push({
+        id: 'long_methods',
+        severity: quality.longMethods.some(({ matchedMethods }) =>
+          matchedMethods.some((item) => item.lineCount >= 120)
+        )
+          ? 'high'
+          : 'medium',
+        title: 'Long Methods',
+        description:
+          'Some files contain methods or functions that are too long, making intent harder to follow and safe refactoring more expensive.',
+        nodeIds: quality.longMethods.map(({ node }) => node.id),
+        evidence: quality.longMethods.flatMap(({ node, matchedMethods }) =>
+          matchedMethods.slice(0, 2).map((item) => ({
+            nodeId: node.id,
+            message: this.describeMethodEvidence(node.label, item),
+          }))
+        ).slice(0, 8),
+      });
+    }
+
+    if (quality.complexMethods.length > 0) {
+      patterns.push({
+        id: 'complex_methods',
+        severity: quality.complexMethods.some(({ matchedMethods }) =>
+          matchedMethods.some((item) => item.complexity >= 15 || item.maxNesting >= 5)
+        )
+          ? 'high'
+          : 'medium',
+        title: 'Complex Methods',
+        description:
+          'Some methods contain too many branches or too much nesting, so behavior is harder to reason about and refactor safely.',
+        nodeIds: quality.complexMethods.map(({ node }) => node.id),
+        evidence: quality.complexMethods.flatMap(({ node, matchedMethods }) =>
+          matchedMethods.slice(0, 2).map((item) => ({
+            nodeId: node.id,
+            message: this.describeMethodEvidence(node.label, item),
+          }))
+        ).slice(0, 8),
+      });
+    }
+
+    if (quality.mixedResponsibilityModules.length > 0) {
+      patterns.push({
+        id: 'mixed_responsibility_modules',
+        severity: quality.mixedResponsibilityModules.some(
+          ({ responsibilityAxisCount, lineCount }) =>
+            responsibilityAxisCount >= 6 || (lineCount || 0) >= 800
+        )
+          ? 'high'
+          : 'medium',
+        title: 'Mixed Responsibility Modules',
+        description:
+          'Some modules mix orchestration, runtime wiring, contracts, and helper logic in one place, making clean layering and future extraction harder.',
+        nodeIds: quality.mixedResponsibilityModules.map(({ node }) => node.id),
+        evidence: quality.mixedResponsibilityModules.slice(0, 5).map(
+          ({ node, responsibilityAxisCount, designSmellScore, sourceMetrics }) => ({
+            nodeId: node.id,
+            message: `${node.label}: smell score ${designSmellScore}, axes ${responsibilityAxisCount}, long methods ${sourceMetrics.longMethods.length}, complex methods ${sourceMetrics.complexMethods.length}.`,
+          })
+        ),
       });
     }
 
@@ -350,5 +378,21 @@ export class PatternDetectionAnalyzer {
     }
 
     return { patterns };
+  }
+
+  private describeClassEvidence(fileName: string, item: SourceClassMetric): string {
+    const range =
+      item.startLine > 0 && item.endLine >= item.startLine
+        ? `L${item.startLine}-L${item.endLine}`
+        : 'line range unavailable';
+    return `${fileName} -> class ${item.name} (${range}): ${item.lineCount} LOC, ${item.methodCount} methods, ${item.publicMethodCount} public, max complexity ${item.maxMethodComplexity}.`;
+  }
+
+  private describeMethodEvidence(fileName: string, item: SourceFunctionMetric): string {
+    const range =
+      item.startLine > 0 && item.endLine >= item.startLine
+        ? `L${item.startLine}-L${item.endLine}`
+        : 'line range unavailable';
+    return `${fileName} -> ${item.name} (${range}): ${item.lineCount} LOC, complexity ${item.complexity}, branches ${item.branchCount}, max nesting ${item.maxNesting}.`;
   }
 }

@@ -448,9 +448,11 @@ describe('Stack-aware analyzers', () => {
     expect(
       projectInsight.autopilotPlan.recommendedStartingNodes.some((nodeId) => nodeId.endsWith('/Program.cs'))
     ).toBe(true);
+    expect(projectInsight.qualityBudget).toBeDefined();
     expect(
       projectInsight.mentalModel.likelyWorkflows.some((workflow) => workflow.includes('Runtime DI contracts'))
     ).toBe(true);
+    expect(projectInsight.qualityDashboard.gates.length).toBeGreaterThan(0);
     expect(
       projectInsight.nextSteps.some((step) => step.includes('runtime composition roots'))
     ).toBe(true);
@@ -504,6 +506,9 @@ describe('Stack-aware analyzers', () => {
           wave.fileIds.some((fileId) => fileId.endsWith('/Program.cs'))
       )
     ).toBe(true);
+    expect(campaign.executionPlan.refactoringWaves).toBeInstanceOf(Array);
+    expect(campaign.qualityBudget).toBeDefined();
+    expect(campaign.qualityDashboard.gates.length).toBeGreaterThan(0);
     expect(
       campaign.risks.some((risk) => risk.includes('runtime composition roots'))
     ).toBe(true);
@@ -539,6 +544,12 @@ describe('Stack-aware analyzers', () => {
     expect(taskContext.selectedContext?.kind).toBe('campaign');
     expect(
       taskContext.nextSteps.some((step) => step.includes('runtime composition roots'))
+    ).toBe(true);
+    expect(
+      taskContext.nextSteps.some((step) => step.includes('refactoring waves'))
+    ).toBe(true);
+    expect(
+      taskContext.nextSteps.some((step) => step.includes('blocking gates'))
     ).toBe(true);
     expect(
       taskContext.selectedContext?.kind === 'campaign' &&
@@ -671,18 +682,43 @@ describe('Stack-aware analyzers', () => {
       taskMode: 'architecture',
     });
     expect(
-      reviewContext.reviewPriorities.some((priority) => priority.title === 'Oversized Modules')
+      reviewContext.reviewPriorities.some((priority) => priority.title === 'Design Smells')
     ).toBe(true);
     expect(
-      reviewContext.nextSteps.some((step) => step.includes('Inspect oversized modules separately'))
+      reviewContext.reviewPriorities.some(
+        (priority) => priority.title === 'Design Smells' && (priority.evidence?.length || 0) > 0
+      )
+    ).toBe(true);
+    expect(
+      reviewContext.reviewPriorities.some((priority) => priority.title === 'Maintainability Budget')
+    ).toBe(true);
+    expect(reviewContext.decompositionGuidance.candidates.length).toBeGreaterThan(0);
+    expect(reviewContext.qualityDashboard.gates.length).toBeGreaterThan(0);
+    expect(
+      reviewContext.reviewPriorities.some((priority) => priority.title === 'Decomposition Candidates')
+    ).toBe(true);
+    expect(
+      reviewContext.nextSteps.some((step) => step.includes('Inspect design-smell hotspots separately'))
+    ).toBe(true);
+    expect(
+      reviewContext.nextSteps.some((step) => step.includes('structured decomposition candidates'))
     ).toBe(true);
 
     const projectInsight = await new ProjectInsightService().prepareContext(smellGraphData, {
       includeSecurityFindings: false,
       limit: 10,
     });
+    expect(projectInsight.decompositionGuidance.candidates.length).toBeGreaterThan(0);
+    expect(projectInsight.refactoringWaves.length).toBeGreaterThan(0);
+    expect(projectInsight.qualityDashboard.focusCandidates.length).toBeGreaterThan(0);
     expect(
-      projectInsight.nextSteps.some((step) => step.includes('Prioritize decomposition of oversized modules'))
+      projectInsight.nextSteps.some((step) => step.includes('Prioritize decomposition of design-smell hotspots'))
+    ).toBe(true);
+    expect(
+      projectInsight.nextSteps.some((step) => step.includes('concrete extraction queue'))
+    ).toBe(true);
+    expect(
+      projectInsight.nextSteps.some((step) => step.includes('architectural cleanup in waves'))
     ).toBe(true);
 
     const changeContext = await new ChangeContextService().prepareChangeContext(smellGraphData, {
@@ -690,13 +726,17 @@ describe('Stack-aware analyzers', () => {
       taskMode: 'refactor',
       includeSecurityFindings: false,
     });
+    expect(changeContext.decompositionCandidates.length).toBeGreaterThan(0);
     expect(
-      changeContext.risks.some((risk) => risk.includes('oversized or god-file module'))
+      changeContext.risks.some((risk) => risk.includes('responsibility-dense module'))
     ).toBe(true);
     expect(
       changeContext.nextSteps.some((step) =>
         step.includes('prefer extracting responsibilities')
       )
+    ).toBe(true);
+    expect(
+      changeContext.nextSteps.some((step) => step.includes('decompositionCandidates'))
     ).toBe(true);
 
     const campaign = await new ChangeCampaignService().prepareContext(smellGraphData, {
@@ -708,10 +748,17 @@ describe('Stack-aware analyzers', () => {
       maxFiles: 10,
     });
     expect(
-      campaign.risks.some((risk) => risk.includes('oversized/god modules'))
+      campaign.risks.some((risk) => risk.includes('design smells'))
     ).toBe(true);
     expect(
       campaign.nextSteps.some((step) => step.includes('extraction boundaries'))
+    ).toBe(true);
+    expect(campaign.executionPlan.refactoringWaves.length).toBeGreaterThan(0);
+    expect(
+      campaign.executionPlan.refactoringWaves.every((wave) => wave.exitCriteria.length > 0)
+    ).toBe(true);
+    expect(
+      campaign.nextSteps.some((step) => step.includes('extraction candidates'))
     ).toBe(true);
   });
 });

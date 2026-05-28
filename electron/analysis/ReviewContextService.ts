@@ -8,6 +8,8 @@ import {
 import { HealthScoreAnalyzer, HealthScoreResult } from './HealthScoreAnalyzer';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
+import { QualityBudget, QualityDashboard, QualityGovernanceService, RefactoringWave } from './QualityGovernanceService';
 import {
   createGraphSummary,
   promoteCodeTarget,
@@ -37,6 +39,7 @@ export interface ReviewPriority {
   title: string;
   reason: string;
   nodeIds: string[];
+  evidence?: string[];
 }
 
 export interface ReviewContextResult {
@@ -74,6 +77,10 @@ export interface ReviewContextResult {
     relatedViolations: ArchitectureViolation[];
   };
   reviewPriorities: ReviewPriority[];
+  qualityBudget: QualityBudget;
+  qualityDashboard: QualityDashboard;
+  decompositionGuidance: DecompositionGuidance;
+  refactoringWaves: RefactoringWave[];
   autopilotPlan: {
     primaryGoal: string;
     preferredOrder: Array<'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'>;
@@ -92,7 +99,9 @@ export class ReviewContextService {
     private readonly architectureInsightService = new ArchitectureInsightService(),
     private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner()
+    private readonly securityScanner = new SecurityScanner(),
+    private readonly decompositionGuidanceService = new DecompositionGuidanceService(),
+    private readonly qualityGovernanceService = new QualityGovernanceService()
   ) {}
 
   async prepareReviewContext(
@@ -119,6 +128,25 @@ export class ReviewContextService {
           }
         : await this.securityScanner.analyze(graph);
     const focus = this.prepareFocusContext(graph, architecture, patterns, input);
+    const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
+      limit: input.limit || MAX_REVIEW_PATTERNS,
+      focusNodeIds: focus?.matches.map((node) => node.id),
+    });
+    const qualityBudget = this.qualityGovernanceService.buildBudget({
+      health,
+      patterns,
+      decompositionGuidance,
+    });
+    const refactoringWaves = this.qualityGovernanceService.buildRefactoringWaves(
+      graph,
+      decompositionGuidance,
+      4
+    );
+    const qualityDashboard = this.qualityGovernanceService.buildDashboard(
+      qualityBudget,
+      decompositionGuidance,
+      refactoringWaves
+    );
 
     return {
       graphSummary: createGraphSummary(graph),
@@ -137,13 +165,18 @@ export class ReviewContextService {
         findings: security.findings.slice(0, MAX_REVIEW_FINDINGS),
       },
       focus,
+      qualityBudget,
+      qualityDashboard,
+      decompositionGuidance,
+      refactoringWaves,
       reviewPriorities: this.buildReviewPriorities(
         graph,
         health,
         architecture,
         patterns,
         security.findings,
-        focus
+        focus,
+        decompositionGuidance
       ),
       autopilotPlan: this.buildReviewAutopilotPlan(
         taskMode,
@@ -160,7 +193,8 @@ export class ReviewContextService {
         architecture,
         patterns,
         security.findings,
-        Boolean(focus)
+        Boolean(focus),
+        decompositionGuidance
       ),
     };
   }
@@ -222,7 +256,8 @@ export class ReviewContextService {
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
     securityFindings: SecurityFinding[],
-    focus: ReviewContextResult['focus']
+    focus: ReviewContextResult['focus'],
+    decompositionGuidance: DecompositionGuidance
   ): ReviewPriority[] {
     const priorities: ReviewPriority[] = [];
 
@@ -272,6 +307,32 @@ export class ReviewContextService {
         reason:
           'Health score already signals structural degradation: the review must explicitly cover these issues.',
         nodeIds: [],
+      });
+    }
+
+    if (health.summary.maintainabilityScore < 85 || health.summary.solidScore < 85) {
+      priorities.push({
+        severity:
+          health.summary.maintainabilityScore < 60 || health.summary.solidScore < 60
+            ? 'high'
+            : 'medium',
+        title: 'Maintainability Budget',
+        reason:
+          `Maintainability=${health.summary.maintainabilityScore.toFixed(1)}, SOLID=${health.summary.solidScore.toFixed(1)}. The review should treat design debt as a delivery risk, not cosmetic cleanup.`,
+        nodeIds: unique(
+          patterns
+            .filter((pattern) =>
+              [
+                'oversized_modules',
+                'god_files',
+                'god_classes',
+                'long_methods',
+                'complex_methods',
+                'mixed_responsibility_modules',
+              ].includes(pattern.id)
+            )
+            .flatMap((pattern) => pattern.nodeIds)
+        ).slice(0, 10),
       });
     }
 
@@ -333,17 +394,52 @@ export class ReviewContextService {
       });
     }
 
-    if (health.summary.oversizedModules > 0 || health.summary.godFiles > 0) {
+    if (
+      health.summary.oversizedModules > 0 ||
+      health.summary.godFiles > 0 ||
+      health.summary.godClasses > 0 ||
+      health.summary.longMethods > 0 ||
+      health.summary.complexMethods > 0 ||
+      health.summary.mixedResponsibilityModules > 0
+    ) {
+      const designSmellPatterns = patterns.filter((pattern) =>
+        [
+          'oversized_modules',
+          'god_files',
+          'god_classes',
+          'long_methods',
+          'complex_methods',
+          'mixed_responsibility_modules',
+        ].includes(pattern.id)
+      );
       priorities.push({
-        severity: health.summary.godFiles > 0 ? 'high' : 'medium',
-        title: 'Oversized Modules',
+        severity:
+          health.summary.godFiles > 0 || health.summary.godClasses > 0
+            ? 'high'
+            : 'medium',
+        title: 'Design Smells',
         reason:
-          'A few files are too large or too responsibility-dense, so the review should explicitly check SRP violations, extraction opportunities, and boundary leakage.',
+          'Some modules/classes already show SRP/OOP smell signals, so the review should explicitly check extraction boundaries, class API size, and long-method decomposition opportunities.',
         nodeIds: unique(
-          patterns
-            .filter((pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files')
-            .flatMap((pattern) => pattern.nodeIds)
+          designSmellPatterns.flatMap((pattern) => pattern.nodeIds)
         ).slice(0, 10),
+        evidence: designSmellPatterns.flatMap((pattern) => pattern.evidence || []).map((item) => item.message).slice(0, 5),
+      });
+    }
+
+    if (decompositionGuidance.candidates.length > 0) {
+      priorities.push({
+        severity:
+          decompositionGuidance.summary.highPriorityCount > 0 ? 'high' : 'medium',
+        title: 'Decomposition Candidates',
+        reason:
+          'Structured extraction candidates are available, so the review can evaluate concrete split points instead of discussing refactoring only at file level.',
+        nodeIds: unique(
+          decompositionGuidance.candidates.map((candidate) => candidate.fileNodeId)
+        ).slice(0, 10),
+        evidence: decompositionGuidance.candidates
+          .slice(0, 5)
+          .map((candidate) => `${candidate.targetLabel}: ${candidate.reason}`),
       });
     }
 
@@ -381,7 +477,8 @@ export class ReviewContextService {
     architecture: ArchitectureOverview,
     patterns: DetectedPattern[],
     securityFindings: SecurityFinding[],
-    hasFocus: boolean
+    hasFocus: boolean,
+    decompositionGuidance: DecompositionGuidance
   ) {
     const nextSteps = [
       'Start the review with nodes that fell into top architecture violations and severe patterns.',
@@ -416,9 +513,22 @@ export class ReviewContextService {
       );
     }
 
-    if (health.summary.oversizedModules > 0 || health.summary.godFiles > 0) {
+    if (
+      health.summary.oversizedModules > 0 ||
+      health.summary.godFiles > 0 ||
+      health.summary.godClasses > 0 ||
+      health.summary.longMethods > 0 ||
+      health.summary.complexMethods > 0 ||
+      health.summary.mixedResponsibilityModules > 0
+    ) {
       nextSteps.push(
-        'Inspect oversized modules separately: identify mixed responsibilities, extraction boundaries, and files that should stop accumulating new stack-specific logic.'
+        'Inspect design-smell hotspots separately: identify mixed responsibilities, god classes, long/complex methods, extraction boundaries, and files that should stop accumulating new stack-specific logic.'
+      );
+    }
+
+    if (decompositionGuidance.candidates.length > 0) {
+      nextSteps.push(
+        'Use structured decomposition candidates to review the exact classes and methods that should be extracted first, not just the surrounding files.'
       );
     }
 

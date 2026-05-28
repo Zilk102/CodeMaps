@@ -8,6 +8,7 @@ import {
 import { BlastRadiusAnalyzer, BlastRadiusResult } from './BlastRadiusAnalyzer';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import { DecompositionCandidate, DecompositionGuidanceService } from './DecompositionGuidanceService';
 import {
   createGraphSummary,
   promoteCodeTarget,
@@ -72,6 +73,7 @@ export interface ChangeContextResult {
   relevantPatterns: DetectedPattern[];
   relatedSecurityFindings: SecurityFinding[];
   recommendedFilesToInspect: string[];
+  decompositionCandidates: DecompositionCandidate[];
   risks: string[];
   autopilotPlan: {
     primaryGoal: string;
@@ -97,7 +99,8 @@ export class ChangeContextService {
     private readonly architectureInsightService = new ArchitectureInsightService(),
     private readonly blastRadiusAnalyzer = new BlastRadiusAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner()
+    private readonly securityScanner = new SecurityScanner(),
+    private readonly decompositionGuidanceService = new DecompositionGuidanceService()
   ) {}
 
   async prepareChangeContext(
@@ -162,6 +165,10 @@ export class ChangeContextService {
       ...blastRadius.directDependents.map((node) => toStructuralNodeId(node.id)),
       ...blastRadius.affectedNodes.map((node) => toStructuralNodeId(node.id)),
     ]).slice(0, 15);
+    const decompositionCandidates = this.decompositionGuidanceService.prepareGuidance(graph, {
+      limit: 8,
+      focusNodeIds: Array.from(structuralNodeIds),
+    }).candidates;
 
     return {
       graphSummary: createGraphSummary(graph),
@@ -199,6 +206,7 @@ export class ChangeContextService {
       relevantPatterns,
       relatedSecurityFindings: securityFindings,
       recommendedFilesToInspect,
+      decompositionCandidates,
       autopilotPlan: this.buildChangeAutopilotPlan({
         taskMode,
         changeIntent: input.changeIntent,
@@ -228,6 +236,7 @@ export class ChangeContextService {
         runtimeContractNodes: dependencies.runtimeContractNodes,
         contractBindingNodes: dependencies.contractBindingNodes,
         securityFindings,
+        decompositionCandidates,
       }),
     };
   }
@@ -389,6 +398,10 @@ export class ChangeContextService {
           pattern.id === 'high_fan_out_files' ||
           pattern.id === 'oversized_modules' ||
           pattern.id === 'god_files' ||
+          pattern.id === 'god_classes' ||
+          pattern.id === 'long_methods' ||
+          pattern.id === 'complex_methods' ||
+          pattern.id === 'mixed_responsibility_modules' ||
           pattern.id === 'di_runtime_contract_hubs' ||
           pattern.id === 'contract_runtime_binding_hubs'
       )
@@ -400,11 +413,17 @@ export class ChangeContextService {
 
     if (
       args.relevantPatterns.some(
-        (pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files'
+        (pattern) =>
+          pattern.id === 'oversized_modules' ||
+          pattern.id === 'god_files' ||
+          pattern.id === 'god_classes' ||
+          pattern.id === 'long_methods' ||
+          pattern.id === 'complex_methods' ||
+          pattern.id === 'mixed_responsibility_modules'
       )
     ) {
       risks.push(
-        'The target sits in an oversized or god-file module; extending it may entrench SRP violations and make future decomposition harder.'
+        'The target sits in an oversized or responsibility-dense module; extending it may entrench SRP violations, long/complex methods, or god-object behavior and make future decomposition harder.'
       );
     }
 
@@ -453,6 +472,7 @@ export class ChangeContextService {
     runtimeContractNodes: GraphNode[];
     contractBindingNodes: GraphNode[];
     securityFindings: SecurityFinding[];
+    decompositionCandidates: DecompositionCandidate[];
   }) {
     const nextSteps = [
       `First, re-read the target node ${args.target.id} and the closest files from recommendedFilesToInspect.`,
@@ -499,6 +519,12 @@ export class ChangeContextService {
     if (args.target.churn >= 10) {
       nextSteps.push(
         'If the target is already a churn-heavy orchestration file, prefer extracting responsibilities instead of adding another branch, matcher, or adapter path.'
+      );
+    }
+
+    if (args.decompositionCandidates.length > 0) {
+      nextSteps.push(
+        `Use decompositionCandidates to choose the first extraction seam before editing; top candidate: ${args.decompositionCandidates[0].targetLabel}.`
       );
     }
 

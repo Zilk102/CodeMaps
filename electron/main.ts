@@ -6,7 +6,7 @@ import log from 'electron-log/main';
 import { getMcpStatus, setupMcpServer, shutdownMcpServer } from './mcp';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
-import { initAutoUpdater, shutdownAutoUpdater } from './autoUpdater';
+import { initAutoUpdater, quitAndInstallDownloadedUpdate, shutdownAutoUpdater } from './autoUpdater';
 import { shutdownKuzuProcessManager } from './services/KuzuGraphService';
 import type { KuzuIntegration as KuzuIntegrationInstance } from './services/KuzuIntegration';
 import { gracefulShutdown } from './shutdown';
@@ -98,6 +98,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 let mainWindow: BrowserWindow | null = null;
 let shutdownStarted = false;
+let updateInstallStarted = false;
 
 async function shutdownApplication() {
   if (shutdownStarted) {
@@ -112,6 +113,24 @@ async function shutdownApplication() {
     shutdownKuzuProcessManager,
     logger: log,
   });
+}
+
+async function installDownloadedUpdate() {
+  if (updateInstallStarted) {
+    return;
+  }
+
+  updateInstallStarted = true;
+
+  try {
+    log.info('[App] Preparing downloaded update installation');
+    await shutdownApplication();
+    quitAndInstallDownloadedUpdate();
+  } catch (error: unknown) {
+    updateInstallStarted = false;
+    log.error('[App] Failed to prepare update installation:', getErrorMessage(error));
+    throw error;
+  }
 }
 
 function createWindow() {
@@ -161,7 +180,9 @@ ipcMain.handle('window-close', () => {
 app.whenReady().then(() => {
   createWindow();
   setupMcpServer();
-  initAutoUpdater(mainWindow!);
+  initAutoUpdater(mainWindow!, {
+    onInstallRequested: () => installDownloadedUpdate(),
+  });
 
   if (isE2EShutdownTest && mainWindow) {
     mainWindow.webContents.once('did-finish-load', () => {
@@ -187,7 +208,7 @@ app.on('before-quit', (event) => {
 
   event.preventDefault();
   void shutdownApplication().finally(() => {
-    app.exit(0);
+    app.quit();
   });
 });
 

@@ -80,107 +80,114 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-          {t('activityHeatmap.title')}
-        </h3>
-        
-        <div className="flex items-center gap-2">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="7">{t('activityHeatmap.last7days')}</option>
-            <option value="30">{t('activityHeatmap.last30days')}</option>
-            <option value="90">{t('activityHeatmap.last90days')}</option>
-            <option value="365">{t('activityHeatmap.lastYear')}</option>
-          </select>
-          
-          <button
-            onClick={loadHeatmap}
-            disabled={isLoading}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {isLoading ? t('activityHeatmap.loading') : t('activityHeatmap.analyze')}
-          </button>
+      <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
+          {t('tools.quickActions.hotspots')}
+        </div>
+        <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <h3 className="text-[16px] font-semibold text-(--t0)">{t('activityHeatmap.title')}</h3>
+            <p className="mt-2 text-[13px] leading-6 text-(--t2)">{t('tools.quickActions.heatmapDescription')}</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-sm text-(--t0) outline-none transition-colors focus:border-(--acc)"
+            >
+              <option value="7">{t('activityHeatmap.last7days')}</option>
+              <option value="30">{t('activityHeatmap.last30days')}</option>
+              <option value="90">{t('activityHeatmap.last90days')}</option>
+              <option value="365">{t('activityHeatmap.lastYear')}</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={loadHeatmap}
+              disabled={isLoading}
+              className="rounded-xl bg-(--acc) px-4 py-2 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoading ? t('activityHeatmap.loading') : t('activityHeatmap.analyze')}
+            </button>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
-          <div className="text-sm text-red-800 dark:text-red-200">{error}</div>
+        <div className="rounded-2xl border border-[rgba(255,107,107,0.35)] bg-[rgba(255,107,107,0.08)] p-4">
+          <div className="text-sm text-(--red)">{error}</div>
         </div>
       )}
 
       {heatmap && heatmap.files.length > 0 && (
         <div className="space-y-3">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{heatmap.totalFiles}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{t('activityHeatmap.filesAnalyzed')}</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">{t('activityHeatmap.filesAnalyzed')}</div>
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">{heatmap.totalFiles}</div>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{heatmap.maxCommits}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{t('activityHeatmap.maxCommits')}</div>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">{t('activityHeatmap.maxCommits')}</div>
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">{heatmap.maxCommits}</div>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{heatmap.maxChanges}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{t('activityHeatmap.maxChanges')}</div>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
-            <span>{t('activityHeatmap.intensity')}:</span>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/20"></div>
-              <span>{t('activityHeatmap.low')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900/20"></div>
-              <span>{t('activityHeatmap.medium')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded bg-yellow-100 dark:bg-yellow-900/20"></div>
-              <span>{t('activityHeatmap.high')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded bg-orange-100 dark:bg-orange-900/20"></div>
-              <span>{t('activityHeatmap.veryHigh')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded bg-red-100 dark:bg-red-900/20"></div>
-              <span>{t('activityHeatmap.critical')}</span>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">{t('activityHeatmap.maxChanges')}</div>
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">{heatmap.maxChanges}</div>
             </div>
           </div>
 
-          {/* Files list */}
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-(--t2)">
+              <span>{t('activityHeatmap.intensity')}:</span>
+              <div className="flex items-center gap-1">
+                <div className="h-4 w-4 rounded bg-blue-100 dark:bg-blue-900/20"></div>
+                <span>{t('activityHeatmap.low')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-4 w-4 rounded bg-green-100 dark:bg-green-900/20"></div>
+                <span>{t('activityHeatmap.medium')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-4 w-4 rounded bg-yellow-100 dark:bg-yellow-900/20"></div>
+                <span>{t('activityHeatmap.high')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-4 w-4 rounded bg-orange-100 dark:bg-orange-900/20"></div>
+                <span>{t('activityHeatmap.veryHigh')}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-4 w-4 rounded bg-red-100 dark:bg-red-900/20"></div>
+                <span>{t('activityHeatmap.critical')}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
             {heatmap.files.slice(0, 50).map((file, index) => (
               <div
                 key={index}
-                className={`relative rounded-lg p-3 ${getHeatColor(file.commits, heatmap.maxCommits)}`}
+                className={`relative overflow-hidden rounded-2xl border border-(--border) p-3 ${getHeatColor(file.commits, heatmap.maxCommits)}`}
               >
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate flex-1" title={file.filePath}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-medium" title={file.filePath}>
                       {file.filePath.split('/').pop() || file.filePath}
                     </span>
-                    <div className="flex items-center gap-3 text-xs">
+                    <div className="flex shrink-0 items-center gap-3 text-xs">
                       <span className="font-semibold">{file.commits} {t('activityHeatmap.commits')}</span>
-                      <span className="text-green-600">+{file.additions}</span>
-                      <span className="text-red-600">-{file.deletions}</span>
+                      <span className="text-green-700">+{file.additions}</span>
+                      <span className="text-red-700">-{file.deletions}</span>
                     </div>
                   </div>
-                  <div className="text-xs mt-1 opacity-75">
+                  <div className="mt-1 text-xs opacity-75">{file.filePath}</div>
+                  <div className="mt-1 text-xs opacity-75">
                     {file.authors.slice(0, 3).join(', ')}
                     {file.authors.length > 3 && ` +${file.authors.length - 3}`}
                   </div>
                 </div>
                 <div
-                  className="absolute inset-0 rounded-lg opacity-20 bg-current"
+                  className="absolute inset-y-0 left-0 opacity-20 bg-current"
                   style={{ width: getHeatWidth(file.commits, heatmap.maxCommits) }}
                 />
               </div>
@@ -188,7 +195,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
           </div>
 
           {heatmap.files.length > 50 && (
-            <div className="text-center text-sm text-gray-500">
+            <div className="text-center text-sm text-(--t2)">
               {t('activityHeatmap.andMore', { count: heatmap.files.length - 50 })}
             </div>
           )}
@@ -196,10 +203,11 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
       )}
 
       {heatmap && heatmap.files.length === 0 && !isLoading && (
-        <div className="text-center text-gray-500 dark:text-gray-400">
+        <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4 text-center text-(--t2)">
           {t('activityHeatmap.noData')}
         </div>
       )}
     </div>
   );
 };
+

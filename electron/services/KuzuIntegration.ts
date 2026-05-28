@@ -17,15 +17,22 @@ export class KuzuIntegration {
 
     // Store nodes
     for (const node of graphData.nodes) {
+      const filePath = node.filePath || node.parentId || node.id.split('#')[0];
       await this.service.addNode({
         id: node.id,
         type: this.mapNodeType(node.type),
         label: node.label,
-        filePath: node.id, // Using id as path for now
-        line: 0,
-        column: 0,
-        language: undefined,
-        meta: { group: node.group, churn: node.churn, adr: node.adr },
+        filePath,
+        line: node.sourceLocation?.startLine ?? 0,
+        column: node.sourceLocation?.startColumn ?? 0,
+        language: node.language,
+        meta: {
+          group: node.group,
+          churn: node.churn,
+          adr: node.adr,
+          parentId: node.parentId,
+          sourceLocation: node.sourceLocation,
+        },
       });
     }
 
