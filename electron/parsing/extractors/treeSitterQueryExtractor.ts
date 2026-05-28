@@ -1,5 +1,5 @@
 import { Query, Tree, Language } from 'web-tree-sitter';
-import { LanguageDefinition, ParseResult } from '../types';
+import { LanguageDefinition, ParseResult, SourceLocation } from '../types';
 
 const normalizeImportPath = (value: string) => value.replace(/['"`]/g, '').trim();
 
@@ -43,13 +43,24 @@ export const extractWithTreeSitterQuery = (
   const callSet = new Set<string>();
   const commentSet = new Set<string>();
 
-  const pushEntity = (type: 'class' | 'function', name: string) => {
+  const toSourceLocation = (node: { startPosition: { row: number; column: number }; endPosition: { row: number; column: number } }): SourceLocation => ({
+    startLine: node.startPosition.row + 1,
+    startColumn: node.startPosition.column + 1,
+    endLine: node.endPosition.row + 1,
+    endColumn: node.endPosition.column + 1,
+  });
+
+  const pushEntity = (
+    type: 'class' | 'function',
+    name: string,
+    location?: SourceLocation
+  ) => {
     const normalized = name.trim();
     if (!normalized) return;
     const key = `${type}:${normalized}`;
     if (entityKeys.has(key)) return;
     entityKeys.add(key);
-    entities.push({ type, name: normalized });
+    entities.push({ type, name: normalized, location });
   };
 
   const matches = query.matches(tree.rootNode);
@@ -70,10 +81,10 @@ export const extractWithTreeSitterQuery = (
           break;
         }
         case 'class':
-          pushEntity('class', captureText);
+          pushEntity('class', captureText, toSourceLocation(capture.node));
           break;
         case 'function':
-          pushEntity('function', captureText);
+          pushEntity('function', captureText, toSourceLocation(capture.node));
           break;
         case 'variable':
           if (captureText.trim()) variableSet.add(captureText.trim());

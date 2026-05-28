@@ -25,6 +25,7 @@ export class GraphBuilder {
           group: 0,
           type: 'directory',
           churn: 0,
+          filePath: currentDir,
           parentId: hasParent ? parentDir : undefined,
         });
       }
@@ -82,6 +83,8 @@ export class GraphBuilder {
           group: 1,
           type: 'file',
           churn,
+          filePath: normalizedPath,
+          language: result.detectedLanguage,
           parentId: hasParent ? parentDir : undefined,
         });
       }
@@ -97,6 +100,8 @@ export class GraphBuilder {
         group: 4,
         type: 'adr',
         churn,
+        filePath: normalizedPath,
+        language: result.detectedLanguage,
         adr: normalizedPath,
         parentId: hasParent ? parentDir : undefined,
       });
@@ -109,6 +114,8 @@ export class GraphBuilder {
       group: 1,
       type: 'file',
       churn,
+      filePath: normalizedPath,
+      language: result.detectedLanguage,
       adr,
       exports,
       parentId: hasParent ? parentDir : undefined,
@@ -165,6 +172,9 @@ export class GraphBuilder {
         group: entity.type === 'class' ? 2 : 3,
         type: entity.type,
         churn,
+        filePath: normalizedPath,
+        language: result.detectedLanguage,
+        sourceLocation: entity.location,
         parentId: normalizedPath,
       });
     }

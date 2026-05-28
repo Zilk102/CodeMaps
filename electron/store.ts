@@ -86,6 +86,14 @@ export interface GraphNode {
   group: number;
   type: string;
   churn: number;
+  filePath?: string;
+  language?: string;
+  sourceLocation?: {
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  };
   adr?: string;
   parentId?: string; // Указатель на родительский элемент (Слой Иерархии)
   exports?: Array<{

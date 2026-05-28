@@ -51,132 +51,136 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'critical': return 'bg-red-600 text-white';
-      case 'high': return 'bg-orange-500 text-white';
-      case 'medium': return 'bg-yellow-500 text-black';
-      case 'low': return 'bg-green-500 text-white';
-      default: return 'bg-gray-500 text-white';
+      case 'critical': return 'bg-[rgba(255,107,107,0.16)] text-(--red)';
+      case 'high': return 'bg-[rgba(255,170,68,0.18)] text-(--orange)';
+      case 'medium': return 'bg-[rgba(255,210,102,0.18)] text-(--yellow)';
+      case 'low': return 'bg-[rgba(64,201,114,0.18)] text-(--green)';
+      default: return 'bg-(--bg2) text-(--t1)';
     }
   };
 
   return (
     <div className="space-y-4 p-4">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-        {t('prImpact.title')}
-      </h3>
-      
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('prImpact.baseBranch')}
-          </label>
-          <input
-            type="text"
-            value={baseBranch}
-            onChange={(e) => setBaseBranch(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-            placeholder="main"
-          />
+      <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
+          {t('tools.quickActions.review')}
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('prImpact.headBranch')}
-          </label>
-          <input
-            type="text"
-            value={headBranch}
-            onChange={(e) => setHeadBranch(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-            placeholder="HEAD"
-          />
+        <h3 className="mt-2 text-[16px] font-semibold text-(--t0)">{t('prImpact.title')}</h3>
+        <p className="mt-2 text-[13px] leading-6 text-(--t2)">{t('tools.quickActions.prDescription')}</p>
+      </div>
+
+      <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="min-w-0">
+            <label className="mb-1 block text-sm font-medium text-(--t1)">
+              {t('prImpact.baseBranch')}
+            </label>
+            <input
+              type="text"
+              value={baseBranch}
+              onChange={(e) => setBaseBranch(e.target.value)}
+              className="w-full rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)"
+              placeholder="main"
+            />
+          </div>
+          <div className="min-w-0">
+            <label className="mb-1 block text-sm font-medium text-(--t1)">
+              {t('prImpact.headBranch')}
+            </label>
+            <input
+              type="text"
+              value={headBranch}
+              onChange={(e) => setHeadBranch(e.target.value)}
+              className="w-full rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)"
+              placeholder="HEAD"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={isAnalyzing}
+              className="w-full rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 xl:w-auto"
+            >
+              {isAnalyzing ? (
+                <span className="inline-flex items-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  {t('prImpact.analyzing')}
+                </span>
+              ) : (
+                t('prImpact.analyzeButton')
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      <button
-        onClick={handleAnalyze}
-        disabled={isAnalyzing}
-        className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isAnalyzing ? (
-          <>
-            <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            {t('prImpact.analyzing')}
-          </>
-        ) : (
-          t('prImpact.analyzeButton')
-        )}
-      </button>
-
       {error && (
-        <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-                {t('prImpact.error')}
-              </h3>
-              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                {error}
-              </div>
-            </div>
-          </div>
+        <div className="rounded-2xl border border-[rgba(255,107,107,0.35)] bg-[rgba(255,107,107,0.08)] p-4">
+          <h4 className="text-sm font-semibold text-(--red)">{t('prImpact.error')}</h4>
+          <div className="mt-2 text-sm text-(--red)">{error}</div>
         </div>
       )}
 
       {result && (
         <div className="space-y-4">
-          {/* Risk Score */}
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRiskColor(result.riskScore)}`}>
+          <div className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ${getRiskColor(result.riskScore)}`}>
             {t(`prImpact.risk.${result.riskScore}`)}
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {result.changedFiles.length}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
                 {t('prImpact.changedFiles')}
               </div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {result.affectedNodes.length}
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
+                {result.changedFiles.length}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+            </div>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
                 {t('prImpact.affectedNodes')}
               </div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {result.blastRadius}
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
+                {result.affectedNodes.length}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+            </div>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
                 {t('prImpact.blastRadius')}
+              </div>
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
+                {result.blastRadius}
               </div>
             </div>
           </div>
 
-          {/* Changed Files */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+          <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+            <h4 className="text-[13px] font-semibold text-(--t0)">
               {t('prImpact.changedFilesList')}
             </h4>
-            <ul className="space-y-1">
+            <ul className="mt-3 space-y-2">
               {result.changedFiles.map((file: Record<string, unknown>, index: number) => (
-                <li key={index} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${
-                      file.status === 'added' ? 'bg-green-500' :
-                      file.status === 'deleted' ? 'bg-red-500' :
-                      'bg-yellow-500'
-                    }`} />
-                    <span className="text-gray-700 dark:text-gray-300">{file.path as string}</span>
+                <li
+                  key={index}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        file.status === 'added'
+                          ? 'bg-(--green)'
+                          : file.status === 'deleted'
+                            ? 'bg-(--red)'
+                            : 'bg-(--yellow)'
+                      }`}
+                    />
+                    <span className="truncate text-sm text-(--t1)">{file.path as string}</span>
                   </span>
-                  <span className="text-gray-500 text-xs">
+                  <span className="shrink-0 text-xs text-(--t2)">
                     +{(file.additions as number)} -{(file.deletions as number)}
                   </span>
                 </li>
@@ -184,15 +188,17 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
             </ul>
           </div>
 
-          {/* Recommendations */}
           {result.recommendations.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <h4 className="text-[13px] font-semibold text-(--t0)">
                 {t('prImpact.recommendations')}
               </h4>
-              <ul className="space-y-1">
+              <ul className="mt-3 space-y-2">
                 {result.recommendations.map((rec: string, index: number) => (
-                  <li key={index} className="text-sm text-gray-600 dark:text-gray-400">
+                  <li
+                    key={index}
+                    className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-sm text-(--t1)"
+                  >
                     {rec}
                   </li>
                 ))}
@@ -204,3 +210,4 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
     </div>
   );
 };
+

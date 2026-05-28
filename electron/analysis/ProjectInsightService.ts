@@ -16,6 +16,13 @@ import { HealthScoreAnalyzer, HealthScoreResult } from './HealthScoreAnalyzer';
 import { DetectedStack, StackInsightService } from './StackInsightService';
 import { StackStructuralInsight, StackTopologyService } from './StackTopologyService';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
+import {
+  QualityBudget,
+  QualityDashboard,
+  QualityGovernanceService,
+  RefactoringWave,
+} from './QualityGovernanceService';
 
 export interface PrepareProjectContextInput {
   includeSecurityFindings?: boolean;
@@ -127,6 +134,10 @@ export interface ProjectInsightResult {
     recommendedStartingNodes: string[];
     shouldFallbackToLowLevelTools: boolean;
   };
+  qualityBudget: QualityBudget;
+  qualityDashboard: QualityDashboard;
+  decompositionGuidance: DecompositionGuidance;
+  refactoringWaves: RefactoringWave[];
   nextSteps: string[];
 }
 
@@ -152,7 +163,9 @@ export class ProjectInsightService {
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
     private readonly stackInsightService = new StackInsightService(),
     private readonly stackTopologyService = new StackTopologyService(),
-    private readonly securityScanner = new SecurityScanner()
+    private readonly securityScanner = new SecurityScanner(),
+    private readonly decompositionGuidanceService = new DecompositionGuidanceService(),
+    private readonly qualityGovernanceService = new QualityGovernanceService()
   ) {}
 
   async prepareContext(
@@ -181,6 +194,24 @@ export class ProjectInsightService {
     const mentalModel = this.buildMentalModel(graph, architecture);
     const stackProfile = await this.stackInsightService.analyze(graph);
     const stackTopology = await this.stackTopologyService.analyze(graph, stackProfile);
+    const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
+      limit: input.limit || PATTERN_LIMIT,
+    });
+    const qualityBudget = this.qualityGovernanceService.buildBudget({
+      health,
+      patterns,
+      decompositionGuidance,
+    });
+    const refactoringWaves = this.qualityGovernanceService.buildRefactoringWaves(
+      graph,
+      decompositionGuidance,
+      4
+    );
+    const qualityDashboard = this.qualityGovernanceService.buildDashboard(
+      qualityBudget,
+      decompositionGuidance,
+      refactoringWaves
+    );
     const operationalTelemetry = graph.refreshTelemetry || {
       watcher: {
         flushCount: 0,
@@ -241,13 +272,20 @@ export class ProjectInsightService {
       },
       mentalModel,
       autopilotPlan: this.buildAutopilotPlan(architecture, health, patterns, mentalModel),
+      qualityBudget,
+      qualityDashboard,
+      decompositionGuidance,
+      refactoringWaves,
       nextSteps: this.buildNextSteps(
         health,
         architecture,
         patterns,
         security.findings,
         mentalModel,
-        operationalTelemetry
+        operationalTelemetry,
+        decompositionGuidance,
+        qualityBudget,
+        refactoringWaves
       ),
     };
   }
@@ -486,7 +524,10 @@ export class ProjectInsightService {
     patterns: DetectedPattern[],
     securityFindings: SecurityFinding[],
     mentalModel: ProjectInsightResult['mentalModel'],
-    operationalTelemetry: ProjectInsightResult['operationalTelemetry']
+    operationalTelemetry: ProjectInsightResult['operationalTelemetry'],
+    decompositionGuidance: DecompositionGuidance,
+    qualityBudget: QualityBudget,
+    refactoringWaves: RefactoringWave[]
   ) {
     const nextSteps = [
       'First read entry points and core orchestrators to fix real control flows across the project.',
@@ -531,13 +572,33 @@ export class ProjectInsightService {
 
     if (
       patterns.some(
-        (pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files'
+        (pattern) =>
+          pattern.id === 'oversized_modules' ||
+          pattern.id === 'god_files' ||
+          pattern.id === 'god_classes' ||
+          pattern.id === 'long_methods' ||
+          pattern.id === 'complex_methods' ||
+          pattern.id === 'mixed_responsibility_modules'
       )
     ) {
       nextSteps.push(
-        'Prioritize decomposition of oversized modules: extract stack-specific rules, helpers, and orchestration seams before adding more responsibilities.'
+        'Prioritize decomposition of design-smell hotspots: split oversized modules, extract god classes, shorten long methods, and separate orchestration from contracts/helpers before adding more responsibilities.'
       );
     }
+
+    if (decompositionGuidance.candidates.length > 0) {
+      nextSteps.push(
+        'Use decomposition guidance as a concrete extraction queue: start with the highest-score class/method candidates instead of growing already overloaded hotspots.'
+      );
+    }
+
+    if (refactoringWaves.length > 0) {
+      nextSteps.push(
+        `Execute architectural cleanup in waves: start with "${refactoringWaves[0].title}" before deeper class/method simplification.`
+      );
+    }
+
+    nextSteps.push(this.qualityGovernanceService.summarizeBudgetForStep(qualityBudget));
 
     if (securityFindings.length > 0) {
       nextSteps.unshift(
@@ -548,6 +609,12 @@ export class ProjectInsightService {
     if (health.issues.length > 0) {
       nextSteps.push(
         'Compare health issues with the actual project structure and adjust heuristics where they are noisy.'
+      );
+    }
+
+    if (health.summary.maintainabilityScore < 85 || health.summary.solidScore < 85) {
+      nextSteps.push(
+        `Treat design debt as delivery risk: maintainability=${health.summary.maintainabilityScore.toFixed(1)}, solid=${health.summary.solidScore.toFixed(1)}. Prefer extraction and boundary cleanup before adding more orchestration logic.`
       );
     }
 

@@ -12,7 +12,12 @@ import { ProjectInsightService } from '../ProjectInsightService';
 import { TaskIntelligenceService } from '../TaskIntelligenceService';
 import { ChangeCampaignService } from '../ChangeCampaignService';
 import { SignatureSearchService } from '../SignatureSearchService';
-import { GraphData } from '../../store';
+import { DecompositionGuidanceService } from '../DecompositionGuidanceService';
+import { QualityGovernanceService } from '../QualityGovernanceService';
+import { GraphData, oracleStore } from '../../store';
+import { GraphBuilder } from '../../oracle/GraphBuilder';
+import { getLanguageById } from '../../parsing/languageRegistry';
+import { extractWithTypeScriptSemantic } from '../../parsing/extractors/typescriptSemanticExtractor';
 
 describe('Analyzers (Zero Mock Policy)', () => {
   let testProjectDir: string;
@@ -54,6 +59,50 @@ export function App() {
     for (let i = 1; i <= 13; i++) {
       fs.writeFileSync(path.join(testProjectDir, `utils${i}.ts`), `export function util${i}() { return ${i}; }`);
     }
+
+    const longMethodBody = Array.from(
+      { length: 90 },
+      (_, index) =>
+        `    if (input > ${index}) {\n      total += input + ${index};\n    } else if (input === ${index}) {\n      total += ${index};\n    }`
+    ).join('\n');
+    const helperFunctions = Array.from(
+      { length: 8 },
+      (_, index) =>
+        `export function helper${index + 1}(value: number) {\n  return value + ${index + 1};\n}\n`
+    ).join('\n');
+    const classMethods = Array.from(
+      { length: 9 },
+      (_, index) =>
+        `  public step${index + 1}(value: number) {\n    return helper${(index % 8) + 1}(value);\n  }\n`
+    ).join('\n');
+
+    fs.writeFileSync(
+      path.join(testProjectDir, 'MonsterService.ts'),
+      `
+import { util1 } from './utils1';
+import { util2 } from './utils2';
+import { util3 } from './utils3';
+import { util4 } from './utils4';
+import { util5 } from './utils5';
+import { util6 } from './utils6';
+import { util7 } from './utils7';
+import { util8 } from './utils8';
+import { util9 } from './utils9';
+import { util10 } from './utils10';
+
+${helperFunctions}
+
+export class MonsterService {
+${classMethods}
+
+  public orchestrate(input: number) {
+    let total = util1() + util2() + util3() + util4() + util5() + util6() + util7() + util8() + util9() + util10();
+${longMethodBody}
+    return total;
+  }
+}
+`
+    );
 
     fs.mkdirSync(path.join(testProjectDir, 'app', 'api', 'health'), { recursive: true });
     fs.writeFileSync(
@@ -129,6 +178,20 @@ export function App() {
     expect(result.patterns.some(p => p.id === 'high_fan_out_files')).toBe(true);
     // The deep.ts file is nested 6 levels deep -> deep nesting
     expect(result.patterns.some(p => p.id === 'deep_nesting')).toBe(true);
+    expect(result.patterns.some(p => p.id === 'god_classes')).toBe(true);
+    expect(result.patterns.some(p => p.id === 'long_methods')).toBe(true);
+    expect(result.patterns.some(p => p.id === 'complex_methods')).toBe(true);
+    expect(result.patterns.some(p => p.id === 'mixed_responsibility_modules')).toBe(true);
+    expect(
+      result.patterns
+        .filter((p) => ['god_classes', 'long_methods', 'complex_methods'].includes(p.id))
+        .some((pattern) => (pattern.evidence?.length || 0) > 0)
+    ).toBe(true);
+    expect(
+      result.patterns
+        .flatMap((pattern) => pattern.evidence || [])
+        .some((item) => item.message.includes('L'))
+    ).toBe(true);
   });
 
   it('HealthScoreAnalyzer calculates health score and identifies issues', () => {
@@ -140,6 +203,92 @@ export function App() {
     expect(result.grade).toBeDefined();
     expect(result.issues).toBeInstanceOf(Array);
     expect(result.summary.totalNodes).toBeGreaterThan(0);
+    expect(result.summary.godClasses).toBeGreaterThan(0);
+    expect(result.summary.longMethods).toBeGreaterThan(0);
+    expect(result.summary.complexMethods).toBeGreaterThan(0);
+    expect(result.summary.mixedResponsibilityModules).toBeGreaterThan(0);
+    expect(result.summary.avgDesignSmellScore).toBeGreaterThan(0);
+    expect(result.summary.maintainabilityScore).toBeGreaterThanOrEqual(0);
+    expect(result.summary.solidScore).toBeGreaterThanOrEqual(0);
+    expect(result.issues.some(issue => issue.code === 'god_classes')).toBe(true);
+    expect(result.issues.some(issue => issue.code === 'long_methods')).toBe(true);
+    expect(result.issues.some(issue => issue.code === 'complex_methods')).toBe(true);
+    expect(result.issues.some(issue => issue.code === 'mixed_responsibility_modules')).toBe(true);
+    expect(
+      result.issues.some((issue) =>
+        ['maintainability_score', 'solid_score'].includes(issue.code)
+      )
+    ).toBe(true);
+  });
+
+  it('DecompositionGuidanceService produces ranked extraction candidates', () => {
+    const service = new DecompositionGuidanceService();
+    const result = service.prepareGuidance(graphData, { limit: 10 });
+
+    expect(result.summary.candidateCount).toBeGreaterThan(0);
+    expect(result.candidates.length).toBeGreaterThan(0);
+    expect(result.candidates.some((candidate) => candidate.targetType === 'class')).toBe(true);
+    expect(result.candidates.some((candidate) => candidate.targetType === 'method')).toBe(true);
+    expect(
+      result.candidates.some(
+        (candidate) =>
+          Boolean(candidate.lineRange) &&
+          (candidate.action === 'extract_class' || candidate.action === 'reduce_complexity')
+      )
+    ).toBe(true);
+  });
+
+  it('GraphBuilder preserves symbol-level source locations from parser output', () => {
+    const filePath = path.join(testProjectDir, 'MonsterService.ts').replace(/\\/g, '/');
+    const text = fs.readFileSync(path.join(testProjectDir, 'MonsterService.ts'), 'utf-8');
+    const definition = getLanguageById('typescript');
+    expect(definition).toBeDefined();
+
+    const result = extractWithTypeScriptSemantic(filePath, text, definition!, undefined, testProjectDir);
+    const graphBuilder = new GraphBuilder();
+    const store = oracleStore.getState();
+    store.clear();
+    store.setBaseDir(testProjectDir.replace(/\\/g, '/'));
+    graphBuilder.applyParsedFile(filePath, testProjectDir, 1, result);
+
+    const directGraph = store.getValidGraph();
+    const classNode = directGraph.nodes.find((node) => node.id.endsWith('MonsterService.ts#MonsterService'));
+    const methodNode = directGraph.nodes.find((node) => node.id.endsWith('MonsterService.ts#orchestrate'));
+    const fileNode = directGraph.nodes.find((node) => node.id.endsWith('MonsterService.ts'));
+
+    expect(classNode?.sourceLocation?.startLine).toBeGreaterThan(0);
+    expect(classNode?.sourceLocation?.endLine).toBeGreaterThanOrEqual(
+      classNode?.sourceLocation?.startLine || 0
+    );
+    expect(methodNode?.sourceLocation?.startLine).toBeGreaterThan(0);
+    expect(methodNode?.sourceLocation?.startColumn).toBeGreaterThan(0);
+    expect(fileNode?.language).toBe('typescript');
+  });
+
+  it('QualityGovernanceService builds quality budget and refactoring waves', () => {
+    const decompositionGuidance = new DecompositionGuidanceService().prepareGuidance(graphData, {
+      limit: 10,
+    });
+    const patterns = new PatternDetectionAnalyzer().analyze(graphData).patterns;
+    const health = new HealthScoreAnalyzer().analyze(graphData);
+    const governance = new QualityGovernanceService();
+
+    const budget = governance.buildBudget({
+      health,
+      patterns,
+      decompositionGuidance,
+    });
+    const waves = governance.buildRefactoringWaves(graphData, decompositionGuidance, 3);
+    const dashboard = governance.buildDashboard(budget, decompositionGuidance, waves);
+
+    expect(budget.overallScore).toBeGreaterThanOrEqual(0);
+    expect(['healthy', 'warning', 'critical']).toContain(budget.overallStatus);
+    expect(budget.dimensions.some((dimension) => dimension.name === 'maintainability')).toBe(true);
+    expect(waves.length).toBeGreaterThan(0);
+    expect(waves.some((wave) => wave.title.includes('Boundary'))).toBe(true);
+    expect(waves.every((wave) => Array.isArray(wave.exitCriteria))).toBe(true);
+    expect(dashboard.gates.length).toBeGreaterThan(0);
+    expect(dashboard.focusCandidates.length).toBeGreaterThan(0);
   });
 
   it('ArchitectureInsightService classifies layers and generates overview', () => {
@@ -221,6 +370,10 @@ export function App() {
     ).toBe(true);
     expect(result.architecture).toBeDefined();
     expect(result.security).toBeDefined();
+    expect(result.qualityBudget).toBeDefined();
+    expect(result.qualityDashboard).toBeDefined();
+    expect(result.refactoringWaves.length).toBeGreaterThan(0);
+    expect(result.decompositionGuidance.candidates.length).toBeGreaterThan(0);
     expect(result.operationalTelemetry.watcher.flushCount).toBeGreaterThanOrEqual(0);
     expect(result.operationalTelemetry.enrichment.rebuiltRefreshes).toBeGreaterThanOrEqual(0);
   });
@@ -246,6 +399,9 @@ export function App() {
     
     expect(result.scope.seedTargets.length).toBeGreaterThanOrEqual(0);
     expect(result.executionPlan.waves).toBeInstanceOf(Array);
+    expect(result.executionPlan.refactoringWaves.length).toBeGreaterThanOrEqual(0);
+    expect(result.qualityBudget).toBeDefined();
+    expect(result.qualityDashboard).toBeDefined();
     expect(result.executionPlan.preferredExecutionMode).toBe('multi_target_campaign');
   });
 });

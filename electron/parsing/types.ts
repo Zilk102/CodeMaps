@@ -15,6 +15,14 @@ export interface ImportRecord {
 export interface EntityRecord {
   type: EntityType;
   name: string;
+  location?: SourceLocation;
+}
+
+export interface SourceLocation {
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
 }
 
 export interface ExportRecord {

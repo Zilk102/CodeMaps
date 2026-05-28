@@ -21,6 +21,10 @@ let startupCheckTimeout: ReturnType<typeof setTimeout> | null = null;
 let periodicCheckInterval: ReturnType<typeof setInterval> | null = null;
 let listenersRegistered = false;
 
+interface AutoUpdaterOptions {
+  onInstallRequested?: () => Promise<void> | void;
+}
+
 function getPublishConfig() {
   try {
     const packageJsonPath = path.join(process.resourcesPath, 'app', 'package.json');
@@ -34,7 +38,7 @@ function getPublishConfig() {
   return undefined;
 }
 
-export function initAutoUpdater(window: BrowserWindow) {
+export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptions = {}) {
   mainWindow = window;
 
   const publishConfig = getPublishConfig();
@@ -52,8 +56,20 @@ export function initAutoUpdater(window: BrowserWindow) {
     }
   });
 
-  ipcMain.handle('updater:install', () => {
-    autoUpdater.quitAndInstall(true, true);
+  ipcMain.handle('updater:install', async () => {
+    try {
+      if (options.onInstallRequested) {
+        await options.onInstallRequested();
+      } else {
+        quitAndInstallDownloadedUpdate();
+      }
+
+      return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      log.error('[AutoUpdater] Failed to install update:', message);
+      return { success: false, error: message };
+    }
   });
 
   ipcMain.handle('updater:get-state', () => {
@@ -151,4 +167,9 @@ function sendUpdateState() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('updater:state-changed', updateState);
   }
+}
+
+export function quitAndInstallDownloadedUpdate() {
+  log.info('[AutoUpdater] Installing downloaded update');
+  autoUpdater.quitAndInstall(true, true);
 }

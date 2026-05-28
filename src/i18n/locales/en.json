@@ -6,6 +6,23 @@
     "dependencies": "Dependencies",
     "refreshTelemetry": "Refresh Telemetry",
     "telemetry": {
+      "statusStable": "Stable",
+      "statusDegraded": "Degraded",
+      "avgLatency": "Latency",
+      "skipRate": "Skip",
+      "coalescing": "Coalescing",
+      "trend": "Trend",
+      "lastRefresh": "Last mode",
+      "lastReason": "Reason",
+      "details": "Details",
+      "hideDetails": "Hide",
+      "watcherFlushes": "Flushes",
+      "lastBatch": "Last batch",
+      "rebuilt": "Rebuilt",
+      "skipped": "Skipped",
+      "runtimePriority": "Runtime priority",
+      "recentBatches": "Recent batches",
+      "recentLatency": "Recent latency",
       "watcherLine": "Flushes {{flushCount}} | coalesced {{coalescedFlushes}} | max batch {{maxBatchSize}}",
       "enrichmentLine": "Rebuilt {{rebuiltRefreshes}} | skipped {{skippedRefreshes}} | runtime priority {{runtimePriorityRebuilds}}",
       "latencyLine": "Avg latency {{avgRefreshLatencyMs}} ms | last {{lastRefreshMode}} / {{lastRefreshReason}}",
@@ -253,7 +270,7 @@
     "openFolder": "Open Project",
     "closeProject": "Close Project",
     "mcpSettings": "MCP Settings",
-    "tools": "Tools"
+    "tools": "Workspace"
   },
   "indexing": {
     "status": {
@@ -340,16 +357,46 @@
     "calculate": "Calculate",
     "calculating": "Calculating...",
     "error": "Calculation failed",
+    "targetNode": "Target node",
+    "useSelected": "Use graph selection",
+    "selectedNode": "Current selected node",
     "nodeIdPlaceholder": "Enter node ID...",
     "depth": "depth",
     "totalAffected": "Total Affected",
     "direct": "Direct",
     "transitive": "Transitive",
-    "riskPaths": "Risk Paths"
+    "riskPaths": "Risk Paths",
+    "noRiskPaths": "No explicit transitive risk paths were found for the selected node."
   },
   "tools": {
+    "workspace": "Workspace",
+    "workspaceEyebrow": "Analysis workspace",
+    "workspaceDescription": "Investigation scenarios and impact analysis in one place.",
+    "workspaceSummary": "Operational summary",
+    "workspaceHeadline": "Open the right tool for the question, not by guessing a tab name.",
+    "workspaceBody": "The panel now starts from investigation scenarios. Pick the task first, then open the matching tool and move through the analysis without UI noise.",
+    "workspaceTabs": "Analysis tools",
+    "projectScope": "Active project",
+    "toolGuideTitle": "When to use what",
+    "closeWorkspace": "Close workspace",
+    "openTool": "Open",
     "blastRadius": "Blast Radius",
+    "blastRadiusEyebrow": "Node change",
+    "blastRadiusDescription": "Shows the direct and transitive impact of the selected node.",
     "heatmap": "Heatmap",
-    "prImpact": "PR Impact"
+    "heatmapEyebrow": "Repository hotspots",
+    "heatmapDescription": "Highlights unstable files and frequently modified areas.",
+    "prImpact": "PR Impact",
+    "prImpactEyebrow": "Branch review",
+    "prImpactDescription": "Builds risk and blast-radius context between base and head branches.",
+    "quickActions": {
+      "title": "Quick scenarios",
+      "highRisk": "High risk",
+      "review": "Review",
+      "hotspots": "Hotspots",
+      "blastDescription": "Assess which nodes and dependencies are affected by a change in a file, class, or function.",
+      "prDescription": "Review branch impact before code review, release, or merge.",
+      "heatmapDescription": "Find high-churn files to guide stabilization and refactoring work."
+    }
   }
 }

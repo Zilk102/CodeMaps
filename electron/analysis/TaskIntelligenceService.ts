@@ -466,6 +466,11 @@ export class TaskIntelligenceService {
       nextSteps.push(
         'Next, the agent should read change-context risks, blast radius, and recommendedFilesToInspect before editing.'
       );
+      if (selectedContext.context.decompositionCandidates.length > 0) {
+        nextSteps.push(
+          `Because the target already has decomposition candidates, prefer starting with ${selectedContext.context.decompositionCandidates[0].targetLabel} as the first extraction seam.`
+        );
+      }
       if (selectedContext.context.dependencies.runtimeContractLinks.length > 0) {
         nextSteps.push(
           'Because the target touches runtime DI wiring, the agent should verify composition roots and concrete registrations before modifying contracts.'
@@ -480,9 +485,22 @@ export class TaskIntelligenceService {
       nextSteps.push(
         'Next, the agent should read execution waves, affected files, and campaign risks, then perform the migration in phases.'
       );
+      nextSteps.push(
+        'Review refactoring waves as the architectural cleanup track for the campaign, even if only a subset of files currently has ranked extraction candidates.'
+      );
       if (selectedContext.context.scope.runtimeCompositionRoots.length > 0) {
         nextSteps.push(
           'Campaign scope includes runtime composition roots, so migration should start from DI wiring and only then move to dependent files.'
+        );
+      }
+      if (selectedContext.context.executionPlan.refactoringWaves.length > 0) {
+        nextSteps.push(
+          `Campaign already includes refactoring waves; start with ${selectedContext.context.executionPlan.refactoringWaves[0].title} before broader rollout.`
+        );
+      }
+      if (selectedContext.context.qualityDashboard.gates.some((gate) => gate.status === 'block')) {
+        nextSteps.push(
+          'Quality dashboard contains blocking gates, so campaign execution should stay in stabilization/refactoring mode until those gates are cleared.'
         );
       }
     } else if (selectedContext?.kind === 'review') {
@@ -497,6 +515,25 @@ export class TaskIntelligenceService {
       ) {
         nextSteps.push(
           'Because the focus includes incremental refresh behavior, the agent should inspect watcher batching, skipped refreshes, and runtime-priority rebuild latency before editing pipeline code.'
+        );
+      }
+      if (
+        selectedContext.context.reviewPriorities.some(
+          (priority) => priority.title === 'Design Smells' || priority.title === 'Maintainability Budget'
+        )
+      ) {
+        nextSteps.push(
+          'Because the focus includes maintainability debt, the agent should prefer extraction boundaries and class/method decomposition over additive edits in already overloaded modules.'
+        );
+      }
+      if (selectedContext.context.decompositionGuidance.candidates.length > 0) {
+        nextSteps.push(
+          `Use the review decomposition guidance as a ranked extraction queue; current top candidate: ${selectedContext.context.decompositionGuidance.candidates[0].targetLabel}.`
+        );
+      }
+      if (selectedContext.context.qualityDashboard.gates.some((gate) => gate.status === 'block')) {
+        nextSteps.push(
+          'Because quality dashboard gates are blocking, the review should treat growth in hotspot areas as disallowed until the first remediation wave is complete.'
         );
       }
     } else {

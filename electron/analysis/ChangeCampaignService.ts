@@ -8,9 +8,17 @@ import {
 } from './ArchitectureInsightService';
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { ChangeTaskMode } from './ChangeContextService';
+import { HealthScoreAnalyzer } from './HealthScoreAnalyzer';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { isDiRuntimeLink } from './graphAnalysisUtils';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
+import {
+  QualityBudget,
+  QualityDashboard,
+  QualityGovernanceService,
+  RefactoringWave,
+} from './QualityGovernanceService';
 
 export interface PrepareChangeCampaignInput {
   userRequest: string;
@@ -64,6 +72,9 @@ export interface ChangeCampaignResult {
     };
     findings: SecurityFinding[];
   };
+  qualityBudget: QualityBudget;
+  qualityDashboard: QualityDashboard;
+  decompositionGuidance: DecompositionGuidance;
   executionPlan: {
     preferredExecutionMode: 'multi_target_campaign';
     waves: Array<{
@@ -73,6 +84,7 @@ export interface ChangeCampaignResult {
       layer: ArchitectureLayer | 'mixed';
       fileIds: string[];
     }>;
+    refactoringWaves: RefactoringWave[];
     shouldFallbackToLowLevelTools: boolean;
   };
   risks: string[];
@@ -92,8 +104,11 @@ export class ChangeCampaignService {
   constructor(
     private readonly architectureInsightService = new ArchitectureInsightService(),
     private readonly blastRadiusAnalyzer = new BlastRadiusAnalyzer(),
+    private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
     private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner()
+    private readonly securityScanner = new SecurityScanner(),
+    private readonly decompositionGuidanceService = new DecompositionGuidanceService(),
+    private readonly qualityGovernanceService = new QualityGovernanceService()
   ) {}
 
   async prepareContext(
@@ -102,6 +117,7 @@ export class ChangeCampaignService {
   ): Promise<ChangeCampaignResult> {
     const taskMode = input.taskMode || 'refactor';
     const architecture = this.architectureInsightService.analyze(graph);
+    const health = this.healthScoreAnalyzer.analyze(graph);
     const layerByNodeId = new Map(
       architecture.classifications.map((record) => [record.nodeId, record])
     );
@@ -149,6 +165,25 @@ export class ChangeCampaignService {
         campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
     );
     const waves = this.buildExecutionWaves(affectedFiles, layerByNodeId, runtimeCompositionRoots);
+    const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
+      limit: 12,
+      focusNodeIds: Array.from(campaignStructuralIds),
+    });
+    const qualityBudget = this.qualityGovernanceService.buildBudget({
+      health,
+      patterns,
+      decompositionGuidance,
+    });
+    const refactoringWaves = this.qualityGovernanceService.buildRefactoringWaves(
+      graph,
+      decompositionGuidance,
+      4
+    );
+    const qualityDashboard = this.qualityGovernanceService.buildDashboard(
+      qualityBudget,
+      decompositionGuidance,
+      refactoringWaves
+    );
 
     return {
       graphSummary: this.createGraphSummary(graph),
@@ -179,9 +214,13 @@ export class ChangeCampaignService {
         },
         findings: securityFindings,
       },
+      qualityBudget,
+      qualityDashboard,
+      decompositionGuidance,
       executionPlan: {
         preferredExecutionMode: 'multi_target_campaign',
         waves,
+        refactoringWaves,
         shouldFallbackToLowLevelTools:
           directlyMatchedFiles.length === 0 && runtimeCompositionRoots.length === 0,
       },
@@ -199,7 +238,9 @@ export class ChangeCampaignService {
         affectedFiles,
         runtimeCompositionRoots,
         waves,
-        securityFindings.length > 0
+        securityFindings.length > 0,
+        qualityBudget,
+        refactoringWaves
       ),
     };
   }
@@ -530,6 +571,10 @@ export class ChangeCampaignService {
           pattern.id === 'high_fan_out_files' ||
           pattern.id === 'oversized_modules' ||
           pattern.id === 'god_files' ||
+          pattern.id === 'god_classes' ||
+          pattern.id === 'long_methods' ||
+          pattern.id === 'complex_methods' ||
+          pattern.id === 'mixed_responsibility_modules' ||
           pattern.id === 'di_runtime_contract_hubs' ||
           pattern.id === 'contract_runtime_binding_hubs'
       )
@@ -540,11 +585,17 @@ export class ChangeCampaignService {
     }
     if (
       patterns.some(
-        (pattern) => pattern.id === 'oversized_modules' || pattern.id === 'god_files'
+        (pattern) =>
+          pattern.id === 'oversized_modules' ||
+          pattern.id === 'god_files' ||
+          pattern.id === 'god_classes' ||
+          pattern.id === 'long_methods' ||
+          pattern.id === 'complex_methods' ||
+          pattern.id === 'mixed_responsibility_modules'
       )
     ) {
       risks.push(
-        'Кампания проходит через oversized/god modules; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.'
+        'Кампания проходит через oversized/god modules и другие design smells; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.'
       );
     }
     if (runtimeCompositionRoots.length > 0) {
@@ -572,7 +623,9 @@ export class ChangeCampaignService {
     affectedFiles: GraphNode[],
     runtimeCompositionRoots: GraphNode[],
     waves: ChangeCampaignResult['executionPlan']['waves'],
-    hasSecurityFindings: boolean
+    hasSecurityFindings: boolean,
+    qualityBudget: QualityBudget,
+    refactoringWaves: RefactoringWave[]
   ) {
     const nextSteps = [
       `CodeMaps определил задачу как multi-target campaign в режиме "${taskMode}".`,
@@ -603,6 +656,14 @@ export class ChangeCampaignService {
     for (const wave of waves.slice(0, 3)) {
       nextSteps.push(`${wave.title}: ${wave.fileIds.length} файлов. Цель: ${wave.goal}`);
     }
+
+    for (const wave of refactoringWaves.slice(0, 2)) {
+      nextSteps.push(
+        `${wave.title}: ${wave.targetLabels.length} extraction candidates. Цель: ${wave.goal}`
+      );
+    }
+
+    nextSteps.push(this.qualityGovernanceService.summarizeBudgetForStep(qualityBudget));
 
     if (hasSecurityFindings) {
       nextSteps.unshift('До начала миграции разобрать security findings в затронутой области.');

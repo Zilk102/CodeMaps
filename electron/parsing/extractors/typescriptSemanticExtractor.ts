@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import { LanguageDefinition, ParseResult } from '../types';
+import { LanguageDefinition, ParseResult, SourceLocation } from '../types';
 import { resolveTypeScriptModule } from '../semantic/typescriptProjectService';
 
 const normalizePath = (value: string) => value.replace(/\\/g, '/');
@@ -50,30 +50,43 @@ const getCallName = (expression: ts.Expression): string | undefined => {
   return undefined;
 };
 
+const getSourceLocation = (sourceFile: ts.SourceFile, node: ts.Node): SourceLocation => {
+  const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+  const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+  return {
+    startLine: start.line + 1,
+    startColumn: start.character + 1,
+    endLine: end.line + 1,
+    endColumn: end.character + 1,
+  };
+};
+
 const maybeAddFunctionEntity = (
   entities: ParseResult['entities'],
   entityKeys: Set<string>,
-  name?: string
+  name?: string,
+  location?: SourceLocation
 ) => {
   const normalized = name?.trim();
   if (!normalized) return;
   const key = `function:${normalized}`;
   if (entityKeys.has(key)) return;
   entityKeys.add(key);
-  entities.push({ type: 'function', name: normalized });
+  entities.push({ type: 'function', name: normalized, location });
 };
 
 const maybeAddClassEntity = (
   entities: ParseResult['entities'],
   entityKeys: Set<string>,
-  name?: string
+  name?: string,
+  location?: SourceLocation
 ) => {
   const normalized = name?.trim();
   if (!normalized) return;
   const key = `class:${normalized}`;
   if (entityKeys.has(key)) return;
   entityKeys.add(key);
-  entities.push({ type: 'class', name: normalized });
+  entities.push({ type: 'class', name: normalized, location });
 };
 
 const maybeAddExport = (
@@ -271,7 +284,12 @@ export const extractWithTypeScriptSemantic = (
     ) {
       addImport(node.argument.literal.text, new Set(['type']));
     } else if (ts.isFunctionDeclaration(node)) {
-      maybeAddFunctionEntity(entities, entityKeys, node.name?.text);
+      maybeAddFunctionEntity(
+        entities,
+        entityKeys,
+        node.name?.text,
+        getSourceLocation(sourceFile, node)
+      );
       registerDeclarationExport(node, node.name?.text);
     } else if (
       ts.isMethodDeclaration(node) ||
@@ -279,20 +297,35 @@ export const extractWithTypeScriptSemantic = (
       ts.isGetAccessorDeclaration(node) ||
       ts.isSetAccessorDeclaration(node)
     ) {
-      maybeAddFunctionEntity(entities, entityKeys, getPropertyNameText(node.name));
+      maybeAddFunctionEntity(
+        entities,
+        entityKeys,
+        getPropertyNameText(node.name),
+        getSourceLocation(sourceFile, node)
+      );
     } else if (
       ts.isClassDeclaration(node) ||
       ts.isInterfaceDeclaration(node) ||
       ts.isEnumDeclaration(node) ||
       ts.isTypeAliasDeclaration(node)
     ) {
-      maybeAddClassEntity(entities, entityKeys, node.name?.text);
+      maybeAddClassEntity(
+        entities,
+        entityKeys,
+        node.name?.text,
+        getSourceLocation(sourceFile, node)
+      );
       registerDeclarationExport(node, node.name?.text);
     } else if (ts.isVariableDeclaration(node)) {
       const variableName = node.name.getText(sourceFile).trim();
       if (variableName) variables.add(variableName);
       if (ts.isIdentifier(node.name) && isFunctionLikeInitializer(node.initializer)) {
-        maybeAddFunctionEntity(entities, entityKeys, node.name.text);
+        maybeAddFunctionEntity(
+          entities,
+          entityKeys,
+          node.name.text,
+          getSourceLocation(sourceFile, node)
+        );
       }
       if (ts.isVariableDeclarationList(node.parent) && ts.isVariableStatement(node.parent.parent)) {
         registerDeclarationExport(
