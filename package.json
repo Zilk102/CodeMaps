@@ -194,7 +194,7 @@
     "react-dom": "^19.2.5",
     "react-virtualized-auto-sizer": "^2.0.3",
     "react-zoom-pan-pinch": "^4.0.3",
-    "sigma": "^3.0.2",
+    "sigma": "^3.0.3",
     "tailwindcss": "^4.2.4",
     "tree-sitter-wasms": "^0.1.13",
     "vite": "^8.0.9",
