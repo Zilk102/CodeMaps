@@ -69,7 +69,7 @@ class KuzuProcessManager {
     {
       resolve: (value: unknown) => void;
       reject: (reason?: unknown) => void;
-      timeout: NodeJS.Timeout;
+      timeout: ReturnType<typeof setTimeout>;
     }
   >();
 
@@ -128,6 +128,8 @@ class KuzuProcessManager {
   }
 
   dispose(): void {
+    this.rejectAllPending(new Error('Kuzu background worker disposed'));
+
     if (this.child) {
       this.child.kill();
       this.child = null;
@@ -314,6 +316,10 @@ export class KuzuGraphService {
   private async invoke<T>(action: KuzuAction, params?: Record<string, unknown>): Promise<T> {
     return KuzuGraphService.processManager.request<T>(action, this.dbPath, this.dbDir, params);
   }
+
+  static shutdownProcessManager(): void {
+    KuzuGraphService.processManager.dispose();
+  }
 }
 
 let instance: KuzuGraphService | null = null;
@@ -322,4 +328,9 @@ export function getKuzuGraphService(projectPath?: string): KuzuGraphService {
     instance = new KuzuGraphService(projectPath);
   }
   return instance;
+}
+
+export function shutdownKuzuProcessManager(): void {
+  KuzuGraphService.shutdownProcessManager();
+  instance = null;
 }

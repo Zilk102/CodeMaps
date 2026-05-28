@@ -24,6 +24,7 @@ import { TaskIntelligenceService } from './analysis/TaskIntelligenceService';
 import { ChangeCampaignService } from './analysis/ChangeCampaignService';
 import { getGraphSnapshot, ensureGraphLoaded, getNodeDependencies } from './mcp/utils';
 import { ServiceRegistry } from './mcp/ServiceRegistry';
+import { closeMcpRuntime, McpTransportRecord } from './mcp/runtimeShutdown';
 
 import log from 'electron-log/main';
 
@@ -32,11 +33,6 @@ const MCP_PORT = 3005;
 const MCP_PATH = '/mcp';
 const MCP_HTTP_URL = `http://${MCP_HOST}:${MCP_PORT}${MCP_PATH}`;
 const MCP_WS_URL = `ws://localhost:${MCP_PORT}`;
-
-type McpTransportRecord = {
-  transport: StreamableHTTPServerTransport;
-  server: McpServer;
-};
 
 export interface McpStatusToolDescriptor {
   name: string;
@@ -72,6 +68,7 @@ export interface McpStatus {
 type McpServiceHandle = {
   server: http.Server;
   getStatus: () => McpStatus;
+  close: () => Promise<void>;
 };
 
 let mcpService: McpServiceHandle | null = null;
@@ -472,7 +469,7 @@ export function setupMcpServer() {
   app.get(MCP_PATH, handleMcpGet);
   app.delete(MCP_PATH, handleMcpDelete);
 
-  oracle.on('graph-updated', (graphData) => {
+  const onGraphUpdated = (graphData: ReturnType<typeof oracle.getGraph>) => {
     const diff = oracleStore.getState().getAndResetDiff();
     const message = JSON.stringify({
       type: 'graph-diff',
@@ -501,9 +498,9 @@ export function setupMcpServer() {
         log.error(`Failed to send MCP list_changed notification to session ${sessionId}:`, e);
       }
     }
-  });
+  };
 
-  oracle.on('parsing-progress', (progress) => {
+  const onParsingProgress = (progress: unknown) => {
     const message = JSON.stringify({
       type: 'parsing-progress',
       payload: progress,
@@ -514,17 +511,44 @@ export function setupMcpServer() {
         client.send(message);
       }
     }
-  });
+  };
+
+  oracle.on('graph-updated', onGraphUpdated);
+  oracle.on('parsing-progress', onParsingProgress);
 
   server.listen(MCP_PORT, MCP_HOST, () => {
     log.info(`[MCP] Streamable HTTP endpoint: ${MCP_HTTP_URL}`);
     log.info(`[WS] Graph updates endpoint: ${MCP_WS_URL}`);
   });
 
+  const close = async () => {
+    await closeMcpRuntime({
+      oracle,
+      onGraphUpdated,
+      onParsingProgress,
+      transports,
+      clients,
+      wss,
+      server,
+      logger: log,
+    });
+  };
+
   mcpService = {
     server,
     getStatus: getMcpStatusInternal,
+    close,
   };
 
   return mcpService;
+}
+
+export async function shutdownMcpServer() {
+  const service = mcpService;
+  if (!service) {
+    return;
+  }
+
+  mcpService = null;
+  await service.close();
 }

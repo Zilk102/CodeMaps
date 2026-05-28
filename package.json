@@ -24,6 +24,7 @@
     "build": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && electron-builder",
     "build:portable": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && npm run package:portable",
     "mcp:smoke": "node scripts/mcp-smoke-test.mjs",
+    "test:shutdown:e2e": "npm run build:electron && node scripts/e2e-shutdown-test.mjs",
     "test": "vitest run",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",

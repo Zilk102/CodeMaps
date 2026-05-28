@@ -3,10 +3,38 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import log from 'electron-log/main';
-import { getMcpStatus, setupMcpServer } from './mcp';
+import { getMcpStatus, setupMcpServer, shutdownMcpServer } from './mcp';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
-import { initAutoUpdater } from './autoUpdater';
+import { initAutoUpdater, shutdownAutoUpdater } from './autoUpdater';
+import { shutdownKuzuProcessManager } from './services/KuzuGraphService';
+import type { KuzuIntegration as KuzuIntegrationInstance } from './services/KuzuIntegration';
+import { gracefulShutdown } from './shutdown';
+
+const isE2EShutdownTest = process.env.CODEMAPS_E2E_SHUTDOWN_TEST === '1';
+const e2eShutdownDelayMs = Number(process.env.CODEMAPS_E2E_SHUTDOWN_DELAY_MS || '750');
+type KuzuIntegrationCtor = new (projectPath: string) => KuzuIntegrationInstance;
+let kuzuIntegrationCtorPromise: Promise<KuzuIntegrationCtor | null> | null = null;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function loadKuzuIntegrationCtor(): Promise<KuzuIntegrationCtor | null> {
+  if (!kuzuIntegrationCtorPromise) {
+    kuzuIntegrationCtorPromise = import('./services/KuzuIntegration.js')
+      .then((kuzuModule) => {
+        log.info('[App] KuzuIntegration loaded successfully');
+        return kuzuModule.KuzuIntegration;
+      })
+      .catch((error: unknown) => {
+        log.error('[App] KuzuIntegration failed to load:', getErrorMessage(error));
+        return null;
+      });
+  }
+
+  return kuzuIntegrationCtorPromise;
+}
 
 function ensureSafeProcessCwd(): void {
   try {
@@ -14,7 +42,7 @@ function ensureSafeProcessCwd(): void {
     if (fs.existsSync(currentCwd)) {
       return;
     }
-  } catch (error: any) {
+  } catch {
     // Fall through to pick a known-good directory.
   }
 
@@ -35,26 +63,14 @@ function ensureSafeProcessCwd(): void {
       process.chdir(candidate);
       console.warn('[App] Restored invalid process.cwd() to:', candidate);
       return;
-    } catch (error: any) {
+    } catch {
       // Try the next candidate.
     }
   }
 }
 
 ensureSafeProcessCwd();
-
-// Lazy-load KuzuIntegration to prevent startup crash on Windows if native module fails
-let KuzuIntegration: any = null;
-import('./services/KuzuIntegration.js').then((kuzuModule) => {
-  KuzuIntegration = kuzuModule.KuzuIntegration;
-  log.info('[App] KuzuIntegration loaded successfully');
-}).catch((err: unknown) => {
-  if (err instanceof Error) {
-    log.error('[App] KuzuIntegration failed to load:', err.message);
-  } else {
-    log.error('[App] KuzuIntegration failed to load:', err);
-  }
-});
+void loadKuzuIntegrationCtor();
 
 // Initialize structured logging
 log.initialize({ preload: true });
@@ -66,22 +82,37 @@ process.on('uncaughtException', (error) => {
   log.error('Uncaught Exception:', error);
   dialog.showErrorBox(
     'Critical Application Error',
-    `A critical error occurred and CodeMaps may become unstable.\n\nError: ${error.message || error}\n\nPlease restart the application if you experience issues.`
+    `A critical error occurred and CodeMaps may become unstable.\n\nError: ${getErrorMessage(error)}\n\nPlease restart the application if you experience issues.`
   );
   // Sentry.captureException(error); // Placeholder for Sentry/Bugsnag
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   log.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  const message = reason instanceof Error ? reason.message : String(reason);
   dialog.showErrorBox(
     'Background Task Failed',
-    `An unexpected error occurred in a background process.\n\nError: ${message}`
+    `An unexpected error occurred in a background process.\n\nError: ${getErrorMessage(reason)}`
   );
   // Sentry.captureException(reason); // Placeholder for Sentry/Bugsnag
 });
 
 let mainWindow: BrowserWindow | null = null;
+let shutdownStarted = false;
+
+async function shutdownApplication() {
+  if (shutdownStarted) {
+    return;
+  }
+
+  shutdownStarted = true;
+  await gracefulShutdown({
+    shutdownAutoUpdater,
+    shutdownMcpServer,
+    shutdownOracle: () => oracle.close(),
+    shutdownKuzuProcessManager,
+    logger: log,
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -98,7 +129,12 @@ function createWindow() {
     titleBarOverlay: false,
   });
 
-  if (!app.isPackaged) {
+  if (isE2EShutdownTest) {
+    void mainWindow.loadURL(
+      'data:text/html;charset=UTF-8,' +
+        encodeURIComponent('<!doctype html><html><body>CodeMaps shutdown e2e</body></html>')
+    );
+  } else if (!app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
@@ -127,6 +163,14 @@ app.whenReady().then(() => {
   setupMcpServer();
   initAutoUpdater(mainWindow!);
 
+  if (isE2EShutdownTest && mainWindow) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      setTimeout(() => {
+        mainWindow?.close();
+      }, e2eShutdownDelayMs);
+    });
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -134,6 +178,17 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', (event) => {
+  if (shutdownStarted) {
+    return;
+  }
+
+  event.preventDefault();
+  void shutdownApplication().finally(() => {
+    app.exit(0);
+  });
 });
 
 ipcMain.handle('select-directory', async () => {
@@ -157,8 +212,8 @@ ipcMain.handle('analyze-project', async (_, projectPath: string) => {
   try {
     const data = await oracle.analyzeProject(projectPath || process.cwd());
     return { success: true, data };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 });
 
@@ -179,8 +234,8 @@ ipcMain.handle('open-recent-project', async (_, projectPath: string) => {
   try {
     const data = await oracle.analyzeProject(projectPath);
     return { success: true, data };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 });
 
@@ -198,15 +253,21 @@ oracle.on('graph-updated', async (graphData) => {
   
   // Store in KuzuDB for persistence and querying
   try {
+    const KuzuIntegrationCtor = await loadKuzuIntegrationCtor();
+    if (!KuzuIntegrationCtor) {
+      log.warn('[KuzuDB] Persistence skipped because KuzuIntegration is unavailable');
+      return;
+    }
+
     const projectPath = graphData.projectRoot;
-    const kuzu = new KuzuIntegration(projectPath);
+    const kuzu = new KuzuIntegrationCtor(projectPath);
     await kuzu.init();
     await kuzu.storeGraph(graphData);
     const stats = await kuzu.getStats();
     log.info('[KuzuDB] Graph persisted:', stats);
     await kuzu.close();
-  } catch (err: any) {
-    log.error('[KuzuDB] Failed to persist graph:', err.message);
+  } catch (error: unknown) {
+    log.error('[KuzuDB] Failed to persist graph:', getErrorMessage(error));
   }
 });
 
@@ -219,9 +280,9 @@ ipcMain.handle('analyze-pr-impact', async (_, projectPath: string, baseBranch: s
     const result = await analyzer.analyzePR(baseBranch, headBranch);
     await analyzer.close();
     return { success: true, data: result };
-  } catch (error: any) {
-    log.error('[PRImpact] Analysis failed:', error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    log.error('[PRImpact] Analysis failed:', getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 });
 
@@ -237,9 +298,9 @@ ipcMain.handle('analyze-activity-heatmap', async (_, projectPath: string, since?
     );
     await service.close();
     return { success: true, data: result };
-  } catch (error: any) {
-    log.error('[Heatmap] Analysis failed:', error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    log.error('[Heatmap] Analysis failed:', getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 });
 
@@ -252,8 +313,8 @@ ipcMain.handle('calculate-blast-radius', async (_, projectPath: string, nodeId: 
     const result = await analyzer.calculate(nodeId, maxDepth || 5);
     await analyzer.close();
     return { success: true, data: result };
-  } catch (error: any) {
-    log.error('[BlastRadius] Calculation failed:', error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    log.error('[BlastRadius] Calculation failed:', getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 });

@@ -1,29 +1,5 @@
 import { KuzuGraphService, GraphNode, GraphEdge } from './KuzuGraphService';
-
-// Local type definitions to avoid cross-project imports
-interface GraphData {
-  projectRoot: string;
-  nodes: Array<{
-    id: string;
-    label: string;
-    group: number;
-    type: string;
-    churn?: number;
-    adr?: string;
-    path?: string;
-    line?: number;
-    column?: number;
-    language?: string;
-    meta?: Record<string, any>;
-  }>;
-  links: Array<{
-    source: string | { id: string };
-    target: string | { id: string };
-    value: number;
-    type?: string;
-    meta?: Record<string, any>;
-  }>;
-}
+import type { GraphData } from '../store';
 
 export class KuzuIntegration {
   private service: KuzuGraphService;
@@ -55,12 +31,9 @@ export class KuzuIntegration {
 
     // Store edges (links)
     for (const link of graphData.links) {
-      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
-      
       await this.service.addEdge({
-        sourceId,
-        targetId,
+        sourceId: link.source,
+        targetId: link.target,
         type: this.mapLinkType(link.type),
         meta: { value: link.value },
       });

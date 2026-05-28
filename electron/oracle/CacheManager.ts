@@ -82,11 +82,29 @@ export class CacheManager {
     }
 
     this.saveTimeout = setTimeout(async () => {
+      this.saveTimeout = null;
       try {
         await this.save(baseDir);
       } catch (error) {
         log.error('Failed to write cache:', error);
       }
     }, 1000);
+  }
+
+  async close(baseDir?: string) {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+
+    if (!baseDir) {
+      return;
+    }
+
+    try {
+      await this.save(baseDir);
+    } catch (error) {
+      log.error('Failed to flush cache on shutdown:', error);
+    }
   }
 }
