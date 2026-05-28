@@ -180,7 +180,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "fake-indexeddb": "^6.2.5",
-    "globals": "^17.5.0",
+    "globals": "^17.6.0",
     "graphology": "^0.26.0",
     "graphology-components": "^1.5.4",
     "graphology-layout-forceatlas2": "^0.10.1",
