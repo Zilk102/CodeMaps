@@ -114,18 +114,21 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
 
   return (
     <div
-      className="flex flex-col h-full bg-(--bg1) md:w-[420px] min-w-[340px] max-w-[100vw] w-full absolute md:relative right-0 bottom-0 z-15 md:z-1 overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.24)] md:shadow-none border-t md:border-t-0 border-l-0 md:border-l border-(--border)"
+      className="absolute bottom-0 right-0 z-15 flex h-full w-full max-w-[100vw] flex-col overflow-hidden border-t border-(--border) bg-(--bg1) shadow-[0_-4px_24px_rgba(0,0,0,0.24)] md:relative md:z-1 md:w-[380px] md:min-w-[320px] md:border-l md:border-t-0 md:shadow-none"
     >
       <div className="border-b border-(--border) bg-(--bg1) px-4 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-              {activeTabMeta.eyebrow}
+              {t('tools.workspaceEyebrow')}
             </div>
             <div className="mt-1 text-[18px] font-semibold text-(--t0)">
-              {activeTabMeta.label}
+              {t('tools.workspace')}
             </div>
-            <div className="mt-1 text-[13px] leading-5 text-(--t2)">
+            <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-(--border) bg-(--bg2) px-2.5 py-1 text-[11px] text-(--t2)">
+              <span className="truncate">{projectName}</span>
+            </div>
+            <div className="mt-2 text-[12px] leading-5 text-(--t2)">
               {activeTabMeta.description}
             </div>
           </div>
@@ -144,41 +147,10 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
         </div>
       </div>
 
-      <div className="border-b border-(--border) bg-(--bg2)/70 px-4 py-3">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-          {t('tools.quickActions.title')}
-        </div>
-        <div className="grid grid-cols-1 gap-2">
-          {scenarioCards.map((card) => {
-            const isActive = activeTab === card.id;
-            return (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => setActiveTab(card.id)}
-                className={`rounded-xl border px-3 py-3 text-left transition-all ${
-                  isActive
-                    ? 'border-(--acc) bg-[rgba(68,170,255,0.12)]'
-                    : 'border-(--border) bg-(--bg1) hover:border-(--acc) hover:bg-[rgba(255,255,255,0.03)]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[13px] font-semibold text-(--t0)">{card.title}</div>
-                  <div className="rounded-full border border-(--border) bg-(--bg2) px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-(--t2)">
-                    {card.badge}
-                  </div>
-                </div>
-                <div className="mt-1 text-[12px] leading-5 text-(--t2)">{card.description}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <div
         role="tablist"
         aria-label={t('tools.workspaceTabs')}
-        className="flex flex-wrap gap-2 border-b border-(--border) bg-(--bg1) px-4 py-3"
+        className="flex gap-2 overflow-x-auto border-b border-(--border) bg-(--bg1) px-4 py-3"
       >
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.id;
@@ -212,79 +184,72 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
         className="flex-1 overflow-y-auto bg-(--bg1)"
       >
         {activeTab === 'overview' && (
-          <div className="space-y-5 p-4">
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.95fr)]">
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-                    {t('tools.workspaceSummary')}
-                  </div>
-                  <div className="mt-2 text-[16px] font-semibold text-(--t0)">
-                    {t('tools.workspaceHeadline')}
-                  </div>
-                  <div className="mt-2 text-[13px] leading-6 text-(--t2)">
-                    {t('tools.workspaceBody')}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {scenarioCards.map((card) => (
-                    <div key={card.id} className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-                            {card.badge}
-                          </div>
-                          <div className="mt-1 text-[14px] font-semibold text-(--t0)">{card.title}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab(card.id)}
-                          className="rounded-lg bg-(--acc) px-3 py-1.5 text-[12px] font-semibold text-(--bg0) transition-opacity hover:opacity-90"
-                        >
-                          {t('tools.openTool')}
-                        </button>
-                      </div>
-                      <div className="mt-2 text-[13px] leading-6 text-(--t2)">{card.description}</div>
-                    </div>
-                  ))}
-                </div>
+          <div className="space-y-4 p-4">
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
+                {t('tools.workspaceSummary')}
               </div>
+              <div className="mt-2 text-[16px] font-semibold text-(--t0)">
+                {t('tools.workspaceHeadline')}
+              </div>
+              <div className="mt-2 text-[13px] leading-5 text-(--t2)">
+                {t('tools.workspaceBody')}
+              </div>
+            </div>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-                    {t('tools.projectScope')}
+            <div className="grid grid-cols-1 gap-3">
+              {scenarioCards.map((card) => (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => setActiveTab(card.id)}
+                  className="rounded-2xl border border-(--border) bg-(--bg2) p-4 text-left transition-colors hover:border-(--acc) hover:bg-[rgba(255,255,255,0.03)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
+                        {card.badge}
+                      </div>
+                      <div className="mt-1 text-[14px] font-semibold text-(--t0)">{card.title}</div>
+                      <div className="mt-2 text-[12px] leading-5 text-(--t2)">{card.description}</div>
+                    </div>
+                    <span className="rounded-full border border-(--border) bg-(--bg1) px-2.5 py-1 text-[11px] font-medium text-(--t1)">
+                      {t('tools.openTool')}
+                    </span>
                   </div>
-                  <div className="mt-2 text-[14px] font-semibold text-(--t0)">{projectName}</div>
-                  <div className="mt-2 break-all text-[12px] leading-5 text-(--t2)">{projectPath}</div>
-                </div>
+                </button>
+              ))}
+            </div>
 
-                <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-                    {t('tools.toolGuideTitle')}
-                  </div>
-                  <div className="mt-3 space-y-3">
-                    {workflowSteps.map((step, index) => (
-                      <button
-                        key={step.id}
-                        type="button"
-                        onClick={() => setActiveTab(step.id as WorkspaceTab)}
-                        className="w-full rounded-xl border border-(--border) bg-(--bg1) px-3 py-3 text-left transition-colors hover:border-(--acc) hover:bg-[rgba(255,255,255,0.03)]"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(68,170,255,0.12)] text-[11px] font-semibold text-(--acc)">
-                            {index + 1}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[13px] font-semibold text-(--t0)">{step.title}</div>
-                            <div className="mt-1 text-[12px] leading-5 text-(--t2)">{step.description}</div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
+                {t('tools.projectScope')}
+              </div>
+              <div className="mt-2 text-[14px] font-semibold text-(--t0)">{projectName}</div>
+              <div className="mt-2 break-all text-[12px] leading-5 text-(--t2)">{projectPath}</div>
+            </div>
+
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
+                {t('tools.toolGuideTitle')}
+              </div>
+              <div className="mt-3 space-y-2.5">
+                {workflowSteps.map((step, index) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setActiveTab(step.id as WorkspaceTab)}
+                    className="flex w-full items-start gap-3 rounded-xl border border-(--border) bg-(--bg1) px-3 py-3 text-left transition-colors hover:border-(--acc) hover:bg-[rgba(255,255,255,0.03)]"
+                  >
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(68,170,255,0.12)] text-[11px] font-semibold text-(--acc)">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-(--t0)">{step.title}</div>
+                      <div className="mt-1 text-[12px] leading-5 text-(--t2)">{step.description}</div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

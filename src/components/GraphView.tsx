@@ -81,6 +81,10 @@ export const GraphView: React.FC = () => {
     };
   }, [refreshTelemetry, t]);
 
+  const graphInfoWidth = telemetryHud
+    ? 'min(420px, calc(100% - 320px))'
+    : 'min(420px, calc(100% - 1.5rem))';
+
   const edgeElements = useMemo(() => {
     if (!layoutData?.edges) return null;
     return layoutData.edges.map(edge => {
@@ -181,7 +185,7 @@ export const GraphView: React.FC = () => {
       )}
       <div
         className="absolute top-2.5 left-2.5 text-(--t1) z-10 bg-(--bg1) px-3 py-2 rounded-lg border border-(--border) text-xs"
-        style={{ width: 'min(420px, calc(100% - 260px))' }}
+        style={{ width: graphInfoWidth }}
       >
         <div className="font-bold mb-1">
           {t('graphView.mode')}: {layoutMode === 'hierarchy' ? t('graphView.hierarchy') : t('graphView.dependencies')}
@@ -197,9 +201,9 @@ export const GraphView: React.FC = () => {
           }
         </div>
       </div>
-      {telemetryHud && (
-        <div className="absolute right-2.5 top-2.5 z-10 w-[min(320px,calc(100%-1.25rem))]">
-          <div className="rounded-xl border border-(--border) bg-(--bg1)/95 p-3 text-(--t1) shadow-[0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+      <div className="pointer-events-none absolute right-2.5 top-2.5 z-10 flex w-[min(288px,calc(100%-1.25rem))] flex-col gap-3">
+        {telemetryHud && (
+          <div className="pointer-events-auto rounded-2xl border border-(--border) bg-(--bg1)/95 p-3 text-(--t1) shadow-[0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div
@@ -213,6 +217,9 @@ export const GraphView: React.FC = () => {
                 </div>
                 <div className="mt-2 text-[13px] font-semibold text-(--t0)">
                   {t('graphView.refreshTelemetry')}
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-(--t3)">
+                  {t('graphView.telemetry.lastRefresh')}: {telemetryHud.lastRefreshMode}
                 </div>
               </div>
               <button
@@ -256,9 +263,6 @@ export const GraphView: React.FC = () => {
             <div className="mt-3 flex flex-wrap gap-2">
               <div className="rounded-full border border-(--border) bg-(--bg2) px-2.5 py-1 text-[11px] text-(--t2)">
                 {t('graphView.telemetry.trend')}: {telemetryHud.latencyTrend}
-              </div>
-              <div className="rounded-full border border-(--border) bg-(--bg2) px-2.5 py-1 text-[11px] text-(--t2)">
-                {t('graphView.telemetry.lastRefresh')}: {telemetryHud.lastRefreshMode}
               </div>
             </div>
 
@@ -309,8 +313,11 @@ export const GraphView: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+        <div className="pointer-events-auto">
+          <FilterPanel />
         </div>
-      )}
+      </div>
       
       <div className="absolute inset-0">
         <TransformWrapper
@@ -352,7 +359,6 @@ export const GraphView: React.FC = () => {
           </TransformComponent>
         </TransformWrapper>
       </div>
-      <FilterPanel />
     </div>
   );
 };

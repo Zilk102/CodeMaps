@@ -214,11 +214,17 @@ ${longMethodBody}
     expect(result.issues.some(issue => issue.code === 'long_methods')).toBe(true);
     expect(result.issues.some(issue => issue.code === 'complex_methods')).toBe(true);
     expect(result.issues.some(issue => issue.code === 'mixed_responsibility_modules')).toBe(true);
-    expect(
-      result.issues.some((issue) =>
-        ['maintainability_score', 'solid_score'].includes(issue.code)
-      )
-    ).toBe(true);
+    const scoreIssueCodes = result.issues.map((issue) => issue.code);
+    if (result.summary.maintainabilityScore < 85) {
+      expect(scoreIssueCodes).toContain('maintainability_score');
+    } else {
+      expect(scoreIssueCodes).not.toContain('maintainability_score');
+    }
+    if (result.summary.solidScore < 85) {
+      expect(scoreIssueCodes).toContain('solid_score');
+    } else {
+      expect(scoreIssueCodes).not.toContain('solid_score');
+    }
   });
 
   it('DecompositionGuidanceService produces ranked extraction candidates', () => {

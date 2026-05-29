@@ -330,6 +330,134 @@ const contractGraphData: GraphData = {
   ],
 };
 
+const directoryProjectRoot = 'd:/virtual/directory-app';
+
+const directoryGraphData: GraphData = {
+  projectRoot: directoryProjectRoot,
+  nodes: [
+    {
+      id: directoryProjectRoot,
+      label: 'directory-app',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+    },
+    {
+      id: `${directoryProjectRoot}/src`,
+      label: 'src',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: directoryProjectRoot,
+    },
+    {
+      id: `${directoryProjectRoot}/src/components`,
+      label: 'components',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: `${directoryProjectRoot}/src`,
+    },
+    {
+      id: `${directoryProjectRoot}/src/components/AppShell.tsx`,
+      label: 'AppShell.tsx',
+      type: 'file',
+      group: 1,
+      churn: 1,
+      parentId: `${directoryProjectRoot}/src/components`,
+    },
+    {
+      id: `${directoryProjectRoot}/src/hooks`,
+      label: 'hooks',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: `${directoryProjectRoot}/src`,
+    },
+    {
+      id: `${directoryProjectRoot}/src/hooks/useViewport.ts`,
+      label: 'useViewport.ts',
+      type: 'file',
+      group: 1,
+      churn: 1,
+      parentId: `${directoryProjectRoot}/src/hooks`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron`,
+      label: 'electron',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: directoryProjectRoot,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/services`,
+      label: 'services',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: `${directoryProjectRoot}/electron`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/services/ProjectService.ts`,
+      label: 'ProjectService.ts',
+      type: 'file',
+      group: 1,
+      churn: 2,
+      parentId: `${directoryProjectRoot}/electron/services`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/oracle`,
+      label: 'oracle',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: `${directoryProjectRoot}/electron`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/oracle/OracleService.ts`,
+      label: 'OracleService.ts',
+      type: 'file',
+      group: 1,
+      churn: 2,
+      parentId: `${directoryProjectRoot}/electron/oracle`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/analysis`,
+      label: 'analysis',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: `${directoryProjectRoot}/electron`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/analysis/Analyzer.ts`,
+      label: 'Analyzer.ts',
+      type: 'file',
+      group: 1,
+      churn: 2,
+      parentId: `${directoryProjectRoot}/electron/analysis`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/mcp`,
+      label: 'mcp',
+      type: 'directory',
+      group: 1,
+      churn: 0,
+      parentId: `${directoryProjectRoot}/electron`,
+    },
+    {
+      id: `${directoryProjectRoot}/electron/mcp/server.ts`,
+      label: 'server.ts',
+      type: 'file',
+      group: 1,
+      churn: 1,
+      parentId: `${directoryProjectRoot}/electron/mcp`,
+    },
+  ],
+  links: [],
+};
+
 const smellProjectRoot = 'd:/virtual/smell-app';
 const oversizedModuleFile = `${smellProjectRoot}/src/analysis/StackTopologyService.ts`;
 const oversizedModuleChildren = Array.from({ length: 32 }, (_, index) => ({
@@ -402,6 +530,28 @@ describe('Stack-aware analyzers', () => {
     expect(health.summary.refreshLatencyTrend).toBe('degrading');
     expect(health.summary.refreshPipelineDegraded).toBe(true);
     expect(health.issues.some((issue) => issue.code === 'refresh_pipeline_degradation')).toBe(true);
+  });
+
+  it('ArchitectureInsightService promotes unknown container directories from descendant layers', () => {
+    const architecture = new ArchitectureInsightService().analyze(directoryGraphData);
+    const classificationByNodeId = new Map(
+      architecture.classifications.map((record) => [record.nodeId, record])
+    );
+
+    expect(classificationByNodeId.get(directoryProjectRoot)?.layer).toBe('unknown');
+    expect(classificationByNodeId.get(`${directoryProjectRoot}/src`)?.layer).toBe('presentation');
+    expect(classificationByNodeId.get(`${directoryProjectRoot}/src`)?.reason).toBe(
+      'dominant_descendant_layer'
+    );
+    expect(classificationByNodeId.get(`${directoryProjectRoot}/src/components`)?.layer).toBe(
+      'presentation'
+    );
+    expect(classificationByNodeId.get(`${directoryProjectRoot}/electron/analysis`)?.layer).toBe(
+      'analysis'
+    );
+    expect(classificationByNodeId.get(`${directoryProjectRoot}/electron`)?.layer).toBe(
+      'application'
+    );
   });
 
   it('Pattern detection and review context surface stack-aware runtime paths', async () => {

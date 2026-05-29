@@ -5,6 +5,7 @@ import {
   ModuleQualityMetric,
   SourceFunctionMetric,
 } from './moduleQualityMetrics';
+import { toStructuralNodeId, unique } from './AgentContextUtils';
 
 export interface DecompositionCandidate {
   fileNodeId: string;
@@ -52,9 +53,6 @@ export interface PrepareDecompositionGuidanceInput {
 }
 
 const DEFAULT_LIMIT = 12;
-
-const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
-const unique = <T>(items: T[]) => Array.from(new Set(items));
 
 export class DecompositionGuidanceService {
   prepareGuidance(
