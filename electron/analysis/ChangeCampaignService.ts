@@ -1,6 +1,5 @@
 import { GraphData, GraphNode } from '../store';
 import {
-  ArchitectureInsightService,
   ArchitectureLayer,
   ArchitectureNodeClassification,
   ArchitectureOverview,
@@ -8,10 +7,9 @@ import {
 } from './ArchitectureInsightService';
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { ChangeTaskMode } from './ChangeContextService';
-import { HealthScoreAnalyzer } from './HealthScoreAnalyzer';
-import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
+import { DetectedPattern } from './PatternDetectionAnalyzer';
 import { isDiRuntimeLink } from './graphAnalysisUtils';
-import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import { SecurityFinding } from './SecurityScanner';
 import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
 import {
   QualityBudget,
@@ -19,6 +17,10 @@ import {
   QualityGovernanceService,
   RefactoringWave,
 } from './QualityGovernanceService';
+import { isChangeRiskPattern, isDesignSmellPattern } from './patternPolicies';
+import { buildQualityArtifacts } from './contextSupport';
+import { AnalysisSnapshotService } from './AnalysisSnapshotService';
+import { createGraphSummary, toStructuralNodeId, unique } from './AgentContextUtils';
 
 export interface PrepareChangeCampaignInput {
   userRequest: string;
@@ -97,16 +99,10 @@ const MAX_PATTERN_RESULTS = 10;
 const MAX_SECURITY_FINDINGS = 12;
 const CAMPAIGN_NODE_TYPES = ['file', 'class', 'function'];
 
-const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
-const unique = <T>(items: T[]) => Array.from(new Set(items));
-
 export class ChangeCampaignService {
   constructor(
-    private readonly architectureInsightService = new ArchitectureInsightService(),
+    private readonly analysisSnapshotService = new AnalysisSnapshotService(),
     private readonly blastRadiusAnalyzer = new BlastRadiusAnalyzer(),
-    private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
-    private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner(),
     private readonly decompositionGuidanceService = new DecompositionGuidanceService(),
     private readonly qualityGovernanceService = new QualityGovernanceService()
   ) {}
@@ -116,87 +112,59 @@ export class ChangeCampaignService {
     input: PrepareChangeCampaignInput
   ): Promise<ChangeCampaignResult> {
     const taskMode = input.taskMode || 'refactor';
-    const architecture = this.architectureInsightService.analyze(graph);
-    const health = this.healthScoreAnalyzer.analyze(graph);
+    const depth = input.depth || 2;
+    const maxFiles = input.maxFiles || DEFAULT_MAX_FILES;
+    const maxSeeds = input.maxSeeds || DEFAULT_MAX_SEEDS;
+    const { architecture, health, patterns: snapshotPatterns, security: securityScan } =
+      await this.analysisSnapshotService.analyze(graph, {
+        includeHealth: true,
+        includeSecurityFindings: input.includeSecurityFindings,
+      });
+    const resolvedHealth = health!;
     const layerByNodeId = new Map(
       architecture.classifications.map((record) => [record.nodeId, record])
     );
-    const seedTargets = this.resolveSeedTargets(graph, input, architecture);
+    const seedTargets = this.resolveSeedTargets(graph, input, architecture, maxSeeds);
     const directlyMatchedFiles = this.collectMatchedFiles(
       graph,
       seedTargets,
       input.candidateQueries,
-      input.maxSeeds || DEFAULT_MAX_SEEDS
+      maxSeeds
     );
     const runtimeCompositionRoots = this.collectRuntimeCompositionRoots(graph, directlyMatchedFiles);
-    const affectedFiles = this.expandAffectedFiles(
-      graph,
-      unique([...directlyMatchedFiles, ...runtimeCompositionRoots]),
-      input.depth || 2,
-      input.maxFiles || DEFAULT_MAX_FILES
+    const scopedFiles = unique([...directlyMatchedFiles, ...runtimeCompositionRoots]);
+    const affectedFiles = this.expandAffectedFiles(graph, scopedFiles, depth, maxFiles);
+    const blastRadius = this.buildCampaignBlastRadius(graph, scopedFiles, depth, maxFiles);
+    const campaignStructuralIds = this.collectStructuralNodeIds(affectedFiles);
+    const patterns = this.collectCampaignPatterns(snapshotPatterns, campaignStructuralIds);
+    const securityFindings = this.collectCampaignSecurityFindings(
+      securityScan.findings,
+      campaignStructuralIds
     );
-    const blastRadius = this.buildCampaignBlastRadius(
-      graph,
-      unique([...directlyMatchedFiles, ...runtimeCompositionRoots]),
-      input.depth || 2,
-      input.maxFiles || DEFAULT_MAX_FILES
-    );
-    const campaignStructuralIds = new Set(affectedFiles.map((node) => toStructuralNodeId(node.id)));
-    const patterns = this.patternDetectionAnalyzer
-      .analyze(graph)
-      .patterns.filter((pattern) =>
-        pattern.nodeIds.some((nodeId) => campaignStructuralIds.has(toStructuralNodeId(nodeId)))
-      )
-      .slice(0, MAX_PATTERN_RESULTS);
-    const securityScan =
-      input.includeSecurityFindings === false
-        ? {
-            summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
-            findings: [] as SecurityFinding[],
-          }
-        : await this.securityScanner.analyze(graph);
-    const securityFindings = securityScan.findings
-      .filter((finding) => campaignStructuralIds.has(toStructuralNodeId(finding.nodeId)))
-      .slice(0, MAX_SECURITY_FINDINGS);
     const layersInvolved = this.buildLayersInvolved(affectedFiles, layerByNodeId);
-    const campaignViolations = architecture.violations.filter(
-      (violation) =>
-        campaignStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
-        campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
+    const campaignViolations = this.collectCampaignViolations(
+      architecture.violations,
+      campaignStructuralIds
     );
     const waves = this.buildExecutionWaves(affectedFiles, layerByNodeId, runtimeCompositionRoots);
     const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
       limit: 12,
       focusNodeIds: Array.from(campaignStructuralIds),
     });
-    const qualityBudget = this.qualityGovernanceService.buildBudget({
-      health,
+    const { qualityBudget, qualityDashboard, refactoringWaves } = buildQualityArtifacts(
+      graph,
+      resolvedHealth,
       patterns,
       decompositionGuidance,
-    });
-    const refactoringWaves = this.qualityGovernanceService.buildRefactoringWaves(
-      graph,
-      decompositionGuidance,
+      this.qualityGovernanceService,
       4
-    );
-    const qualityDashboard = this.qualityGovernanceService.buildDashboard(
-      qualityBudget,
-      decompositionGuidance,
-      refactoringWaves
     );
 
     return {
-      graphSummary: this.createGraphSummary(graph),
+      graphSummary: createGraphSummary(graph),
       taskMode,
       userRequest: input.userRequest,
-      scope: {
-        candidateQueries: input.candidateQueries,
-        seedTargets,
-        directlyMatchedFiles,
-        runtimeCompositionRoots,
-        affectedFiles,
-        breadth: this.getBreadth(affectedFiles.length),
-      },
+      scope: this.buildScope(input.candidateQueries, seedTargets, directlyMatchedFiles, runtimeCompositionRoots, affectedFiles),
       architecture: {
         summary: architecture.summary,
         layersInvolved,
@@ -204,16 +172,7 @@ export class ChangeCampaignService {
       },
       blastRadius,
       patterns,
-      security: {
-        summary: {
-          total: securityFindings.length,
-          critical: securityFindings.filter((finding) => finding.severity === 'critical').length,
-          high: securityFindings.filter((finding) => finding.severity === 'high').length,
-          medium: securityFindings.filter((finding) => finding.severity === 'medium').length,
-          low: securityFindings.filter((finding) => finding.severity === 'low').length,
-        },
-        findings: securityFindings,
-      },
+      security: this.buildSecurityView(securityFindings),
       qualityBudget,
       qualityDashboard,
       decompositionGuidance,
@@ -248,10 +207,10 @@ export class ChangeCampaignService {
   private resolveSeedTargets(
     graph: GraphData,
     input: PrepareChangeCampaignInput,
-    architecture: ArchitectureOverview
+    architecture: ArchitectureOverview,
+    maxSeeds: number
   ) {
     const seedNodes = new Map<string, GraphNode>();
-    const maxSeeds = input.maxSeeds || DEFAULT_MAX_SEEDS;
 
     for (const seedNodeId of input.seedNodeIds || []) {
       const exact = graph.nodes.find((node) => node.id === seedNodeId);
@@ -298,6 +257,71 @@ export class ChangeCampaignService {
     }
 
     return Array.from(seedNodes.values()).slice(0, maxSeeds);
+  }
+
+  private buildScope(
+    candidateQueries: string[],
+    seedTargets: GraphNode[],
+    directlyMatchedFiles: GraphNode[],
+    runtimeCompositionRoots: GraphNode[],
+    affectedFiles: GraphNode[]
+  ): ChangeCampaignResult['scope'] {
+    return {
+      candidateQueries,
+      seedTargets,
+      directlyMatchedFiles,
+      runtimeCompositionRoots,
+      affectedFiles,
+      breadth: this.getBreadth(affectedFiles.length),
+    };
+  }
+
+  private collectStructuralNodeIds(nodes: GraphNode[]) {
+    return new Set(nodes.map((node) => toStructuralNodeId(node.id)));
+  }
+
+  private collectCampaignPatterns(
+    patterns: DetectedPattern[],
+    campaignStructuralIds: Set<string>
+  ) {
+    return patterns
+      .filter((pattern) =>
+        pattern.nodeIds.some((nodeId) => campaignStructuralIds.has(toStructuralNodeId(nodeId)))
+      )
+      .slice(0, MAX_PATTERN_RESULTS);
+  }
+
+  private collectCampaignSecurityFindings(
+    findings: SecurityFinding[],
+    campaignStructuralIds: Set<string>
+  ) {
+    return findings
+      .filter((finding) => campaignStructuralIds.has(toStructuralNodeId(finding.nodeId)))
+      .slice(0, MAX_SECURITY_FINDINGS);
+  }
+
+  private collectCampaignViolations(
+    violations: ArchitectureViolation[],
+    campaignStructuralIds: Set<string>
+  ) {
+    return violations.filter(
+      (violation) =>
+        campaignStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
+        campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
+    );
+  }
+
+  private buildSecurityView(findings: SecurityFinding[]): ChangeCampaignResult['security'] {
+    return {
+      summary: {
+        total: findings.length,
+        critical: findings.filter((finding) => finding.severity === 'critical').length,
+        high: findings.filter((finding) => finding.severity === 'high').length,
+        medium: findings.filter((finding) => finding.severity === 'medium').length,
+        low: findings.filter((finding) => finding.severity === 'low').length,
+      },
+      findings,
+    };
   }
 
   private collectMatchedFiles(
@@ -569,31 +593,14 @@ export class ChangeCampaignService {
         (pattern) =>
           pattern.id === 'hub_nodes' ||
           pattern.id === 'high_fan_out_files' ||
-          pattern.id === 'oversized_modules' ||
-          pattern.id === 'god_files' ||
-          pattern.id === 'god_classes' ||
-          pattern.id === 'long_methods' ||
-          pattern.id === 'complex_methods' ||
-          pattern.id === 'mixed_responsibility_modules' ||
-          pattern.id === 'di_runtime_contract_hubs' ||
-          pattern.id === 'contract_runtime_binding_hubs'
+          isChangeRiskPattern(pattern)
       )
     ) {
       risks.push(
         'Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.'
       );
     }
-    if (
-      patterns.some(
-        (pattern) =>
-          pattern.id === 'oversized_modules' ||
-          pattern.id === 'god_files' ||
-          pattern.id === 'god_classes' ||
-          pattern.id === 'long_methods' ||
-          pattern.id === 'complex_methods' ||
-          pattern.id === 'mixed_responsibility_modules'
-      )
-    ) {
+    if (patterns.some(isDesignSmellPattern)) {
       risks.push(
         'Кампания проходит через oversized/god modules и другие design smells; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.'
       );
@@ -719,17 +726,5 @@ export class ChangeCampaignService {
       default:
         return 1;
     }
-  }
-
-  private createGraphSummary(graph: GraphData) {
-    return {
-      projectRoot: graph.projectRoot,
-      nodesCount: graph.nodes.length,
-      linksCount: graph.links.length,
-      nodeTypes: graph.nodes.reduce<Record<string, number>>((acc, node) => {
-        acc[node.type] = (acc[node.type] || 0) + 1;
-        return acc;
-      }, {}),
-    };
   }
 }

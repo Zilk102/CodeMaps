@@ -1,13 +1,12 @@
 import { GraphData, GraphNode } from '../store';
 import {
-  ArchitectureInsightService,
   ArchitectureNodeClassification,
   ArchitectureOverview,
   ArchitectureViolation,
 } from './ArchitectureInsightService';
-import { HealthScoreAnalyzer, HealthScoreResult } from './HealthScoreAnalyzer';
-import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
-import { SecurityFinding, SecurityScanner } from './SecurityScanner';
+import { HealthScoreResult } from './HealthScoreAnalyzer';
+import { DetectedPattern } from './PatternDetectionAnalyzer';
+import { SecurityFinding } from './SecurityScanner';
 import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
 import { QualityBudget, QualityDashboard, QualityGovernanceService, RefactoringWave } from './QualityGovernanceService';
 import {
@@ -15,13 +14,14 @@ import {
   promoteCodeTarget,
   searchGraph,
   toStructuralNodeId,
-  unique,
 } from './AgentContextUtils';
+import { buildQualityArtifacts } from './contextSupport';
+import { AnalysisSnapshotService } from './AnalysisSnapshotService';
 import {
-  isContractSemanticLink,
-  isDiRuntimeLink,
-  isStackAwareLink,
-} from './graphAnalysisUtils';
+  buildReviewAutopilotPlan,
+  buildReviewNextSteps,
+  buildReviewPriorities,
+} from './reviewContextPolicies';
 
 export type ReviewTaskMode = 'review' | 'architecture' | 'security' | 'stabilization';
 
@@ -96,10 +96,7 @@ const REVIEW_TASK_MODES: ReviewTaskMode[] = ['review', 'architecture', 'security
 
 export class ReviewContextService {
   constructor(
-    private readonly architectureInsightService = new ArchitectureInsightService(),
-    private readonly healthScoreAnalyzer = new HealthScoreAnalyzer(),
-    private readonly patternDetectionAnalyzer = new PatternDetectionAnalyzer(),
-    private readonly securityScanner = new SecurityScanner(),
+    private readonly analysisSnapshotService = new AnalysisSnapshotService(),
     private readonly decompositionGuidanceService = new DecompositionGuidanceService(),
     private readonly qualityGovernanceService = new QualityGovernanceService()
   ) {}
@@ -109,49 +106,33 @@ export class ReviewContextService {
     input: PrepareReviewContextInput
   ): Promise<ReviewContextResult> {
     const taskMode = this.normalizeReviewTaskMode(input.taskMode);
-    const architecture = this.architectureInsightService.analyze(graph);
-    const health = this.healthScoreAnalyzer.analyze(graph);
-    const patterns = this.patternDetectionAnalyzer
-      .analyze(graph)
-      .patterns.slice(0, input.limit || MAX_REVIEW_PATTERNS);
-    const security =
-      input.includeSecurityFindings === false
-        ? {
-            findings: [],
-            summary: {
-              total: 0,
-              critical: 0,
-              high: 0,
-              medium: 0,
-              low: 0,
-            },
-          }
-        : await this.securityScanner.analyze(graph);
+    const { architecture, health, patterns, security } = await this.analysisSnapshotService.analyze(
+      graph,
+      {
+        includeHealth: true,
+        includeSecurityFindings: input.includeSecurityFindings,
+        patternLimit: input.limit || MAX_REVIEW_PATTERNS,
+      }
+    );
+    const resolvedHealth = health!;
     const focus = this.prepareFocusContext(graph, architecture, patterns, input);
     const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
       limit: input.limit || MAX_REVIEW_PATTERNS,
       focusNodeIds: focus?.matches.map((node) => node.id),
     });
-    const qualityBudget = this.qualityGovernanceService.buildBudget({
-      health,
+    const { qualityBudget, qualityDashboard, refactoringWaves } = buildQualityArtifacts(
+      graph,
+      resolvedHealth,
       patterns,
       decompositionGuidance,
-    });
-    const refactoringWaves = this.qualityGovernanceService.buildRefactoringWaves(
-      graph,
-      decompositionGuidance,
+      this.qualityGovernanceService,
       4
-    );
-    const qualityDashboard = this.qualityGovernanceService.buildDashboard(
-      qualityBudget,
-      decompositionGuidance,
-      refactoringWaves
     );
 
     return {
       graphSummary: createGraphSummary(graph),
       taskMode,
-      health,
+      health: resolvedHealth,
       architecture: {
         summary: architecture.summary,
         layers: architecture.layers,
@@ -169,27 +150,28 @@ export class ReviewContextService {
       qualityDashboard,
       decompositionGuidance,
       refactoringWaves,
-      reviewPriorities: this.buildReviewPriorities(
+      reviewPriorities: buildReviewPriorities(
         graph,
-        health,
+        resolvedHealth,
         architecture,
         patterns,
         security.findings,
         focus,
-        decompositionGuidance
+        decompositionGuidance,
+        qualityBudget
       ),
-      autopilotPlan: this.buildReviewAutopilotPlan(
+      autopilotPlan: buildReviewAutopilotPlan(
         taskMode,
         security.findings,
         architecture,
         focus,
-        health.summary.stackAwareLinks > 0,
-        health.summary.watcherFlushes > 0 ||
-          health.summary.skippedRefreshes > 0 ||
-          health.summary.runtimePriorityRebuilds > 0
+        resolvedHealth.summary.stackAwareLinks > 0,
+        resolvedHealth.summary.refreshPipelineDegraded ||
+          resolvedHealth.summary.avgRefreshLatencyMs >= 20 ||
+          resolvedHealth.summary.runtimePriorityRebuilds > 0
       ),
-      nextSteps: this.buildReviewNextSteps(
-        health,
+      nextSteps: buildReviewNextSteps(
+        resolvedHealth,
         architecture,
         patterns,
         security.findings,
@@ -250,372 +232,7 @@ export class ReviewContextService {
     };
   }
 
-  private buildReviewPriorities(
-    graph: GraphData,
-    health: HealthScoreResult,
-    architecture: ArchitectureOverview,
-    patterns: DetectedPattern[],
-    securityFindings: SecurityFinding[],
-    focus: ReviewContextResult['focus'],
-    decompositionGuidance: DecompositionGuidance
-  ): ReviewPriority[] {
-    const priorities: ReviewPriority[] = [];
-
-    if (securityFindings.some((finding) => finding.severity === 'critical')) {
-      priorities.push({
-        severity: 'critical',
-        title: 'Security Findings',
-        reason:
-          'The project has critical security findings; they must be addressed before any architectural cosmetics.',
-        nodeIds: unique(
-          securityFindings
-            .filter((finding) => finding.severity === 'critical')
-            .map((finding) => finding.nodeId)
-        ).slice(0, 10),
-      });
-    }
-
-    if (architecture.violations.length > 0) {
-      priorities.push({
-        severity: architecture.violations.length > 10 ? 'high' : 'medium',
-        title: 'Architecture Violations',
-        reason:
-          'Layer dependency violations harm maintainability and make impact analysis less predictable.',
-        nodeIds: unique(
-          architecture.violations
-            .slice(0, 10)
-            .flatMap((violation) => [violation.sourceId, violation.targetId])
-        ),
-      });
-    }
-
-    const severePatterns = patterns.filter((pattern) => pattern.severity === 'high');
-    if (severePatterns.length > 0) {
-      priorities.push({
-        severity: 'high',
-        title: 'High-Severity Patterns',
-        reason:
-          'The graph contains hotspots and anti-pattern candidates that increase blast radius and churn risk.',
-        nodeIds: unique(severePatterns.flatMap((pattern) => pattern.nodeIds)).slice(0, 10),
-      });
-    }
-
-    if (health.issues.length > 0) {
-      priorities.push({
-        severity: health.grade === 'F' || health.grade === 'D' ? 'high' : 'medium',
-        title: 'Health Issues',
-        reason:
-          'Health score already signals structural degradation: the review must explicitly cover these issues.',
-        nodeIds: [],
-      });
-    }
-
-    if (health.summary.maintainabilityScore < 85 || health.summary.solidScore < 85) {
-      priorities.push({
-        severity:
-          health.summary.maintainabilityScore < 60 || health.summary.solidScore < 60
-            ? 'high'
-            : 'medium',
-        title: 'Maintainability Budget',
-        reason:
-          `Maintainability=${health.summary.maintainabilityScore.toFixed(1)}, SOLID=${health.summary.solidScore.toFixed(1)}. The review should treat design debt as a delivery risk, not cosmetic cleanup.`,
-        nodeIds: unique(
-          patterns
-            .filter((pattern) =>
-              [
-                'oversized_modules',
-                'god_files',
-                'god_classes',
-                'long_methods',
-                'complex_methods',
-                'mixed_responsibility_modules',
-              ].includes(pattern.id)
-            )
-            .flatMap((pattern) => pattern.nodeIds)
-        ).slice(0, 10),
-      });
-    }
-
-    if (health.summary.stackAwareLinks > 0) {
-      priorities.push({
-        severity: health.summary.stackAwareLinks >= 12 ? 'high' : 'medium',
-        title: 'Stack-Aware Runtime Paths',
-        reason:
-          'Framework/build enrichment exposed runtime and assembly paths that should be reviewed together with direct imports.',
-        nodeIds: unique(
-          graph.nodes
-            .filter((node) =>
-              graph.links.some(
-                (link) =>
-                  isStackAwareLink(link) && (link.source === node.id || link.target === node.id)
-              )
-            )
-            .map((node) => node.id)
-        ).slice(0, 10),
-      });
-    }
-
-    if (health.summary.diRuntimeLinks > 0) {
-      priorities.push({
-        severity: health.summary.diRuntimeLinks >= 8 ? 'high' : 'medium',
-        title: 'DI Runtime Contracts',
-        reason:
-          'Provider bindings, bean factories, and service registrations define runtime wiring that may bypass plain import-based dependency intuition.',
-        nodeIds: unique(
-          graph.nodes
-            .filter((node) =>
-              graph.links.some(
-                (link) => isDiRuntimeLink(link) && (link.source === node.id || link.target === node.id)
-              )
-            )
-            .map((node) => node.id)
-        ).slice(0, 10),
-      });
-    }
-
-    if (health.summary.contractSemanticLinks > 0) {
-      priorities.push({
-        severity: health.summary.contractSemanticLinks >= 10 ? 'high' : 'medium',
-        title: 'Contract Runtime Bindings',
-        reason:
-          'OpenAPI/protobuf schemas, generated clients, and runtime handlers/servers are linked structurally, so contract changes should be reviewed beyond plain imports.',
-        nodeIds: unique(
-          graph.nodes
-            .filter((node) =>
-              graph.links.some(
-                (link) =>
-                  isContractSemanticLink(link) &&
-                  (toStructuralNodeId(link.source) === node.id ||
-                    toStructuralNodeId(link.target) === node.id)
-              )
-            )
-            .map((node) => node.id)
-        ).slice(0, 10),
-      });
-    }
-
-    if (
-      health.summary.oversizedModules > 0 ||
-      health.summary.godFiles > 0 ||
-      health.summary.godClasses > 0 ||
-      health.summary.longMethods > 0 ||
-      health.summary.complexMethods > 0 ||
-      health.summary.mixedResponsibilityModules > 0
-    ) {
-      const designSmellPatterns = patterns.filter((pattern) =>
-        [
-          'oversized_modules',
-          'god_files',
-          'god_classes',
-          'long_methods',
-          'complex_methods',
-          'mixed_responsibility_modules',
-        ].includes(pattern.id)
-      );
-      priorities.push({
-        severity:
-          health.summary.godFiles > 0 || health.summary.godClasses > 0
-            ? 'high'
-            : 'medium',
-        title: 'Design Smells',
-        reason:
-          'Some modules/classes already show SRP/OOP smell signals, so the review should explicitly check extraction boundaries, class API size, and long-method decomposition opportunities.',
-        nodeIds: unique(
-          designSmellPatterns.flatMap((pattern) => pattern.nodeIds)
-        ).slice(0, 10),
-        evidence: designSmellPatterns.flatMap((pattern) => pattern.evidence || []).map((item) => item.message).slice(0, 5),
-      });
-    }
-
-    if (decompositionGuidance.candidates.length > 0) {
-      priorities.push({
-        severity:
-          decompositionGuidance.summary.highPriorityCount > 0 ? 'high' : 'medium',
-        title: 'Decomposition Candidates',
-        reason:
-          'Structured extraction candidates are available, so the review can evaluate concrete split points instead of discussing refactoring only at file level.',
-        nodeIds: unique(
-          decompositionGuidance.candidates.map((candidate) => candidate.fileNodeId)
-        ).slice(0, 10),
-        evidence: decompositionGuidance.candidates
-          .slice(0, 5)
-          .map((candidate) => `${candidate.targetLabel}: ${candidate.reason}`),
-      });
-    }
-
-    if (
-      health.summary.watcherFlushes > 0 ||
-      health.summary.skippedRefreshes > 0 ||
-      health.summary.runtimePriorityRebuilds > 0
-    ) {
-      priorities.push({
-        severity:
-          health.summary.avgRefreshLatencyMs >= 50 || health.summary.runtimePriorityRebuilds >= 3
-            ? 'high'
-            : 'medium',
-        title: 'Incremental Refresh Pipeline',
-        reason:
-          'Watcher batching, skipped refreshes, and runtime-priority rebuilds indicate how stable and efficient incremental graph maintenance remains under real edit bursts.',
-        nodeIds: focus?.matches.map((node) => node.id) || [],
-      });
-    }
-
-    if (focus && focus.matches.length > 0) {
-      priorities.push({
-        severity: 'low',
-        title: 'Focused Review Scope',
-        reason: `There is an explicit focus query "${focus.query}", so it is worth double-checking local dependencies and the layer of the target area.`,
-        nodeIds: focus.matches.map((node) => node.id),
-      });
-    }
-
-    return priorities.slice(0, 6);
-  }
-
-  private buildReviewNextSteps(
-    health: HealthScoreResult,
-    architecture: ArchitectureOverview,
-    patterns: DetectedPattern[],
-    securityFindings: SecurityFinding[],
-    hasFocus: boolean,
-    decompositionGuidance: DecompositionGuidance
-  ) {
-    const nextSteps = [
-      'Start the review with nodes that fell into top architecture violations and severe patterns.',
-      'Check if high fan-in/high fan-out nodes hide excessive responsibility and incorrect module boundaries.',
-    ];
-
-    if (securityFindings.length > 0) {
-      nextSteps.unshift('Address security findings first, especially critical and high severity ones.');
-    }
-
-    if (health.issues.length > 0) {
-      nextSteps.push(
-        'Cross-check health issues with the actual code and determine what is a real problem and what is heuristic noise.'
-      );
-    }
-
-    if (health.summary.stackAwareLinks > 0) {
-      nextSteps.push(
-        'Review framework/build dependency paths separately from plain imports to verify entrypoints, routes, modules, and build descriptors.'
-      );
-    }
-
-    if (health.summary.diRuntimeLinks > 0) {
-      nextSteps.push(
-        'Inspect DI runtime contracts separately from imports: verify provider tokens, bean factories, and service registrations against the actual concrete implementations.'
-      );
-    }
-
-    if (health.summary.contractSemanticLinks > 0) {
-      nextSteps.push(
-        'Inspect API contract bindings separately from imports: verify schema roots, generated modules, and runtime handlers/clients against the actual operation/service symbols.'
-      );
-    }
-
-    if (
-      health.summary.oversizedModules > 0 ||
-      health.summary.godFiles > 0 ||
-      health.summary.godClasses > 0 ||
-      health.summary.longMethods > 0 ||
-      health.summary.complexMethods > 0 ||
-      health.summary.mixedResponsibilityModules > 0
-    ) {
-      nextSteps.push(
-        'Inspect design-smell hotspots separately: identify mixed responsibilities, god classes, long/complex methods, extraction boundaries, and files that should stop accumulating new stack-specific logic.'
-      );
-    }
-
-    if (decompositionGuidance.candidates.length > 0) {
-      nextSteps.push(
-        'Use structured decomposition candidates to review the exact classes and methods that should be extracted first, not just the surrounding files.'
-      );
-    }
-
-    if (
-      health.summary.watcherFlushes > 0 ||
-      health.summary.skippedRefreshes > 0 ||
-      health.summary.runtimePriorityRebuilds > 0
-    ) {
-      nextSteps.push(
-        'Inspect incremental refresh telemetry separately: verify watcher batching, skipped refreshes, runtime-priority rebuild paths, and average refresh latency.'
-      );
-    }
-
-    if (architecture.summary.unknownNodes > 0) {
-      nextSteps.push(
-        'Refine layer classification rules for unknown nodes so the agent and review rely on a more accurate model.'
-      );
-    }
-
-    if (patterns.length === 0) {
-      nextSteps.push(
-        'No obvious structural patterns found; the review should focus on code contracts and runtime behavior.'
-      );
-    }
-
-    if (hasFocus) {
-      nextSteps.push(
-        'After a general overview, do a separate local review for the focus area and check its blast radius manually.'
-      );
-    }
-
-    return nextSteps;
-  }
-
-  private buildReviewAutopilotPlan(
-    taskMode: ReviewTaskMode,
-    securityFindings: SecurityFinding[],
-    architecture: ArchitectureOverview,
-    focus: ReviewContextResult['focus'],
-    hasStackAwareLinks?: boolean,
-    hasOperationalRefreshSignals?: boolean
-  ) {
-    const preferredOrder: Array<
-      'security' | 'architecture' | 'patterns' | 'health' | 'focused_area'
-    > = [];
-
-    if (taskMode === 'security' || securityFindings.length > 0) {
-      preferredOrder.push('security');
-    }
-    if (taskMode === 'architecture' || architecture.violations.length > 0) {
-      preferredOrder.push('architecture');
-    }
-    if (hasStackAwareLinks) {
-      preferredOrder.push('patterns');
-    }
-    if (hasOperationalRefreshSignals) {
-      preferredOrder.push('health');
-    }
-    preferredOrder.push('patterns', 'health');
-    if (focus?.matches.length) {
-      preferredOrder.push('focused_area');
-    }
-
-    return {
-      primaryGoal: this.describeReviewModeGoal(taskMode),
-      preferredOrder: unique(preferredOrder),
-      shouldFallbackToLowLevelTools: Boolean(
-        focus?.matches.length && !focus.relatedPatterns.length && !focus.relatedViolations.length
-      ),
-    };
-  }
-
   private normalizeReviewTaskMode(taskMode?: ReviewTaskMode): ReviewTaskMode {
     return REVIEW_TASK_MODES.includes(taskMode || 'review') ? taskMode || 'review' : 'review';
-  }
-
-  private describeReviewModeGoal(taskMode: ReviewTaskMode) {
-    switch (taskMode) {
-      case 'architecture':
-        return 'Check architectural boundaries, layers, and module responsibilities.';
-      case 'security':
-        return 'Find and prioritize security risks and unsafe patterns.';
-      case 'stabilization':
-        return 'Identify points of structural instability and maintainability degradation.';
-      case 'review':
-      default:
-        return 'Gather architectural and qualitative context for a meaningful review.';
-    }
   }
 }

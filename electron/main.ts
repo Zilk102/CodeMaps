@@ -5,11 +5,11 @@ import * as os from 'os';
 import log from 'electron-log/main';
 import { getMcpStatus, setupMcpServer, shutdownMcpServer } from './mcp';
 import { oracle } from './oracle';
-import { oracleStore } from './store';
 import { initAutoUpdater, quitAndInstallDownloadedUpdate, shutdownAutoUpdater } from './autoUpdater';
 import { shutdownKuzuProcessManager } from './services/KuzuGraphService';
 import type { KuzuIntegration as KuzuIntegrationInstance } from './services/KuzuIntegration';
 import { gracefulShutdown } from './shutdown';
+import { registerMainProcessBindings } from './mainProcessBindings';
 
 const isE2EShutdownTest = process.env.CODEMAPS_E2E_SHUTDOWN_TEST === '1';
 const e2eShutdownDelayMs = Number(process.env.CODEMAPS_E2E_SHUTDOWN_DELAY_MS || '750');
@@ -161,20 +161,13 @@ function createWindow() {
   }
 }
 
-ipcMain.handle('window-minimize', () => {
-  mainWindow?.minimize();
-});
-
-ipcMain.handle('window-maximize', () => {
-  if (mainWindow?.isMaximized()) {
-    mainWindow.unmaximize();
-  } else {
-    mainWindow?.maximize();
-  }
-});
-
-ipcMain.handle('window-close', () => {
-  mainWindow?.close();
+registerMainProcessBindings({
+  ipcMain,
+  getMainWindow: () => mainWindow,
+  getMcpStatus,
+  getErrorMessage,
+  logger: log,
+  loadKuzuIntegrationCtor,
 });
 
 app.whenReady().then(() => {
@@ -210,132 +203,4 @@ app.on('before-quit', (event) => {
   void shutdownApplication().finally(() => {
     app.quit();
   });
-});
-
-ipcMain.handle('select-directory', async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-  });
-  return result.canceled ? null : result.filePaths[0];
-});
-
-// Alias for dialog:open-directory (fallback button)
-ipcMain.handle('dialog:open-directory', async () => {
-  if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-  });
-  return result.canceled ? null : result.filePaths[0];
-});
-
-ipcMain.handle('analyze-project', async (_, projectPath: string) => {
-  try {
-    const data = await oracle.analyzeProject(projectPath || process.cwd());
-    return { success: true, data };
-  } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error) };
-  }
-});
-
-ipcMain.handle('mcp-status', () => {
-  return getMcpStatus();
-});
-
-// Recent Projects IPC
-ipcMain.handle('get-recent-projects', () => {
-  return oracleStore.getState().recentProjects;
-});
-
-ipcMain.handle('clear-recent-projects', () => {
-  oracleStore.getState().clearRecentProjects();
-});
-
-ipcMain.handle('open-recent-project', async (_, projectPath: string) => {
-  try {
-    const data = await oracle.analyzeProject(projectPath);
-    return { success: true, data };
-  } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error) };
-  }
-});
-
-// Проксируем события Оракула в UI
-oracle.on('parsing-progress', (progress) => {
-  if (mainWindow) {
-    mainWindow.webContents.send('parsing-progress', progress);
-  }
-});
-
-oracle.on('graph-updated', async (graphData) => {
-  if (mainWindow) {
-    mainWindow.webContents.send('graph-updated', graphData);
-  }
-  
-  // Store in KuzuDB for persistence and querying
-  try {
-    const KuzuIntegrationCtor = await loadKuzuIntegrationCtor();
-    if (!KuzuIntegrationCtor) {
-      log.warn('[KuzuDB] Persistence skipped because KuzuIntegration is unavailable');
-      return;
-    }
-
-    const projectPath = graphData.projectRoot;
-    const kuzu = new KuzuIntegrationCtor(projectPath);
-    await kuzu.init();
-    await kuzu.storeGraph(graphData);
-    const stats = await kuzu.getStats();
-    log.info('[KuzuDB] Graph persisted:', stats);
-    await kuzu.close();
-  } catch (error: unknown) {
-    log.error('[KuzuDB] Failed to persist graph:', getErrorMessage(error));
-  }
-});
-
-// PR Impact Analysis
-ipcMain.handle('analyze-pr-impact', async (_, projectPath: string, baseBranch: string, headBranch: string) => {
-  try {
-    const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
-    const analyzer = new PRImpactAnalyzer(projectPath);
-    await analyzer.init();
-    const result = await analyzer.analyzePR(baseBranch, headBranch);
-    await analyzer.close();
-    return { success: true, data: result };
-  } catch (error: unknown) {
-    log.error('[PRImpact] Analysis failed:', getErrorMessage(error));
-    return { success: false, error: getErrorMessage(error) };
-  }
-});
-
-// Activity Heatmap
-ipcMain.handle('analyze-activity-heatmap', async (_, projectPath: string, since?: string, until?: string) => {
-  try {
-    const { GitActivityService } = await import('./services/GitActivityService.js');
-    const service = new GitActivityService(projectPath);
-    await service.init();
-    const result = service.analyzeChurn(
-      since ? new Date(since) : undefined,
-      until ? new Date(until) : undefined
-    );
-    await service.close();
-    return { success: true, data: result };
-  } catch (error: unknown) {
-    log.error('[Heatmap] Analysis failed:', getErrorMessage(error));
-    return { success: false, error: getErrorMessage(error) };
-  }
-});
-
-// Blast Radius v2
-ipcMain.handle('calculate-blast-radius', async (_, projectPath: string, nodeId: string, maxDepth?: number) => {
-  try {
-    const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
-    const analyzer = new BlastRadiusV2(projectPath);
-    await analyzer.init();
-    const result = await analyzer.calculate(nodeId, maxDepth || 5);
-    await analyzer.close();
-    return { success: true, data: result };
-  } catch (error: unknown) {
-    log.error('[BlastRadius] Calculation failed:', getErrorMessage(error));
-    return { success: false, error: getErrorMessage(error) };
-  }
 });
