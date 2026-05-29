@@ -19,6 +19,10 @@ export const getArchitectureViolationReason = (
     return null;
   }
 
+  if (sourceLayer === 'configuration') {
+    return null;
+  }
+
   if (targetLayer === 'presentation' && sourceLayer !== 'presentation') {
     return 'Внутренний слой зависит от presentation-слоя.';
   }

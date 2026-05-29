@@ -9,12 +9,7 @@ import { DetectedPattern } from './PatternDetectionAnalyzer';
 import { SecurityFinding } from './SecurityScanner';
 import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
 import { QualityBudget, QualityDashboard, QualityGovernanceService, RefactoringWave } from './QualityGovernanceService';
-import {
-  createGraphSummary,
-  promoteCodeTarget,
-  searchGraph,
-  toStructuralNodeId,
-} from './AgentContextUtils';
+import { createGraphSummary } from './AgentContextUtils';
 import { buildQualityArtifacts } from './contextSupport';
 import { AnalysisSnapshotService } from './AnalysisSnapshotService';
 import {
@@ -22,8 +17,14 @@ import {
   buildReviewNextSteps,
   buildReviewPriorities,
 } from './reviewContextPolicies';
+import {
+  buildReviewSecurityView,
+  normalizeReviewTaskMode,
+  prepareReviewFocusContext,
+  ReviewTaskMode,
+} from './reviewContextSupport';
 
-export type ReviewTaskMode = 'review' | 'architecture' | 'security' | 'stabilization';
+export type { ReviewTaskMode } from './reviewContextSupport';
 
 export interface PrepareReviewContextInput {
   focusQuery?: string;
@@ -89,10 +90,7 @@ export interface ReviewContextResult {
   nextSteps: string[];
 }
 
-const MAX_ALTERNATIVES = 5;
 const MAX_REVIEW_PATTERNS = 12;
-const MAX_REVIEW_FINDINGS = 20;
-const REVIEW_TASK_MODES: ReviewTaskMode[] = ['review', 'architecture', 'security', 'stabilization'];
 
 export class ReviewContextService {
   constructor(
@@ -105,7 +103,7 @@ export class ReviewContextService {
     graph: GraphData,
     input: PrepareReviewContextInput
   ): Promise<ReviewContextResult> {
-    const taskMode = this.normalizeReviewTaskMode(input.taskMode);
+    const taskMode = normalizeReviewTaskMode(input.taskMode);
     const { architecture, health, patterns, security } = await this.analysisSnapshotService.analyze(
       graph,
       {
@@ -115,7 +113,13 @@ export class ReviewContextService {
       }
     );
     const resolvedHealth = health!;
-    const focus = this.prepareFocusContext(graph, architecture, patterns, input);
+    const focus = prepareReviewFocusContext(
+      graph,
+      architecture,
+      patterns,
+      input.focusQuery,
+      input.type
+    );
     const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
       limit: input.limit || MAX_REVIEW_PATTERNS,
       focusNodeIds: focus?.matches.map((node) => node.id),
@@ -141,10 +145,7 @@ export class ReviewContextService {
         classifications: input.includeClassifications ? architecture.classifications : undefined,
       },
       patterns,
-      security: {
-        summary: security.summary,
-        findings: security.findings.slice(0, MAX_REVIEW_FINDINGS),
-      },
+      security: buildReviewSecurityView(security.findings),
       focus,
       qualityBudget,
       qualityDashboard,
@@ -179,60 +180,5 @@ export class ReviewContextService {
         decompositionGuidance
       ),
     };
-  }
-
-  private prepareFocusContext(
-    graph: GraphData,
-    architecture: ArchitectureOverview,
-    patterns: DetectedPattern[],
-    input: PrepareReviewContextInput
-  ): ReviewContextResult['focus'] {
-    if (!input.focusQuery?.trim()) {
-      return null;
-    }
-
-    const normalizedQuery = input.focusQuery.trim().toLowerCase();
-    const matches = searchGraph(graph, input.focusQuery, input.type, MAX_ALTERNATIVES);
-    if (matches.length === 0) {
-      return {
-        query: input.focusQuery,
-        matches: [],
-        classifications: [],
-        relatedPatterns: [],
-        relatedViolations: [],
-      };
-    }
-
-    const promotedMatch = promoteCodeTarget(matches, normalizedQuery);
-    if (promotedMatch) {
-      const remaining = matches.filter((node) => node.id !== promotedMatch.id);
-      matches.splice(0, matches.length, promotedMatch, ...remaining);
-    }
-
-    const focusIds = new Set(matches.map((node) => node.id));
-    const focusStructuralIds = new Set(matches.map((node) => toStructuralNodeId(node.id)));
-
-    return {
-      query: input.focusQuery,
-      matches,
-      classifications: architecture.classifications.filter(
-        (record) =>
-          focusIds.has(record.nodeId) || focusStructuralIds.has(toStructuralNodeId(record.nodeId))
-      ),
-      relatedPatterns: patterns.filter((pattern) =>
-        pattern.nodeIds.some(
-          (nodeId) => focusIds.has(nodeId) || focusStructuralIds.has(toStructuralNodeId(nodeId))
-        )
-      ),
-      relatedViolations: architecture.violations.filter(
-        (violation) =>
-          focusStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
-          focusStructuralIds.has(toStructuralNodeId(violation.targetId))
-      ),
-    };
-  }
-
-  private normalizeReviewTaskMode(taskMode?: ReviewTaskMode): ReviewTaskMode {
-    return REVIEW_TASK_MODES.includes(taskMode || 'review') ? taskMode || 'review' : 'review';
   }
 }
