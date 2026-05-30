@@ -1,0 +1,501 @@
+import type { GraphData, GraphNode } from '../store';
+import type {
+  ArchitectureLayer,
+  ArchitectureNodeClassification,
+  ArchitectureViolation,
+} from './ArchitectureInsightService';
+import type { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
+import type { ChangeTaskMode } from './ChangeContextService';
+import { isDiRuntimeLink } from './graphAnalysisUtils';
+import type { DetectedPattern } from './PatternDetectionAnalyzer';
+import { isChangeRiskPattern, isDesignSmellPattern } from './patternPolicies';
+import type { QualityBudget, RefactoringWave, QualityGovernanceService } from './QualityGovernanceService';
+import type { SecurityFinding } from './SecurityScanner';
+import { toStructuralNodeId, unique } from './AgentContextUtils';
+
+const MAX_PATTERN_RESULTS = 10;
+const MAX_SECURITY_FINDINGS = 12;
+
+export type CampaignBreadth = 'small' | 'medium' | 'large';
+
+export interface ChangeCampaignSecurityView {
+  summary: {
+    total: number;
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  findings: SecurityFinding[];
+}
+
+export interface ChangeCampaignBlastRadiusView {
+  seeds: Array<{
+    nodeId: string;
+    confidence: 'high' | 'medium' | 'low';
+    affectedFiles: string[];
+  }>;
+  totalAffectedFiles: number;
+}
+
+export interface ChangeCampaignWave {
+  id: string;
+  title: string;
+  goal: string;
+  layer: ArchitectureLayer | 'mixed';
+  fileIds: string[];
+}
+
+export function collectStructuralNodeIds(nodes: GraphNode[]) {
+  return new Set(nodes.map((node) => toStructuralNodeId(node.id)));
+}
+
+export function collectCampaignPatterns(
+  patterns: DetectedPattern[],
+  campaignStructuralIds: Set<string>
+) {
+  return patterns
+    .filter((pattern) =>
+      pattern.nodeIds.some((nodeId) => campaignStructuralIds.has(toStructuralNodeId(nodeId)))
+    )
+    .slice(0, MAX_PATTERN_RESULTS);
+}
+
+export function collectCampaignSecurityFindings(
+  findings: SecurityFinding[],
+  campaignStructuralIds: Set<string>
+) {
+  return findings
+    .filter((finding) => campaignStructuralIds.has(toStructuralNodeId(finding.nodeId)))
+    .slice(0, MAX_SECURITY_FINDINGS);
+}
+
+export function collectCampaignViolations(
+  violations: ArchitectureViolation[],
+  campaignStructuralIds: Set<string>
+) {
+  return violations.filter(
+    (violation) =>
+      campaignStructuralIds.has(toStructuralNodeId(violation.sourceId)) ||
+      campaignStructuralIds.has(toStructuralNodeId(violation.targetId))
+  );
+}
+
+export function buildCampaignSecurityView(findings: SecurityFinding[]): ChangeCampaignSecurityView {
+  return {
+    summary: {
+      total: findings.length,
+      critical: findings.filter((finding) => finding.severity === 'critical').length,
+      high: findings.filter((finding) => finding.severity === 'high').length,
+      medium: findings.filter((finding) => finding.severity === 'medium').length,
+      low: findings.filter((finding) => finding.severity === 'low').length,
+    },
+    findings,
+  };
+}
+
+export function collectMatchedFiles(
+  graph: GraphData,
+  seedTargets: GraphNode[],
+  candidateQueries: string[],
+  maxSeeds: number
+) {
+  const fileNodes = new Map<string, GraphNode>();
+
+  for (const target of seedTargets) {
+    const structuralId = toStructuralNodeId(target.id);
+    const fileNode = graph.nodes.find((node) => node.id === structuralId && node.type === 'file');
+    if (fileNode) {
+      fileNodes.set(fileNode.id, fileNode);
+    }
+  }
+
+  if (fileNodes.size === 0) {
+    for (const node of graph.nodes) {
+      if (node.type !== 'file') {
+        continue;
+      }
+      const matched = candidateQueries.some((query) => scoreCampaignNodeMatch(node, query) > 0);
+      if (matched) {
+        fileNodes.set(node.id, node);
+      }
+      if (fileNodes.size >= maxSeeds) {
+        break;
+      }
+    }
+  }
+
+  return Array.from(fileNodes.values()).slice(0, maxSeeds);
+}
+
+export function collectRuntimeCompositionRoots(graph: GraphData, files: GraphNode[]) {
+  const fileIds = new Set(files.map((node) => node.id));
+  const runtimeRoots = graph.links
+    .filter((link) => isDiRuntimeLink(link) && fileIds.has(toStructuralNodeId(link.source)))
+    .map((link) => graph.nodes.find((node) => node.id === toStructuralNodeId(link.source)))
+    .filter((node): node is GraphNode => node !== undefined && node.type === 'file');
+
+  return unique(runtimeRoots);
+}
+
+export function expandAffectedFiles(
+  graph: GraphData,
+  files: GraphNode[],
+  depth: number,
+  maxFiles: number
+) {
+  const collapsed = buildCollapsedFileGraph(graph);
+  const queue = files.map((node) => ({ id: node.id, depth: 0 }));
+  const visited = new Set(queue.map((entry) => entry.id));
+  const results = new Set(queue.map((entry) => entry.id));
+
+  while (queue.length > 0 && results.size < maxFiles) {
+    const current = queue.shift()!;
+    if (current.depth >= depth) {
+      continue;
+    }
+
+    const neighbors = [
+      ...(collapsed.outgoing.get(current.id) || []),
+      ...(collapsed.incoming.get(current.id) || []),
+    ];
+
+    for (const neighbor of neighbors) {
+      if (visited.has(neighbor)) {
+        continue;
+      }
+      visited.add(neighbor);
+      results.add(neighbor);
+      queue.push({ id: neighbor, depth: current.depth + 1 });
+      if (results.size >= maxFiles) {
+        break;
+      }
+    }
+  }
+
+  return Array.from(results)
+    .map((id) => graph.nodes.find((node) => node.id === id))
+    .filter((node): node is GraphNode => Boolean(node))
+    .slice(0, maxFiles);
+}
+
+export function buildChangeCampaignBlastRadius(
+  graph: GraphData,
+  files: GraphNode[],
+  depth: number,
+  maxFiles: number,
+  blastRadiusAnalyzer: Pick<BlastRadiusAnalyzer, 'analyze'>
+): ChangeCampaignBlastRadiusView {
+  const seeds = files.map((file) => {
+    const blast = blastRadiusAnalyzer.analyze(graph, file.id, depth);
+    const affectedFiles = unique([
+      file.id,
+      ...blast.directDependents.map((node) => toStructuralNodeId(node.id)),
+      ...blast.affectedNodes.map((node) => toStructuralNodeId(node.id)),
+    ]).slice(0, maxFiles);
+
+    return {
+      nodeId: file.id,
+      confidence: blast.confidence,
+      affectedFiles,
+    };
+  });
+
+  return {
+    seeds,
+    totalAffectedFiles: unique(seeds.flatMap((seed) => seed.affectedFiles)).length,
+  };
+}
+
+export function buildLayersInvolved(
+  affectedFiles: GraphNode[],
+  layerByNodeId: Map<string, ArchitectureNodeClassification>
+) {
+  const counts = new Map<ArchitectureLayer, number>();
+
+  for (const node of affectedFiles) {
+    const record = layerByNodeId.get(node.id);
+    if (!record) {
+      continue;
+    }
+    counts.set(record.layer, (counts.get(record.layer) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([layer, count]) => ({ layer, count }))
+    .sort((a, b) => b.count - a.count || a.layer.localeCompare(b.layer));
+}
+
+export function buildExecutionWaves(
+  affectedFiles: GraphNode[],
+  layerByNodeId: Map<string, ArchitectureNodeClassification>,
+  runtimeCompositionRoots: GraphNode[]
+): ChangeCampaignWave[] {
+  const groups = new Map<
+    string,
+    { layer: ArchitectureLayer | 'mixed'; title: string; goal: string; fileIds: string[] }
+  >();
+
+  const waveDefinition: Array<{
+    key: string;
+    layers: ArchitectureLayer[];
+    title: string;
+    goal: string;
+  }> = [
+    {
+      key: 'wave-runtime-contracts',
+      layers: ['integration', 'application'],
+      title: 'Wave 0: Runtime Contracts',
+      goal: 'Сначала проверить composition roots и DI wiring, чтобы миграция не сломала provider bindings и service registrations.',
+    },
+    {
+      key: 'wave-foundation',
+      layers: ['shared', 'state', 'configuration'],
+      title: 'Wave 1: Foundations',
+      goal: 'Сначала стабилизировать общие контракты, shared-типы и конфигурационные точки интеграции.',
+    },
+    {
+      key: 'wave-core',
+      layers: ['application', 'analysis', 'parsing'],
+      title: 'Wave 2: Core Logic',
+      goal: 'Потом перевести основную оркестрацию и бизнес/analysis ядро на новую модель.',
+    },
+    {
+      key: 'wave-edge',
+      layers: ['integration', 'presentation'],
+      title: 'Wave 3: Edge Integration',
+      goal: 'В конце адаптировать входные точки, UI и integration-слой к уже обновлённым контрактам.',
+    },
+  ];
+
+  for (const wave of waveDefinition) {
+    groups.set(wave.key, {
+      layer: wave.layers[0],
+      title: wave.title,
+      goal: wave.goal,
+      fileIds: [],
+    });
+  }
+
+  for (const root of runtimeCompositionRoots) {
+    groups.get('wave-runtime-contracts')?.fileIds.push(root.id);
+  }
+
+  for (const file of affectedFiles) {
+    if (runtimeCompositionRoots.some((root) => root.id === file.id)) {
+      continue;
+    }
+    const layer = layerByNodeId.get(file.id)?.layer;
+    const wave = waveDefinition.find((entry) => layer && entry.layers.includes(layer));
+    if (wave) {
+      groups.get(wave.key)!.fileIds.push(file.id);
+    } else {
+      const fallback = groups.get('wave-core');
+      if (fallback) {
+        fallback.fileIds.push(file.id);
+        fallback.layer = 'mixed';
+      }
+    }
+  }
+
+  return Array.from(groups.entries())
+    .map(([id, group]) => ({
+      id,
+      title: group.title,
+      goal: group.goal,
+      layer: group.layer,
+      fileIds: unique(group.fileIds).slice(0, 15),
+    }))
+    .filter((wave) => wave.fileIds.length > 0);
+}
+
+export function buildChangeCampaignRisks(
+  affectedFiles: GraphNode[],
+  runtimeCompositionRoots: GraphNode[],
+  layersInvolved: Array<{ layer: ArchitectureLayer; count: number }>,
+  campaignViolations: ArchitectureViolation[],
+  patterns: DetectedPattern[],
+  securityFindings: SecurityFinding[]
+) {
+  const risks: string[] = [];
+
+  if (affectedFiles.length >= 20) {
+    risks.push(
+      `Кампания затрагивает ${affectedFiles.length} файлов; высок риск частичных несовместимых изменений между волнами.`
+    );
+  }
+  if (layersInvolved.length >= 3) {
+    risks.push(
+      'Затронуто несколько архитектурных слоёв; нужно удержать границы и не смешать foundation/core/edge изменения.'
+    );
+  }
+  if (campaignViolations.length > 0) {
+    risks.push(
+      'Часть файлов кампании уже вовлечена в layer violations; миграция может закрепить smell, если не поправить границы сразу.'
+    );
+  }
+  if (
+    patterns.some(
+      (pattern) =>
+        pattern.id === 'hub_nodes' ||
+        pattern.id === 'high_fan_out_files' ||
+        isChangeRiskPattern(pattern)
+    )
+  ) {
+    risks.push(
+      'Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.'
+    );
+  }
+  if (patterns.some(isDesignSmellPattern)) {
+    risks.push(
+      'Кампания проходит через oversized/god modules и другие design smells; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.'
+    );
+  }
+  if (runtimeCompositionRoots.length > 0) {
+    risks.push(
+      'Кампания затрагивает runtime composition roots; provider bindings и service registrations нужно проверять как отдельный источник совместимости.'
+    );
+  }
+  if (securityFindings.length > 0) {
+    risks.push(
+      'В области кампании есть security findings; миграцию нужно сверять с безопасностью токенов, cookies и API contracts.'
+    );
+  }
+  if (risks.length === 0) {
+    risks.push(
+      'Явных structural red flags не найдено, но массовую миграцию всё равно нужно выполнять по фазам и с post-wave validation.'
+    );
+  }
+
+  return risks;
+}
+
+export function buildChangeCampaignNextSteps(args: {
+  taskMode: ChangeTaskMode;
+  directlyMatchedFiles: GraphNode[];
+  affectedFiles: GraphNode[];
+  runtimeCompositionRoots: GraphNode[];
+  waves: ChangeCampaignWave[];
+  hasSecurityFindings: boolean;
+  qualityBudget: QualityBudget;
+  refactoringWaves: RefactoringWave[];
+  qualityGovernanceService: Pick<QualityGovernanceService, 'summarizeBudgetForStep'>;
+}) {
+  const nextSteps = [
+    `CodeMaps определил задачу как multi-target campaign в режиме "${args.taskMode}".`,
+    `Сначала подтвердить seed-файлы кампании: ${
+      args.directlyMatchedFiles
+        .map((node) => node.id)
+        .slice(0, 5)
+        .join(', ') || 'явные seed-файлы не найдены'
+    }.`,
+    `После подтверждения выполнять миграцию волнами, а не пытаться править все ${args.affectedFiles.length} файлов за один проход.`,
+  ];
+
+  if (args.runtimeCompositionRoots.length > 0) {
+    nextSteps.push(
+      `Отдельно подтвердить runtime composition roots: ${args.runtimeCompositionRoots
+        .map((node) => node.id)
+        .slice(0, 5)
+        .join(', ')}.`
+    );
+  }
+
+  if (args.affectedFiles.some((node) => node.churn >= 10)) {
+    nextSteps.push(
+      'Для churn-heavy orchestration файлов заранее определить extraction boundaries и не добавлять новую логику без декомпозиции.'
+    );
+  }
+
+  for (const wave of args.waves.slice(0, 3)) {
+    nextSteps.push(`${wave.title}: ${wave.fileIds.length} файлов. Цель: ${wave.goal}`);
+  }
+
+  for (const wave of args.refactoringWaves.slice(0, 2)) {
+    nextSteps.push(
+      `${wave.title}: ${wave.targetLabels.length} extraction candidates. Цель: ${wave.goal}`
+    );
+  }
+
+  nextSteps.push(args.qualityGovernanceService.summarizeBudgetForStep(args.qualityBudget));
+
+  if (args.hasSecurityFindings) {
+    nextSteps.unshift('До начала миграции разобрать security findings в затронутой области.');
+  }
+
+  return nextSteps;
+}
+
+export function getCampaignBreadth(count: number): CampaignBreadth {
+  if (count >= 20) return 'large';
+  if (count >= 8) return 'medium';
+  return 'small';
+}
+
+export function scoreCampaignNodeMatch(node: GraphNode, rawQuery: string) {
+  const normalizedQuery = rawQuery.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return 0;
+  }
+
+  const normalizedLabel = node.label.toLowerCase();
+  const normalizedId = node.id.toLowerCase();
+  const structuralId = toStructuralNodeId(normalizedId);
+  const basename = structuralId.split('/').pop() || structuralId;
+  const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
+  let score = 0;
+
+  if (normalizedLabel === normalizedQuery) score += 160;
+  if (basename === normalizedQuery) score += node.type === 'file' ? 200 : 100;
+  if (basenameWithoutExtension === normalizedQuery) score += node.type === 'file' ? 240 : 120;
+  if (normalizedLabel.startsWith(normalizedQuery)) score += 90;
+  if (basename.startsWith(normalizedQuery)) score += node.type === 'file' ? 110 : 50;
+  if (basenameWithoutExtension.startsWith(normalizedQuery))
+    score += node.type === 'file' ? 130 : 60;
+  if (normalizedLabel.includes(normalizedQuery)) score += 45;
+  if (normalizedId.includes(normalizedQuery)) score += node.type === 'file' ? 40 : 20;
+
+  if (score === 0) {
+    return 0;
+  }
+
+  return score + getCampaignNodeTypePriority(node.type) * 10;
+}
+
+export function getCampaignNodeTypePriority(type: string) {
+  switch (type) {
+    case 'file':
+      return 5;
+    case 'class':
+      return 4;
+    case 'function':
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+function buildCollapsedFileGraph(graph: GraphData) {
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, string[]>();
+
+  for (const link of graph.links) {
+    const source = toStructuralNodeId(link.source);
+    const target = toStructuralNodeId(link.target);
+
+    if (source === target) {
+      continue;
+    }
+
+    const sourceNode = graph.nodes.find((node) => node.id === source);
+    const targetNode = graph.nodes.find((node) => node.id === target);
+    if (sourceNode?.type !== 'file' || targetNode?.type !== 'file') {
+      continue;
+    }
+
+    outgoing.set(source, unique([...(outgoing.get(source) || []), target]));
+    incoming.set(target, unique([...(incoming.get(target) || []), source]));
+  }
+
+  return { outgoing, incoming };
+}

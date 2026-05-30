@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { WebSocketClient } from '../../services/WebSocketClient';
+import { GraphRealtimeClient } from '../GraphRealtimeClient';
 import type { GraphSlice } from './graphSlice';
 
 export interface ConnectionSlice {
@@ -34,7 +34,14 @@ export const createConnectionSlice: StateCreator<
     },
 
     initializeWebSocket: () => {
-      WebSocketClient.getInstance().connect();
+      GraphRealtimeClient.getInstance().connect({
+        onGraphUpdated: (graphData) => {
+          set({ graphData });
+        },
+        onParsingProgress: (progress) => {
+          set({ parsingProgress: progress as { status: string; current: number; total: number; filename: string } });
+        },
+      });
     },
 
     fetchGraph: async (path?: string) => {

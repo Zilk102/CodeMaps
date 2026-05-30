@@ -24,6 +24,11 @@ import {
   buildProjectNextSteps,
   buildProjectProfile,
 } from './projectInsightNarrative';
+import {
+  buildProjectArchitectureView,
+  buildProjectSecurityView,
+  resolveProjectInsightLimit,
+} from './projectInsightSupport';
 
 export interface PrepareProjectContextInput {
   includeSecurityFindings?: boolean;
@@ -142,9 +147,6 @@ export interface ProjectInsightResult {
   nextSteps: string[];
 }
 
-const PATTERN_LIMIT = 10;
-const FINDING_LIMIT = 10;
-
 export class ProjectInsightService {
   constructor(
     private readonly analysisSnapshotService = new AnalysisSnapshotService(),
@@ -158,7 +160,7 @@ export class ProjectInsightService {
     graph: GraphData,
     input: PrepareProjectContextInput = {}
   ): Promise<ProjectInsightResult> {
-    const limit = input.limit || PATTERN_LIMIT;
+    const limit = resolveProjectInsightLimit(input.limit);
     const { architecture, health, patterns, security } = await this.analysisSnapshotService.analyze(
       graph,
       {
@@ -193,11 +195,11 @@ export class ProjectInsightService {
         stackProfile,
         stackTopology
       ),
-      architecture: this.buildArchitectureView(architecture, input.includeClassifications, limit),
+      architecture: buildProjectArchitectureView(architecture, input.includeClassifications, limit),
       health: resolvedHealth,
       operationalTelemetry,
       patterns,
-      security: this.buildSecurityView(security.findings, security.summary),
+      security: buildProjectSecurityView(security.findings, security.summary),
       mentalModel,
       autopilotPlan: buildProjectAutopilotPlan(
         architecture,
@@ -221,29 +223,6 @@ export class ProjectInsightService {
         refactoringWaves,
         (budget) => this.qualityGovernanceService.summarizeBudgetForStep(budget)
       ),
-    };
-  }
-
-  private buildArchitectureView(
-    architecture: ArchitectureOverview,
-    includeClassifications: boolean | undefined,
-    limit: number
-  ): ProjectInsightResult['architecture'] {
-    return {
-      summary: architecture.summary,
-      layers: architecture.layers,
-      dependencies: architecture.dependencies.slice(0, limit),
-      classifications: includeClassifications ? architecture.classifications : undefined,
-    };
-  }
-
-  private buildSecurityView(
-    findings: SecurityFinding[],
-    summary: ProjectInsightResult['security']['summary']
-  ): ProjectInsightResult['security'] {
-    return {
-      summary,
-      findings: findings.slice(0, FINDING_LIMIT),
     };
   }
 }

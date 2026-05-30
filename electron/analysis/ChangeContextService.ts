@@ -9,11 +9,7 @@ import { BlastRadiusAnalyzer, BlastRadiusResult } from './BlastRadiusAnalyzer';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
 import { DecompositionCandidate, DecompositionGuidanceService } from './DecompositionGuidanceService';
-import {
-  createGraphSummary,
-  toStructuralNodeId,
-} from './AgentContextUtils';
-import { resolveSecurityScan } from './contextSupport';
+import { createGraphSummary } from './AgentContextUtils';
 import {
   buildBlastRadiusView,
   buildDependenciesView,
@@ -29,8 +25,15 @@ import {
   buildChangeNextSteps,
   buildChangeRisks,
 } from './changeContextPolicies';
+import {
+  ChangeTaskMode,
+  collectRelatedSecurityFindings,
+  collectStructuralNodeIds,
+  normalizeChangeTaskMode,
+  resolveTargetClassification,
+} from './changeContextRuntimeSupport';
 
-export type ChangeTaskMode = 'bugfix' | 'feature' | 'refactor' | 'explore';
+export type { ChangeTaskMode } from './changeContextRuntimeSupport';
 
 export interface PrepareChangeContextInput {
   target: string;
@@ -103,7 +106,6 @@ export interface ChangeContextResult {
 const MAX_RELATED_NODES = 12;
 const MAX_RELATED_PATTERNS = 8;
 const MAX_RELATED_FINDINGS = 10;
-const CHANGE_TASK_MODES: ChangeTaskMode[] = ['bugfix', 'feature', 'refactor', 'explore'];
 
 export class ChangeContextService {
   constructor(
@@ -118,15 +120,15 @@ export class ChangeContextService {
     graph: GraphData,
     input: PrepareChangeContextInput
   ): Promise<ChangeContextResult> {
-    const taskMode = this.normalizeChangeTaskMode(input.taskMode);
+    const taskMode = normalizeChangeTaskMode(input.taskMode);
     const resolvedTarget = resolveTarget(graph, input.target, input.type);
     const architecture = this.architectureInsightService.analyze(graph);
-    const targetClassification =
-      architecture.classifications.find((record) => record.nodeId === resolvedTarget.node.id) ||
-      this.architectureInsightService.classifyNode(
-        resolvedTarget.node,
-        this.architectureInsightService.getActiveRules(graph.projectRoot)
-      );
+    const targetClassification = resolveTargetClassification({
+      architecture,
+      resolvedTarget,
+      graphProjectRoot: graph.projectRoot,
+      architectureInsightService: this.architectureInsightService,
+    });
     const dependencies = getNodeDependencies(graph, resolvedTarget.node.id);
     const blastRadius = this.blastRadiusAnalyzer.analyze(
       graph,
@@ -134,20 +136,20 @@ export class ChangeContextService {
       input.depth
     );
     const relatedNodeIds = collectRelatedNodeIds(resolvedTarget.node.id, dependencies, blastRadius);
-    const structuralNodeIds = new Set(
-      Array.from(relatedNodeIds, (nodeId) => toStructuralNodeId(nodeId))
-    );
+    const structuralNodeIds = collectStructuralNodeIds(relatedNodeIds);
     const relevantPatterns = collectRelevantPatterns(
       this.patternDetectionAnalyzer.analyze(graph).patterns,
       relatedNodeIds,
       structuralNodeIds,
       MAX_RELATED_PATTERNS
     );
-    const securityFindings = await this.collectRelatedSecurityFindings(
+    const securityFindings = await collectRelatedSecurityFindings({
       graph,
-      input.includeSecurityFindings,
-      structuralNodeIds
-    );
+      includeSecurityFindings: input.includeSecurityFindings,
+      structuralNodeIds,
+      maxFindings: MAX_RELATED_FINDINGS,
+      securityScanner: this.securityScanner,
+    });
 
     const targetViolations = collectTargetViolations(architecture, resolvedTarget.node.id);
     const recommendedFilesToInspect = collectRecommendedFilesToInspect(
@@ -209,20 +211,5 @@ export class ChangeContextService {
         decompositionCandidates,
       }),
     };
-  }
-
-  private async collectRelatedSecurityFindings(
-    graph: GraphData,
-    includeSecurityFindings: boolean | undefined,
-    structuralNodeIds: Set<string>
-  ) {
-    return (await resolveSecurityScan(graph, includeSecurityFindings, this.securityScanner)).findings
-      .filter((finding) => structuralNodeIds.has(toStructuralNodeId(finding.nodeId)))
-      .slice(0, MAX_RELATED_FINDINGS);
-  }
-
-
-  private normalizeChangeTaskMode(taskMode?: ChangeTaskMode): ChangeTaskMode {
-    return CHANGE_TASK_MODES.includes(taskMode || 'bugfix') ? taskMode || 'bugfix' : 'bugfix';
   }
 }
