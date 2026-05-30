@@ -144,7 +144,7 @@
     "tree-sitter-wasms": "^0.1.13",
     "typescript": "^5.0.0",
     "web-tree-sitter": "^0.26.8",
-    "ws": "^8.20.0",
+    "ws": "^8.21.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.12"
   },
