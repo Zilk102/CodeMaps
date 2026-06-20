@@ -146,7 +146,7 @@
     "web-tree-sitter": "^0.26.8",
     "ws": "^8.20.0",
     "zod": "^4.4.3",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
