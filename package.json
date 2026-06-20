@@ -197,7 +197,7 @@
     "tailwindcss": "^4.2.4",
     "tree-sitter-wasms": "^0.1.13",
     "vite": "^8.0.9",
-    "vitest": "^4.1.5",
+    "vitest": "^4.1.9",
     "wait-on": "^9.0.5"
   }
 }
