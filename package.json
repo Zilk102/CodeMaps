@@ -130,7 +130,7 @@
     "chokidar": "^5.0.0",
     "cors": "^2.8.6",
     "electron-log": "^5.4.3",
-    "electron-updater": "^6.8.3",
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "fast-glob": "^3.3.3",
     "i18next": "^26.0.8",
