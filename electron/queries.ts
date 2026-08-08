@@ -199,8 +199,8 @@ export const languageQueries: Record<string, string> = {
   `,
   c_sharp: `
     ; Imports
-    (using_directive name: (identifier) @import_path)
-    (using_directive name: (qualified_name) @import_path)
+    (using_directive (identifier) @import_path)
+    (using_directive (qualified_name) @import_path)
 
     ; Classes / Interfaces / Enums / Structs / Records
     (class_declaration name: (identifier) @class)
@@ -215,7 +215,7 @@ export const languageQueries: Record<string, string> = {
     (local_function_statement name: (identifier) @function)
 
     ; Variables
-    (variable_declaration (variable_declarator name: (identifier) @variable))
+    (variable_declaration (variable_declarator (identifier) @variable))
 
     ; Calls
     (invocation_expression function: (identifier) @call)
@@ -228,7 +228,7 @@ export const languageQueries: Record<string, string> = {
     ; Imports
     (namespace_use_declaration
       (namespace_use_clause
-        name: (qualified_name) @import_path))
+        (qualified_name) @import_path))
 
     ; Classes / Interfaces / Traits / Enums
     (class_declaration name: (name) @class)
@@ -241,7 +241,8 @@ export const languageQueries: Record<string, string> = {
     (method_declaration name: (name) @function)
 
     ; Variables
-    (simple_variable name: (variable_name) @variable)
+    (property_element (variable_name (name) @variable))
+    (assignment_expression left: (variable_name (name) @variable))
 
     ; Calls
     (function_call_expression function: (name) @call)
@@ -279,13 +280,15 @@ export const languageQueries: Record<string, string> = {
     ; Imports
     (variable_declaration
       (identifier) @import_entity
-      (call_expression
-        function: (identifier) @call
-        arguments: (arguments (string (string_content) @import_path))))
-    (#eq? @call "@import")
+      (builtin_function
+        (builtin_identifier) @import_builtin
+        (arguments (string (string_content) @import_path)))
+      (#eq? @import_builtin "@import"))
 
     ; Structs / Enums / Unions
-    (container_declaration (identifier) @class)
+    (variable_declaration (identifier) @class (struct_declaration))
+    (variable_declaration (identifier) @class (enum_declaration))
+    (variable_declaration (identifier) @class (union_declaration))
 
     ; Functions
     (function_declaration name: (identifier) @function)
@@ -298,55 +301,50 @@ export const languageQueries: Record<string, string> = {
     (call_expression function: (field_expression member: (identifier) @call))
 
     ; Comments
-    (line_comment) @comment
-    (doc_comment) @comment
+    (comment) @comment
   `,
   swift: `
     ; Imports
     (import_declaration (identifier) @import_path)
 
     ; Classes / Structs / Enums / Protocols / Actors
+    ; struct, enum and actor all parse as class_declaration with a declaration_kind field
     (class_declaration name: (type_identifier) @class)
-    (struct_declaration name: (type_identifier) @class)
-    (enum_declaration name: (type_identifier) @class)
     (protocol_declaration name: (type_identifier) @class)
-    (actor_declaration name: (type_identifier) @class)
 
     ; Functions / Initializers
     (function_declaration name: (simple_identifier) @function)
-    (init_declaration @function)
+    (init_declaration "init" @function)
 
     ; Variables
-    (property_declaration (pattern (identifier) @variable))
+    (property_declaration name: (pattern bound_identifier: (simple_identifier) @variable))
 
     ; Calls
-    (call_expression called_expression: (simple_identifier) @call)
-    (call_expression called_expression: (navigation_expression suffix: (simple_identifier) @call))
+    (call_expression (simple_identifier) @call)
+    (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @call)))
 
     ; Comments
     (comment) @comment
   `,
   kotlin: `
     ; Imports
-    (import_header identifier: (identifier) @import_path)
-    (import_header identifier: (navigation_expression) @import_path)
+    (import_header (identifier) @import_path)
 
     ; Classes / Interfaces / Enums / Objects
-    (class_declaration name: (type_identifier) @class)
-    (interface_declaration name: (type_identifier) @class)
-    (enum_class_body) @class
-    (object_declaration name: (identifier) @class)
+    ; interface and enum class both parse as class_declaration
+    (class_declaration (type_identifier) @class)
+    (object_declaration (type_identifier) @class)
 
     ; Functions
-    (function_declaration name: (simple_identifier) @function)
-    (secondary_constructor) @function
+    (function_declaration (simple_identifier) @function)
+    (secondary_constructor "constructor" @function)
 
     ; Variables
-    (property_declaration (variable_declaration name: (simple_identifier) @variable))
+    (property_declaration (variable_declaration (simple_identifier) @variable))
 
     ; Calls
     (call_expression (simple_identifier) @call)
-    (call_expression (navigation_suffix (simple_identifier) @call))
+    (call_expression (navigation_expression (navigation_suffix (simple_identifier) @call)))
 
     ; Comments
     (line_comment) @comment
