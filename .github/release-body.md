@@ -1,11 +1,13 @@
 # Release v1.1.9 🚀 — Parsing Restoration & Hardening
 
 ## 🇷🇺 Русская версия
+
 ### Обновление «Восстановление парсинга и укрепление»
 
 В этом релизе мы устранили критический сбой мультиязычного анализа: после обновления `web-tree-sitter` до 0.26 все языки кроме TypeScript молча отдавали пустой результат. Восстановлены грамматики и запросы, усилены безопасность Electron/MCP/IPC и доведена до ума инфраструктура CI и локализации.
 
 **Что нового:**
+
 - **🌳 Восстановление polyglot-парсинга:** `web-tree-sitter` зафиксирован на линии 0.25 — совместимой с готовыми WASM-грамматиками `tree-sitter-wasms`. Добавлен тест загрузки грамматик, чтобы регрессия больше не прошла незамеченной.
 - **🔧 Починка запросов языков:** Исправлены tree-sitter queries для **C#, PHP, Kotlin, Swift и Zig**, которые были написаны под более новые грамматики и не компилировались.
 - **🔒 Безопасность:**
@@ -19,11 +21,13 @@
 ---
 
 ## 🇺🇸 English Version
+
 ### Parsing Restoration & Hardening
 
 This release fixes a critical multi-language analysis outage: after `web-tree-sitter` 0.26, every language outside the TypeScript path silently returned empty parse results. Grammars and queries are restored, Electron/MCP/IPC hardening is tightened, and CI plus localization are brought up to date.
 
 **Key Highlights:**
+
 - **🌳 Polyglot parsing restored:** `web-tree-sitter` is pinned to the 0.25 line, which loads the prebuilt `tree-sitter-wasms` grammars correctly. A grammar-loading test guards against regressions.
 - **🔧 Language query repairs:** Tree-sitter queries for **C#, PHP, Kotlin, Swift, and Zig** — written against newer grammars — now compile and extract symbols again.
 - **🔒 Security hardening:**
@@ -37,11 +41,13 @@ This release fixes a critical multi-language analysis outage: after `web-tree-si
 ---
 
 ## 🇨🇳 中文版本
+
 ### “解析恢复与加固” 更新
 
 本版本修复了关键的多语言分析故障：升级到 `web-tree-sitter` 0.26 后，除 TypeScript 外的所有语言都会静默返回空解析结果。现已恢复语法与查询，强化 Electron/MCP/IPC 安全性，并完善 CI 与本地化。
 
 **主要更新：**
+
 - **🌳 多语言解析恢复：** 将 `web-tree-sitter` 固定在 0.25 系列，以正确加载预构建的 `tree-sitter-wasms` 语法，并新增语法加载测试防止回归。
 - **🔧 语言查询修复：** 修复了面向较新语法编写、无法编译的 **C#、PHP、Kotlin、Swift、Zig** tree-sitter 查询。
 - **🔒 安全加固：**
