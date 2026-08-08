@@ -53,7 +53,7 @@ AI 에이전트를 위한 10개 이상의 내장 도구: 프로젝트 분석, �
 
 [Releases](https://github.com/Zilk102/CodeMaps/releases) 페이지에서 플랫폼에 맞는 최신 버전을 다운로드하세요.
 
-이 애플리케이션은 복잡한 설치 없이 **Windows**, **Linux**, **macOS**에서 바로 작동합니다.
+이 애플리케이션은 복잡한 설치 없이 **Windows** 와 **Linux** 에서 바로 작동합니다. macOS 빌드는 아직 배포되지 않습니다.
 
 ### 빠른 시작
 
@@ -69,11 +69,12 @@ AI 에이전트를 위한 10개 이상의 내장 도구: 프로젝트 분석, �
 
 ## 🛠️ 개발
 
-프로젝트는 다음 스택으로 구축되었습니다: **Electron + React + TypeScript + Vite**. 그래프 시각화에는 Sigma.js를 사용합니다.
+프로젝트는 다음 스택으로 구축되었습니다: **Electron + React + TypeScript + Vite**. 그래프는 SVG로 렌더링하며 레이아웃은 elkjs가 계산합니다.
 
 ### 필수 조건
 
-- Node.js 20+
+- Node.js 22+
+- yarn (프로젝트는 `yarn.lock` 을 사용하며 npm 잠금 파일은 지원하지 않습니다)
 - npm 또는 yarn
 
 ### 로컬에서 실행
@@ -84,7 +85,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # 의존성 설치
-npm install
+yarn install
 
 # 개발 모드로 애플리케이션 시작
 npm run dev

@@ -53,7 +53,7 @@ Los recursos proporcionan a los agentes de IA resúmenes de proyectos de alto ni
 
 Descargue la última versión para su plataforma desde la página de [Releases](https://github.com/Zilk102/CodeMaps/releases).
 
-La aplicación no requiere una instalación compleja y funciona inmediatamente en **Windows**, **Linux** y **macOS**.
+La aplicación no requiere una instalación compleja y funciona inmediatamente en **Windows** y **Linux**. Todavía no se publican compilaciones para macOS.
 
 ### Inicio rápido
 
@@ -69,11 +69,12 @@ La aplicación no requiere una instalación compleja y funciona inmediatamente e
 
 ## 🛠️ Desarrollo
 
-El proyecto está construido con el siguiente stack: **Electron + React + TypeScript + Vite**. La visualización de gráficos utiliza Sigma.js.
+El proyecto está construido con el siguiente stack: **Electron + React + TypeScript + Vite**. El grafo se renderiza en SVG y elkjs calcula el diseño.
 
 ### Requisitos previos
 
-- Node.js 20+
+- Node.js 22+
+- yarn (el proyecto incluye `yarn.lock`; los lockfiles de npm no son compatibles)
 - npm o yarn
 
 ### Ejecución local
@@ -84,7 +85,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # Instalar dependencias
-npm install
+yarn install
 
 # Iniciar la aplicación en modo desarrollo
 npm run dev

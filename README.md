@@ -53,7 +53,7 @@ Resources provide AI agents with high-level project summaries, full graph export
 
 Download the portable version from the [Releases](https://github.com/Zilk102/CodeMaps/releases) page.
 
-The application requires no complex installation and works right out of the box on **Windows**, **Linux**, and **macOS**.
+The application requires no complex installation and works right out of the box on **Windows** and **Linux**. macOS builds are not published yet.
 
 ### Quick Start
 
@@ -69,12 +69,12 @@ The application requires no complex installation and works right out of the box 
 
 ## 🛠️ Development
 
-The project is built on the following stack: **Electron + React + TypeScript + Vite**. Sigma.js is used for graph visualization.
+The project is built on the following stack: **Electron + React + TypeScript + Vite**. The graph is rendered as SVG with layouts computed by elkjs.
 
 ### Prerequisites
 
-- Node.js 20+
-- npm or yarn
+- Node.js 22+
+- yarn (the project ships a `yarn.lock`; npm lockfiles are not supported)
 
 ### Run Locally
 
@@ -84,7 +84,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # Install dependencies
-npm install
+yarn install
 
 # Start the application in development mode
 npm run dev

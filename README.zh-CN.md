@@ -53,7 +53,7 @@ CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理
 
 从 [Releases](https://github.com/Zilk102/CodeMaps/releases) 页面下载适合您平台的最新版本。
 
-该应用程序无需复杂的安装，可在 **Windows**、**Linux** 和 **macOS** 上直接使用。
+该应用程序无需复杂的安装，可在 **Windows** 和 **Linux** 上直接使用。目前尚未发布 macOS 版本。
 
 ### 快速开始
 
@@ -69,11 +69,12 @@ CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理
 
 ## 🛠️ 开发
 
-项目基于以下技术栈构建：**Electron + React + TypeScript + Vite**。图表可视化使用 Sigma.js。
+项目基于以下技术栈构建：**Electron + React + TypeScript + Vite**。图表以 SVG 渲染，布局由 elkjs 计算。
 
 ### 前提条件
 
-- Node.js 20+
+- Node.js 22+
+- yarn（项目使用 `yarn.lock`，不支持 npm 锁文件）
 - npm 或 yarn
 
 ### 本地运行
@@ -84,7 +85,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # 安装依赖
-npm install
+yarn install
 
 # 在开发模式下启动应用程序
 npm run dev

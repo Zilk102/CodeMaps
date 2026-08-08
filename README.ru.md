@@ -53,7 +53,7 @@ CodeMaps запускает MCP-сервер с HTTP и WebSocket endpoints, п�
 
 Скачайте последнюю версию для вашей платформы из раздела [Releases](https://github.com/Zilk102/CodeMaps/releases).
 
-Приложение не требует сложной установки и работает сразу на **Windows**, **Linux** и **macOS**.
+Приложение не требует сложной установки и работает сразу на **Windows** и **Linux**. Сборки для macOS пока не публикуются.
 
 ### Быстрый старт
 
@@ -69,11 +69,12 @@ CodeMaps запускает MCP-сервер с HTTP и WebSocket endpoints, п�
 
 ## 🛠️ Разработка
 
-Проект построен на стеке: **Electron + React + TypeScript + Vite**. Для визуализации графов используется Sigma.js.
+Проект построен на стеке: **Electron + React + TypeScript + Vite**. Граф рисуется через SVG, раскладку считает elkjs.
 
 ### Требования
 
-- Node.js 20+
+- Node.js 22+
+- yarn (в проекте используется `yarn.lock`; npm-локфайлы не поддерживаются)
 - npm или yarn
 
 ### Запуск локально
@@ -84,7 +85,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # Установка зависимостей
-npm install
+yarn install
 
 # Запуск приложения в режиме разработки
 npm run dev

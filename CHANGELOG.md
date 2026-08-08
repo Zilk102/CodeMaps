@@ -1,5 +1,24 @@
 # CodeMaps Changelog
 
+## Unreleased
+
+### 🐛 Fixes
+- **Restored parsing for every non-TypeScript language.** `web-tree-sitter` 0.26 cannot load the prebuilt `tree-sitter-wasms` grammars, so every file outside the TypeScript semantic path silently produced an empty parse result. The runtime is pinned to the 0.25 line and covered by a grammar-loading test.
+- Repaired the C#, PHP, Kotlin, Swift and Zig queries, which were written against newer grammars and failed to compile.
+- Fixed the activity heatmap, which passed `git` twice on its own command line and read the commit author out of the wrong field.
+- Completed the Chinese translation (45 missing keys) and added the previously inline `ErrorBoundary` strings to all catalogues.
+
+### 🔒 Security
+- PR impact analysis no longer builds `git` commands as shell strings from caller-supplied branch names.
+- MCP CORS is restricted to loopback origins; the renderer runs sandboxed with navigation, popups and `<webview>` blocked.
+- Project paths and branch names arriving over IPC are validated, custom architecture-rule regexes are checked with `safe-regex`, and content scanners honour the parser's file size cap.
+
+### 🧹 Maintenance
+- CI now runs lint, formatting, tests and typecheck; the suite passes from a clean clone.
+- Removed dead services, stray root files, the duplicate `package-lock.json` and 14 unused dependencies.
+
+---
+
 ## v1.0.2 (2026-04-26)
 
 ### 🌍 Multilingual Support (i18n)

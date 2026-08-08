@@ -53,7 +53,7 @@ AI エージェント向けの 10 以上の組み込みツール：プロジェ�
 
 [Releases](https://github.com/Zilk102/CodeMaps/releases) ページから、お使いのプラットフォーム用の最新バージョンをダウンロードしてください。
 
-このアプリケーションは複雑なインストールを必要とせず、**Windows**、**Linux**、**macOS**ですぐに動作します。
+このアプリケーションは複雑なインストールを必要とせず、**Windows** と **Linux** ですぐに動作します。macOS 向けビルドはまだ配布していません。
 
 ### クイックスタート
 
@@ -69,11 +69,12 @@ AI エージェント向けの 10 以上の組み込みツール：プロジェ�
 
 ## 🛠️ 開発
 
-プロジェクトは、**Electron + React + TypeScript + Vite** のスタックで構築されています。グラフの可視化には Sigma.js を使用しています。
+プロジェクトは、**Electron + React + TypeScript + Vite** のスタックで構築されています。グラフは SVG で描画し、レイアウトは elkjs が計算します。
 
 ### 前提条件
 
-- Node.js 20+
+- Node.js 22+
+- yarn（本プロジェクトは `yarn.lock` を使用します。npm のロックファイルには対応していません）
 - npm または yarn
 
 ### ローカルでの実行
@@ -84,7 +85,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # 依存関係のインストール
-npm install
+yarn install
 
 # 開発モードでアプリケーションを起動
 npm run dev
