@@ -8,7 +8,16 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist-electron/**', 'dist-renderer/**', 'release/**', 'node_modules/**', 'electron/assets/**', 'electron/parsing/treeSitterRuntime.js', 'src/assets/**', 'scripts/**', 'docs/**', '*.js', 'electron/parsing/tree-sitter-runtime.js', 'tree-sitter-runtime.js', 'electron/vendor/**', 'dist/**', 'resources/**', 'electron/tree-sitter-runtime.js', 'electron/parsing/tree-sitter-runtime.js', '.release-app/**'],
+    ignores: [
+      'dist/**',
+      'dist-electron/**',
+      'dist-renderer/**',
+      'release/**',
+      'node_modules/**',
+      // Compiled tree-sitter runtime copies that electron-builder drops next to sources.
+      '**/tree-sitter-runtime.js',
+      '**/treeSitterRuntime.js',
+    ],
   },
   js.configs.recommended,
   {
