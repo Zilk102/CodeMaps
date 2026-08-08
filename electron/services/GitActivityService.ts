@@ -1,6 +1,9 @@
 import { spawnSync } from 'child_process';
+import log from 'electron-log/main';
 import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
+
+const COMMIT_PREFIX = 'COMMIT:';
 
 export interface FileChurn {
   filePath: string;
@@ -33,40 +36,36 @@ export class GitActivityService {
   }
 
   analyzeChurn(since?: Date, until?: Date): HeatmapData {
-    // Get git log with stats
-    const sinceStr = since ? `--since="${since.toISOString()}"` : '';
-    const untilStr = until ? `--until="${until.toISOString()}"` : '';
-    
     const logOutput = this.execGit([
-      'git', 'log',
-      "'--format=COMMIT:%H|%an|%at'",
+      'log',
+      `--format=${COMMIT_PREFIX}%H|%an|%at`,
       '--numstat',
-      sinceStr,
-      untilStr,
+      ...(since ? [`--since=${since.toISOString()}`] : []),
+      ...(until ? [`--until=${until.toISOString()}`] : []),
       '--',
-      '.'
+      '.',
     ]);
 
     const fileMap = new Map<string, FileChurn>();
+    const commitsPerFile = new Map<string, Set<string>>();
     let currentCommit = '';
     let currentAuthor = '';
     let currentDate = new Date();
-    const processedCommits = new Set<string>();
 
     for (const line of logOutput.split('\n')) {
-      if (line.startsWith('COMMIT:')) {
-        const [, hash, author, timestamp] = line.split('|');
+      if (line.startsWith(COMMIT_PREFIX)) {
+        const [hash, author, timestamp] = line.slice(COMMIT_PREFIX.length).split('|');
         currentCommit = hash;
         currentAuthor = author;
-        currentDate = new Date(parseInt(timestamp) * 1000);
-        processedCommits.add(hash);
-      } else if (line.trim() && !line.startsWith('COMMIT:')) {
+        const seconds = parseInt(timestamp, 10);
+        currentDate = Number.isNaN(seconds) ? new Date(0) : new Date(seconds * 1000);
+      } else if (line.trim()) {
         const [additions, deletions, filePath] = line.split('\t');
-        
-        if (!filePath || filePath.startsWith('COMMIT:')) continue;
+
+        if (!filePath) continue;
 
         const absPath = path.resolve(this.projectPath, filePath);
-        
+
         let churn = fileMap.get(absPath);
         if (!churn) {
           churn = {
@@ -75,37 +74,32 @@ export class GitActivityService {
             additions: 0,
             deletions: 0,
             lastModified: currentDate,
-            authors: []
+            authors: [],
           };
           fileMap.set(absPath, churn);
+          commitsPerFile.set(absPath, new Set());
         }
 
-        // Count each commit only once per file
-        if (!churn.authors.includes(currentCommit)) {
+        const seenCommits = commitsPerFile.get(absPath)!;
+        if (!seenCommits.has(currentCommit)) {
+          seenCommits.add(currentCommit);
           churn.commits++;
-          churn.authors.push(currentCommit);
         }
-        
-        churn.additions += parseInt(additions) || 0;
-        churn.deletions += parseInt(deletions) || 0;
-        
+
+        churn.additions += parseInt(additions, 10) || 0;
+        churn.deletions += parseInt(deletions, 10) || 0;
+
         if (currentDate > churn.lastModified) {
           churn.lastModified = currentDate;
         }
 
-        if (!churn.authors.includes(currentAuthor)) {
+        if (currentAuthor && !churn.authors.includes(currentAuthor)) {
           churn.authors.push(currentAuthor);
         }
       }
     }
 
     const files = Array.from(fileMap.values());
-    
-    // Clean up authors array (remove commit hashes, keep unique authors)
-    files.forEach(f => {
-      f.authors = [...new Set(f.authors.filter(a => !/^[a-f0-9]{40}$/i.test(a)))];
-    });
-
     const maxCommits = Math.max(...files.map(f => f.commits), 1);
     const maxChanges = Math.max(...files.map(f => f.additions + f.deletions), 1);
 
@@ -122,18 +116,18 @@ export class GitActivityService {
   }
 
   private execGit(args: string[]): string {
-    try {
-      const result = spawnSync('git', args.filter(Boolean), {
-        encoding: 'utf-8',
-        cwd: this.projectPath,
-        maxBuffer: 50 * 1024 * 1024,
-      });
-      if (result.error) throw result.error;
-      return result.stdout || '';
-    } catch (error: any) {
-      console.error('Git command failed:', error.message);
+    const result = spawnSync('git', args, {
+      encoding: 'utf-8',
+      cwd: this.projectPath,
+      maxBuffer: 50 * 1024 * 1024,
+    });
+
+    if (result.error || result.status !== 0) {
+      log.warn('[Heatmap] git command failed:', args.join(' '), result.stderr?.trim());
       return '';
     }
+
+    return result.stdout || '';
   }
 
   async getNodeChurn(nodeId: string): Promise<FileChurn | null> {

@@ -1,5 +1,5 @@
-import * as fs from 'fs/promises';
 import { GraphData } from '../store';
+import { readFileWithinLimit } from '../parsing/fileLimits';
 
 export interface SecurityFinding {
   ruleId: string;
@@ -125,7 +125,9 @@ export class SecurityScanner {
       }
 
       try {
-        const content = await fs.readFile(node.id, 'utf-8');
+        const content = await readFileWithinLimit(node.id);
+        if (content === null) continue;
+
         const sanitizedContent = stripStringsAndComments(content);
 
         for (const rule of SANITIZED_CONTENT_RULES) {

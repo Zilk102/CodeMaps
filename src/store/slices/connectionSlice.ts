@@ -21,16 +21,12 @@ export const createConnectionSlice: StateCreator<
     initializeWatcher: () => {
       if (isWatcherInitialized) return;
       isWatcherInitialized = true;
-      if (window.api?.onGraphUpdate) {
-        window.api.onGraphUpdate((data) => {
-          set({ graphData: data });
-        });
-      }
-      if (window.api?.onParsingProgress) {
-        window.api.onParsingProgress((progress) => {
-          set({ parsingProgress: progress as { status: string; current: number; total: number; filename: string } });
-        });
-      }
+      window.api?.onGraphUpdate?.((data) => {
+        set({ graphData: data });
+      });
+      window.api?.onParsingProgress?.((progress) => {
+        set({ parsingProgress: progress });
+      });
     },
 
     initializeWebSocket: () => {

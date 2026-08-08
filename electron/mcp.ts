@@ -48,13 +48,37 @@ export const getMcpStatus = (): McpStatus => {
   return mcpService?.getStatus() || getMcpStatusInternal();
 };
 
+export const isLoopbackOrigin = (origin: string): boolean => {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
+  } catch {
+    return false;
+  }
+};
+
 export function setupMcpServer() {
   if (mcpService) {
     return mcpService;
   }
 
   const app = createMcpExpressApp({ host: MCP_HOST });
-  app.use(cors());
+  // MCP clients are local processes and send no Origin header. Browsers always do,
+  // so allowing only loopback origins keeps a random web page the user has open from
+  // reading the indexed codebase off this port.
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (!origin || isLoopbackOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error('Origin not allowed'));
+      },
+      exposedHeaders: ['Mcp-Session-Id'],
+      allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Mcp-Session-Id', 'Last-Event-ID'],
+    })
+  );
   app.use(express.json({ limit: '10mb' }));
 
   app.get('/mcp/status', (_req, res) => {
@@ -74,8 +98,11 @@ export function setupMcpServer() {
           linksCount: graph.links.length,
         },
       });
-    } catch (error: any) {
-      res.status(500).json({ status: 'error', message: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -127,12 +154,15 @@ export function setupMcpServer() {
       if (typeof sessionId === 'string' && transports[sessionId]) {
         record = transports[sessionId];
       } else if (!sessionId && isInitializeRequest(req.body)) {
+        // The session callback can fire before the enclosing statement finishes, so the
+        // server instance has to exist before the transport is constructed.
+        const mcpServer = createMcpServerInstance();
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (initializedSessionId) => {
             transports[initializedSessionId] = {
               transport,
-              server: record!.server,
+              server: mcpServer,
             };
           },
         });
@@ -144,10 +174,7 @@ export function setupMcpServer() {
           }
         };
 
-        record = {
-          transport,
-          server: createMcpServerInstance(),
-        };
+        record = { transport, server: mcpServer };
 
         await record.server.connect(transport);
         await transport.handleRequest(req, res, req.body);

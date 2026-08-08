@@ -1,11 +1,16 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import log from 'electron-log/main';
 import { getMcpStatus, setupMcpServer, shutdownMcpServer } from './mcp';
 import { oracle } from './oracle';
-import { initAutoUpdater, quitAndInstallDownloadedUpdate, shutdownAutoUpdater } from './autoUpdater';
+import {
+  initAutoUpdater,
+  quitAndInstallDownloadedUpdate,
+  setAutoUpdaterWindow,
+  shutdownAutoUpdater,
+} from './autoUpdater';
 import { shutdownKuzuProcessManager } from './services/KuzuGraphService';
 import type { KuzuIntegration as KuzuIntegrationInstance } from './services/KuzuIntegration';
 import { gracefulShutdown } from './shutdown';
@@ -61,7 +66,7 @@ function ensureSafeProcessCwd(): void {
         fs.mkdirSync(candidate, { recursive: true });
       }
       process.chdir(candidate);
-      console.warn('[App] Restored invalid process.cwd() to:', candidate);
+      log.warn('[App] Restored invalid process.cwd() to:', candidate);
       return;
     } catch {
       // Try the next candidate.
@@ -133,6 +138,34 @@ async function installDownloadedUpdate() {
   }
 }
 
+const DEV_SERVER_ORIGIN = 'http://localhost:5173';
+
+// The renderer only ever needs its own bundle. Anything else — a link in an ADR
+// comment, an injected iframe — must go to the user's browser rather than gain a
+// window that shares this app's preload bridge.
+function hardenWebContents(window: BrowserWindow) {
+  const isAllowedInternalUrl = (url: string) =>
+    url.startsWith('file://') || url.startsWith(DEV_SERVER_ORIGIN) || url.startsWith('data:text/html');
+
+  window.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedInternalUrl(url)) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  window.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault();
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -141,6 +174,10 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
     },
     backgroundColor: '#0f111a',
     titleBarStyle: 'hidden',
@@ -148,13 +185,15 @@ function createWindow() {
     titleBarOverlay: false,
   });
 
+  hardenWebContents(mainWindow);
+
   if (isE2EShutdownTest) {
     void mainWindow.loadURL(
       'data:text/html;charset=UTF-8,' +
         encodeURIComponent('<!doctype html><html><body>CodeMaps shutdown e2e</body></html>')
     );
   } else if (!app.isPackaged) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL(DEV_SERVER_ORIGIN);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist-renderer/index.html'));
@@ -186,7 +225,14 @@ app.whenReady().then(() => {
   }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length > 0) {
+      return;
+    }
+
+    createWindow();
+    if (mainWindow) {
+      setAutoUpdaterWindow(mainWindow);
+    }
   });
 });
 

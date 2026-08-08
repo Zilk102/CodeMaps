@@ -1,5 +1,15 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { ElectronAPI } from '../src/types/electron';
+
+// Returning an unsubscribe handle keeps repeated subscriptions (StrictMode double
+// mounts, hot reloads) from stacking listeners on the same channel forever.
+const subscribe = <T>(channel: string, callback: (payload: T) => void) => {
+  const listener = (_event: IpcRendererEvent, payload: T) => callback(payload);
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+};
 
 const api: ElectronAPI = {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
@@ -9,12 +19,8 @@ const api: ElectronAPI = {
   minimize: () => ipcRenderer.invoke('window-minimize'),
   maximize: () => ipcRenderer.invoke('window-maximize'),
   close: () => ipcRenderer.invoke('window-close'),
-  onGraphUpdate: (callback) => {
-    ipcRenderer.on('graph-updated', (_event, data) => callback(data));
-  },
-  onParsingProgress: (callback) => {
-    ipcRenderer.on('parsing-progress', (_event, data) => callback(data));
-  },
+  onGraphUpdate: (callback) => subscribe('graph-updated', callback),
+  onParsingProgress: (callback) => subscribe('parsing-progress', callback),
   // Updater IPC
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   installUpdate: () => ipcRenderer.invoke('updater:install'),
@@ -30,11 +36,6 @@ const api: ElectronAPI = {
   getRecentProjects: () => ipcRenderer.invoke('get-recent-projects'),
   clearRecentProjects: () => ipcRenderer.invoke('clear-recent-projects'),
   openRecentProject: (projectPath: string) => ipcRenderer.invoke('open-recent-project', projectPath),
-
-  // Graph Persistence
-  saveGraphToKuzu: (projectPath, graphData) => ipcRenderer.invoke('save-graph-to-kuzu', projectPath, graphData),
-  loadGraphFromKuzu: (projectPath) => ipcRenderer.invoke('load-graph-from-kuzu', projectPath),
-  clearGraphCache: (projectPath) => ipcRenderer.invoke('clear-graph-cache', projectPath),
 
   // PR Impact Analysis
   analyzePRImpact: (projectPath, baseBranch, headBranch) =>

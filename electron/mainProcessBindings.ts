@@ -1,7 +1,30 @@
 import { BrowserWindow, dialog, IpcMain } from 'electron';
+import * as fs from 'fs';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
 import { persistGraphToKuzu } from './graphPersistence';
+
+// Renderer arguments arrive unvalidated over IPC, and every analytics handler feeds
+// its project path straight into git and the filesystem.
+function requireProjectDirectory(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('A project path is required');
+  }
+
+  if (!fs.existsSync(value) || !fs.statSync(value).isDirectory()) {
+    throw new Error(`Not a directory: ${value}`);
+  }
+
+  return value;
+}
+
+function requireString(value: unknown, label: string): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${label} is required`);
+  }
+
+  return value;
+}
 
 interface LoggerLike {
   info: (...args: unknown[]) => void;
@@ -99,12 +122,16 @@ function registerAnalyticsBindings(
 ) {
   ipcMain.handle(
     'analyze-pr-impact',
-    async (_, projectPath: string, baseBranch: string, headBranch: string) => {
+    async (_, rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) => {
       try {
+        const projectPath = requireProjectDirectory(rawProjectPath);
         const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
         const analyzer = new PRImpactAnalyzer(projectPath);
         await analyzer.init();
-        const result = await analyzer.analyzePR(baseBranch, headBranch);
+        const result = await analyzer.analyzePR(
+          requireString(baseBranch, 'Base branch'),
+          requireString(headBranch, 'Head branch')
+        );
         await analyzer.close();
         return { success: true, data: result };
       } catch (error: unknown) {
@@ -116,8 +143,9 @@ function registerAnalyticsBindings(
 
   ipcMain.handle(
     'analyze-activity-heatmap',
-    async (_, projectPath: string, since?: string, until?: string) => {
+    async (_, rawProjectPath: unknown, since?: string, until?: string) => {
       try {
+        const projectPath = requireProjectDirectory(rawProjectPath);
         const { GitActivityService } = await import('./services/GitActivityService.js');
         const service = new GitActivityService(projectPath);
         await service.init();
@@ -136,12 +164,13 @@ function registerAnalyticsBindings(
 
   ipcMain.handle(
     'calculate-blast-radius',
-    async (_, projectPath: string, nodeId: string, maxDepth?: number) => {
+    async (_, rawProjectPath: unknown, nodeId: unknown, maxDepth?: number) => {
       try {
+        const projectPath = requireProjectDirectory(rawProjectPath);
         const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
         const analyzer = new BlastRadiusV2(projectPath);
         await analyzer.init();
-        const result = await analyzer.calculate(nodeId, maxDepth || 5);
+        const result = await analyzer.calculate(requireString(nodeId, 'Node id'), maxDepth || 5);
         await analyzer.close();
         return { success: true, data: result };
       } catch (error: unknown) {

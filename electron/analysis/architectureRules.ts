@@ -1,3 +1,5 @@
+import safeRegex from 'safe-regex';
+import log from 'electron-log/main';
 import { loadProjectArchitectureRuleRecords } from './projectArchitectureRuleLoader';
 import { ArchitectureLayer, ArchitectureRule } from './architectureTypes';
 
@@ -32,6 +34,13 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
 const toArchitectureRule = (
   rule: { pattern: string; layer: string; reason?: string }
 ): ArchitectureRule | null => {
+  // Patterns come from a project's checked-in .codemaps/architecture.json and are run
+  // against every node path, so a catastrophically backtracking one would hang indexing.
+  if (!safeRegex(rule.pattern)) {
+    log.warn('[Architecture] Ignoring custom rule with unsafe pattern:', rule.pattern);
+    return null;
+  }
+
   try {
     return {
       pattern: new RegExp(rule.pattern, 'i'),

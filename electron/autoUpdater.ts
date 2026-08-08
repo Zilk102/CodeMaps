@@ -38,6 +38,12 @@ function getPublishConfig() {
   return undefined;
 }
 
+// On macOS the window is destroyed on close and rebuilt on activate, so the cached
+// reference has to be refreshed or update notifications go to a dead webContents.
+export function setAutoUpdaterWindow(window: BrowserWindow) {
+  mainWindow = window;
+}
+
 export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptions = {}) {
   mainWindow = window;
 
@@ -51,8 +57,8 @@ export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptio
     try {
       const result = await autoUpdater.checkForUpdates();
       return { success: true, updateInfo: result?.updateInfo };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   });
 
