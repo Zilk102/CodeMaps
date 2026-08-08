@@ -86,7 +86,12 @@ class KuzuProcessManager {
     });
   }
 
-  async request<T>(action: KuzuAction, dbPath: string, dbDir: string, params?: Record<string, unknown>): Promise<T> {
+  async request<T>(
+    action: KuzuAction,
+    dbPath: string,
+    dbDir: string,
+    params?: Record<string, unknown>
+  ): Promise<T> {
     const child = this.ensureChild();
     const id = this.nextRequestId++;
 

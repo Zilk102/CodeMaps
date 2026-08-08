@@ -3,17 +3,20 @@
 ## Unreleased
 
 ### 🐛 Fixes
+
 - **Restored parsing for every non-TypeScript language.** `web-tree-sitter` 0.26 cannot load the prebuilt `tree-sitter-wasms` grammars, so every file outside the TypeScript semantic path silently produced an empty parse result. The runtime is pinned to the 0.25 line and covered by a grammar-loading test.
 - Repaired the C#, PHP, Kotlin, Swift and Zig queries, which were written against newer grammars and failed to compile.
 - Fixed the activity heatmap, which passed `git` twice on its own command line and read the commit author out of the wrong field.
 - Completed the Chinese translation (45 missing keys) and added the previously inline `ErrorBoundary` strings to all catalogues.
 
 ### 🔒 Security
+
 - PR impact analysis no longer builds `git` commands as shell strings from caller-supplied branch names.
 - MCP CORS is restricted to loopback origins; the renderer runs sandboxed with navigation, popups and `<webview>` blocked.
 - Project paths and branch names arriving over IPC are validated, custom architecture-rule regexes are checked with `safe-regex`, and content scanners honour the parser's file size cap.
 
 ### 🧹 Maintenance
+
 - CI now runs lint, formatting, tests and typecheck; the suite passes from a clean clone.
 - Removed dead services, stray root files, the duplicate `package-lock.json` and 14 unused dependencies.
 
@@ -22,17 +25,20 @@
 ## v1.0.2 (2026-04-26)
 
 ### 🌍 Multilingual Support (i18n)
+
 - **English (EN)** — Full UI translation
 - **Русский (RU)** — Полный перевод интерфейса
 - **简体中文 (ZH)** — 完整的中文界面翻译
 - Language switcher component with flag icons
 
 ### 🎨 Code Quality
+
 - **ESLint** configuration with TypeScript and React rules
 - **Prettier** formatting (2 spaces, single quotes, trailing commas)
 - `npm run lint` / `npm run lint:fix` / `npm run format` scripts
 
 ### 🔄 Auto-Updater
+
 - Automatic update checks on app startup
 - Background download with progress bar
 - "Restart now" / "Later" notification banner
@@ -40,11 +46,13 @@
 - Powered by `electron-updater` + GitHub Releases
 
 ### 📂 Drag & Drop
+
 - Drop project folder onto app window to open
 - Visual overlay with animated feedback
 - "Open Project" button in title bar
 
 ### 📋 Recent Projects
+
 - List of last 10 opened projects
 - Smart date formatting ("2h ago", "3d ago")
 - Click to reopen
@@ -52,9 +60,11 @@
 - Persists across app restarts
 
 ### 🔒 Security
+
 - Fixed false positives from build directories in Security Scanner
 
 ### 🛠 CI/CD
+
 - Auto-update version from git tag (no more hardcoding)
 - Delete old release assets before publishing (prevents mixing versions)
 - Cross-platform smoke tests (15 MCP tools + 4 resources)
@@ -64,11 +74,13 @@
 ## v1.0.1 (2026-04-25)
 
 ### Fixes
+
 - `package-lock.json` compatibility for `npm ci`
 - Cross-platform MCP smoke tests
 - Linux maintainer email for DEB/RPM packages
 
 ### Performance
+
 - React.lazy code splitting (-88% initial bundle size)
 
 ---
@@ -76,6 +88,7 @@
 ## v1.0.0 (2026-04-25)
 
 ### Initial Release
+
 - Electron app with Vite + React + TypeScript
 - Code dependency graph visualization
 - MCP server with 15 tools and 4 resources

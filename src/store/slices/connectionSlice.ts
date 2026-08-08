@@ -64,7 +64,8 @@ export const createConnectionSlice: StateCreator<
     },
 
     openProject: async () => {
-      const dirPath = await window.api.openDirectory?.() ?? await window.api.selectDirectory?.();
+      const dirPath =
+        (await window.api.openDirectory?.()) ?? (await window.api.selectDirectory?.());
       if (dirPath) {
         await get().fetchGraph(dirPath);
       }

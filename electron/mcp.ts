@@ -10,10 +10,7 @@ import { oracle } from './oracle';
 import { oracleStore } from './store';
 import { getGraphSnapshot, ensureGraphLoaded, getNodeDependencies } from './mcp/utils';
 import { createMcpServerInstance } from './mcp/bootstrap';
-import {
-  buildMcpStatus,
-  McpStatus,
-} from './mcp/descriptors';
+import { buildMcpStatus, McpStatus } from './mcp/descriptors';
 import { closeMcpRuntime, McpTransportRecord } from './mcp/runtimeShutdown';
 
 import log from 'electron-log/main';
@@ -24,7 +21,11 @@ const MCP_PATH = '/mcp';
 const MCP_HTTP_URL = `http://${MCP_HOST}:${MCP_PORT}${MCP_PATH}`;
 const MCP_WS_URL = `ws://localhost:${MCP_PORT}`;
 
-export type { McpStatus, McpStatusResourceDescriptor, McpStatusToolDescriptor } from './mcp/descriptors';
+export type {
+  McpStatus,
+  McpStatusResourceDescriptor,
+  McpStatusToolDescriptor,
+} from './mcp/descriptors';
 
 type McpServiceHandle = {
   server: http.Server;
@@ -51,7 +52,12 @@ export const getMcpStatus = (): McpStatus => {
 export const isLoopbackOrigin = (origin: string): boolean => {
   try {
     const { hostname } = new URL(origin);
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]' ||
+      hostname === '::1'
+    );
   } catch {
     return false;
   }
@@ -76,7 +82,13 @@ export function setupMcpServer() {
         callback(new Error('Origin not allowed'));
       },
       exposedHeaders: ['Mcp-Session-Id'],
-      allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Mcp-Session-Id', 'Last-Event-ID'],
+      allowedHeaders: [
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'Mcp-Session-Id',
+        'Last-Event-ID',
+      ],
     })
   );
   app.use(express.json({ limit: '10mb' }));
@@ -251,10 +263,10 @@ export function setupMcpServer() {
       const record = transports[sessionId];
       try {
         record.server.server.notification({
-          method: 'notifications/resources/list_changed'
+          method: 'notifications/resources/list_changed',
         });
         record.server.server.notification({
-          method: 'notifications/tools/list_changed'
+          method: 'notifications/tools/list_changed',
         });
       } catch (e) {
         log.error(`Failed to send MCP list_changed notification to session ${sessionId}:`, e);

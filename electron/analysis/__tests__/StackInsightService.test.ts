@@ -75,7 +75,10 @@ describe('StackInsightService', () => {
     fs.writeFileSync(viteConfigPath, 'export default {};');
     fs.writeFileSync(pnpmWorkspacePath, "packages:\n  - 'apps/*'\n  - 'packages/*'\n");
     fs.writeFileSync(nxJsonPath, JSON.stringify({ npmScope: 'workspace' }, null, 2));
-    fs.writeFileSync(turboJsonPath, JSON.stringify({ tasks: { build: { dependsOn: ['^build'] } } }, null, 2));
+    fs.writeFileSync(
+      turboJsonPath,
+      JSON.stringify({ tasks: { build: { dependsOn: ['^build'] } } }, null, 2)
+    );
 
     const graph = createFileGraph(projectDir, [
       packageJsonPath,
@@ -111,7 +114,14 @@ describe('StackInsightService', () => {
 
     fs.writeFileSync(
       pyprojectPath,
-      ['[tool.poetry]', 'name = "backend"', '', '[tool.poetry.dependencies]', 'python = "^3.12"', 'fastapi = "^0.115.0"'].join('\n')
+      [
+        '[tool.poetry]',
+        'name = "backend"',
+        '',
+        '[tool.poetry.dependencies]',
+        'python = "^3.12"',
+        'fastapi = "^0.115.0"',
+      ].join('\n')
     );
     fs.writeFileSync(
       pomPath,
@@ -191,7 +201,10 @@ describe('StackInsightService', () => {
         '}',
       ].join('\n')
     );
-    fs.writeFileSync(rustMainPath, 'use axum::Router;\nuse actix_web::{App, HttpServer};\nfn main(){ let _ = Router::new(); let _ = HttpServer::new(|| App::new()); }\n');
+    fs.writeFileSync(
+      rustMainPath,
+      'use axum::Router;\nuse actix_web::{App, HttpServer};\nfn main(){ let _ = Router::new(); let _ = HttpServer::new(|| App::new()); }\n'
+    );
 
     const graph = createFileGraph(projectDir, [
       pyprojectPath,
@@ -240,13 +253,9 @@ describe('StackInsightService', () => {
 
     fs.writeFileSync(
       openApiPath,
-      [
-        'openapi: 3.1.0',
-        'paths:',
-        '  /users:',
-        '    get:',
-        '      operationId: listUsers',
-      ].join('\n')
+      ['openapi: 3.1.0', 'paths:', '  /users:', '    get:', '      operationId: listUsers'].join(
+        '\n'
+      )
     );
     fs.writeFileSync(
       protoPath,
@@ -259,12 +268,7 @@ describe('StackInsightService', () => {
     );
     fs.writeFileSync(
       bufGenPath,
-      [
-        'version: v1',
-        'plugins:',
-        '  - name: go',
-        '    out: gen/go',
-      ].join('\n')
+      ['version: v1', 'plugins:', '  - name: go', '    out: gen/go'].join('\n')
     );
     fs.writeFileSync(
       packageJsonPath,

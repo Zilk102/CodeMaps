@@ -505,11 +505,15 @@ describe('Stack-aware analyzers', () => {
     const analyzer = new BlastRadiusAnalyzer();
 
     const pageBlastRadius = analyzer.analyze(graphData, `${projectRoot}/src/components/Page.tsx`);
-    expect(pageBlastRadius.affectedNodes.some((node) => node.id.endsWith('/Layout.tsx'))).toBe(true);
+    expect(pageBlastRadius.affectedNodes.some((node) => node.id.endsWith('/Layout.tsx'))).toBe(
+      true
+    );
     expect(pageBlastRadius.confidence).toBe('high');
 
     const appBlastRadius = analyzer.analyze(graphData, `${projectRoot}/src/components/App.tsx`);
-    expect(appBlastRadius.affectedNodes.some((node) => node.id.endsWith('/vite.config.ts'))).toBe(true);
+    expect(appBlastRadius.affectedNodes.some((node) => node.id.endsWith('/vite.config.ts'))).toBe(
+      true
+    );
   });
 
   it('Architecture and health analyzers account for stack-aware links', () => {
@@ -556,8 +560,12 @@ describe('Stack-aware analyzers', () => {
 
   it('Pattern detection and review context surface stack-aware runtime paths', async () => {
     const patterns = new PatternDetectionAnalyzer().analyze(graphData);
-    expect(patterns.patterns.some((pattern) => pattern.id === 'stack_orchestration_hubs')).toBe(true);
-    expect(patterns.patterns.some((pattern) => pattern.id === 'di_runtime_contract_hubs')).toBe(true);
+    expect(patterns.patterns.some((pattern) => pattern.id === 'stack_orchestration_hubs')).toBe(
+      true
+    );
+    expect(patterns.patterns.some((pattern) => pattern.id === 'di_runtime_contract_hubs')).toBe(
+      true
+    );
 
     const reviewContext = await new ReviewContextService().prepareReviewContext(graphData, {
       includeSecurityFindings: false,
@@ -565,7 +573,9 @@ describe('Stack-aware analyzers', () => {
     });
 
     expect(
-      reviewContext.reviewPriorities.some((priority) => priority.title === 'Stack-Aware Runtime Paths')
+      reviewContext.reviewPriorities.some(
+        (priority) => priority.title === 'Stack-Aware Runtime Paths'
+      )
     ).toBe(true);
     expect(
       reviewContext.reviewPriorities.some((priority) => priority.title === 'DI Runtime Contracts')
@@ -579,7 +589,9 @@ describe('Stack-aware analyzers', () => {
       reviewContext.nextSteps.some((step) => step.includes('framework/build dependency paths'))
     ).toBe(true);
     expect(
-      reviewContext.nextSteps.some((step) => step.includes('Inspect DI runtime contracts separately'))
+      reviewContext.nextSteps.some((step) =>
+        step.includes('Inspect DI runtime contracts separately')
+      )
     ).toBe(true);
     expect(
       reviewContext.nextSteps.some((step) => step.includes('incremental refresh telemetry'))
@@ -593,14 +605,20 @@ describe('Stack-aware analyzers', () => {
     });
 
     expect(
-      projectInsight.mentalModel.runtimeCompositionRoots.some((node) => node.id.endsWith('/Program.cs'))
+      projectInsight.mentalModel.runtimeCompositionRoots.some((node) =>
+        node.id.endsWith('/Program.cs')
+      )
     ).toBe(true);
     expect(
-      projectInsight.autopilotPlan.recommendedStartingNodes.some((nodeId) => nodeId.endsWith('/Program.cs'))
+      projectInsight.autopilotPlan.recommendedStartingNodes.some((nodeId) =>
+        nodeId.endsWith('/Program.cs')
+      )
     ).toBe(true);
     expect(projectInsight.qualityBudget).toBeDefined();
     expect(
-      projectInsight.mentalModel.likelyWorkflows.some((workflow) => workflow.includes('Runtime DI contracts'))
+      projectInsight.mentalModel.likelyWorkflows.some((workflow) =>
+        workflow.includes('Runtime DI contracts')
+      )
     ).toBe(true);
     expect(projectInsight.qualityDashboard.gates.length).toBeGreaterThan(0);
     expect(
@@ -608,9 +626,9 @@ describe('Stack-aware analyzers', () => {
     ).toBe(true);
     expect(projectInsight.operationalTelemetry.watcher.coalescedFlushes).toBe(1);
     expect(projectInsight.operationalTelemetry.enrichment.runtimePriorityRebuilds).toBe(1);
-    expect(
-      projectInsight.nextSteps.some((step) => step.includes('watcher batching metrics'))
-    ).toBe(true);
+    expect(projectInsight.nextSteps.some((step) => step.includes('watcher batching metrics'))).toBe(
+      true
+    );
   });
 
   it('Change context surfaces DI runtime contracts in risks and inspection plan', async () => {
@@ -622,16 +640,18 @@ describe('Stack-aware analyzers', () => {
 
     expect(changeContext.dependencies.runtimeContractLinks).toHaveLength(2);
     expect(
-      changeContext.dependencies.runtimeContractNodes.some((node) => node.id.endsWith('/IUserService.cs'))
+      changeContext.dependencies.runtimeContractNodes.some((node) =>
+        node.id.endsWith('/IUserService.cs')
+      )
     ).toBe(true);
     expect(
       changeContext.recommendedFilesToInspect.some((fileId) => fileId.endsWith('/UserService.cs'))
     ).toBe(true);
+    expect(changeContext.risks.some((risk) => risk.includes('runtime DI wiring'))).toBe(true);
     expect(
-      changeContext.risks.some((risk) => risk.includes('runtime DI wiring'))
-    ).toBe(true);
-    expect(
-      changeContext.nextSteps.some((step) => step.includes('Inspect DI runtime contracts separately'))
+      changeContext.nextSteps.some((step) =>
+        step.includes('Inspect DI runtime contracts separately')
+      )
     ).toBe(true);
     expect(changeContext.autopilotPlan.preferredNextAction).toBe('review_dependencies');
   });
@@ -659,12 +679,10 @@ describe('Stack-aware analyzers', () => {
     expect(campaign.executionPlan.refactoringWaves).toBeInstanceOf(Array);
     expect(campaign.qualityBudget).toBeDefined();
     expect(campaign.qualityDashboard.gates.length).toBeGreaterThan(0);
-    expect(
-      campaign.risks.some((risk) => risk.includes('runtime composition roots'))
-    ).toBe(true);
-    expect(
-      campaign.nextSteps.some((step) => step.includes('runtime composition roots'))
-    ).toBe(true);
+    expect(campaign.risks.some((risk) => risk.includes('runtime composition roots'))).toBe(true);
+    expect(campaign.nextSteps.some((step) => step.includes('runtime composition roots'))).toBe(
+      true
+    );
     expect(campaign.executionPlan.shouldFallbackToLowLevelTools).toBe(false);
   });
 
@@ -677,10 +695,10 @@ describe('Stack-aware analyzers', () => {
 
     expect(taskContext.route.selectedCompositeTool).toBe('prepare_change_context');
     expect(taskContext.selectedContext?.kind).toBe('change');
-    expect(taskContext.focus.targetCandidates.some((node) => node.id.endsWith('/Program.cs'))).toBe(true);
-    expect(
-      taskContext.nextSteps.some((step) => step.includes('runtime DI wiring'))
-    ).toBe(true);
+    expect(taskContext.focus.targetCandidates.some((node) => node.id.endsWith('/Program.cs'))).toBe(
+      true
+    );
+    expect(taskContext.nextSteps.some((step) => step.includes('runtime DI wiring'))).toBe(true);
   });
 
   it('Task intelligence routes broad DI rewiring to campaign context', async () => {
@@ -692,15 +710,11 @@ describe('Stack-aware analyzers', () => {
 
     expect(taskContext.route.selectedCompositeTool).toBe('prepare_change_campaign');
     expect(taskContext.selectedContext?.kind).toBe('campaign');
-    expect(
-      taskContext.nextSteps.some((step) => step.includes('runtime composition roots'))
-    ).toBe(true);
-    expect(
-      taskContext.nextSteps.some((step) => step.includes('refactoring waves'))
-    ).toBe(true);
-    expect(
-      taskContext.nextSteps.some((step) => step.includes('blocking gates'))
-    ).toBe(true);
+    expect(taskContext.nextSteps.some((step) => step.includes('runtime composition roots'))).toBe(
+      true
+    );
+    expect(taskContext.nextSteps.some((step) => step.includes('refactoring waves'))).toBe(true);
+    expect(taskContext.nextSteps.some((step) => step.includes('blocking gates'))).toBe(true);
     expect(
       taskContext.selectedContext?.kind === 'campaign' &&
         taskContext.selectedContext.context.scope.runtimeCompositionRoots.some((node) =>
@@ -725,9 +739,7 @@ describe('Stack-aware analyzers', () => {
           (priority) => priority.title === 'Incremental Refresh Pipeline'
         )
     ).toBe(true);
-    expect(
-      taskContext.nextSteps.some((step) => step.includes('watcher batching'))
-    ).toBe(true);
+    expect(taskContext.nextSteps.some((step) => step.includes('watcher batching'))).toBe(true);
   });
 
   it('Contract-aware analyzers surface OpenAPI/proto runtime bindings in review, project, and change contexts', async () => {
@@ -764,16 +776,18 @@ describe('Stack-aware analyzers', () => {
       )
     ).toBe(true);
     expect(
-      projectInsight.mentalModel.contractSurfaces.some((node) => node.id.endsWith('/proto/user.proto'))
+      projectInsight.mentalModel.contractSurfaces.some((node) =>
+        node.id.endsWith('/proto/user.proto')
+      )
     ).toBe(true);
     expect(
       projectInsight.mentalModel.likelyWorkflows.some((workflow) =>
         workflow.includes('API contract -> generated/runtime')
       )
     ).toBe(true);
-    expect(
-      projectInsight.nextSteps.some((step) => step.includes('API contract surfaces'))
-    ).toBe(true);
+    expect(projectInsight.nextSteps.some((step) => step.includes('API contract surfaces'))).toBe(
+      true
+    );
 
     const changeContext = await new ChangeContextService().prepareChangeContext(contractGraphData, {
       target: 'user.proto',
@@ -789,9 +803,9 @@ describe('Stack-aware analyzers', () => {
     expect(
       changeContext.recommendedFilesToInspect.some((fileId) => fileId.endsWith('/grpc_server.go'))
     ).toBe(true);
-    expect(
-      changeContext.risks.some((risk) => risk.includes('API contract/runtime bindings'))
-    ).toBe(true);
+    expect(changeContext.risks.some((risk) => risk.includes('API contract/runtime bindings'))).toBe(
+      true
+    );
     expect(
       changeContext.nextSteps.some((step) =>
         step.includes('Inspect API contract bindings separately')
@@ -806,9 +820,7 @@ describe('Stack-aware analyzers', () => {
     });
     expect(taskContext.route.selectedCompositeTool).toBe('prepare_change_context');
     expect(taskContext.selectedContext?.kind).toBe('change');
-    expect(
-      taskContext.route.rationale.includes('API contract/runtime bindings')
-    ).toBe(true);
+    expect(taskContext.route.rationale.includes('API contract/runtime bindings')).toBe(true);
     expect(
       taskContext.nextSteps.some((step) =>
         step.includes('schema roots, generated modules, and bound handlers/clients')
@@ -845,10 +857,14 @@ describe('Stack-aware analyzers', () => {
     expect(reviewContext.decompositionGuidance.candidates.length).toBeGreaterThan(0);
     expect(reviewContext.qualityDashboard.gates.length).toBeGreaterThan(0);
     expect(
-      reviewContext.reviewPriorities.some((priority) => priority.title === 'Decomposition Candidates')
+      reviewContext.reviewPriorities.some(
+        (priority) => priority.title === 'Decomposition Candidates'
+      )
     ).toBe(true);
     expect(
-      reviewContext.nextSteps.some((step) => step.includes('Inspect design-smell hotspots separately'))
+      reviewContext.nextSteps.some((step) =>
+        step.includes('Inspect design-smell hotspots separately')
+      )
     ).toBe(true);
     expect(
       reviewContext.nextSteps.some((step) => step.includes('structured decomposition candidates'))
@@ -862,7 +878,9 @@ describe('Stack-aware analyzers', () => {
     expect(projectInsight.refactoringWaves.length).toBeGreaterThan(0);
     expect(projectInsight.qualityDashboard.focusCandidates.length).toBeGreaterThan(0);
     expect(
-      projectInsight.nextSteps.some((step) => step.includes('Prioritize decomposition of design-smell hotspots'))
+      projectInsight.nextSteps.some((step) =>
+        step.includes('Prioritize decomposition of design-smell hotspots')
+      )
     ).toBe(true);
     expect(
       projectInsight.nextSteps.some((step) => step.includes('concrete extraction queue'))
@@ -877,17 +895,15 @@ describe('Stack-aware analyzers', () => {
       includeSecurityFindings: false,
     });
     expect(changeContext.decompositionCandidates.length).toBeGreaterThan(0);
+    expect(changeContext.risks.some((risk) => risk.includes('responsibility-dense module'))).toBe(
+      true
+    );
     expect(
-      changeContext.risks.some((risk) => risk.includes('responsibility-dense module'))
+      changeContext.nextSteps.some((step) => step.includes('prefer extracting responsibilities'))
     ).toBe(true);
-    expect(
-      changeContext.nextSteps.some((step) =>
-        step.includes('prefer extracting responsibilities')
-      )
-    ).toBe(true);
-    expect(
-      changeContext.nextSteps.some((step) => step.includes('decompositionCandidates'))
-    ).toBe(true);
+    expect(changeContext.nextSteps.some((step) => step.includes('decompositionCandidates'))).toBe(
+      true
+    );
 
     const campaign = await new ChangeCampaignService().prepareContext(smellGraphData, {
       userRequest: 'Refactor StackTopologyService adapter orchestration',
@@ -897,18 +913,12 @@ describe('Stack-aware analyzers', () => {
       depth: 2,
       maxFiles: 10,
     });
-    expect(
-      campaign.risks.some((risk) => risk.includes('design smells'))
-    ).toBe(true);
-    expect(
-      campaign.nextSteps.some((step) => step.includes('extraction boundaries'))
-    ).toBe(true);
+    expect(campaign.risks.some((risk) => risk.includes('design smells'))).toBe(true);
+    expect(campaign.nextSteps.some((step) => step.includes('extraction boundaries'))).toBe(true);
     expect(campaign.executionPlan.refactoringWaves.length).toBeGreaterThan(0);
     expect(
       campaign.executionPlan.refactoringWaves.every((wave) => wave.exitCriteria.length > 0)
     ).toBe(true);
-    expect(
-      campaign.nextSteps.some((step) => step.includes('extraction candidates'))
-    ).toBe(true);
+    expect(campaign.nextSteps.some((step) => step.includes('extraction candidates'))).toBe(true);
   });
 });

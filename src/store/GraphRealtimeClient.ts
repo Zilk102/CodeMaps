@@ -2,7 +2,12 @@ import type { GraphData } from '../types/graph';
 
 export interface GraphRealtimeHandlers {
   onGraphUpdated: (graphData: GraphData) => void;
-  onParsingProgress: (progress: { status: string; current: number; total: number; filename: string }) => void;
+  onParsingProgress: (progress: {
+    status: string;
+    current: number;
+    total: number;
+    filename: string;
+  }) => void;
 }
 
 const WS_URL = 'ws://localhost:3005';

@@ -113,18 +113,14 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
   const activeTabMeta = tabs.find((tab) => tab.id === activeTab) || tabs[0];
 
   return (
-    <div
-      className="absolute bottom-0 right-0 z-15 flex h-full w-full max-w-[100vw] flex-col overflow-hidden border-t border-(--border) bg-(--bg1) shadow-[0_-4px_24px_rgba(0,0,0,0.24)] md:relative md:z-1 md:w-[380px] md:min-w-[320px] md:border-l md:border-t-0 md:shadow-none"
-    >
+    <div className="absolute bottom-0 right-0 z-15 flex h-full w-full max-w-[100vw] flex-col overflow-hidden border-t border-(--border) bg-(--bg1) shadow-[0_-4px_24px_rgba(0,0,0,0.24)] md:relative md:z-1 md:w-[380px] md:min-w-[320px] md:border-l md:border-t-0 md:shadow-none">
       <div className="border-b border-(--border) bg-(--bg1) px-4 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
               {t('tools.workspaceEyebrow')}
             </div>
-            <div className="mt-1 text-[18px] font-semibold text-(--t0)">
-              {t('tools.workspace')}
-            </div>
+            <div className="mt-1 text-[18px] font-semibold text-(--t0)">{t('tools.workspace')}</div>
             <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-(--border) bg-(--bg2) px-2.5 py-1 text-[11px] text-(--t2)">
               <span className="truncate">{projectName}</span>
             </div>
@@ -139,7 +135,15 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
             aria-label={t('tools.closeWorkspace')}
             title={t('tools.closeWorkspace')}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />
             </svg>
@@ -157,7 +161,9 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
           return (
             <button
               key={tab.id}
-              ref={(el) => { tabRefs.current[index] = el; }}
+              ref={(el) => {
+                tabRefs.current[index] = el;
+              }}
               role="tab"
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
@@ -211,7 +217,9 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
                         {card.badge}
                       </div>
                       <div className="mt-1 text-[14px] font-semibold text-(--t0)">{card.title}</div>
-                      <div className="mt-2 text-[12px] leading-5 text-(--t2)">{card.description}</div>
+                      <div className="mt-2 text-[12px] leading-5 text-(--t2)">
+                        {card.description}
+                      </div>
                     </div>
                     <span className="rounded-full border border-(--border) bg-(--bg1) px-2.5 py-1 text-[11px] font-medium text-(--t1)">
                       {t('tools.openTool')}
@@ -246,7 +254,9 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
                     </div>
                     <div className="min-w-0">
                       <div className="text-[13px] font-semibold text-(--t0)">{step.title}</div>
-                      <div className="mt-1 text-[12px] leading-5 text-(--t2)">{step.description}</div>
+                      <div className="mt-1 text-[12px] leading-5 text-(--t2)">
+                        {step.description}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -261,4 +271,3 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
     </div>
   );
 };
-

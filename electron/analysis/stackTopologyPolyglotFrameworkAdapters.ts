@@ -136,7 +136,9 @@ const djangoAdapter: StackAdapter = {
       .filter(({ filePath }) => basename(filePath) === 'settings.py')
       .map(({ filePath }) => filePath);
     const urlFiles = relativeContentEntries
-      .filter(({ filePath, text }) => basename(filePath) === 'urls.py' || /\burlpatterns\s*=/.test(text))
+      .filter(
+        ({ filePath, text }) => basename(filePath) === 'urls.py' || /\burlpatterns\s*=/.test(text)
+      )
       .map(({ filePath }) => filePath);
     const viewFiles = relativeContentEntries
       .filter(
@@ -147,7 +149,9 @@ const djangoAdapter: StackAdapter = {
       )
       .map(({ filePath }) => filePath);
     const modelFiles = relativeContentEntries
-      .filter(({ filePath, text }) => basename(filePath) === 'models.py' || /\bmodels\.Model\b/.test(text))
+      .filter(
+        ({ filePath, text }) => basename(filePath) === 'models.py' || /\bmodels\.Model\b/.test(text)
+      )
       .map(({ filePath }) => filePath);
     const configFiles = context
       .getAllFilePaths()
@@ -183,14 +187,15 @@ const djangoAdapter: StackAdapter = {
       urlViewLinks.map((relationship) => relationship.target.split('#')[0])
     );
     const viewModelLinks = Array.from(participatingViewFiles).flatMap((viewFile) =>
-      findReferencedSymbolMatches(contentByRelativePath.get(viewFile) || '', modelSymbols, [viewFile]).map(
-        ({ filePath, symbol }) =>
-          createRelationship(
-            resolveSymbolEndpoint(viewFile, graphSymbolIndex),
-            resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-            'framework',
-            'django_view_model'
-          )
+      findReferencedSymbolMatches(contentByRelativePath.get(viewFile) || '', modelSymbols, [
+        viewFile,
+      ]).map(({ filePath, symbol }) =>
+        createRelationship(
+          resolveSymbolEndpoint(viewFile, graphSymbolIndex),
+          resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
+          'framework',
+          'django_view_model'
+        )
       )
     );
 
@@ -261,7 +266,9 @@ const railsAdapter: StackAdapter = {
       .filter(({ filePath }) => filePath === 'config/routes.rb')
       .map(({ filePath }) => filePath);
     const entryFiles = relativeContentEntries
-      .filter(({ filePath }) => ['config/application.rb', 'config/environment.rb'].includes(filePath))
+      .filter(({ filePath }) =>
+        ['config/application.rb', 'config/environment.rb'].includes(filePath)
+      )
       .map(({ filePath }) => filePath);
     const controllerFiles = relativeContentEntries
       .filter(({ filePath }) => /^app\/controllers\/.+_controller\.rb$/i.test(filePath))
@@ -274,28 +281,29 @@ const railsAdapter: StackAdapter = {
     );
 
     const routeControllerLinks = routeFiles.flatMap((routeFile) =>
-      extractRailsResourceTargets(contentByRelativePath.get(routeFile) || '').flatMap((resourceName) =>
-        controllerFiles
-          .filter((controllerFile) =>
-            basename(controllerFile).toLowerCase() === `${resourceName.toLowerCase()}_controller.rb`
-          )
-          .map((controllerFile) =>
-            createRelationship(
-              resolveSymbolEndpoint(routeFile, graphSymbolIndex),
-              resolveSymbolEndpoint(controllerFile, graphSymbolIndex),
-              'framework',
-              'rails_routes_controller'
+      extractRailsResourceTargets(contentByRelativePath.get(routeFile) || '').flatMap(
+        (resourceName) =>
+          controllerFiles
+            .filter(
+              (controllerFile) =>
+                basename(controllerFile).toLowerCase() ===
+                `${resourceName.toLowerCase()}_controller.rb`
             )
-          )
+            .map((controllerFile) =>
+              createRelationship(
+                resolveSymbolEndpoint(routeFile, graphSymbolIndex),
+                resolveSymbolEndpoint(controllerFile, graphSymbolIndex),
+                'framework',
+                'rails_routes_controller'
+              )
+            )
       )
     );
 
     const controllerModelLinks = controllerFiles.flatMap((controllerFile) =>
-      findReferencedSymbolMatches(
-        contentByRelativePath.get(controllerFile) || '',
-        modelSymbols,
-        [controllerFile]
-      ).map(({ filePath, symbol }) =>
+      findReferencedSymbolMatches(contentByRelativePath.get(controllerFile) || '', modelSymbols, [
+        controllerFile,
+      ]).map(({ filePath, symbol }) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex),
           resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
@@ -368,9 +376,7 @@ const laravelAdapter: StackAdapter = {
       .map(({ filePath }) => filePath);
     const configFiles = context
       .getAllFilePaths()
-      .filter((filePath) =>
-        ['composer.json'].includes(context.getProjectRelativePath(filePath))
-      );
+      .filter((filePath) => ['composer.json'].includes(context.getProjectRelativePath(filePath)));
 
     const controllerSymbols = buildSymbolToFileMap(
       relativeContentEntries.filter((entry) => controllerFiles.includes(entry.filePath))
@@ -394,11 +400,9 @@ const laravelAdapter: StackAdapter = {
     );
 
     const controllerModelLinks = controllerFiles.flatMap((controllerFile) =>
-      findReferencedSymbolMatches(
-        contentByRelativePath.get(controllerFile) || '',
-        modelSymbols,
-        [controllerFile]
-      ).map(({ filePath, symbol }) =>
+      findReferencedSymbolMatches(contentByRelativePath.get(controllerFile) || '', modelSymbols, [
+        controllerFile,
+      ]).map(({ filePath, symbol }) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex),
           resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
@@ -463,14 +467,19 @@ const createGoWebAdapter = (options: {
     supports: (context) => !!context.getDetectedStack(options.stackId),
     analyze: async (context) => {
       const graphSymbolIndex = buildGraphSymbolIndex(context.graph);
-      const candidateFiles = context.getAllFilePaths().filter((filePath) => /\.go$/i.test(filePath));
+      const candidateFiles = context
+        .getAllFilePaths()
+        .filter((filePath) => /\.go$/i.test(filePath));
       const contents = await context.readTexts(candidateFiles);
       const relativeContentEntries = contents.map((entry) => ({
         filePath: context.getProjectRelativePath(entry.filePath),
         text: entry.text,
       }));
       const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
-      const functionSymbols = buildNamedSymbolToFileMap(relativeContentEntries, extractGoFunctionNames);
+      const functionSymbols = buildNamedSymbolToFileMap(
+        relativeContentEntries,
+        extractGoFunctionNames
+      );
       const configFiles = context
         .getAllFilePaths()
         .filter((filePath) => context.getProjectRelativePath(filePath) === 'go.mod');
@@ -490,7 +499,9 @@ const createGoWebAdapter = (options: {
           .map(({ handlerName, filePath }) =>
             createRelationship(
               resolveSymbolEndpoint(routeFile, graphSymbolIndex),
-              resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [handlerName] }),
+              resolveSymbolEndpoint(filePath, graphSymbolIndex, {
+                preferredSymbols: [handlerName],
+              }),
               'framework',
               options.handlerReason
             )
@@ -611,7 +622,8 @@ const grpcGoAdapter: StackAdapter = {
       extractGrpcRegistrationTargets(contentByRelativePath.get(registrationFile) || '').flatMap(
         ({ implementation }) => {
           const matchedFile =
-            typeSymbols.get(implementation) || goSymbols.get(implementation.replace(/Server$/, 'Server'));
+            typeSymbols.get(implementation) ||
+            goSymbols.get(implementation.replace(/Server$/, 'Server'));
           if (!matchedFile) {
             return [];
           }
@@ -619,7 +631,9 @@ const grpcGoAdapter: StackAdapter = {
           return [
             createRelationship(
               resolveSymbolEndpoint(registrationFile, graphSymbolIndex),
-              resolveSymbolEndpoint(matchedFile, graphSymbolIndex, { preferredSymbols: [implementation] }),
+              resolveSymbolEndpoint(matchedFile, graphSymbolIndex, {
+                preferredSymbols: [implementation],
+              }),
               'framework',
               'grpc_registration_handler'
             ),
@@ -678,7 +692,10 @@ const axumAdapter: StackAdapter = {
       text: entry.text,
     }));
     const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
-    const functionSymbols = buildNamedSymbolToFileMap(relativeContentEntries, extractRustFunctionNames);
+    const functionSymbols = buildNamedSymbolToFileMap(
+      relativeContentEntries,
+      extractRustFunctionNames
+    );
     const configFiles = context
       .getAllFilePaths()
       .filter((filePath) => context.getProjectRelativePath(filePath) === 'Cargo.toml');
@@ -693,7 +710,10 @@ const axumAdapter: StackAdapter = {
 
     const routeHandlerLinks = routeFiles.flatMap((routeFile) =>
       extractAxumHandlerNames(contentByRelativePath.get(routeFile) || '')
-        .map((handlerName) => ({ handlerName, filePath: functionSymbols.get(handlerName) || routeFile }))
+        .map((handlerName) => ({
+          handlerName,
+          filePath: functionSymbols.get(handlerName) || routeFile,
+        }))
         .map(({ handlerName, filePath }) =>
           createRelationship(
             resolveSymbolEndpoint(routeFile, graphSymbolIndex),
@@ -754,7 +774,10 @@ const actixAdapter: StackAdapter = {
       text: entry.text,
     }));
     const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
-    const functionSymbols = buildNamedSymbolToFileMap(relativeContentEntries, extractRustFunctionNames);
+    const functionSymbols = buildNamedSymbolToFileMap(
+      relativeContentEntries,
+      extractRustFunctionNames
+    );
     const configFiles = context
       .getAllFilePaths()
       .filter((filePath) => context.getProjectRelativePath(filePath) === 'Cargo.toml');
@@ -771,7 +794,10 @@ const actixAdapter: StackAdapter = {
 
     const routeHandlerLinks = routeFiles.flatMap((routeFile) =>
       extractActixHandlerNames(contentByRelativePath.get(routeFile) || '')
-        .map((handlerName) => ({ handlerName, filePath: functionSymbols.get(handlerName) || routeFile }))
+        .map((handlerName) => ({
+          handlerName,
+          filePath: functionSymbols.get(handlerName) || routeFile,
+        }))
         .map(({ handlerName, filePath }) =>
           createRelationship(
             resolveSymbolEndpoint(routeFile, graphSymbolIndex),

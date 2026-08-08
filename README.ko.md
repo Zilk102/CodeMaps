@@ -28,21 +28,25 @@
 ## 🖼️ 스크린샷
 
 ### 인터랙티브 코드 그래프
+
 파일, 클래스, 함수 및 그들의 관계를 포함하여 전체 코드베이스를 인터랙티브 그래프로 시각화합니다.
 
 ![메인 그래프](screenshots/main-graph.jpg)
 
 ### MCP 서버 설정 — 개요
+
 CodeMaps는 HTTP 및 WebSocket 엔드포인트가 있는 MCP 서버를 실행하여 AI 에이전트가 프로젝트 아키텍처에 구조적으로 액세스할 수 있도록 합니다.
 
 ![MCP 개요](screenshots/mcp-overview.jpg)
 
 ### MCP 도구
+
 AI 에이전트를 위한 10개 이상의 내장 도구: 프로젝트 분석, 그래프 컨텍스트 가져오기, 노드 검색, 패턴 감지, 보안 스캔 실행 등.
 
 ![MCP 도구](screenshots/mcp-tools.jpg)
 
 ### MCP 리소스
+
 리소스는 AI 에이전트에 고수준 프로젝트 요약, 전체 그래프 내보내기 및 자율 실행 플레이북을 제공합니다.
 
 ![MCP 리소스](screenshots/mcp-resources.jpg)

@@ -30,14 +30,14 @@ export function buildChangeAutopilotPlan(args: {
       ? 'check_security'
       : args.runtimeContractLinks.length > 0
         ? 'review_dependencies'
-      : args.contractBindingLinks.length > 0
-        ? 'review_dependencies'
-      : args.blastRadius.affectedNodes.length > 0
-        ? 'review_dependencies'
-      : args.targetClassification.layer === 'shared' ||
-          args.targetClassification.layer === 'domain'
-        ? 'verify_architecture'
-        : 'inspect_code';
+        : args.contractBindingLinks.length > 0
+          ? 'review_dependencies'
+          : args.blastRadius.affectedNodes.length > 0
+            ? 'review_dependencies'
+            : args.targetClassification.layer === 'shared' ||
+                args.targetClassification.layer === 'domain'
+              ? 'verify_architecture'
+              : 'inspect_code';
 
   return {
     primaryGoal: args.changeIntent || describeChangeModeGoal(args.taskMode),

@@ -1,18 +1,10 @@
 import { GraphData, GraphLink, GraphNode } from '../store';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { BlastRadiusResult } from './BlastRadiusAnalyzer';
-import {
-  promoteCodeTarget,
-  searchGraph,
-  toStructuralNodeId,
-  unique,
-} from './AgentContextUtils';
+import { promoteCodeTarget, searchGraph, toStructuralNodeId, unique } from './AgentContextUtils';
 import { isContractSemanticLink, isDiRuntimeLink } from './graphAnalysisUtils';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
-import type {
-  ChangeContextResult,
-  ResolvedTargetContext,
-} from './ChangeContextService';
+import type { ChangeContextResult, ResolvedTargetContext } from './ChangeContextService';
 
 const MAX_ALTERNATIVES = 5;
 
@@ -152,8 +144,7 @@ export function collectRelevantPatterns(
   return patterns
     .filter((pattern) =>
       pattern.nodeIds.some(
-        (nodeId) =>
-          relatedNodeIds.has(nodeId) || structuralNodeIds.has(toStructuralNodeId(nodeId))
+        (nodeId) => relatedNodeIds.has(nodeId) || structuralNodeIds.has(toStructuralNodeId(nodeId))
       )
     )
     .slice(0, limit);

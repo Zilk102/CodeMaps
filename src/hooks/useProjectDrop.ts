@@ -28,7 +28,10 @@ async function getPathFromItem(item: DataTransferItem) {
   const file = item.getAsFile();
   if (file && 'path' in file) {
     const filePath = (file as File & { path: string }).path;
-    return filePath.substring(0, filePath.lastIndexOf('/')) || filePath.substring(0, filePath.lastIndexOf('\\'));
+    return (
+      filePath.substring(0, filePath.lastIndexOf('/')) ||
+      filePath.substring(0, filePath.lastIndexOf('\\'))
+    );
   }
 
   return null;

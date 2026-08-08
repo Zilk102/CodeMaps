@@ -28,21 +28,25 @@
 ## 🖼️ Capturas de pantalla
 
 ### Gráfico de código interactivo
+
 Visualice toda su base de código como un gráfico interactivo con archivos, clases, funciones y sus relaciones.
 
 ![Gráfico principal](screenshots/main-graph.jpg)
 
 ### Configuración del servidor MCP — Descripción general
+
 CodeMaps ejecuta un servidor MCP con endpoints HTTP y WebSocket, proporcionando a los agentes de IA acceso estructurado a la arquitectura de su proyecto.
 
 ![Descripción general MCP](screenshots/mcp-overview.jpg)
 
 ### Herramientas MCP
+
 Más de 10 herramientas integradas para agentes de IA: analizar proyectos, obtener contexto del gráfico, buscar nodos, detectar patrones, ejecutar escaneos de seguridad y más.
 
 ![Herramientas MCP](screenshots/mcp-tools.jpg)
 
 ### Recursos MCP
+
 Los recursos proporcionan a los agentes de IA resúmenes de proyectos de alto nivel, exportaciones completas del gráfico y playbooks de ejecución autónoma.
 
 ![Recursos MCP](screenshots/mcp-resources.jpg)

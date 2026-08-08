@@ -129,12 +129,7 @@ export class TaskIntelligenceService {
     projectContext: ProjectInsightResult
   ): Promise<TaskContextResult['selectedContext']> {
     if (
-      shouldUseCampaignContext(
-        input.userRequest,
-        inferredIntent,
-        targetCandidates,
-        projectContext
-      )
+      shouldUseCampaignContext(input.userRequest, inferredIntent, targetCandidates, projectContext)
     ) {
       const context = await this.changeCampaignService.prepareContext(graph, {
         userRequest: input.userRequest,

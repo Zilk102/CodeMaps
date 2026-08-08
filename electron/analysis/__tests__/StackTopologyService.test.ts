@@ -71,9 +71,15 @@ describe('StackTopologyService', () => {
       )
     );
     fs.writeFileSync(files[1], 'export default {};');
-    fs.writeFileSync(files[2], 'export default function RootLayout({ children }: { children: React.ReactNode }) { return children; }');
+    fs.writeFileSync(
+      files[2],
+      'export default function RootLayout({ children }: { children: React.ReactNode }) { return children; }'
+    );
     fs.writeFileSync(files[3], 'export default function Page() { return <div />; }');
-    fs.writeFileSync(files[4], 'export async function GET() { return Response.json({ ok: true }); }');
+    fs.writeFileSync(
+      files[4],
+      'export async function GET() { return Response.json({ ok: true }); }'
+    );
     fs.writeFileSync(files[5], 'export default {};');
     fs.writeFileSync(files[6], '<!doctype html><html></html>');
 
@@ -126,7 +132,9 @@ describe('StackTopologyService', () => {
     ];
 
     fs.mkdirSync(path.join(projectDir, 'src'), { recursive: true });
-    fs.mkdirSync(path.join(projectDir, 'src', 'main', 'java', 'com', 'example'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'src', 'main', 'java', 'com', 'example'), {
+      recursive: true,
+    });
     fs.writeFileSync(
       files[0],
       JSON.stringify(
@@ -143,7 +151,10 @@ describe('StackTopologyService', () => {
       files[2],
       '@Module({ controllers: [AppController], providers: [{ provide: APP_SERVICE, useClass: AppService }, AppService] }) export class AppModule {}'
     );
-    fs.writeFileSync(files[3], '@Controller() export class AppController { constructor(private readonly appService: AppService) {} }');
+    fs.writeFileSync(
+      files[3],
+      '@Controller() export class AppController { constructor(private readonly appService: AppService) {} }'
+    );
     fs.writeFileSync(files[4], '@Injectable() export class AppService {}');
     fs.writeFileSync(
       files[5],
@@ -200,7 +211,10 @@ describe('StackTopologyService', () => {
         '}',
       ].join('\n')
     );
-    fs.writeFileSync(files[14], 'public interface IUserService {} public class UserService : IUserService {}');
+    fs.writeFileSync(
+      files[14],
+      'public interface IUserService {} public class UserService : IUserService {}'
+    );
 
     const graph = createFileGraph(projectDir, files);
     const stackProfile = await new StackInsightService().analyze(graph);
@@ -210,34 +224,62 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'nestjs-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'nestjs_module_controller') &&
-          entry.relationships.some((relationship) => relationship.reason === 'nestjs_controller_provider') &&
-          entry.relationships.some((relationship) => relationship.reason === 'nestjs_provider_binding')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'nestjs_module_controller'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'nestjs_controller_provider'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'nestjs_provider_binding'
+          )
       )
     ).toBe(true);
     expect(
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'spring-boot-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'springboot_controller_service') &&
-          entry.relationships.some((relationship) => relationship.reason === 'springboot_service_repository') &&
-          entry.relationships.some((relationship) => relationship.reason === 'springboot_controller_method') &&
-          entry.relationships.some((relationship) => relationship.reason === 'springboot_bean_method') &&
-          entry.relationships.some((relationship) => relationship.reason === 'springboot_bean_binding')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'springboot_controller_service'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'springboot_service_repository'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'springboot_controller_method'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'springboot_bean_method'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'springboot_bean_binding'
+          )
       )
     ).toBe(true);
     expect(
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'aspnet-core-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'aspnet_controller_service') &&
-          entry.relationships.some((relationship) => relationship.reason === 'aspnet_controller_method') &&
-          entry.relationships.some((relationship) => relationship.reason === 'aspnet_service_contract') &&
-          entry.relationships.some((relationship) => relationship.reason === 'aspnet_service_registration')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'aspnet_controller_service'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'aspnet_controller_method'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'aspnet_service_contract'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'aspnet_service_registration'
+          )
       )
     ).toBe(true);
-    expect(topology.buildInsights.some((entry) => entry.adapterId === 'maven-build-topology')).toBe(true);
-    expect(topology.buildInsights.some((entry) => entry.adapterId === 'dotnet-build-topology')).toBe(true);
+    expect(topology.buildInsights.some((entry) => entry.adapterId === 'maven-build-topology')).toBe(
+      true
+    );
+    expect(
+      topology.buildInsights.some((entry) => entry.adapterId === 'dotnet-build-topology')
+    ).toBe(true);
   });
 
   it('extracts backend topology for Ktor, Micronaut and Quarkus', async () => {
@@ -257,8 +299,12 @@ describe('StackTopologyService', () => {
       path.join(projectDir, 'src', 'main', 'resources', 'application.properties'),
     ];
 
-    fs.mkdirSync(path.join(projectDir, 'src', 'main', 'kotlin', 'com', 'example'), { recursive: true });
-    fs.mkdirSync(path.join(projectDir, 'src', 'main', 'java', 'com', 'example'), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, 'src', 'main', 'kotlin', 'com', 'example'), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(projectDir, 'src', 'main', 'java', 'com', 'example'), {
+      recursive: true,
+    });
     fs.mkdirSync(path.join(projectDir, 'src', 'main', 'resources'), { recursive: true });
 
     fs.writeFileSync(
@@ -302,7 +348,10 @@ describe('StackTopologyService', () => {
         'fun listUsers() {}',
       ].join('\n')
     );
-    fs.writeFileSync(files[4], 'class MicronautApp { public static void main(String[] args) { Micronaut.run(MicronautApp.class); } }');
+    fs.writeFileSync(
+      files[4],
+      'class MicronautApp { public static void main(String[] args) { Micronaut.run(MicronautApp.class); } }'
+    );
     fs.writeFileSync(
       files[5],
       [
@@ -320,7 +369,10 @@ describe('StackTopologyService', () => {
       '@Singleton class OrderService { private final OrderRepository orderRepository; OrderService(OrderRepository orderRepository) { this.orderRepository = orderRepository; } }'
     );
     fs.writeFileSync(files[7], '@Repository class OrderRepository {}');
-    fs.writeFileSync(files[8], '@QuarkusMain class QuarkusMain { public static void main(String... args) { Quarkus.run(args); } }');
+    fs.writeFileSync(
+      files[8],
+      '@QuarkusMain class QuarkusMain { public static void main(String... args) { Quarkus.run(args); } }'
+    );
     fs.writeFileSync(
       files[9],
       [
@@ -352,24 +404,50 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'micronaut-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'micronaut_entry_controller') &&
-          entry.relationships.some((relationship) => relationship.reason === 'micronaut_controller_service') &&
-          entry.relationships.some((relationship) => relationship.reason === 'micronaut_service_repository') &&
-          entry.relationships.some((relationship) => relationship.reason === 'micronaut_controller_method')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'micronaut_entry_controller'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'micronaut_controller_service'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'micronaut_service_repository'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'micronaut_controller_method'
+          )
       )
     ).toBe(true);
     expect(
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'quarkus-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'quarkus_entry_resource') &&
-          entry.relationships.some((relationship) => relationship.reason === 'quarkus_resource_service') &&
-          entry.relationships.some((relationship) => relationship.reason === 'quarkus_resource_method')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'quarkus_entry_resource'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'quarkus_resource_service'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'quarkus_resource_method'
+          )
       )
     ).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'ktor_config_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'micronaut_config_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'quarkus_config_entry'))).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'ktor_config_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'micronaut_config_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'quarkus_config_entry')
+      )
+    ).toBe(true);
   });
 
   it('extracts backend topology for FastAPI, Django, Rails and Laravel', async () => {
@@ -408,7 +486,15 @@ describe('StackTopologyService', () => {
     fs.writeFileSync(files[0], 'fastapi==0.115.0\ndjango==5.1.0\n');
     fs.writeFileSync(
       files[1],
-      ['[tool.poetry]', 'name = "backend"', '', '[tool.poetry.dependencies]', 'python = "^3.12"', 'fastapi = "^0.115.0"', 'django = "^5.1.0"'].join('\n')
+      [
+        '[tool.poetry]',
+        'name = "backend"',
+        '',
+        '[tool.poetry.dependencies]',
+        'python = "^3.12"',
+        'fastapi = "^0.115.0"',
+        'django = "^5.1.0"',
+      ].join('\n')
     );
     fs.writeFileSync(
       files[2],
@@ -432,7 +518,10 @@ describe('StackTopologyService', () => {
         '    return []',
       ].join('\n')
     );
-    fs.writeFileSync(files[4], 'import os\nos.environ.setdefault("DJANGO_SETTINGS_MODULE", "project.settings")\n');
+    fs.writeFileSync(
+      files[4],
+      'import os\nos.environ.setdefault("DJANGO_SETTINGS_MODULE", "project.settings")\n'
+    );
     fs.writeFileSync(files[5], 'ROOT_URLCONF = "project.urls"\n');
     fs.writeFileSync(
       files[6],
@@ -446,19 +535,26 @@ describe('StackTopologyService', () => {
     );
     fs.writeFileSync(
       files[7],
-      [
-        'from .models import User',
-        'def user_list(request):',
-        '  return User.objects.all()',
-      ].join('\n')
+      ['from .models import User', 'def user_list(request):', '  return User.objects.all()'].join(
+        '\n'
+      )
     );
     fs.writeFileSync(files[8], 'from django.db import models\nclass User(models.Model):\n  pass\n');
     fs.writeFileSync(files[9], 'source "https://rubygems.org"\ngem "rails"\n');
-    fs.writeFileSync(files[10], 'module Demo\n  class Application < Rails::Application\n  end\nend\n');
+    fs.writeFileSync(
+      files[10],
+      'module Demo\n  class Application < Rails::Application\n  end\nend\n'
+    );
     fs.writeFileSync(files[11], 'Rails.application.routes.draw do\n  resources :users\nend\n');
     fs.writeFileSync(
       files[12],
-      ['class UsersController < ApplicationController', '  def index', '    User.all', '  end', 'end'].join('\n')
+      [
+        'class UsersController < ApplicationController',
+        '  def index',
+        '    User.all',
+        '  end',
+        'end',
+      ].join('\n')
     );
     fs.writeFileSync(files[13], 'class User < ApplicationRecord\nend\n');
     fs.writeFileSync(
@@ -501,8 +597,12 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'fastapi-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'fastapi_entry_router') &&
-          entry.relationships.some((relationship) => relationship.reason === 'fastapi_router_handler') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'fastapi_entry_router'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'fastapi_router_handler'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'fastapi_app_handler')
       )
     ).toBe(true);
@@ -510,8 +610,12 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'django-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'django_manage_settings') &&
-          entry.relationships.some((relationship) => relationship.reason === 'django_settings_urls') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'django_manage_settings'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'django_settings_urls'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'django_url_view') &&
           entry.relationships.some((relationship) => relationship.reason === 'django_view_model')
       )
@@ -520,23 +624,47 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'rails-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'rails_entry_routes') &&
-          entry.relationships.some((relationship) => relationship.reason === 'rails_routes_controller') &&
-          entry.relationships.some((relationship) => relationship.reason === 'rails_controller_model')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'rails_entry_routes'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'rails_routes_controller'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'rails_controller_model'
+          )
       )
     ).toBe(true);
     expect(
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'laravel-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'laravel_artisan_routes') &&
-          entry.relationships.some((relationship) => relationship.reason === 'laravel_route_controller') &&
-          entry.relationships.some((relationship) => relationship.reason === 'laravel_controller_model')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'laravel_artisan_routes'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'laravel_route_controller'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'laravel_controller_model'
+          )
       )
     ).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'fastapi_config_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'django_config_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'laravel_config_entry'))).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'fastapi_config_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'django_config_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'laravel_config_entry')
+      )
+    ).toBe(true);
   });
 
   it('extracts backend topology for Gin, Fiber, Echo, Axum and Actix Web', async () => {
@@ -674,7 +802,9 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'fiber-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'fiber_entry_router') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'fiber_entry_router'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'fiber_router_handler')
       )
     ).toBe(true);
@@ -698,15 +828,37 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'actix-web-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'actix_entry_routes') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'actix_entry_routes'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'actix_route_handler')
       )
     ).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'gomod_gin_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'gomod_fiber_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'gomod_echo_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'cargo_axum_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'cargo_actix_entry'))).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'gomod_gin_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'gomod_fiber_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'gomod_echo_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'cargo_axum_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'cargo_actix_entry')
+      )
+    ).toBe(true);
   });
 
   it('extracts backend topology for Chi, gRPC-Go and Cargo workspaces', async () => {
@@ -763,10 +915,7 @@ describe('StackTopologyService', () => {
     fs.writeFileSync(files[3], 'package main\ntype UserServer struct {}\n');
     fs.writeFileSync(
       files[4],
-      [
-        '[workspace]',
-        'members = ["crates/api", "crates/shared"]',
-      ].join('\n')
+      ['[workspace]', 'members = ["crates/api", "crates/shared"]'].join('\n')
     );
     fs.writeFileSync(
       files[5],
@@ -784,14 +933,7 @@ describe('StackTopologyService', () => {
       ].join('\n')
     );
     fs.writeFileSync(files[6], 'fn main() {}\n');
-    fs.writeFileSync(
-      files[7],
-      [
-        '[package]',
-        'name = "shared"',
-        'version = "0.1.0"',
-      ].join('\n')
-    );
+    fs.writeFileSync(files[7], ['[package]', 'name = "shared"', 'version = "0.1.0"'].join('\n'));
     fs.writeFileSync(files[8], 'pub fn helper() {}\n');
 
     const graph = createFileGraph(projectDir, files);
@@ -810,18 +952,34 @@ describe('StackTopologyService', () => {
       topology.frameworkInsights.some(
         (entry) =>
           entry.adapterId === 'grpc-go-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'grpc_entry_registration') &&
-          entry.relationships.some((relationship) => relationship.reason === 'grpc_registration_handler')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'grpc_entry_registration'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'grpc_registration_handler'
+          )
       )
     ).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'gomod_chi_entry'))).toBe(true);
-    expect(topology.frameworkInsights.some((entry) => entry.relationships.some((relationship) => relationship.reason === 'gomod_grpc_entry'))).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'gomod_chi_entry')
+      )
+    ).toBe(true);
+    expect(
+      topology.frameworkInsights.some((entry) =>
+        entry.relationships.some((relationship) => relationship.reason === 'gomod_grpc_entry')
+      )
+    ).toBe(true);
     expect(
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'cargo-build-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'cargo_workspace_member') &&
-          entry.relationships.some((relationship) => relationship.reason === 'cargo_path_dependency') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'cargo_workspace_member'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'cargo_path_dependency'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'cargo_bin_target')
       )
     ).toBe(true);
@@ -885,11 +1043,7 @@ describe('StackTopologyService', () => {
     fs.writeFileSync(files[4], 'plugins { java }');
     fs.writeFileSync(
       files[5],
-      [
-        'dependencies {',
-        '  implementation(project(":services:shared"))',
-        '}',
-      ].join('\n')
+      ['dependencies {', '  implementation(project(":services:shared"))', '}'].join('\n')
     );
     fs.writeFileSync(files[6], 'plugins { java-library }');
 
@@ -901,16 +1055,24 @@ describe('StackTopologyService', () => {
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'maven-build-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'maven_module_descriptor') &&
-          entry.relationships.some((relationship) => relationship.reason === 'maven_module_dependency')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'maven_module_descriptor'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'maven_module_dependency'
+          )
       )
     ).toBe(true);
     expect(
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'gradle-build-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'gradle_settings_module') &&
-          entry.relationships.some((relationship) => relationship.reason === 'gradle_project_dependency')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'gradle_settings_module'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'gradle_project_dependency'
+          )
       )
     ).toBe(true);
   });
@@ -1022,16 +1184,24 @@ describe('StackTopologyService', () => {
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'pnpm-workspace-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'pnpm_workspace_package') &&
-          entry.relationships.some((relationship) => relationship.reason === 'pnpm_workspace_dependency')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'pnpm_workspace_package'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'pnpm_workspace_dependency'
+          )
       )
     ).toBe(true);
     expect(
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'nx-workspace-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'nx_workspace_project') &&
-          entry.relationships.some((relationship) => relationship.reason === 'nx_implicit_dependency') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'nx_workspace_project'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'nx_implicit_dependency'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'nx_project_package')
       )
     ).toBe(true);
@@ -1039,8 +1209,12 @@ describe('StackTopologyService', () => {
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'turborepo-build-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'turbo_pipeline_package') &&
-          entry.relationships.some((relationship) => relationship.reason === 'turbo_workspace_dependency')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'turbo_pipeline_package'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'turbo_workspace_dependency'
+          )
       )
     ).toBe(true);
   });
@@ -1087,13 +1261,9 @@ describe('StackTopologyService', () => {
     );
     fs.writeFileSync(
       files[1],
-      [
-        'openapi: 3.1.0',
-        'paths:',
-        '  /users:',
-        '    get:',
-        '      operationId: listUsers',
-      ].join('\n')
+      ['openapi: 3.1.0', 'paths:', '  /users:', '    get:', '      operationId: listUsers'].join(
+        '\n'
+      )
     );
     fs.writeFileSync(
       files[2],
@@ -1137,10 +1307,7 @@ describe('StackTopologyService', () => {
     );
     fs.writeFileSync(
       files[6],
-      [
-        '// Code generated by protoc-gen-go. DO NOT EDIT.',
-        'package gen',
-      ].join('\n')
+      ['// Code generated by protoc-gen-go. DO NOT EDIT.', 'package gen'].join('\n')
     );
     fs.writeFileSync(
       files[7],
@@ -1151,10 +1318,7 @@ describe('StackTopologyService', () => {
     );
     fs.writeFileSync(
       files[8],
-      [
-        'export class UserServicePromiseClient {}',
-        'export class GrpcWebImpl {}',
-      ].join('\n')
+      ['export class UserServicePromiseClient {}', 'export class GrpcWebImpl {}'].join('\n')
     );
     fs.writeFileSync(
       files[9],
@@ -1167,11 +1331,7 @@ describe('StackTopologyService', () => {
     );
     fs.writeFileSync(
       files[10],
-      [
-        'export async function listUsers() {',
-        '  return fetch("/users");',
-        '}',
-      ].join('\n')
+      ['export async function listUsers() {', '  return fetch("/users");', '}'].join('\n')
     );
     fs.writeFileSync(
       files[11],
@@ -1216,22 +1376,42 @@ describe('StackTopologyService', () => {
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'openapi-contract-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'openapi_codegen_spec') &&
-          entry.relationships.some((relationship) => relationship.reason === 'openapi_generated_module') &&
-          entry.relationships.some((relationship) => relationship.reason === 'openapi_operation_symbol') &&
-          entry.relationships.some((relationship) => relationship.reason === 'openapi_operation_runtime_binding')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'openapi_codegen_spec'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'openapi_generated_module'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'openapi_operation_symbol'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'openapi_operation_runtime_binding'
+          )
       )
     ).toBe(true);
     expect(
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'protobuf-contract-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'protobuf_config_schema') &&
-          entry.relationships.some((relationship) => relationship.reason === 'protobuf_generated_module') &&
-          entry.relationships.some((relationship) => relationship.reason === 'buf_codegen_output') &&
-          entry.relationships.some((relationship) => relationship.reason === 'connectrpc_generated_module') &&
-          entry.relationships.some((relationship) => relationship.reason === 'grpc_web_generated_module') &&
-          entry.relationships.some((relationship) => relationship.reason === 'proto_service_symbol') &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'protobuf_config_schema'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'protobuf_generated_module'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'buf_codegen_output'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'connectrpc_generated_module'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'grpc_web_generated_module'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'proto_service_symbol'
+          ) &&
           entry.relationships.some((relationship) => relationship.reason === 'proto_client_symbol')
       )
     ).toBe(true);
@@ -1239,12 +1419,24 @@ describe('StackTopologyService', () => {
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'protobuf-contract-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'proto_service_runtime_binding') &&
-          entry.relationships.some((relationship) => relationship.reason === 'connectrpc_runtime_binding') &&
-          entry.relationships.some((relationship) => relationship.reason === 'grpc_web_runtime_binding') &&
-          entry.relationships.some((relationship) => relationship.reason === 'proto_server_symbol') &&
-          entry.relationships.some((relationship) => relationship.reason === 'connectrpc_client_symbol') &&
-          entry.relationships.some((relationship) => relationship.reason === 'grpc_web_client_symbol')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'proto_service_runtime_binding'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'connectrpc_runtime_binding'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'grpc_web_runtime_binding'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'proto_server_symbol'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'connectrpc_client_symbol'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'grpc_web_client_symbol'
+          )
       )
     ).toBe(true);
   });
@@ -1268,13 +1460,9 @@ describe('StackTopologyService', () => {
 
     fs.writeFileSync(
       files[0],
-      [
-        'openapi: 3.1.0',
-        'paths:',
-        '  /users:',
-        '    get:',
-        '      operationId: listUsers',
-      ].join('\n')
+      ['openapi: 3.1.0', 'paths:', '  /users:', '    get:', '      operationId: listUsers'].join(
+        '\n'
+      )
     );
     fs.writeFileSync(
       files[1],
@@ -1357,7 +1545,13 @@ describe('StackTopologyService', () => {
         type: 'class',
         churn: 1,
       },
-      { id: `${files[7]}#UserServiceImpl`, label: 'UserServiceImpl', group: 1, type: 'class', churn: 1 }
+      {
+        id: `${files[7]}#UserServiceImpl`,
+        label: 'UserServiceImpl',
+        group: 1,
+        type: 'class',
+        churn: 1,
+      }
     );
 
     const stackProfile = await new StackInsightService().analyze(graph);
@@ -1444,12 +1638,7 @@ describe('StackTopologyService', () => {
     fs.writeFileSync(files[2], 'export const main = true;\n');
     fs.writeFileSync(
       files[3],
-      [
-        'ts_project(',
-        '  name = "shared",',
-        '  srcs = ["shared.ts"],',
-        ')',
-      ].join('\n')
+      ['ts_project(', '  name = "shared",', '  srcs = ["shared.ts"],', ')'].join('\n')
     );
     fs.writeFileSync(files[4], 'export const shared = true;\n');
     fs.writeFileSync(files[5], '[GLOBAL]\npants_version = "2.23.0"\n');
@@ -1467,12 +1656,7 @@ describe('StackTopologyService', () => {
     fs.writeFileSync(files[8], 'print("app")\n');
     fs.writeFileSync(
       files[9],
-      [
-        'python_sources(',
-        '  name="lib",',
-        '  sources=["util.py"],',
-        ')',
-      ].join('\n')
+      ['python_sources(', '  name="lib",', '  sources=["util.py"],', ')'].join('\n')
     );
     fs.writeFileSync(files[10], 'print("util")\n');
 
@@ -1484,18 +1668,30 @@ describe('StackTopologyService', () => {
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'bazel-build-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'bazel_workspace_package') &&
-          entry.relationships.some((relationship) => relationship.reason === 'bazel_target_source') &&
-          entry.relationships.some((relationship) => relationship.reason === 'bazel_target_dependency')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'bazel_workspace_package'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'bazel_target_source'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'bazel_target_dependency'
+          )
       )
     ).toBe(true);
     expect(
       topology.buildInsights.some(
         (entry) =>
           entry.adapterId === 'pants-build-topology' &&
-          entry.relationships.some((relationship) => relationship.reason === 'pants_workspace_package') &&
-          entry.relationships.some((relationship) => relationship.reason === 'pants_target_source') &&
-          entry.relationships.some((relationship) => relationship.reason === 'pants_target_dependency')
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'pants_workspace_package'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'pants_target_source'
+          ) &&
+          entry.relationships.some(
+            (relationship) => relationship.reason === 'pants_target_dependency'
+          )
       )
     ).toBe(true);
   });

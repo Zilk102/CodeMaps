@@ -8,7 +8,8 @@ import { parseFile } from '../parseFile';
 import { getParserInstance, loadTreeSitterLanguage } from '../treeSitterRuntime';
 
 const treeSitterDefinitions = getAllLanguageDefinitions().filter(
-  (definition) => definition.parserEngine === 'tree-sitter' && definition.wasmName && definition.query
+  (definition) =>
+    definition.parserEngine === 'tree-sitter' && definition.wasmName && definition.query
 );
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemaps-queries-'));
@@ -42,7 +43,10 @@ describe('tree-sitter queries', () => {
   it('declares a query for every structural language', () => {
     for (const definition of getAllLanguageDefinitions()) {
       if (definition.parserEngine !== 'tree-sitter') continue;
-      expect(getLanguageById(definition.id)?.query, `${definition.id} is missing a query`).toBeTruthy();
+      expect(
+        getLanguageById(definition.id)?.query,
+        `${definition.id} is missing a query`
+      ).toBeTruthy();
     }
   });
 });
@@ -179,7 +183,9 @@ describe('structural extraction', () => {
     const python = await parseSource(
       'python',
       'service.py',
-      ['import os', 'class UserService:', '    def register(self):', '        validate()'].join('\n')
+      ['import os', 'class UserService:', '    def register(self):', '        validate()'].join(
+        '\n'
+      )
     );
     expect(python.entities).toEqual(
       expect.arrayContaining([

@@ -32,7 +32,9 @@ export class BlastRadiusV2 {
     const direct: BlastNode[] = [];
     const transitive: BlastNode[] = [];
     const visited = new Set<string>();
-    const queue: Array<{ id: string; depth: number; path: string[] }> = [{ id: nodeId, depth: 0, path: [nodeId] }];
+    const queue: Array<{ id: string; depth: number; path: string[] }> = [
+      { id: nodeId, depth: 0, path: [nodeId] },
+    ];
     const riskPaths: string[][] = [];
 
     visited.add(nodeId);
@@ -47,7 +49,7 @@ export class BlastRadiusV2 {
 
       for (const neighbor of neighbors) {
         const neighborId = neighbor['m.id'];
-        
+
         if (visited.has(neighborId)) continue;
         visited.add(neighborId);
 
@@ -83,19 +85,19 @@ export class BlastRadiusV2 {
       directDependencies: direct,
       transitiveDependencies: transitive,
       totalAffected: direct.length + transitive.length,
-      maxDepth: Math.max(...[0, ...transitive.map(n => n.distance)]),
+      maxDepth: Math.max(...[0, ...transitive.map((n) => n.distance)]),
       riskPaths: riskPaths.slice(0, 10), // Top 10 risky paths
     };
   }
 
   async getImpactScore(nodeId: string): Promise<number> {
     const result = await this.calculate(nodeId, 3);
-    
+
     // Score based on: direct deps (weight 2) + transitive (weight 1) + depth penalty
     const directWeight = result.directDependencies.length * 2;
     const transitiveWeight = result.transitiveDependencies.length;
     const depthPenalty = result.maxDepth * 0.5;
-    
+
     return Math.min(100, directWeight + transitiveWeight + depthPenalty);
   }
 

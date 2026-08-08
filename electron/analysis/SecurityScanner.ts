@@ -55,8 +55,7 @@ const SANITIZED_CONTENT_RULES: Array<{
     ruleId: 'dynamic_code_execution',
     severity: 'high',
     pattern: /\b(?:eval\s*\(|new Function\s*\()/,
-    message:
-      'Dynamic code execution (`eval`/`Function`) found, increasing RCE/XSS risk.',
+    message: 'Dynamic code execution (`eval`/`Function`) found, increasing RCE/XSS risk.',
   },
   {
     ruleId: 'child_process_shell',

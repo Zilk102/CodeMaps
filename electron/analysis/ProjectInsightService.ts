@@ -5,17 +5,17 @@ import { HealthScoreResult } from './HealthScoreAnalyzer';
 import { DetectedStack, StackInsightService } from './StackInsightService';
 import { StackStructuralInsight, StackTopologyService } from './StackTopologyService';
 import { SecurityFinding } from './SecurityScanner';
-import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
+import {
+  DecompositionGuidance,
+  DecompositionGuidanceService,
+} from './DecompositionGuidanceService';
 import {
   QualityBudget,
   QualityDashboard,
   QualityGovernanceService,
   RefactoringWave,
 } from './QualityGovernanceService';
-import {
-  buildQualityArtifacts,
-  getOperationalTelemetry,
-} from './contextSupport';
+import { buildQualityArtifacts, getOperationalTelemetry } from './contextSupport';
 import { AnalysisSnapshotService } from './AnalysisSnapshotService';
 import { createGraphSummary } from './AgentContextUtils';
 import { buildProjectMentalModel } from './projectInsightMentalModel';
@@ -201,12 +201,7 @@ export class ProjectInsightService {
       patterns,
       security: buildProjectSecurityView(security.findings, security.summary),
       mentalModel,
-      autopilotPlan: buildProjectAutopilotPlan(
-        architecture,
-        resolvedHealth,
-        patterns,
-        mentalModel
-      ),
+      autopilotPlan: buildProjectAutopilotPlan(architecture, resolvedHealth, patterns, mentalModel),
       qualityBudget,
       qualityDashboard,
       decompositionGuidance,

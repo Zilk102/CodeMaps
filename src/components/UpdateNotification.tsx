@@ -102,7 +102,7 @@ const UpdateNotification: React.FC = () => {
         <div style={{ flex: 1 }}>
           {t('updateNotification.downloadingUpdate', {
             version: state.version ? `v${state.version}` : '',
-            progress: state.progress
+            progress: state.progress,
           })}
         </div>
         <div
@@ -168,7 +168,7 @@ const UpdateNotification: React.FC = () => {
               i18nKey="updateNotification.updateReady"
               values={{ version: state.version }}
               components={{
-                1: <strong style={{ color: 'var(--cyan)' }} />
+                1: <strong style={{ color: 'var(--cyan)' }} />,
               }}
             />
           </span>

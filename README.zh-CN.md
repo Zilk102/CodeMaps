@@ -28,21 +28,25 @@
 ## 🖼️ 截图
 
 ### 交互式代码图表
+
 将整个代码库可视化为交互式图表，包含文件、类、函数及其关系。
 
 ![主图表](screenshots/main-graph.jpg)
 
 ### MCP 服务器设置 — 概览
+
 CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理提供对项目架构的结构化访问。
 
 ![MCP 概览](screenshots/mcp-overview.jpg)
 
 ### MCP 工具
+
 为 AI 代理提供 10 多种内置工具：分析项目、获取图表上下文、搜索节点、检测模式、运行安全扫描等。
 
 ![MCP 工具](screenshots/mcp-tools.jpg)
 
 ### MCP 资源
+
 资源为 AI 代理提供高级项目摘要、完整的图表导出和自主执行手册。
 
 ![MCP 资源](screenshots/mcp-resources.jpg)

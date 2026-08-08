@@ -145,7 +145,9 @@ const DEV_SERVER_ORIGIN = 'http://localhost:5173';
 // window that shares this app's preload bridge.
 function hardenWebContents(window: BrowserWindow) {
   const isAllowedInternalUrl = (url: string) =>
-    url.startsWith('file://') || url.startsWith(DEV_SERVER_ORIGIN) || url.startsWith('data:text/html');
+    url.startsWith('file://') ||
+    url.startsWith(DEV_SERVER_ORIGIN) ||
+    url.startsWith('data:text/html');
 
   window.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedInternalUrl(url)) {

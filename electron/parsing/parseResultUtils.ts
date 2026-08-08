@@ -1,9 +1,6 @@
 import { ParseResult } from './types';
 
-export const createEmptyParseResult = (
-  detectedLanguage?: string,
-  adr?: string
-): ParseResult => ({
+export const createEmptyParseResult = (detectedLanguage?: string, adr?: string): ParseResult => ({
   sizeExceeded: false,
   imports: [],
   entities: [],

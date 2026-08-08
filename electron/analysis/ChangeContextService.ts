@@ -8,7 +8,10 @@ import {
 import { BlastRadiusAnalyzer, BlastRadiusResult } from './BlastRadiusAnalyzer';
 import { DetectedPattern, PatternDetectionAnalyzer } from './PatternDetectionAnalyzer';
 import { SecurityFinding, SecurityScanner } from './SecurityScanner';
-import { DecompositionCandidate, DecompositionGuidanceService } from './DecompositionGuidanceService';
+import {
+  DecompositionCandidate,
+  DecompositionGuidanceService,
+} from './DecompositionGuidanceService';
 import { createGraphSummary } from './AgentContextUtils';
 import {
   buildBlastRadiusView,

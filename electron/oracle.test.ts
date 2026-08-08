@@ -13,11 +13,14 @@ describe('OracleService.close', () => {
 
   beforeEach(() => {
     oracleStore.getState().clearRecentProjects();
-    testProjectDir = path.join(os.tmpdir(), `codemaps-oracle-close-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    testProjectDir = path.join(
+      os.tmpdir(),
+      `codemaps-oracle-close-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    );
     fs.mkdirSync(testProjectDir, { recursive: true });
     fs.writeFileSync(
       path.join(testProjectDir, 'index.ts'),
-      "export const answer = 42;\nexport function getAnswer() { return answer; }\n"
+      'export const answer = 42;\nexport function getAnswer() { return answer; }\n'
     );
     fs.mkdirSync(path.join(testProjectDir, 'aspnet'), { recursive: true });
     fs.writeFileSync(

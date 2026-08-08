@@ -48,11 +48,7 @@ export class OracleService extends EventEmitter {
     this.graphBuilder = new GraphBuilder();
     this.stackGraphEnrichmentService = new StackGraphEnrichmentService(this.graphBuilder);
     this.projectIndexer = new ProjectIndexer(this.pool, this.graphBuilder, this.performanceConfig);
-    this.fileWatcher = new FileWatcher(
-      this.projectIndexer,
-      this.graphBuilder,
-      this.cacheManager
-    );
+    this.fileWatcher = new FileWatcher(this.projectIndexer, this.graphBuilder, this.cacheManager);
   }
 
   public getGraph() {
@@ -83,7 +79,9 @@ export class OracleService extends EventEmitter {
   private emitGraphUpdated() {
     const graph = this.graphRepository.getGraph();
     if (graph.projectRoot && graph.refreshTelemetry) {
-      oracleStore.getState().updateRecentProjectTelemetry(graph.projectRoot, graph.refreshTelemetry);
+      oracleStore
+        .getState()
+        .updateRecentProjectTelemetry(graph.projectRoot, graph.refreshTelemetry);
     }
     this.emit('graph-updated', graph);
   }
@@ -137,7 +135,11 @@ export class OracleService extends EventEmitter {
     const projectName = path.basename(normalizedBaseDir);
     oracleStore
       .getState()
-      .addRecentProject(normalizedBaseDir, projectName, this.graphRepository.getGraph().refreshTelemetry);
+      .addRecentProject(
+        normalizedBaseDir,
+        projectName,
+        this.graphRepository.getGraph().refreshTelemetry
+      );
 
     this.emitGraphUpdated();
     this.parsingProgressResetTimeout = setTimeout(() => {

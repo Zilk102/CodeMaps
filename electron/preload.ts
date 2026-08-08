@@ -35,7 +35,8 @@ const api: ElectronAPI = {
   // Recent Projects
   getRecentProjects: () => ipcRenderer.invoke('get-recent-projects'),
   clearRecentProjects: () => ipcRenderer.invoke('clear-recent-projects'),
-  openRecentProject: (projectPath: string) => ipcRenderer.invoke('open-recent-project', projectPath),
+  openRecentProject: (projectPath: string) =>
+    ipcRenderer.invoke('open-recent-project', projectPath),
 
   // PR Impact Analysis
   analyzePRImpact: (projectPath, baseBranch, headBranch) =>

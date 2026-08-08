@@ -35,13 +35,16 @@ export class PRImpactAnalyzer {
     await this.graphService.init();
   }
 
-  async analyzePR(baseBranch: string = 'main', headBranch: string = 'HEAD'): Promise<PRImpactResult> {
+  async analyzePR(
+    baseBranch: string = 'main',
+    headBranch: string = 'HEAD'
+  ): Promise<PRImpactResult> {
     if (!isSafeGitRevision(baseBranch) || !isSafeGitRevision(headBranch)) {
       throw new Error('Invalid branch name');
     }
 
     const changedFiles = this.getChangedFiles(baseBranch, headBranch);
-    
+
     if (changedFiles.length === 0) {
       return {
         changedFiles: [],
@@ -59,7 +62,7 @@ export class PRImpactAnalyzer {
     for (const file of changedFiles) {
       // Find nodes matching this file path
       const nodes = await this.graphService.queryNodes(undefined, file.path);
-      
+
       for (const node of nodes) {
         const nodeId = node['n.id'];
         if (!affectedNodes.includes(nodeId)) {
@@ -89,7 +92,7 @@ export class PRImpactAnalyzer {
       );
     }
 
-    if (changedFiles.some(f => f.path.includes('test'))) {
+    if (changedFiles.some((f) => f.path.includes('test'))) {
       recommendations.push('✅ Tests updated — good practice!');
     } else if (affectedNodes.length > 0) {
       recommendations.push('💡 Consider adding tests for the affected nodes.');
@@ -140,7 +143,11 @@ export class PRImpactAnalyzer {
       });
   }
 
-  private getFileStatus(filePath: string, baseBranch: string, headBranch: string): 'added' | 'modified' | 'deleted' {
+  private getFileStatus(
+    filePath: string,
+    baseBranch: string,
+    headBranch: string
+  ): 'added' | 'modified' | 'deleted' {
     const existsInBase = this.execGit(['ls-tree', baseBranch, '--', filePath])?.trim();
     const existsInHead = this.execGit(['ls-tree', headBranch, '--', filePath])?.trim();
 
@@ -155,7 +162,7 @@ export class PRImpactAnalyzer {
     blastRadius: number
   ): 'low' | 'medium' | 'high' | 'critical' {
     const totalChanges = changedFiles.reduce((sum, f) => sum + f.additions + f.deletions, 0);
-    
+
     if (totalChanges > 500 || blastRadius > 50 || affectedNodes.length > 20) {
       return 'critical';
     }

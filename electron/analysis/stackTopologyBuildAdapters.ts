@@ -10,7 +10,7 @@ import {
   StackAdapter,
   StackAdapterContext,
   StackStructuralRelationship,
-  toRelativeList
+  toRelativeList,
 } from './stackTopologySupport';
 import { openApiAdapter, protobufAdapter } from './stackTopologyContractBuildAdapters';
 
@@ -36,9 +36,10 @@ const viteAdapter: StackAdapter = {
       );
     const modules = context
       .getAllFilePaths()
-      .filter((filePath) =>
-        context.getProjectRelativePath(filePath).startsWith('src/') &&
-        /\.(ts|tsx|js|jsx)$/.test(filePath)
+      .filter(
+        (filePath) =>
+          context.getProjectRelativePath(filePath).startsWith('src/') &&
+          /\.(ts|tsx|js|jsx)$/.test(filePath)
       )
       .slice(0, 25)
       .map((filePath) => context.getProjectRelativePath(filePath));
@@ -79,14 +80,18 @@ type WorkspacePackageManifest = {
 const parseJsonObject = (text: string): ParsedJsonValue => {
   try {
     const value = JSON.parse(text);
-    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
 };
 
 const getObjectRecord = (value: unknown) =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 const getStringArray = (value: unknown) =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
@@ -165,7 +170,9 @@ const collectWorkspacePackageManifests = async (
 
   const manifests = relativeEntries
     .filter((entry) => entry.filePath !== 'package.json')
-    .filter((entry) => workspacePatterns.some((pattern) => matchesWorkspacePattern(entry.filePath, pattern)))
+    .filter((entry) =>
+      workspacePatterns.some((pattern) => matchesWorkspacePattern(entry.filePath, pattern))
+    )
     .map((entry) => {
       const parsed = parseJsonObject(entry.text);
       const dependencies = [
@@ -176,7 +183,10 @@ const collectWorkspacePackageManifests = async (
       const scripts = Object.keys(getObjectRecord(parsed?.scripts) || {});
       return {
         filePath: entry.filePath,
-        name: typeof parsed?.name === 'string' ? parsed.name : path.posix.basename(path.posix.dirname(entry.filePath)),
+        name:
+          typeof parsed?.name === 'string'
+            ? parsed.name
+            : path.posix.basename(path.posix.dirname(entry.filePath)),
         dependencies,
         scripts,
       };
@@ -224,10 +234,18 @@ const pnpmWorkspaceAdapter: StackAdapter = {
       }
     }
 
-    const { manifests, byName } = await collectWorkspacePackageManifests(context, Array.from(workspacePatterns));
+    const { manifests, byName } = await collectWorkspacePackageManifests(
+      context,
+      Array.from(workspacePatterns)
+    );
     const relationships = [
       ...manifests.map((manifest) =>
-        createRelationship(workspaceRootDescriptor, manifest.filePath, 'build', 'pnpm_workspace_package')
+        createRelationship(
+          workspaceRootDescriptor,
+          manifest.filePath,
+          'build',
+          'pnpm_workspace_package'
+        )
       ),
       ...manifests.flatMap((manifest) =>
         manifest.dependencies.flatMap((dependencyName) => {
@@ -286,7 +304,9 @@ const nxWorkspaceAdapter: StackAdapter = {
 
     const projectJsonFiles = context
       .getAllFilePaths()
-      .filter((filePath) => /(?:^|\/)project\.json$/i.test(context.getProjectRelativePath(filePath)));
+      .filter((filePath) =>
+        /(?:^|\/)project\.json$/i.test(context.getProjectRelativePath(filePath))
+      );
     const projectContents = await context.readTexts(projectJsonFiles);
     const relativeProjectEntries = projectContents.map((entry) => ({
       filePath: context.getProjectRelativePath(entry.filePath),
@@ -310,15 +330,23 @@ const nxWorkspaceAdapter: StackAdapter = {
           if (!target || target === entry.filePath) {
             return [];
           }
-          return [
-            createRelationship(entry.filePath, target, 'build', 'nx_implicit_dependency'),
-          ];
+          return [createRelationship(entry.filePath, target, 'build', 'nx_implicit_dependency')];
         })
       ),
       ...relativeProjectEntries.flatMap((entry) => {
-        const packageJsonCandidate = path.posix.join(path.posix.dirname(entry.filePath), 'package.json');
+        const packageJsonCandidate = path.posix.join(
+          path.posix.dirname(entry.filePath),
+          'package.json'
+        );
         return context.hasRelativePath(packageJsonCandidate)
-          ? [createRelationship(entry.filePath, packageJsonCandidate, 'build', 'nx_project_package')]
+          ? [
+              createRelationship(
+                entry.filePath,
+                packageJsonCandidate,
+                'build',
+                'nx_project_package'
+              ),
+            ]
           : [];
       }),
     ];
@@ -365,7 +393,10 @@ const turborepoAdapter: StackAdapter = {
     const packageText = (await context.readText(rootPackageJson)) || '';
     const taskNames = extractTurboTaskNames(turboText);
     const workspacePatterns = extractPackageJsonWorkspacePatterns(packageText);
-    const { manifests, byName } = await collectWorkspacePackageManifests(context, workspacePatterns);
+    const { manifests, byName } = await collectWorkspacePackageManifests(
+      context,
+      workspacePatterns
+    );
     const taskAwarePackages = manifests.filter((manifest) =>
       taskNames.length === 0 ? true : manifest.scripts.some((script) => taskNames.includes(script))
     );
@@ -421,7 +452,8 @@ const extractNamedListValues = (text: string, fieldNames: string[]) =>
   );
 
 const extractBazelSrcs = (text: string) => extractNamedListValues(text, ['srcs', 'outs', 'hdrs']);
-const extractBazelDeps = (text: string) => extractNamedListValues(text, ['deps', 'exports', 'runtime_deps']);
+const extractBazelDeps = (text: string) =>
+  extractNamedListValues(text, ['deps', 'exports', 'runtime_deps']);
 
 const resolveBazelBuildFile = (context: StackAdapterContext, packagePath: string) => {
   const normalizedPackage = packagePath.replace(/^\/+|\/+$/g, '');
@@ -527,12 +559,16 @@ const bazelAdapter: StackAdapter = {
     const configFiles = context
       .getAllFilePaths()
       .filter((filePath) =>
-        ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'].includes(context.getProjectRelativePath(filePath))
+        ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'].includes(
+          context.getProjectRelativePath(filePath)
+        )
       );
     const buildFiles = context
       .getAllFilePaths()
       .filter((filePath) =>
-        ['BUILD', 'BUILD.bazel'].includes(path.posix.basename(context.getProjectRelativePath(filePath)))
+        ['BUILD', 'BUILD.bazel'].includes(
+          path.posix.basename(context.getProjectRelativePath(filePath))
+        )
       );
     const buildContents = await context.readTexts(buildFiles);
     const relativeEntries = buildContents.map((entry) => ({
@@ -543,7 +579,12 @@ const bazelAdapter: StackAdapter = {
     const relationships: StackStructuralRelationship[] = [
       ...configFiles.flatMap((configFile) =>
         relativeEntries.map((entry) =>
-          createRelationship(context.getProjectRelativePath(configFile), entry.filePath, 'build', 'bazel_workspace_package')
+          createRelationship(
+            context.getProjectRelativePath(configFile),
+            entry.filePath,
+            'build',
+            'bazel_workspace_package'
+          )
         )
       ),
       ...relativeEntries.flatMap((entry) =>
@@ -559,11 +600,23 @@ const bazelAdapter: StackAdapter = {
           const resolved = resolveBazelLabel(context, entry.filePath, dependencyLabel);
           if (resolved?.descriptor && resolved.descriptor !== entry.filePath) {
             return [
-              createRelationship(entry.filePath, resolved.descriptor, 'build', 'bazel_target_dependency'),
+              createRelationship(
+                entry.filePath,
+                resolved.descriptor,
+                'build',
+                'bazel_target_dependency'
+              ),
             ];
           }
           return resolved?.file
-            ? [createRelationship(entry.filePath, resolved.file, 'build', 'bazel_target_dependency')]
+            ? [
+                createRelationship(
+                  entry.filePath,
+                  resolved.file,
+                  'build',
+                  'bazel_target_dependency'
+                ),
+              ]
             : [];
         })
       ),
@@ -594,12 +647,16 @@ const pantsAdapter: StackAdapter = {
     const configFiles = context
       .getAllFilePaths()
       .filter((filePath) =>
-        ['pants.toml', 'BUILDROOT', 'pyproject.toml'].includes(context.getProjectRelativePath(filePath))
+        ['pants.toml', 'BUILDROOT', 'pyproject.toml'].includes(
+          context.getProjectRelativePath(filePath)
+        )
       );
     const buildFiles = context
       .getAllFilePaths()
       .filter((filePath) =>
-        ['BUILD', 'BUILD.pants'].includes(path.posix.basename(context.getProjectRelativePath(filePath)))
+        ['BUILD', 'BUILD.pants'].includes(
+          path.posix.basename(context.getProjectRelativePath(filePath))
+        )
       );
     const buildContents = await context.readTexts(buildFiles);
     const relativeEntries = buildContents.map((entry) => ({
@@ -610,7 +667,12 @@ const pantsAdapter: StackAdapter = {
     const relationships: StackStructuralRelationship[] = [
       ...configFiles.flatMap((configFile) =>
         relativeEntries.map((entry) =>
-          createRelationship(context.getProjectRelativePath(configFile), entry.filePath, 'build', 'pants_workspace_package')
+          createRelationship(
+            context.getProjectRelativePath(configFile),
+            entry.filePath,
+            'build',
+            'pants_workspace_package'
+          )
         )
       ),
       ...relativeEntries.flatMap((entry) =>
@@ -626,11 +688,23 @@ const pantsAdapter: StackAdapter = {
           const resolved = resolvePantsAddress(context, entry.filePath, dependencyAddress);
           if (resolved?.descriptor && resolved.descriptor !== entry.filePath) {
             return [
-              createRelationship(entry.filePath, resolved.descriptor, 'build', 'pants_target_dependency'),
+              createRelationship(
+                entry.filePath,
+                resolved.descriptor,
+                'build',
+                'pants_target_dependency'
+              ),
             ];
           }
           return resolved?.file
-            ? [createRelationship(entry.filePath, resolved.file, 'build', 'pants_target_dependency')]
+            ? [
+                createRelationship(
+                  entry.filePath,
+                  resolved.file,
+                  'build',
+                  'pants_target_dependency'
+                ),
+              ]
             : [];
         })
       ),
@@ -722,34 +796,53 @@ const gradleBuildAdapter: StackAdapter = {
   analyze: async (context) => {
     const buildFiles = context
       .getAllFilePaths()
-      .filter((filePath) => /(?:^|\/)(?:build|settings)\.gradle(?:\.kts)?$/i.test(context.getProjectRelativePath(filePath)));
+      .filter((filePath) =>
+        /(?:^|\/)(?:build|settings)\.gradle(?:\.kts)?$/i.test(
+          context.getProjectRelativePath(filePath)
+        )
+      );
     const buildContents = await context.readTexts(buildFiles);
     const relativeEntries = buildContents.map((entry) => ({
       filePath: context.getProjectRelativePath(entry.filePath),
       text: entry.text,
     }));
-    const settingsEntries = relativeEntries.filter((entry) => /(?:^|\/)settings\.gradle(?:\.kts)?$/i.test(entry.filePath));
+    const settingsEntries = relativeEntries.filter((entry) =>
+      /(?:^|\/)settings\.gradle(?:\.kts)?$/i.test(entry.filePath)
+    );
     const relationships: StackStructuralRelationship[] = [];
     const modules: string[] = [];
 
     for (const settingsEntry of settingsEntries) {
       for (const includeNotation of extractGradleIncludes(settingsEntry.text)) {
-        const targetDescriptor = resolveGradleModuleDescriptor(context, settingsEntry.filePath, includeNotation);
+        const targetDescriptor = resolveGradleModuleDescriptor(
+          context,
+          settingsEntry.filePath,
+          includeNotation
+        );
         if (!targetDescriptor) {
           continue;
         }
         modules.push(targetDescriptor);
         relationships.push(
-          createRelationship(settingsEntry.filePath, targetDescriptor, 'build', 'gradle_settings_module')
+          createRelationship(
+            settingsEntry.filePath,
+            targetDescriptor,
+            'build',
+            'gradle_settings_module'
+          )
         );
       }
     }
 
-    for (const entry of relativeEntries.filter((item) => /(?:^|\/)build\.gradle(?:\.kts)?$/i.test(item.filePath))) {
+    for (const entry of relativeEntries.filter((item) =>
+      /(?:^|\/)build\.gradle(?:\.kts)?$/i.test(item.filePath)
+    )) {
       for (const dependencyNotation of extractGradleProjectDependencies(entry.text)) {
         const targetDescriptor =
           settingsEntries
-            .map((settingsEntry) => resolveGradleModuleDescriptor(context, settingsEntry.filePath, dependencyNotation))
+            .map((settingsEntry) =>
+              resolveGradleModuleDescriptor(context, settingsEntry.filePath, dependencyNotation)
+            )
             .find((candidate): candidate is string => Boolean(candidate)) || null;
         if (!targetDescriptor || targetDescriptor === entry.filePath) {
           continue;
@@ -781,12 +874,16 @@ const toCargoManifestPath = (sourceRelativePath: string, targetPath: string) => 
   const normalizedTarget = path.posix.normalize(
     path.posix.join(path.posix.dirname(sourceRelativePath), targetPath)
   );
-  return normalizedTarget.endsWith('Cargo.toml') ? normalizedTarget : `${normalizedTarget}/Cargo.toml`;
+  return normalizedTarget.endsWith('Cargo.toml')
+    ? normalizedTarget
+    : `${normalizedTarget}/Cargo.toml`;
 };
 
 const extractCargoWorkspaceMembers = (text: string) =>
   Array.from(
-    (text.match(/\[workspace\][\s\S]*?members\s*=\s*\[([\s\S]*?)\]/)?.[1] || '').matchAll(/"([^"]+)"/g)
+    (text.match(/\[workspace\][\s\S]*?members\s*=\s*\[([\s\S]*?)\]/)?.[1] || '').matchAll(
+      /"([^"]+)"/g
+    )
   )
     .map((match) => match[1])
     .filter((value): value is string => Boolean(value));
@@ -833,11 +930,15 @@ const extractMavenDependencies = (text: string) =>
   }));
 
 const toMavenPomPath = (sourceRelativePath: string, modulePath: string) =>
-  path.posix.normalize(path.posix.join(path.posix.dirname(sourceRelativePath), modulePath, 'pom.xml'));
+  path.posix.normalize(
+    path.posix.join(path.posix.dirname(sourceRelativePath), modulePath, 'pom.xml')
+  );
 
 const extractGradleIncludes = (text: string) => {
   const matches = Array.from(
-    text.matchAll(/\binclude\s*\(([\s\S]*?)\)|\binclude\s+((?::[A-Za-z0-9_-]+(?:[:][A-Za-z0-9_-]+)*)+)/g)
+    text.matchAll(
+      /\binclude\s*\(([\s\S]*?)\)|\binclude\s+((?::[A-Za-z0-9_-]+(?:[:][A-Za-z0-9_-]+)*)+)/g
+    )
   );
   const modules = new Set<string>();
 
@@ -861,7 +962,8 @@ const extractGradleProjectDependencies = (text: string) =>
     .map((match) => match[1])
     .filter((value): value is string => Boolean(value));
 
-const gradleModuleNotationToPath = (moduleNotation: string) => moduleNotation.replace(/^:/, '').replace(/:/g, '/');
+const gradleModuleNotationToPath = (moduleNotation: string) =>
+  moduleNotation.replace(/^:/, '').replace(/:/g, '/');
 
 const resolveGradleModuleDescriptor = (
   context: StackAdapterContext,
@@ -922,12 +1024,16 @@ const cargoBuildAdapter: StackAdapter = {
       }
 
       for (const binPath of extractCargoBinPaths(entry.text)) {
-        const targetFile = path.posix.normalize(path.posix.join(path.posix.dirname(entry.filePath), binPath));
+        const targetFile = path.posix.normalize(
+          path.posix.join(path.posix.dirname(entry.filePath), binPath)
+        );
         if (!context.hasRelativePath(targetFile)) {
           continue;
         }
         modules.push(targetFile);
-        relationships.push(createRelationship(entry.filePath, targetFile, 'build', 'cargo_bin_target'));
+        relationships.push(
+          createRelationship(entry.filePath, targetFile, 'build', 'cargo_bin_target')
+        );
       }
     }
 
@@ -992,7 +1098,6 @@ const dotnetAdapter: StackAdapter = {
     );
   },
 };
-
 
 export const BUILD_STACK_ADAPTERS: StackAdapter[] = [
   viteAdapter,

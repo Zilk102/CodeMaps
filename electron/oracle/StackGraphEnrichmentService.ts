@@ -65,13 +65,14 @@ export class StackGraphEnrichmentService {
         };
       })
       .filter(
-        (relationship): relationship is {
+        (
+          relationship
+        ): relationship is {
           source: string;
           target: string;
           type: 'framework' | 'build';
           reason: string;
-        } =>
-          !!relationship
+        } => !!relationship
       )
       .map<GraphLink>((relationship) => ({
         source: relationship.source,
@@ -86,7 +87,8 @@ export class StackGraphEnrichmentService {
       return (
         all.findIndex(
           (candidate) =>
-            `${candidate.source}->${candidate.target}:${candidate.type}:${candidate.reason || ''}` === key
+            `${candidate.source}->${candidate.target}:${candidate.type}:${candidate.reason || ''}` ===
+            key
         ) === index
       );
     });
@@ -159,7 +161,10 @@ export class StackGraphEnrichmentService {
     return changedPaths.some((candidate) => {
       const normalizedCandidate = normalizePath(candidate);
       const relativeCandidate = normalizedCandidate.startsWith(normalizePath(projectRoot))
-        ? normalizePath(normalizedCandidate.slice(normalizePath(projectRoot).length)).replace(/^\/+/u, '')
+        ? normalizePath(normalizedCandidate.slice(normalizePath(projectRoot).length)).replace(
+            /^\/+/u,
+            ''
+          )
         : normalizedCandidate.replace(/^\/+/u, '');
 
       return STACK_REFRESH_PATH_PATTERNS.some((pattern) => pattern.test(relativeCandidate));
@@ -180,7 +185,11 @@ export class StackGraphEnrichmentService {
     }
 
     const resolvedCandidate = symbolName ? `${baseMatches}#${symbolName}` : baseMatches;
-    return nodeIds.has(resolvedCandidate) ? resolvedCandidate : symbolName ? baseMatches : resolvedCandidate;
+    return nodeIds.has(resolvedCandidate)
+      ? resolvedCandidate
+      : symbolName
+        ? baseMatches
+        : resolvedCandidate;
   }
 
   private resolveBaseNodeId(

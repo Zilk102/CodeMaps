@@ -57,7 +57,12 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     matchMode: 'any',
     rules: [
       { type: 'basename', anyOf: ['package-lock.json'] },
-      { type: 'json_field_includes', file: 'package.json', field: 'packageManager', anyOf: ['npm@', 'npm'] },
+      {
+        type: 'json_field_includes',
+        file: 'package.json',
+        field: 'packageManager',
+        anyOf: ['npm@', 'npm'],
+      },
     ],
   },
   {
@@ -69,7 +74,12 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     matchMode: 'any',
     rules: [
       { type: 'basename', anyOf: ['pnpm-lock.yaml'] },
-      { type: 'json_field_includes', file: 'package.json', field: 'packageManager', anyOf: ['pnpm@', 'pnpm'] },
+      {
+        type: 'json_field_includes',
+        file: 'package.json',
+        field: 'packageManager',
+        anyOf: ['pnpm@', 'pnpm'],
+      },
     ],
   },
   {
@@ -81,7 +91,12 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     matchMode: 'any',
     rules: [
       { type: 'basename', anyOf: ['yarn.lock'] },
-      { type: 'json_field_includes', file: 'package.json', field: 'packageManager', anyOf: ['yarn@', 'yarn'] },
+      {
+        type: 'json_field_includes',
+        file: 'package.json',
+        field: 'packageManager',
+        anyOf: ['yarn@', 'yarn'],
+      },
     ],
   },
   {
@@ -93,7 +108,12 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     matchMode: 'any',
     rules: [
       { type: 'basename', anyOf: ['bun.lockb', 'bun.lock'] },
-      { type: 'json_field_includes', file: 'package.json', field: 'packageManager', anyOf: ['bun@', 'bun'] },
+      {
+        type: 'json_field_includes',
+        file: 'package.json',
+        field: 'packageManager',
+        anyOf: ['bun@', 'bun'],
+      },
     ],
   },
   {
@@ -174,7 +194,12 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     matchMode: 'any',
     rules: [
       { type: 'relative_path', anyOf: ['pnpm-workspace.yaml'] },
-      { type: 'json_field_includes', file: 'package.json', field: 'packageManager', anyOf: ['pnpm@', 'pnpm'] },
+      {
+        type: 'json_field_includes',
+        file: 'package.json',
+        field: 'packageManager',
+        anyOf: ['pnpm@', 'pnpm'],
+      },
       { type: 'text_contains', file: 'package.json', anyOf: ['"workspaces"'] },
     ],
   },
@@ -248,7 +273,17 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     confidence: 'high',
     matchMode: 'any',
     rules: [
-      { type: 'basename', anyOf: ['openapi.yaml', 'openapi.yml', 'openapi.json', 'swagger.yaml', 'swagger.yml', 'swagger.json'] },
+      {
+        type: 'basename',
+        anyOf: [
+          'openapi.yaml',
+          'openapi.yml',
+          'openapi.json',
+          'swagger.yaml',
+          'swagger.yml',
+          'swagger.json',
+        ],
+      },
       {
         type: 'text_contains_in_suffix',
         suffixes: ['.yaml', '.yml', '.json'],
@@ -284,7 +319,10 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     confidence: 'high',
     matchMode: 'any',
     rules: [
-      { type: 'basename', anyOf: ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'] },
+      {
+        type: 'basename',
+        anyOf: ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'],
+      },
     ],
   },
   {
@@ -434,7 +472,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     confidence: 'high',
     matchMode: 'any',
     rules: [
-      { type: 'text_contains', file: 'pom.xml', anyOf: ['spring-boot', 'org.springframework.boot'] },
+      {
+        type: 'text_contains',
+        file: 'pom.xml',
+        anyOf: ['spring-boot', 'org.springframework.boot'],
+      },
       {
         type: 'text_contains',
         file: 'build.gradle',
@@ -455,7 +497,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     confidence: 'high',
     matchMode: 'any',
     rules: [
-      { type: 'text_contains', file: 'pom.xml', anyOf: ['io.ktor', 'ktor-server-core', 'ktor-server-netty'] },
+      {
+        type: 'text_contains',
+        file: 'pom.xml',
+        anyOf: ['io.ktor', 'ktor-server-core', 'ktor-server-netty'],
+      },
       {
         type: 'text_contains',
         file: 'build.gradle',
@@ -466,7 +512,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
         file: 'build.gradle.kts',
         anyOf: ['io.ktor', 'ktor-server-core', 'ktor-server-netty'],
       },
-      { type: 'text_contains_in_suffix', suffixes: ['.kt'], anyOf: ['embeddedServer(', 'routing {', 'fun Application.module'] },
+      {
+        type: 'text_contains_in_suffix',
+        suffixes: ['.kt'],
+        anyOf: ['embeddedServer(', 'routing {', 'fun Application.module'],
+      },
     ],
   },
   {
@@ -477,7 +527,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     confidence: 'high',
     matchMode: 'any',
     rules: [
-      { type: 'text_contains', file: 'pom.xml', anyOf: ['io.micronaut', 'micronaut-http-server-netty', 'micronaut-runtime'] },
+      {
+        type: 'text_contains',
+        file: 'pom.xml',
+        anyOf: ['io.micronaut', 'micronaut-http-server-netty', 'micronaut-runtime'],
+      },
       {
         type: 'text_contains',
         file: 'build.gradle',
@@ -488,7 +542,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
         file: 'build.gradle.kts',
         anyOf: ['io.micronaut', 'micronaut-http-server-netty', 'micronaut-runtime'],
       },
-      { type: 'text_contains_in_suffix', suffixes: ['.java', '.kt'], anyOf: ['Micronaut.run(', '@Controller', '@Singleton'] },
+      {
+        type: 'text_contains_in_suffix',
+        suffixes: ['.java', '.kt'],
+        anyOf: ['Micronaut.run(', '@Controller', '@Singleton'],
+      },
     ],
   },
   {
@@ -499,7 +557,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     confidence: 'high',
     matchMode: 'any',
     rules: [
-      { type: 'text_contains', file: 'pom.xml', anyOf: ['io.quarkus', 'quarkus-resteasy', 'quarkus-arc'] },
+      {
+        type: 'text_contains',
+        file: 'pom.xml',
+        anyOf: ['io.quarkus', 'quarkus-resteasy', 'quarkus-arc'],
+      },
       {
         type: 'text_contains',
         file: 'build.gradle',
@@ -510,7 +572,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
         file: 'build.gradle.kts',
         anyOf: ['io.quarkus', 'quarkus-resteasy', 'quarkus-arc'],
       },
-      { type: 'text_contains_in_suffix', suffixes: ['.java', '.kt'], anyOf: ['@Path(', 'Quarkus.run(', '@QuarkusMain'] },
+      {
+        type: 'text_contains_in_suffix',
+        suffixes: ['.java', '.kt'],
+        anyOf: ['@Path(', 'Quarkus.run(', '@QuarkusMain'],
+      },
     ],
   },
   {
@@ -671,7 +737,11 @@ export const BUILTIN_STACK_DEFINITIONS: StackDefinition[] = [
     matchMode: 'any',
     rules: [
       { type: 'text_contains', file: 'Cargo.toml', anyOf: ['axum'] },
-      { type: 'text_contains_in_suffix', suffixes: ['.rs'], anyOf: ['Router::new', 'axum::serve', 'axum::Router'] },
+      {
+        type: 'text_contains_in_suffix',
+        suffixes: ['.rs'],
+        anyOf: ['Router::new', 'axum::serve', 'axum::Router'],
+      },
     ],
   },
   {

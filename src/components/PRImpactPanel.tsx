@@ -13,9 +13,7 @@ interface PRImpactResult {
   recommendations: string[];
 }
 
-export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
-  projectPath,
-}) => {
+export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const [baseBranch, setBaseBranch] = useState('main');
   const [headBranch, setHeadBranch] = useState('HEAD');
@@ -26,7 +24,7 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     setError(null);
-    
+
     try {
       if (window.api?.analyzePRImpact) {
         const response = await window.api.analyzePRImpact(projectPath, baseBranch, headBranch);
@@ -51,11 +49,16 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'critical': return 'bg-[rgba(255,107,107,0.16)] text-(--red)';
-      case 'high': return 'bg-[rgba(255,170,68,0.18)] text-(--orange)';
-      case 'medium': return 'bg-[rgba(255,210,102,0.18)] text-(--yellow)';
-      case 'low': return 'bg-[rgba(64,201,114,0.18)] text-(--green)';
-      default: return 'bg-(--bg2) text-(--t1)';
+      case 'critical':
+        return 'bg-[rgba(255,107,107,0.16)] text-(--red)';
+      case 'high':
+        return 'bg-[rgba(255,170,68,0.18)] text-(--orange)';
+      case 'medium':
+        return 'bg-[rgba(255,210,102,0.18)] text-(--yellow)';
+      case 'low':
+        return 'bg-[rgba(64,201,114,0.18)] text-(--green)';
+      default:
+        return 'bg-(--bg2) text-(--t1)';
     }
   };
 
@@ -66,7 +69,9 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
           {t('tools.quickActions.review')}
         </div>
         <h3 className="mt-2 text-[16px] font-semibold text-(--t0)">{t('prImpact.title')}</h3>
-        <p className="mt-2 text-[13px] leading-6 text-(--t2)">{t('tools.quickActions.prDescription')}</p>
+        <p className="mt-2 text-[13px] leading-6 text-(--t2)">
+          {t('tools.quickActions.prDescription')}
+        </p>
       </div>
 
       <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
@@ -105,8 +110,19 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
               {isAnalyzing ? (
                 <span className="inline-flex items-center gap-2">
                   <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   {t('prImpact.analyzing')}
                 </span>
@@ -127,7 +143,9 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
 
       {result && (
         <div className="space-y-4">
-          <div className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ${getRiskColor(result.riskScore)}`}>
+          <div
+            className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ${getRiskColor(result.riskScore)}`}
+          >
             {t(`prImpact.risk.${result.riskScore}`)}
           </div>
 
@@ -152,9 +170,7 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
               <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
                 {t('prImpact.blastRadius')}
               </div>
-              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
-                {result.blastRadius}
-              </div>
+              <div className="mt-2 text-[24px] font-semibold text-(--t0)">{result.blastRadius}</div>
             </div>
           </div>
 
@@ -181,7 +197,7 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
                     <span className="truncate text-sm text-(--t1)">{file.path as string}</span>
                   </span>
                   <span className="shrink-0 text-xs text-(--t2)">
-                    +{(file.additions as number)} -{(file.deletions as number)}
+                    +{file.additions as number} -{file.deletions as number}
                   </span>
                 </li>
               ))}
@@ -210,4 +226,3 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
     </div>
   );
 };
-

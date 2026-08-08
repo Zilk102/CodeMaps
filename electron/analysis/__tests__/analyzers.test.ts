@@ -31,9 +31,11 @@ describe('Analyzers (Zero Mock Policy)', () => {
     fs.mkdirSync(testProjectDir, { recursive: true });
 
     // Create files that will trigger different analyzers
-    
+
     // 1. A file with high fan-out (App.tsx depends on many)
-    fs.writeFileSync(path.join(testProjectDir, 'App.tsx'), `
+    fs.writeFileSync(
+      path.join(testProjectDir, 'App.tsx'),
+      `
 import { util1 } from './utils1';
 import { util2 } from './utils2';
 import { util3 } from './utils3';
@@ -53,11 +55,15 @@ export function App() {
   document.cookie = "token=secret; Secure; HttpOnly"; // use Secure Cookies instead of localStorage
   const t\u006Fken = "super_secret_token_123456789"; // triggers SecurityScanner hardcoded_secret
 }
-`);
+`
+    );
 
     // Generate utils to be imported
     for (let i = 1; i <= 13; i++) {
-      fs.writeFileSync(path.join(testProjectDir, `utils${i}.ts`), `export function util${i}() { return ${i}; }`);
+      fs.writeFileSync(
+        path.join(testProjectDir, `utils${i}.ts`),
+        `export function util${i}() { return ${i}; }`
+      );
     }
 
     const longMethodBody = Array.from(
@@ -160,28 +166,28 @@ ${longMethodBody}
   it('SecurityScanner detects security issues', async () => {
     const scanner = new SecurityScanner();
     const result = await scanner.analyze(graphData);
-    
+
     expect(result.findings.length).toBeGreaterThan(0);
-    expect(result.findings.some(f => f.ruleId === 'sensitive_file_name')).toBe(true);
+    expect(result.findings.some((f) => f.ruleId === 'sensitive_file_name')).toBe(true);
     // Note: other regex-based file content scans aren't easily triggered via graphData nodes alone unless the scanner reads the files.
     // SecurityScanner reads file contents for node.type === 'file'
-    expect(result.findings.some(f => f.ruleId === 'dynamic_code_execution')).toBe(true);
-    expect(result.findings.some(f => f.ruleId === 'hardcoded_secret')).toBe(true);
+    expect(result.findings.some((f) => f.ruleId === 'dynamic_code_execution')).toBe(true);
+    expect(result.findings.some((f) => f.ruleId === 'hardcoded_secret')).toBe(true);
   });
 
   it('PatternDetectionAnalyzer detects architectural patterns', () => {
     const analyzer = new PatternDetectionAnalyzer();
     const result = analyzer.analyze(graphData);
-    
+
     expect(result.patterns.length).toBeGreaterThan(0);
     // App.tsx has 13 imports -> high fan-out
-    expect(result.patterns.some(p => p.id === 'high_fan_out_files')).toBe(true);
+    expect(result.patterns.some((p) => p.id === 'high_fan_out_files')).toBe(true);
     // The deep.ts file is nested 6 levels deep -> deep nesting
-    expect(result.patterns.some(p => p.id === 'deep_nesting')).toBe(true);
-    expect(result.patterns.some(p => p.id === 'god_classes')).toBe(true);
-    expect(result.patterns.some(p => p.id === 'long_methods')).toBe(true);
-    expect(result.patterns.some(p => p.id === 'complex_methods')).toBe(true);
-    expect(result.patterns.some(p => p.id === 'mixed_responsibility_modules')).toBe(true);
+    expect(result.patterns.some((p) => p.id === 'deep_nesting')).toBe(true);
+    expect(result.patterns.some((p) => p.id === 'god_classes')).toBe(true);
+    expect(result.patterns.some((p) => p.id === 'long_methods')).toBe(true);
+    expect(result.patterns.some((p) => p.id === 'complex_methods')).toBe(true);
+    expect(result.patterns.some((p) => p.id === 'mixed_responsibility_modules')).toBe(true);
     expect(
       result.patterns
         .filter((p) => ['god_classes', 'long_methods', 'complex_methods'].includes(p.id))
@@ -197,7 +203,7 @@ ${longMethodBody}
   it('HealthScoreAnalyzer calculates health score and identifies issues', () => {
     const analyzer = new HealthScoreAnalyzer();
     const result = analyzer.analyze(graphData);
-    
+
     expect(result.score).toBeDefined();
     expect(typeof result.score).toBe('number');
     expect(result.grade).toBeDefined();
@@ -210,10 +216,10 @@ ${longMethodBody}
     expect(result.summary.avgDesignSmellScore).toBeGreaterThan(0);
     expect(result.summary.maintainabilityScore).toBeGreaterThanOrEqual(0);
     expect(result.summary.solidScore).toBeGreaterThanOrEqual(0);
-    expect(result.issues.some(issue => issue.code === 'god_classes')).toBe(true);
-    expect(result.issues.some(issue => issue.code === 'long_methods')).toBe(true);
-    expect(result.issues.some(issue => issue.code === 'complex_methods')).toBe(true);
-    expect(result.issues.some(issue => issue.code === 'mixed_responsibility_modules')).toBe(true);
+    expect(result.issues.some((issue) => issue.code === 'god_classes')).toBe(true);
+    expect(result.issues.some((issue) => issue.code === 'long_methods')).toBe(true);
+    expect(result.issues.some((issue) => issue.code === 'complex_methods')).toBe(true);
+    expect(result.issues.some((issue) => issue.code === 'mixed_responsibility_modules')).toBe(true);
     const scoreIssueCodes = result.issues.map((issue) => issue.code);
     if (result.summary.maintainabilityScore < 85) {
       expect(scoreIssueCodes).toContain('maintainability_score');
@@ -250,7 +256,13 @@ ${longMethodBody}
     const definition = getLanguageById('typescript');
     expect(definition).toBeDefined();
 
-    const result = extractWithTypeScriptSemantic(filePath, text, definition!, undefined, testProjectDir);
+    const result = extractWithTypeScriptSemantic(
+      filePath,
+      text,
+      definition!,
+      undefined,
+      testProjectDir
+    );
     const graphBuilder = new GraphBuilder();
     const store = oracleStore.getState();
     store.clear();
@@ -258,8 +270,12 @@ ${longMethodBody}
     graphBuilder.applyParsedFile(filePath, testProjectDir, 1, result);
 
     const directGraph = store.getValidGraph();
-    const classNode = directGraph.nodes.find((node) => node.id.endsWith('MonsterService.ts#MonsterService'));
-    const methodNode = directGraph.nodes.find((node) => node.id.endsWith('MonsterService.ts#orchestrate'));
+    const classNode = directGraph.nodes.find((node) =>
+      node.id.endsWith('MonsterService.ts#MonsterService')
+    );
+    const methodNode = directGraph.nodes.find((node) =>
+      node.id.endsWith('MonsterService.ts#orchestrate')
+    );
     const fileNode = directGraph.nodes.find((node) => node.id.endsWith('MonsterService.ts'));
 
     expect(classNode?.sourceLocation?.startLine).toBeGreaterThan(0);
@@ -300,7 +316,7 @@ ${longMethodBody}
   it('ArchitectureInsightService classifies layers and generates overview', () => {
     const service = new ArchitectureInsightService();
     const result = service.analyze(graphData);
-    
+
     expect(result.layers).toBeDefined();
     expect(result.classifications.length).toBeGreaterThan(0);
     expect(result.summary.classifiedNodes).toBe(graphData.nodes.length);
@@ -308,8 +324,12 @@ ${longMethodBody}
 
   it('SignatureSearchService finds code signatures', async () => {
     const service = new SignatureSearchService();
-    const result = await service.search(graphData, 'util1', { limit: 10, caseSensitive: false, regex: false });
-    
+    const result = await service.search(graphData, 'util1', {
+      limit: 10,
+      caseSensitive: false,
+      regex: false,
+    });
+
     expect(result.matches.length).toBeGreaterThan(0);
     expect(result.matches[0].nodeId).toBeDefined();
     expect(result.matches[0].preview).toContain('util1');
@@ -320,9 +340,9 @@ ${longMethodBody}
     const result = await service.prepareChangeContext(graphData, {
       target: 'App.tsx',
       changeIntent: 'Fix security issues',
-      taskMode: 'bugfix'
+      taskMode: 'bugfix',
     });
-    
+
     expect(result.target.node).toBeDefined();
     expect(result.target.node.label).toBe('App.tsx');
     expect(result.taskMode).toBe('bugfix');
@@ -331,12 +351,12 @@ ${longMethodBody}
 
   it('ProjectInsightService prepares high-level project context', async () => {
     const service = new ProjectInsightService();
-    const result = await service.prepareContext(graphData, { 
-      limit: 10, 
-      includeClassifications: true, 
-      includeSecurityFindings: true 
+    const result = await service.prepareContext(graphData, {
+      limit: 10,
+      includeClassifications: true,
+      includeSecurityFindings: true,
     });
-    
+
     expect(result.graphSummary).toBeDefined();
     expect(result.projectProfile).toBeDefined();
     expect(result.projectProfile.languageSupportSummary.length).toBeGreaterThan(0);
@@ -389,7 +409,7 @@ ${longMethodBody}
     const result = await service.prepareContext(graphData, {
       userRequest: 'We need to migrate App.tsx to use HTTP-only cookies instead of localStorage',
     });
-    
+
     expect(result.inferredIntent).toBeDefined();
     expect(['bugfix', 'refactor', 'security']).toContain(result.inferredIntent.taskKind);
     expect(result.route.initialTool).toBe('prepare_task_context');
@@ -402,7 +422,7 @@ ${longMethodBody}
       userRequest: 'Remove all local storage usage',
       candidateQueries: ['localStorage'],
     });
-    
+
     expect(result.scope.seedTargets.length).toBeGreaterThanOrEqual(0);
     expect(result.executionPlan.waves).toBeInstanceOf(Array);
     expect(result.executionPlan.refactoringWaves.length).toBeGreaterThanOrEqual(0);

@@ -16,10 +16,7 @@ type ChokidarWatcher = {
 };
 
 type WatchCallbacks = {
-  refreshStackGraphEnrichment: (
-    changedPaths: string[],
-    event: WatchEventType
-  ) => Promise<void>;
+  refreshStackGraphEnrichment: (changedPaths: string[], event: WatchEventType) => Promise<void>;
   emitGraphUpdated: () => void;
 };
 
@@ -121,10 +118,7 @@ export class FileWatcher {
       this.pendingRefreshPaths.add(normalizePath(changedPath));
     }
 
-    if (
-      WATCH_EVENT_PRIORITY[event] >
-      WATCH_EVENT_PRIORITY[this.pendingRefreshEvent]
-    ) {
+    if (WATCH_EVENT_PRIORITY[event] > WATCH_EVENT_PRIORITY[this.pendingRefreshEvent]) {
       this.pendingRefreshEvent = event;
     }
 

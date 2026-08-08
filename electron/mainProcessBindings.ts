@@ -112,7 +112,9 @@ function registerProjectBindings(
   ipcMain.handle('clear-recent-projects', () => {
     oracleStore.getState().clearRecentProjects();
   });
-  ipcMain.handle('open-recent-project', async (_, projectPath: string) => analyzeProject(projectPath));
+  ipcMain.handle('open-recent-project', async (_, projectPath: string) =>
+    analyzeProject(projectPath)
+  );
 }
 
 function registerAnalyticsBindings(

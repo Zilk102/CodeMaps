@@ -7,8 +7,16 @@ import {
 import { HealthScoreResult } from './HealthScoreAnalyzer';
 import { DetectedPattern } from './PatternDetectionAnalyzer';
 import { SecurityFinding } from './SecurityScanner';
-import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
-import { QualityBudget, QualityDashboard, QualityGovernanceService, RefactoringWave } from './QualityGovernanceService';
+import {
+  DecompositionGuidance,
+  DecompositionGuidanceService,
+} from './DecompositionGuidanceService';
+import {
+  QualityBudget,
+  QualityDashboard,
+  QualityGovernanceService,
+  RefactoringWave,
+} from './QualityGovernanceService';
 import { createGraphSummary } from './AgentContextUtils';
 import { buildQualityArtifacts } from './contextSupport';
 import { AnalysisSnapshotService } from './AnalysisSnapshotService';

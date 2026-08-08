@@ -28,21 +28,25 @@
 ## 🖼️ Screenshots
 
 ### Interactive Code Graph
+
 Visualize your entire codebase as an interactive graph with files, classes, functions, and their relationships.
 
 ![Main Graph](screenshots/main-graph.jpg)
 
 ### MCP Server Settings — Overview
+
 CodeMaps runs an MCP server with HTTP and WebSocket endpoints, providing AI agents with structured access to your project's architecture.
 
 ![MCP Overview](screenshots/mcp-overview.jpg)
 
 ### MCP Tools
+
 10+ built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
 
 ![MCP Tools](screenshots/mcp-tools.jpg)
 
 ### MCP Resources
+
 Resources provide AI agents with high-level project summaries, full graph exports, and autonomous execution playbooks.
 
 ![MCP Resources](screenshots/mcp-resources.jpg)

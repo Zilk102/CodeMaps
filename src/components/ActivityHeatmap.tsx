@@ -68,9 +68,12 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
     const intensity = Math.min(commits / max, 1);
     // From cool (blue) to hot (red)
     if (intensity < 0.2) return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200';
-    if (intensity < 0.4) return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
-    if (intensity < 0.6) return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200';
-    if (intensity < 0.8) return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200';
+    if (intensity < 0.4)
+      return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
+    if (intensity < 0.6)
+      return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200';
+    if (intensity < 0.8)
+      return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200';
     return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200';
   };
 
@@ -87,7 +90,9 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
         <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <h3 className="text-[16px] font-semibold text-(--t0)">{t('activityHeatmap.title')}</h3>
-            <p className="mt-2 text-[13px] leading-6 text-(--t2)">{t('tools.quickActions.heatmapDescription')}</p>
+            <p className="mt-2 text-[13px] leading-6 text-(--t2)">
+              {t('tools.quickActions.heatmapDescription')}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -124,15 +129,21 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">{t('activityHeatmap.filesAnalyzed')}</div>
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
+                {t('activityHeatmap.filesAnalyzed')}
+              </div>
               <div className="mt-2 text-[24px] font-semibold text-(--t0)">{heatmap.totalFiles}</div>
             </div>
             <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">{t('activityHeatmap.maxCommits')}</div>
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
+                {t('activityHeatmap.maxCommits')}
+              </div>
               <div className="mt-2 text-[24px] font-semibold text-(--t0)">{heatmap.maxCommits}</div>
             </div>
             <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">{t('activityHeatmap.maxChanges')}</div>
+              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
+                {t('activityHeatmap.maxChanges')}
+              </div>
               <div className="mt-2 text-[24px] font-semibold text-(--t0)">{heatmap.maxChanges}</div>
             </div>
           </div>
@@ -175,7 +186,9 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
                       {file.filePath.split('/').pop() || file.filePath}
                     </span>
                     <div className="flex shrink-0 items-center gap-3 text-xs">
-                      <span className="font-semibold">{file.commits} {t('activityHeatmap.commits')}</span>
+                      <span className="font-semibold">
+                        {file.commits} {t('activityHeatmap.commits')}
+                      </span>
                       <span className="text-green-700">+{file.additions}</span>
                       <span className="text-red-700">-{file.deletions}</span>
                     </div>
@@ -210,4 +223,3 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
     </div>
   );
 };
-

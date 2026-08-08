@@ -31,41 +31,49 @@ export const useStore = create<StoreState>()(
 );
 
 // Dedicated selectors (hooks) to prevent unnecessary re-renders
-export const useGraphStore = () => useStore(useShallow((state) => ({
-  graphData: state.graphData,
-  isLoading: state.isLoading,
-  error: state.error,
-  selectedNode: state.selectedNode,
-  selectedPath: state.selectedPath,
-  filters: state.filters,
-  layoutMode: state.layoutMode,
-  setFilter: state.setFilter,
-  setLayoutMode: state.setLayoutMode,
-  setSelectedNode: state.setSelectedNode,
-  setSelectedPath: state.setSelectedPath,
-  closeProject: state.closeProject,
-})));
+export const useGraphStore = () =>
+  useStore(
+    useShallow((state) => ({
+      graphData: state.graphData,
+      isLoading: state.isLoading,
+      error: state.error,
+      selectedNode: state.selectedNode,
+      selectedPath: state.selectedPath,
+      filters: state.filters,
+      layoutMode: state.layoutMode,
+      setFilter: state.setFilter,
+      setLayoutMode: state.setLayoutMode,
+      setSelectedNode: state.setSelectedNode,
+      setSelectedPath: state.setSelectedPath,
+      closeProject: state.closeProject,
+    }))
+  );
 
-export const useUIStore = () => useStore(useShallow((state) => ({
-  activeTab: state.activeTab,
-  sidebarWidth: state.sidebarWidth,
-  layoutData: state.layoutData,
-  isMcpSettingsOpen: state.isMcpSettingsOpen,
-  isToolsPanelOpen: state.isToolsPanelOpen,
-  parsingProgress: state.parsingProgress,
-  setActiveTab: state.setActiveTab,
-  setSidebarWidth: state.setSidebarWidth,
-  setLayoutData: state.setLayoutData,
-  setMcpSettingsOpen: state.setMcpSettingsOpen,
-  toggleToolsPanel: state.toggleToolsPanel,
-  setParsingProgress: state.setParsingProgress,
-})));
+export const useUIStore = () =>
+  useStore(
+    useShallow((state) => ({
+      activeTab: state.activeTab,
+      sidebarWidth: state.sidebarWidth,
+      layoutData: state.layoutData,
+      isMcpSettingsOpen: state.isMcpSettingsOpen,
+      isToolsPanelOpen: state.isToolsPanelOpen,
+      parsingProgress: state.parsingProgress,
+      setActiveTab: state.setActiveTab,
+      setSidebarWidth: state.setSidebarWidth,
+      setLayoutData: state.setLayoutData,
+      setMcpSettingsOpen: state.setMcpSettingsOpen,
+      toggleToolsPanel: state.toggleToolsPanel,
+      setParsingProgress: state.setParsingProgress,
+    }))
+  );
 
-export const useConnectionStore = () => useStore(useShallow((state) => ({
-  initializeWatcher: state.initializeWatcher,
-  initializeWebSocket: state.initializeWebSocket,
-  teardownRealtime: state.teardownRealtime,
-  fetchGraph: state.fetchGraph,
-  openProject: state.openProject,
-})));
-
+export const useConnectionStore = () =>
+  useStore(
+    useShallow((state) => ({
+      initializeWatcher: state.initializeWatcher,
+      initializeWebSocket: state.initializeWebSocket,
+      teardownRealtime: state.teardownRealtime,
+      fetchGraph: state.fetchGraph,
+      openProject: state.openProject,
+    }))
+  );

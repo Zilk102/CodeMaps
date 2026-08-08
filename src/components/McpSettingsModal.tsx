@@ -46,7 +46,8 @@ export const McpSettingsModal: React.FC = () => {
   useEffect(() => {
     if (!isOpen) return;
 
-    window.api?.getMcpStatus?.()
+    window.api
+      ?.getMcpStatus?.()
       .then((nextStatus) => setStatus(nextStatus as McpStatus))
       .catch(() => setStatus(null));
   }, [isOpen]);
@@ -73,28 +74,32 @@ export const McpSettingsModal: React.FC = () => {
   const toolDetails = status?.toolDetails || [];
   const resourceDetails = status?.resourceDetails || [];
 
-  const clientExamples = useMemo(() => ([
-    {
-      id: 'trae',
-      title: t('mcpSettings.trae'),
-      description: t('mcpSettings.traeDescription'),
-      snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "url": "${endpoint}"\n    }\n  }\n}`,
-    },
-    {
-      id: 'cursor',
-      title: t('mcpSettings.cursor'),
-      description: t('mcpSettings.cursorDescription'),
-      snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "transport": "streamable-http",\n      "url": "${endpoint}"\n    }\n  }\n}`,
-    },
-    {
-      id: 'claude-code',
-      title: t('mcpSettings.claudeCode'),
-      description: t('mcpSettings.claudeCodeDescription'),
-      snippet: `claude mcp add codemaps ${endpoint} --transport http`,
-    },
-  ]), [endpoint, t]);
+  const clientExamples = useMemo(
+    () => [
+      {
+        id: 'trae',
+        title: t('mcpSettings.trae'),
+        description: t('mcpSettings.traeDescription'),
+        snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "url": "${endpoint}"\n    }\n  }\n}`,
+      },
+      {
+        id: 'cursor',
+        title: t('mcpSettings.cursor'),
+        description: t('mcpSettings.cursorDescription'),
+        snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "transport": "streamable-http",\n      "url": "${endpoint}"\n    }\n  }\n}`,
+      },
+      {
+        id: 'claude-code',
+        title: t('mcpSettings.claudeCode'),
+        description: t('mcpSettings.claudeCodeDescription'),
+        snippet: `claude mcp add codemaps ${endpoint} --transport http`,
+      },
+    ],
+    [endpoint, t]
+  );
 
-  const skillSnippet = useMemo(() => `---
+  const skillSnippet = useMemo(
+    () => `---
 name: "codemaps-agent-autopilot"
 description: "Uses CodeMaps MCP as the default architectural brain for project understanding, debugging, refactors, reviews, and migration campaigns. Invoke whenever CodeMaps is connected."
 ---
@@ -161,7 +166,9 @@ The agent should behave like it has a project-aware architectural map:
 - choose the right scope automatically,
 - avoid blind file-by-file wandering,
 - treat CodeMaps as the default brain for project structure and impact analysis.
-`, [endpoint]);
+`,
+    [endpoint]
+  );
 
   if (!isOpen) return null;
 
@@ -174,25 +181,73 @@ The agent should behave like it has a project-aware architectural map:
 
   const renderOverview = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div style={{ ...commonSectionStyle, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '12px' }}>
+      <div
+        style={{
+          ...commonSectionStyle,
+          display: 'grid',
+          gridTemplateColumns: '1.2fr 1fr 1fr 1fr',
+          gap: '12px',
+        }}
+      >
         <div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{t('mcpSettings.status')}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            {t('mcpSettings.status')}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: status?.enabled ? '#4caf50' : 'var(--red)', boxShadow: status?.enabled ? '0 0 8px #4caf50' : '0 0 8px var(--red)' }} />
+            <div
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: status?.enabled ? '#4caf50' : 'var(--red)',
+                boxShadow: status?.enabled ? '0 0 8px #4caf50' : '0 0 8px var(--red)',
+              }}
+            />
             {status?.enabled ? t('mcpSettings.active') : t('mcpSettings.unavailable')}
           </div>
-          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.4 }}>
+          <div
+            style={{
+              marginTop: '8px',
+              color: 'var(--text-secondary)',
+              fontSize: '12px',
+              lineHeight: 1.4,
+            }}
+          >
             {t('mcpSettings.streamableHttpServerDescription')}
           </div>
         </div>
-        <MetricCard label={t('mcpSettings.metricTools')} value={`${toolDetails.length || status?.tools.length || 0}`} />
-        <MetricCard label={t('mcpSettings.metricResources')} value={`${resourceDetails.length || status?.resources.length || 0}`} />
-        <MetricCard label={t('mcpSettings.metricGraph')} value={graphData ? `${status?.nodesCount || graphData.nodes.length} / ${status?.linksCount || graphData.links.length}` : '0 / 0'} hint={t('mcpSettings.metricGraphHint')} />
+        <MetricCard
+          label={t('mcpSettings.metricTools')}
+          value={`${toolDetails.length || status?.tools.length || 0}`}
+        />
+        <MetricCard
+          label={t('mcpSettings.metricResources')}
+          value={`${resourceDetails.length || status?.resources.length || 0}`}
+        />
+        <MetricCard
+          label={t('mcpSettings.metricGraph')}
+          value={
+            graphData
+              ? `${status?.nodesCount || graphData.nodes.length} / ${status?.linksCount || graphData.links.length}`
+              : '0 / 0'
+          }
+          hint={t('mcpSettings.metricGraphHint')}
+        />
       </div>
 
-      <div style={{ ...commonSectionStyle, display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
+      <div
+        style={{
+          ...commonSectionStyle,
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          gap: '12px',
+          alignItems: 'end',
+        }}
+      >
         <div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{t('mcpSettings.mcpEndpoint')}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            {t('mcpSettings.mcpEndpoint')}
+          </div>
           <CodeBlock>{endpoint}</CodeBlock>
         </div>
         <button className="btn-glass" onClick={() => copyText('endpoint', endpoint)}>
@@ -201,30 +256,50 @@ The agent should behave like it has a project-aware architectural map:
       </div>
 
       <div style={{ ...commonSectionStyle }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{t('mcpSettings.websocketUI')}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+          {t('mcpSettings.websocketUI')}
+        </div>
         <CodeBlock>{status?.websocketUrl || 'ws://localhost:3005'}</CodeBlock>
       </div>
 
       <div style={{ ...commonSectionStyle }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{t('mcpSettings.activeProject')}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+          {t('mcpSettings.activeProject')}
+        </div>
         <CodeBlock>{status?.projectRoot || t('mcpSettings.noProjectOpen')}</CodeBlock>
       </div>
 
       <div style={{ ...commonSectionStyle }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>{t('mcpSettings.whatAgentGets')}</div>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+          {t('mcpSettings.whatAgentGets')}
+        </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
           {t('mcpSettings.agentBehaviorDescription')}
         </div>
       </div>
 
       <div style={{ ...commonSectionStyle }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>{t('mcpSettings.preferredToolsForAgent')}</div>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+          {t('mcpSettings.preferredToolsForAgent')}
+        </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {toolDetails.filter((tool) => tool.preferredForAgents).map((tool) => (
-            <div key={tool.name} style={{ background: 'var(--accbg)', border: '1px solid var(--acc)', borderRadius: '999px', padding: '6px 10px', fontSize: '12px', color: 'var(--acc)' }}>
-              {tool.name}
-            </div>
-          ))}
+          {toolDetails
+            .filter((tool) => tool.preferredForAgents)
+            .map((tool) => (
+              <div
+                key={tool.name}
+                style={{
+                  background: 'var(--accbg)',
+                  border: '1px solid var(--acc)',
+                  borderRadius: '999px',
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  color: 'var(--acc)',
+                }}
+              >
+                {tool.name}
+              </div>
+            ))}
         </div>
       </div>
     </div>
@@ -234,25 +309,71 @@ The agent should behave like it has a project-aware architectural map:
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
       {toolDetails.map((tool) => (
         <div key={tool.name} style={commonSectionStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'start' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: '10px',
+              alignItems: 'start',
+            }}
+          >
             <div>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span>{t(`mcpSettings.tools.${tool.name}.title`, { defaultValue: tool.title })}</span>
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span>
+                  {t(`mcpSettings.tools.${tool.name}.title`, { defaultValue: tool.title })}
+                </span>
                 {tool.preferredForAgents && (
-                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'var(--accbg)', border: '1px solid var(--acc)', color: 'var(--acc)' }}>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      background: 'var(--accbg)',
+                      border: '1px solid var(--acc)',
+                      color: 'var(--acc)',
+                    }}
+                  >
                     {t('mcpSettings.recommendedForAgent')}
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>{tool.name}</div>
+              <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>
+                {tool.name}
+              </div>
             </div>
           </div>
-          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
+          <div
+            style={{
+              marginTop: '8px',
+              color: 'var(--text-secondary)',
+              fontSize: '12px',
+              lineHeight: 1.45,
+            }}
+          >
             {t(`mcpSettings.tools.${tool.name}.description`, { defaultValue: tool.description })}
           </div>
           {tool.recommendedWhen && (
-            <div style={{ marginTop: '8px', color: 'var(--text-primary)', fontSize: '11px', lineHeight: 1.4 }}>
-              {t('mcpSettings.whenToUse')}: {t(`mcpSettings.tools.${tool.name}.recommendedWhen`, { defaultValue: tool.recommendedWhen })}
+            <div
+              style={{
+                marginTop: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '11px',
+                lineHeight: 1.4,
+              }}
+            >
+              {t('mcpSettings.whenToUse')}:{' '}
+              {t(`mcpSettings.tools.${tool.name}.recommendedWhen`, {
+                defaultValue: tool.recommendedWhen,
+              })}
             </div>
           )}
         </div>
@@ -266,17 +387,50 @@ The agent should behave like it has a project-aware architectural map:
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {resourceDetails.map((resource) => (
         <div key={resource.uri} style={commonSectionStyle}>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span>{t(`mcpSettings.resources.${getResourceKey(resource.uri)}.title`, { defaultValue: resource.title })}</span>
+          <div
+            style={{
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>
+              {t(`mcpSettings.resources.${getResourceKey(resource.uri)}.title`, {
+                defaultValue: resource.title,
+              })}
+            </span>
             {resource.preferredForAgents && (
-              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'var(--accbg)', border: '1px solid var(--acc)', color: 'var(--acc)' }}>
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  background: 'var(--accbg)',
+                  border: '1px solid var(--acc)',
+                  color: 'var(--acc)',
+                }}
+              >
                 {t('mcpSettings.forAutopilot')}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>{resource.uri}</div>
-          <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
-            {t(`mcpSettings.resources.${getResourceKey(resource.uri)}.description`, { defaultValue: resource.description })}
+          <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>
+            {resource.uri}
+          </div>
+          <div
+            style={{
+              marginTop: '8px',
+              color: 'var(--text-secondary)',
+              fontSize: '12px',
+              lineHeight: 1.45,
+            }}
+          >
+            {t(`mcpSettings.resources.${getResourceKey(resource.uri)}.description`, {
+              defaultValue: resource.description,
+            })}
           </div>
         </div>
       ))}
@@ -287,10 +441,24 @@ The agent should behave like it has a project-aware architectural map:
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {clientExamples.map((client) => (
         <div key={client.id} style={commonSectionStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'start',
+              gap: '12px',
+            }}
+          >
             <div>
               <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{client.title}</div>
-              <div style={{ marginTop: '6px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
+              <div
+                style={{
+                  marginTop: '6px',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  lineHeight: 1.45,
+                }}
+              >
                 {client.description}
               </div>
             </div>
@@ -309,15 +477,27 @@ The agent should behave like it has a project-aware architectural map:
   const renderAgentSkill = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={commonSectionStyle}>
-        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>{t('mcpSettings.whyNeeded')}</div>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+          {t('mcpSettings.whyNeeded')}
+        </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
           {t('mcpSettings.skillTemplateDescription')}
         </div>
       </div>
 
-      <div style={{ ...commonSectionStyle, display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'start' }}>
+      <div
+        style={{
+          ...commonSectionStyle,
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          gap: '12px',
+          alignItems: 'start',
+        }}
+      >
         <div>
-          <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>{t('mcpSettings.howToUse')}</div>
+          <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+            {t('mcpSettings.howToUse')}
+          </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
             {t('mcpSettings.skillSetupStep1')}
             <br />
@@ -332,7 +512,9 @@ The agent should behave like it has a project-aware architectural map:
       </div>
 
       <div style={commonSectionStyle}>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{t('mcpSettings.readyTemplateSkill')}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+          {t('mcpSettings.readyTemplateSkill')}
+        </div>
         <CodeBlock>{skillSnippet}</CodeBlock>
       </div>
     </div>
@@ -342,27 +524,69 @@ The agent should behave like it has a project-aware architectural map:
     <div className="modal-overlay" onClick={() => setOpen(false)}>
       <div
         className="modal-content"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="mcp-settings-title"
         style={{ maxWidth: 1080, width: '96vw', maxHeight: '88vh', padding: 0 }}
       >
         <div style={{ padding: '18px 20px 12px', borderBottom: '1px solid var(--border)' }}>
-        <h2 id="mcp-settings-title" style={{ margin: '0 0 20px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          {t('mcpSettings.title')}
-        </h2>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>{t('mcpSettings.overview')}</TabButton>
-          <TabButton active={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>{t('mcpSettings.toolsTab')}</TabButton>
-          <TabButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>{t('mcpSettings.resourcesTab')}</TabButton>
-          <TabButton active={activeTab === 'clients'} onClick={() => setActiveTab('clients')}>{t('mcpSettings.clients')}</TabButton>
-          <TabButton active={activeTab === 'agent-skill'} onClick={() => setActiveTab('agent-skill')}>{t('mcpSettings.agentSkill')}</TabButton>
-        </div>
+          <h2
+            id="mcp-settings-title"
+            style={{
+              margin: '0 0 20px 0',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            {t('mcpSettings.title')}
+          </h2>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
+              {t('mcpSettings.overview')}
+            </TabButton>
+            <TabButton active={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>
+              {t('mcpSettings.toolsTab')}
+            </TabButton>
+            <TabButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>
+              {t('mcpSettings.resourcesTab')}
+            </TabButton>
+            <TabButton active={activeTab === 'clients'} onClick={() => setActiveTab('clients')}>
+              {t('mcpSettings.clients')}
+            </TabButton>
+            <TabButton
+              active={activeTab === 'agent-skill'}
+              onClick={() => setActiveTab('agent-skill')}
+            >
+              {t('mcpSettings.agentSkill')}
+            </TabButton>
+          </div>
         </div>
 
-        <div style={{ padding: '18px 20px', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div
+          style={{
+            padding: '18px 20px',
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'tools' && renderTools()}
           {activeTab === 'resources' && renderResources()}
@@ -370,7 +594,14 @@ The agent should behave like it has a project-aware architectural map:
           {activeTab === 'agent-skill' && renderAgentSkill()}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px 18px', borderTop: '1px solid var(--border)' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            padding: '14px 20px 18px',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
           <button className="btn-glass" onClick={() => setOpen(false)}>
             {t('mcpSettings.close')}
           </button>
@@ -380,33 +611,56 @@ The agent should behave like it has a project-aware architectural map:
   );
 };
 
-const MetricCard: React.FC<{ label: string; value: string; hint?: string }> = ({ label, value, hint }) => (
-  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{label}</div>
+const MetricCard: React.FC<{ label: string; value: string; hint?: string }> = ({
+  label,
+  value,
+  hint,
+}) => (
+  <div
+    style={{
+      background: 'rgba(255,255,255,0.03)',
+      padding: '12px',
+      borderRadius: '8px',
+      border: '1px solid var(--glass-border)',
+    }}
+  >
+    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+      {label}
+    </div>
     <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '16px' }}>{value}</div>
-    {hint && <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '4px' }}>{hint}</div>}
+    {hint && (
+      <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '4px' }}>
+        {hint}
+      </div>
+    )}
   </div>
 );
 
 const CodeBlock: React.FC<{ children: string }> = ({ children }) => (
-  <pre style={{
-    margin: 0,
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid var(--glass-border)',
-    borderRadius: '8px',
-    padding: '12px',
-    color: 'var(--text-primary)',
-    fontFamily: 'Consolas, monospace',
-    fontSize: '12px',
-    overflowX: 'auto',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-  }}>
+  <pre
+    style={{
+      margin: 0,
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid var(--glass-border)',
+      borderRadius: '8px',
+      padding: '12px',
+      color: 'var(--text-primary)',
+      fontFamily: 'Consolas, monospace',
+      fontSize: '12px',
+      overflowX: 'auto',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+    }}
+  >
     {children}
   </pre>
 );
 
-const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
+const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
+  active,
+  onClick,
+  children,
+}) => (
   <button
     type="button"
     onClick={onClick}

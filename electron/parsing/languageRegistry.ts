@@ -15,15 +15,17 @@ for (const language of ALL_LANGUAGES) {
 export const getAllLanguageDefinitions = () => ALL_LANGUAGES;
 
 export const getLanguageSupportMatrix = () =>
-  ALL_LANGUAGES.map(({ id, displayName, adapterId, supportTier, parserEngine, extensions, capabilities }) => ({
-    id,
-    displayName,
-    adapterId,
-    supportTier,
-    parserEngine,
-    extensions,
-    capabilities,
-  }));
+  ALL_LANGUAGES.map(
+    ({ id, displayName, adapterId, supportTier, parserEngine, extensions, capabilities }) => ({
+      id,
+      displayName,
+      adapterId,
+      supportTier,
+      parserEngine,
+      extensions,
+      capabilities,
+    })
+  );
 
 export const getLanguageById = (id: string) => languageById.get(id);
 

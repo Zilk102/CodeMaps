@@ -8,7 +8,10 @@ import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { ChangeTaskMode } from './ChangeContextService';
 import { DetectedPattern } from './PatternDetectionAnalyzer';
 import { SecurityFinding } from './SecurityScanner';
-import { DecompositionGuidance, DecompositionGuidanceService } from './DecompositionGuidanceService';
+import {
+  DecompositionGuidance,
+  DecompositionGuidanceService,
+} from './DecompositionGuidanceService';
 import {
   QualityBudget,
   QualityDashboard,
@@ -128,17 +131,26 @@ export class ChangeCampaignService {
     const depth = input.depth || 2;
     const maxFiles = input.maxFiles || DEFAULT_MAX_FILES;
     const maxSeeds = input.maxSeeds || DEFAULT_MAX_SEEDS;
-    const { architecture, health, patterns: snapshotPatterns, security: securityScan } =
-      await this.analysisSnapshotService.analyze(graph, {
-        includeHealth: true,
-        includeSecurityFindings: input.includeSecurityFindings,
-      });
+    const {
+      architecture,
+      health,
+      patterns: snapshotPatterns,
+      security: securityScan,
+    } = await this.analysisSnapshotService.analyze(graph, {
+      includeHealth: true,
+      includeSecurityFindings: input.includeSecurityFindings,
+    });
     const resolvedHealth = health!;
     const layerByNodeId = new Map(
       architecture.classifications.map((record) => [record.nodeId, record])
     );
     const seedTargets = this.resolveSeedTargets(graph, input, architecture, maxSeeds);
-    const directlyMatchedFiles = collectMatchedFiles(graph, seedTargets, input.candidateQueries, maxSeeds);
+    const directlyMatchedFiles = collectMatchedFiles(
+      graph,
+      seedTargets,
+      input.candidateQueries,
+      maxSeeds
+    );
     const runtimeCompositionRoots = collectRuntimeCompositionRoots(graph, directlyMatchedFiles);
     const scopedFiles = unique([...directlyMatchedFiles, ...runtimeCompositionRoots]);
     const affectedFiles = expandAffectedFiles(graph, scopedFiles, depth, maxFiles);
@@ -156,7 +168,10 @@ export class ChangeCampaignService {
       campaignStructuralIds
     );
     const layersInvolved = buildLayersInvolved(affectedFiles, layerByNodeId);
-    const campaignViolations = collectCampaignViolations(architecture.violations, campaignStructuralIds);
+    const campaignViolations = collectCampaignViolations(
+      architecture.violations,
+      campaignStructuralIds
+    );
     const waves = buildExecutionWaves(affectedFiles, layerByNodeId, runtimeCompositionRoots);
     const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
       limit: 12,
@@ -175,7 +190,13 @@ export class ChangeCampaignService {
       graphSummary: createGraphSummary(graph),
       taskMode,
       userRequest: input.userRequest,
-      scope: this.buildScope(input.candidateQueries, seedTargets, directlyMatchedFiles, runtimeCompositionRoots, affectedFiles),
+      scope: this.buildScope(
+        input.candidateQueries,
+        seedTargets,
+        directlyMatchedFiles,
+        runtimeCompositionRoots,
+        affectedFiles
+      ),
       architecture: {
         summary: architecture.summary,
         layersInvolved,

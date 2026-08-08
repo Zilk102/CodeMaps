@@ -137,7 +137,7 @@ function findMatchingBrace(text: string, openBraceIndex: number): number {
     }
 
     if (inSingleQuote) {
-      if (char === '\'' && prevChar !== '\\') {
+      if (char === "'" && prevChar !== '\\') {
         inSingleQuote = false;
       }
       continue;
@@ -169,7 +169,7 @@ function findMatchingBrace(text: string, openBraceIndex: number): number {
       continue;
     }
 
-    if (char === '\'') {
+    if (char === "'") {
       inSingleQuote = true;
       continue;
     }
@@ -283,14 +283,20 @@ function getLineSpan(sourceFile: ts.SourceFile, node: ts.Node): number {
   return endLine - startLine + 1;
 }
 
-function getLineRange(sourceFile: ts.SourceFile, node: ts.Node): { startLine: number; endLine: number } {
+function getLineRange(
+  sourceFile: ts.SourceFile,
+  node: ts.Node
+): { startLine: number; endLine: number } {
   return {
     startLine: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
     endLine: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
   };
 }
 
-function analyzeControlFlowComplexity(sourceFile: ts.SourceFile, body: ts.Node): {
+function analyzeControlFlowComplexity(
+  sourceFile: ts.SourceFile,
+  body: ts.Node
+): {
   complexity: number;
   branchCount: number;
   maxNesting: number;
@@ -489,7 +495,9 @@ function analyzeSourceFileStructureWithTypeScript(
           classMetric.lineCount >= 120 &&
           classMetric.longMethodCount >= 1)
     ),
-    longMethods: [...topLevelFunctions, ...classMethodMetrics].filter((item) => item.lineCount >= 70),
+    longMethods: [...topLevelFunctions, ...classMethodMetrics].filter(
+      (item) => item.lineCount >= 70
+    ),
     complexMethods: [...topLevelFunctions, ...classMethodMetrics].filter(
       (item) => item.complexity >= 10 || item.maxNesting >= 4
     ),
@@ -534,10 +542,7 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
     const classLineCount = getLineCountForRange(text, openBraceIndex, closeBraceIndex + 1);
     const { methods, publicMethodCount: classPublicMethodCount } = analyzeClassBody(bodyText);
     const longMethodCount = methods.filter((item) => item.lineCount >= 70).length;
-    const classMaxMethodLineCount = methods.reduce(
-      (max, item) => Math.max(max, item.lineCount),
-      0
-    );
+    const classMaxMethodLineCount = methods.reduce((max, item) => Math.max(max, item.lineCount), 0);
 
     publicMethodCount += classPublicMethodCount;
     maxMethodLineCount = Math.max(maxMethodLineCount, classMaxMethodLineCount);
@@ -635,12 +640,17 @@ export function analyzeSourceFileStructure(filePath: string): SourceFileMetrics 
     return analyzeSourceFileStructureWithRegex(filePath);
   }
 
-  return analyzeSourceFileStructureWithTypeScript(filePath, text) ||
-    analyzeSourceFileStructureWithRegex(filePath);
+  return (
+    analyzeSourceFileStructureWithTypeScript(filePath, text) ||
+    analyzeSourceFileStructureWithRegex(filePath)
+  );
 }
 
 function createResponsibilityAxisCount(
-  metric: Omit<ModuleQualityMetric, 'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'>
+  metric: Omit<
+    ModuleQualityMetric,
+    'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'
+  >
 ): number {
   const axes = new Set<string>();
 
@@ -662,7 +672,10 @@ function createResponsibilityAxisCount(
 }
 
 function isMixedResponsibility(
-  metric: Omit<ModuleQualityMetric, 'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'>,
+  metric: Omit<
+    ModuleQualityMetric,
+    'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'
+  >,
   axisCount: number
 ): boolean {
   const lineCount = metric.lineCount || 0;
@@ -680,7 +693,10 @@ function isMixedResponsibility(
 }
 
 function calculateDesignSmellScore(
-  metric: Omit<ModuleQualityMetric, 'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'>,
+  metric: Omit<
+    ModuleQualityMetric,
+    'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'
+  >,
   responsibilityAxisCount: number,
   mixedResponsibilities: boolean
 ): number {
@@ -710,10 +726,12 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
         symbolCount: getChildCodeSymbolCount(node.id, childrenByParentId),
         fanIn: incomingLinks.length,
         fanOut: outgoingLinks.length,
-        stackAwareDegree: [...incomingLinks, ...outgoingLinks].filter((link) => isStackAwareLink(link))
-          .length,
-        diRuntimeDegree: [...incomingLinks, ...outgoingLinks].filter((link) => isDiRuntimeLink(link))
-          .length,
+        stackAwareDegree: [...incomingLinks, ...outgoingLinks].filter((link) =>
+          isStackAwareLink(link)
+        ).length,
+        diRuntimeDegree: [...incomingLinks, ...outgoingLinks].filter((link) =>
+          isDiRuntimeLink(link)
+        ).length,
         contractDegree: [...incomingLinks, ...outgoingLinks].filter((link) =>
           isContractSemanticLink(link)
         ).length,
@@ -752,7 +770,7 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
       (metric) =>
         (metric.lineCount !== null && metric.lineCount >= 1500) ||
         metric.symbolCount >= 45 ||
-        ((((metric.lineCount || 0) >= 900) || metric.symbolCount >= 30) &&
+        (((metric.lineCount || 0) >= 900 || metric.symbolCount >= 30) &&
           (metric.fanIn + metric.fanOut >= 12 ||
             metric.stackAwareDegree + metric.diRuntimeDegree + metric.contractDegree >= 6 ||
             metric.node.churn >= 10 ||
@@ -761,15 +779,14 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
     )
     .sort(
       (left, right) =>
-        ((right.lineCount || 0) +
+        (right.lineCount || 0) +
           right.symbolCount * 20 +
           (right.fanIn + right.fanOut) * 10 +
-          right.responsibilityAxisCount * 15) -
+          right.responsibilityAxisCount * 15 -
           ((left.lineCount || 0) +
             left.symbolCount * 20 +
             (left.fanIn + left.fanOut) * 10 +
-            left.responsibilityAxisCount * 15) ||
-        left.node.label.localeCompare(right.node.label)
+            left.responsibilityAxisCount * 15) || left.node.label.localeCompare(right.node.label)
     )
     .slice(0, 10);
 
@@ -818,8 +835,7 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
             ...left.matchedMethods.map(
               (item) => item.complexity * 10 + item.maxNesting * 5 + item.branchCount
             )
-          ) ||
-        left.node.label.localeCompare(right.node.label)
+          ) || left.node.label.localeCompare(right.node.label)
     )
     .slice(0, 10);
 

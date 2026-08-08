@@ -11,9 +11,7 @@ const createEngineAdapter = (
   }
 ): LanguageAdapter => ({
   ...adapter,
-  supports:
-    adapter.supports ||
-    ((definition) => definition.adapterId === adapter.id),
+  supports: adapter.supports || ((definition) => definition.adapterId === adapter.id),
 });
 
 const markdownAdrAdapter = createEngineAdapter({

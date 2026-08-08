@@ -100,8 +100,8 @@ export class GitActivityService {
     }
 
     const files = Array.from(fileMap.values());
-    const maxCommits = Math.max(...files.map(f => f.commits), 1);
-    const maxChanges = Math.max(...files.map(f => f.additions + f.deletions), 1);
+    const maxCommits = Math.max(...files.map((f) => f.commits), 1);
+    const maxChanges = Math.max(...files.map((f) => f.additions + f.deletions), 1);
 
     return {
       files: files.sort((a, b) => b.commits - a.commits),
@@ -110,8 +110,8 @@ export class GitActivityService {
       totalFiles: files.length,
       timeRange: {
         from: since || new Date(0),
-        to: until || new Date()
-      }
+        to: until || new Date(),
+      },
     };
   }
 
@@ -133,11 +133,11 @@ export class GitActivityService {
   async getNodeChurn(nodeId: string): Promise<FileChurn | null> {
     const nodes = await this.graphService.queryNodes(undefined, nodeId);
     if (nodes.length === 0) return null;
-    
+
     const filePath = nodes[0]['n.filePath'];
     const heatmap = this.analyzeChurn();
-    
-    return heatmap.files.find(f => f.filePath === filePath) || null;
+
+    return heatmap.files.find((f) => f.filePath === filePath) || null;
   }
 
   async close(): Promise<void> {

@@ -25,19 +25,9 @@ const translateRefreshReason = (
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
   const [isTelemetryExpanded, setIsTelemetryExpanded] = useState(false);
-  const {
-    graphData,
-    error,
-    filters,
-    layoutMode,
-    setSelectedNode,
-    selectedNode,
-  } = useGraphStore();
+  const { graphData, error, filters, layoutMode, setSelectedNode, selectedNode } = useGraphStore();
 
-  const {
-    layoutData,
-    setLayoutData,
-  } = useUIStore();
+  const { layoutData, setLayoutData } = useUIStore();
 
   const { isCalculating, graphInsights } = useGraphLayout(
     graphData,
@@ -70,9 +60,8 @@ export const GraphView: React.FC = () => {
       skippedRefreshes: refreshTelemetry.enrichment.skippedRefreshes,
       runtimePriorityRebuilds: refreshTelemetry.enrichment.runtimePriorityRebuilds,
       recentBatchSizes:
-        refreshTelemetry.watcher.recentBatchSizes
-          .slice(-4)
-          .join(', ') || t('graphView.telemetry.notAvailable'),
+        refreshTelemetry.watcher.recentBatchSizes.slice(-4).join(', ') ||
+        t('graphView.telemetry.notAvailable'),
       recentLatencyMs:
         refreshTelemetry.enrichment.recentLatencyMs
           .slice(-4)
@@ -87,11 +76,16 @@ export const GraphView: React.FC = () => {
 
   const edgeElements = useMemo(() => {
     if (!layoutData?.edges) return null;
-    return layoutData.edges.map(edge => {
+    return layoutData.edges.map((edge) => {
       const isConnectedToSelection = graphInsights?.selectedVisibleId
-        ? edge.sourceId === graphInsights.selectedVisibleId || edge.targetId === graphInsights.selectedVisibleId
+        ? edge.sourceId === graphInsights.selectedVisibleId ||
+          edge.targetId === graphInsights.selectedVisibleId
         : false;
-      if (layoutMode === 'hierarchy' && graphInsights?.selectedVisibleId && !isConnectedToSelection) {
+      if (
+        layoutMode === 'hierarchy' &&
+        graphInsights?.selectedVisibleId &&
+        !isConnectedToSelection
+      ) {
         return null;
       }
 
@@ -109,22 +103,32 @@ export const GraphView: React.FC = () => {
               ? 'rgba(255,255,255,0.75)'
               : 'var(--t3)';
       const strokeWidth = isConnectedToSelection
-        ? (isAdr ? 3.5 : isFramework || isBuild ? 2.8 : 2.4)
-        : (isAdr ? 2.4 : isFramework || isBuild ? 1.8 : 1.2);
+        ? isAdr
+          ? 3.5
+          : isFramework || isBuild
+            ? 2.8
+            : 2.4
+        : isAdr
+          ? 2.4
+          : isFramework || isBuild
+            ? 1.8
+            : 1.2;
       const strokeDasharray = isAdr ? '5,5' : isBuild ? '7,4' : isFramework ? '3,4' : 'none';
       const marker = isAdr ? 'url(#arrowhead-adr)' : 'url(#arrowhead)';
 
-      const d = edge.sections.map((sec) => {
-        let pathData = `M ${sec.startPoint.x} ${sec.startPoint.y} `;
-        if (sec.bendPoints) {
-          pathData += sec.bendPoints.map((b: ElkPoint) => `L ${b.x} ${b.y} `).join('');
-        }
-        pathData += `L ${sec.endPoint.x} ${sec.endPoint.y}`;
-        return pathData;
-      }).join(' ');
+      const d = edge.sections
+        .map((sec) => {
+          let pathData = `M ${sec.startPoint.x} ${sec.startPoint.y} `;
+          if (sec.bendPoints) {
+            pathData += sec.bendPoints.map((b: ElkPoint) => `L ${b.x} ${b.y} `).join('');
+          }
+          pathData += `L ${sec.endPoint.x} ${sec.endPoint.y}`;
+          return pathData;
+        })
+        .join(' ');
 
       return (
-        <path 
+        <path
           key={edge.id}
           d={d}
           fill="none"
@@ -132,7 +136,15 @@ export const GraphView: React.FC = () => {
           strokeWidth={strokeWidth}
           strokeDasharray={strokeDasharray}
           markerEnd={marker}
-          opacity={graphInsights?.selectedVisibleId ? (isConnectedToSelection ? 0.95 : 0.08) : (layoutMode === 'dependencies' ? 0.5 : 0.18)}
+          opacity={
+            graphInsights?.selectedVisibleId
+              ? isConnectedToSelection
+                ? 0.95
+                : 0.08
+              : layoutMode === 'dependencies'
+                ? 0.5
+                : 0.18
+          }
         />
       );
     });
@@ -140,18 +152,18 @@ export const GraphView: React.FC = () => {
 
   const nodeElements = useMemo(() => {
     if (!layoutData?.nodes) return null;
-    return layoutData.nodes.map(node => (
-      <GraphNodeComponent 
-        key={node.id} 
-        node={node} 
+    return layoutData.nodes.map((node) => (
+      <GraphNodeComponent
+        key={node.id}
+        node={node}
         layoutMode={layoutMode}
         emphasis={
           graphInsights?.selectedVisibleId
-            ? (selectedNode?.id === node.id || graphInsights.selectedVisibleId === node.id
+            ? selectedNode?.id === node.id || graphInsights.selectedVisibleId === node.id
               ? 'selected'
               : graphInsights.relatedNodeIds.has(node.id)
                 ? 'related'
-                : 'muted')
+                : 'muted'
             : 'default'
         }
         isSelected={selectedNode?.id === node.id}
@@ -188,17 +200,23 @@ export const GraphView: React.FC = () => {
         style={{ width: graphInfoWidth }}
       >
         <div className="font-bold mb-1">
-          {t('graphView.mode')}: {layoutMode === 'hierarchy' ? t('graphView.hierarchy') : t('graphView.dependencies')}
+          {t('graphView.mode')}:{' '}
+          {layoutMode === 'hierarchy' ? t('graphView.hierarchy') : t('graphView.dependencies')}
         </div>
         <div className="text-(--t2) leading-snug">
           {layoutMode === 'hierarchy'
-            ? (graphInsights?.selectedVisibleId
-              ? t('graphView.hierarchySelectedDescription', { incomingCount: graphInsights.incomingCount, outgoingCount: graphInsights.outgoingCount })
-              : t('graphView.hierarchyDefaultDescription'))
-            : (graphInsights?.selectedVisibleId
-              ? t('graphView.dependenciesSelectedDescription', { incomingCount: graphInsights.incomingCount, outgoingCount: graphInsights.outgoingCount })
-              : t('graphView.dependenciesDefaultDescription'))
-          }
+            ? graphInsights?.selectedVisibleId
+              ? t('graphView.hierarchySelectedDescription', {
+                  incomingCount: graphInsights.incomingCount,
+                  outgoingCount: graphInsights.outgoingCount,
+                })
+              : t('graphView.hierarchyDefaultDescription')
+            : graphInsights?.selectedVisibleId
+              ? t('graphView.dependenciesSelectedDescription', {
+                  incomingCount: graphInsights.incomingCount,
+                  outgoingCount: graphInsights.outgoingCount,
+                })
+              : t('graphView.dependenciesDefaultDescription')}
         </div>
       </div>
       <div className="pointer-events-none absolute right-2.5 top-2.5 z-10 flex w-[min(288px,calc(100%-1.25rem))] flex-col gap-3">
@@ -287,8 +305,8 @@ export const GraphView: React.FC = () => {
                     {telemetryHud.runtimePriorityRebuilds}
                   </div>
                   <div className="mt-1 text-[11px] text-(--t2)">
-                    {t('graphView.telemetry.rebuilt')}: {telemetryHud.rebuiltRefreshes} · {t('graphView.telemetry.skipped')}:{' '}
-                    {telemetryHud.skippedRefreshes}
+                    {t('graphView.telemetry.rebuilt')}: {telemetryHud.rebuiltRefreshes} ·{' '}
+                    {t('graphView.telemetry.skipped')}: {telemetryHud.skippedRefreshes}
                   </div>
                 </div>
                 <div className="rounded-lg border border-(--border) bg-(--bg2) px-2.5 py-2">
@@ -318,7 +336,7 @@ export const GraphView: React.FC = () => {
           <FilterPanel />
         </div>
       </div>
-      
+
       <div className="absolute inset-0">
         <TransformWrapper
           initialScale={1}
@@ -333,19 +351,34 @@ export const GraphView: React.FC = () => {
         >
           <TransformComponent wrapperClass="w-full h-full">
             {layoutData && (
-              <div 
+              <div
                 className="relative"
-                style={{ 
-                  width: layoutData.width, 
-                  height: layoutData.height 
-                }}>
+                style={{
+                  width: layoutData.width,
+                  height: layoutData.height,
+                }}
+              >
                 {/* Edge layer */}
                 <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-1">
                   <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <marker
+                      id="arrowhead"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
                       <polygon points="0 0, 10 3.5, 0 7" fill="var(--t3)" />
                     </marker>
-                    <marker id="arrowhead-adr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <marker
+                      id="arrowhead-adr"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
                       <polygon points="0 0, 10 3.5, 0 7" fill="var(--purple)" />
                     </marker>
                   </defs>

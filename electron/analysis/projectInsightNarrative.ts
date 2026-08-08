@@ -217,7 +217,9 @@ function detectLanguageSupportSummary(
       continue;
     }
 
-    const definition = getLanguageByExtension(path.extname(toStructuralNodeId(node.id)).toLowerCase());
+    const definition = getLanguageByExtension(
+      path.extname(toStructuralNodeId(node.id)).toLowerCase()
+    );
     if (!definition) {
       continue;
     }

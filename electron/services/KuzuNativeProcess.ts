@@ -290,9 +290,7 @@ function getService(dbPath: string, dbDir: string): NativeKuzuService {
 
 function runSerialized<T>(dbPath: string, task: () => Promise<T>): Promise<T> {
   const previous = taskChains.get(dbPath) ?? Promise.resolve();
-  const current = previous
-    .catch(() => undefined)
-    .then(task);
+  const current = previous.catch(() => undefined).then(task);
 
   taskChains.set(dbPath, current);
   return current.finally(() => {
