@@ -60,19 +60,28 @@ export class DecompositionGuidanceService {
     input: PrepareDecompositionGuidanceInput = {}
   ): DecompositionGuidance {
     const quality = analyzeModuleQuality(graph);
-    const focusStructuralIds = new Set((input.focusNodeIds || []).map((nodeId) => toStructuralNodeId(nodeId)));
+    const focusStructuralIds = new Set(
+      (input.focusNodeIds || []).map((nodeId) => toStructuralNodeId(nodeId))
+    );
     const candidates = this.buildCandidates(quality.metrics)
-      .filter((candidate) =>
-        focusStructuralIds.size === 0 || focusStructuralIds.has(toStructuralNodeId(candidate.fileNodeId))
+      .filter(
+        (candidate) =>
+          focusStructuralIds.size === 0 ||
+          focusStructuralIds.has(toStructuralNodeId(candidate.fileNodeId))
       )
-      .sort((left, right) => right.score - left.score || left.targetLabel.localeCompare(right.targetLabel))
+      .sort(
+        (left, right) =>
+          right.score - left.score || left.targetLabel.localeCompare(right.targetLabel)
+      )
       .slice(0, input.limit || DEFAULT_LIMIT);
 
     return {
       summary: {
         candidateCount: candidates.length,
         highPriorityCount: candidates.filter((candidate) => candidate.priority === 'high').length,
-        focusAreas: unique(candidates.map((candidate) => toStructuralNodeId(candidate.fileNodeId))).slice(0, 8),
+        focusAreas: unique(
+          candidates.map((candidate) => toStructuralNodeId(candidate.fileNodeId))
+        ).slice(0, 8),
       },
       candidates,
     };
@@ -107,10 +116,9 @@ export class DecompositionGuidanceService {
           metric.designSmellScore +
           metric.responsibilityAxisCount * 4 +
           Math.min(20, metric.fanIn + metric.fanOut),
-        reason:
-          metric.mixedResponsibilities
-            ? 'Module mixes multiple architectural responsibilities and should be split across clearer seams.'
-            : 'Module has accumulated enough code and coupling that further edits should happen via extraction, not growth.',
+        reason: metric.mixedResponsibilities
+          ? 'Module mixes multiple architectural responsibilities and should be split across clearer seams.'
+          : 'Module has accumulated enough code and coupling that further edits should happen via extraction, not growth.',
         evidence: [
           `${fileLabel}: smell score ${metric.designSmellScore}, fan-in ${metric.fanIn}, fan-out ${metric.fanOut}.`,
           `${fileLabel}: responsibility axes ${metric.responsibilityAxisCount}, long methods ${metric.sourceMetrics.longMethods.length}, complex methods ${metric.sourceMetrics.complexMethods.length}.`,

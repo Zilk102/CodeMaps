@@ -572,26 +572,28 @@ const runDependencyLayout = async (
   const nodeLayoutIndex = new Map(flatNodes.map((node) => [node.id, node]));
   const edgeDataById = new Map(dependencyEdges.map((edge) => [edge.id, edge.data]));
   const flatEdges: LayoutEdge[] = filters.showEdges
-    ? (layouted.edges || []).flatMap((edge: NonNullable<ElkNode['edges']>[0] & { sources?: string[]; targets?: string[] }) => {
-        const sourceId = edge.sources?.[0];
-        const targetId = edge.targets?.[0];
-        const sourceNode = nodeLayoutIndex.get(sourceId);
-        const targetNode = nodeLayoutIndex.get(targetId);
-        const edgeData = edgeDataById.get(edge.id);
-        if (!sourceNode || !targetNode || !edgeData) {
-          return [];
-        }
+    ? (layouted.edges || []).flatMap(
+        (edge: NonNullable<ElkNode['edges']>[0] & { sources?: string[]; targets?: string[] }) => {
+          const sourceId = edge.sources?.[0];
+          const targetId = edge.targets?.[0];
+          const sourceNode = nodeLayoutIndex.get(sourceId);
+          const targetNode = nodeLayoutIndex.get(targetId);
+          const edgeData = edgeDataById.get(edge.id);
+          if (!sourceNode || !targetNode || !edgeData) {
+            return [];
+          }
 
-        return [
-          {
-            id: edge.id,
-            sections: buildOrthogonalSections(sourceNode, targetNode),
-            data: edgeData,
-            sourceId,
-            targetId,
-          },
-        ];
-      })
+          return [
+            {
+              id: edge.id,
+              sections: buildOrthogonalSections(sourceNode, targetNode),
+              data: edgeData,
+              sourceId,
+              targetId,
+            },
+          ];
+        }
+      )
     : [];
 
   const canvasBounds = computeCanvasBounds(flatNodes);

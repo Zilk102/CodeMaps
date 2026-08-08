@@ -87,8 +87,7 @@ export function buildStructuralPatterns(args: {
       id: 'churn_hotspots',
       severity: churnHotspots.some((node) => node.churn >= 25) ? 'high' : 'medium',
       title: 'Churn Hotspots',
-      description:
-        'Files with high churn usually contain unstable or overloaded business logic.',
+      description: 'Files with high churn usually contain unstable or overloaded business logic.',
       nodeIds: churnHotspots.map((node) => node.id),
     });
   }
@@ -177,9 +176,7 @@ export function buildStructuralPatterns(args: {
   return patterns;
 }
 
-export function buildQualityPatterns(
-  quality: ModuleQualitySummary
-): DetectedPattern[] {
+export function buildQualityPatterns(quality: ModuleQualitySummary): DetectedPattern[] {
   const patterns: DetectedPattern[] = [];
 
   if (quality.oversizedModules.length > 0) {
@@ -209,12 +206,12 @@ export function buildQualityPatterns(
       description:
         'A few modules accumulate too much code, too many symbols, or too many architectural responsibilities, violating SRP and making safe changes harder.',
       nodeIds: quality.godFiles.map(({ node }) => node.id),
-      evidence: quality.godFiles.slice(0, 5).map(
-        ({ node, responsibilityAxisCount, designSmellScore, sourceMetrics }) => ({
+      evidence: quality.godFiles
+        .slice(0, 5)
+        .map(({ node, responsibilityAxisCount, designSmellScore, sourceMetrics }) => ({
           nodeId: node.id,
           message: `${node.label}: smell score ${designSmellScore}, axes ${responsibilityAxisCount}, god classes ${sourceMetrics.godClasses.length}.`,
-        })
-      ),
+        })),
     });
   }
 
@@ -300,12 +297,12 @@ export function buildQualityPatterns(
       description:
         'Some modules mix orchestration, runtime wiring, contracts, and helper logic in one place, making clean layering and future extraction harder.',
       nodeIds: quality.mixedResponsibilityModules.map(({ node }) => node.id),
-      evidence: quality.mixedResponsibilityModules.slice(0, 5).map(
-        ({ node, responsibilityAxisCount, designSmellScore, sourceMetrics }) => ({
+      evidence: quality.mixedResponsibilityModules
+        .slice(0, 5)
+        .map(({ node, responsibilityAxisCount, designSmellScore, sourceMetrics }) => ({
           nodeId: node.id,
           message: `${node.label}: smell score ${designSmellScore}, axes ${responsibilityAxisCount}, long methods ${sourceMetrics.longMethods.length}, complex methods ${sourceMetrics.complexMethods.length}.`,
-        })
-      ),
+        })),
     });
   }
 

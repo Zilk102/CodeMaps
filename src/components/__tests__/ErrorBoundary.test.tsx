@@ -4,16 +4,27 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import ErrorBoundary from '../ErrorBoundary';
+import en from '../../i18n/locales/en.json';
 
-// Mock i18next
+// Resolve against the real English catalogue rather than a passthrough stub, so a
+// missing translation key fails the test instead of rendering the key name.
+const translate = (key: string) =>
+  key.split('.').reduce<unknown>((value, segment) => {
+    if (value && typeof value === 'object' && segment in value) {
+      return (value as Record<string, unknown>)[segment];
+    }
+    return undefined;
+  }, en) as string | undefined;
+
 vi.mock('react-i18next', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   withTranslation: () => (Component: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const TranslatedComponent = (props: any) => <Component {...props} t={(key: string, options?: any) => options?.defaultValue || key} />;
+    const TranslatedComponent = (props: Record<string, unknown>) => (
+      <Component {...props} t={translate} />
+    );
     TranslatedComponent.displayName = `withTranslation(${Component.displayName || Component.name || 'Component'})`;
     return TranslatedComponent;
-  }
+  },
 }));
 
 const ProblemChild = () => {

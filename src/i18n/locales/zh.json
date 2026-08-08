@@ -25,7 +25,24 @@
         "stable": "稳定",
         "improving": "改善",
         "degrading": "退化"
-      }
+      },
+      "statusStable": "稳定",
+      "statusDegraded": "性能下降",
+      "avgLatency": "延迟",
+      "skipRate": "跳过率",
+      "coalescing": "合并率",
+      "trend": "趋势",
+      "lastRefresh": "上次模式",
+      "lastReason": "原因",
+      "details": "详情",
+      "hideDetails": "隐藏",
+      "watcherFlushes": "刷新次数",
+      "lastBatch": "上次批次",
+      "rebuilt": "已重建",
+      "skipped": "已跳过",
+      "runtimePriority": "运行时优先",
+      "recentBatches": "最近批次",
+      "recentLatency": "最近延迟"
     },
     "openProjectToAnalyze": "请打开一个项目进行分析。",
     "error": "错误",
@@ -245,7 +262,10 @@
     "openFolder": "打开项目",
     "closeProject": "关闭项目",
     "mcpSettings": "MCP 设置",
-    "tools": "工具"
+    "tools": "工具",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "close": "关闭"
   },
   "indexing": {
     "status": {
@@ -255,8 +275,13 @@
   },
   "app": {
     "loading": "加载中…",
-    "indexing_files": "Indexing files...",
-    "indexing_complete": "Indexing complete"
+    "indexing_files": "正在索引文件...",
+    "indexing_complete": "索引完成",
+    "errorBoundary": {
+      "title": "出现了一些问题。",
+      "message": "应用程序发生了意外错误。您可以尝试刷新页面或重启应用程序。",
+      "reload": "重新加载应用"
+    }
   },
   "languageSwitcher": {
     "language": "语言"
@@ -264,27 +289,6 @@
   "dragDrop": {
     "dropHere": "将项目文件夹拖放到此处",
     "dropSubtitle": "松开以进行分析"
-  },
-  "persistence": {
-    "graphSaved": "图表已保存到本地数据库",
-    "graphLoaded": "已从本地数据库加载图表",
-    "savingGraph": "正在保存图表到数据库...",
-    "loadingGraph": "正在从数据库加载图表...",
-    "cacheCleared": "本地图表缓存已清除",
-    "clearCache": "清除图表缓存",
-    "clearCacheConfirm": "确定要清除本地图表缓存吗？这将需要重新分析项目。",
-    "settings": "图表持久化",
-    "enablePersistence": "启用图表持久化",
-    "enablePersistenceDescription": "将图表保存到本地数据库，以便下次打开时立即加载",
-    "persistenceEnabled": "图表持久化已启用",
-    "persistenceDisabled": "图表持久化已禁用",
-    "error": {
-      "saveFailed": "保存图表失败: {{message}}",
-      "loadFailed": "加载图表失败: {{message}}",
-      "clearFailed": "清除缓存失败: {{message}}",
-      "diskFull": "磁盘空间不足。图表可能无法保存。",
-      "corrupted": "图表数据库似乎已损坏。正在重新分析项目..."
-    }
   },
   "prImpact": {
     "title": "PR 影响分析",
@@ -337,19 +341,49 @@
     "totalAffected": "受影响总数",
     "direct": "直接",
     "transitive": "间接",
-    "riskPaths": "风险路径"
+    "riskPaths": "风险路径",
+    "targetNode": "目标节点",
+    "useSelected": "使用图中所选节点",
+    "selectedNode": "当前所选节点",
+    "noRiskPaths": "未找到所选节点的间接风险路径。"
   },
   "tools": {
     "blastRadius": "爆炸半径",
     "heatmap": "活动热图",
-    "prImpact": "PR 影响"
+    "prImpact": "PR 影响",
+    "workspace": "工作区",
+    "workspaceEyebrow": "分析工作区",
+    "workspaceDescription": "在一处完成排查场景与影响分析。",
+    "workspaceSummary": "运行概览",
+    "workspaceHeadline": "按问题选择合适的工具，而不是靠猜测标签名。",
+    "workspaceBody": "此面板以排查场景为起点。先选择任务，再打开对应的工具，即可在没有界面干扰的情况下完成分析。",
+    "workspaceTabs": "分析工具",
+    "projectScope": "当前项目",
+    "toolGuideTitle": "何时使用哪个工具",
+    "closeWorkspace": "关闭工作区",
+    "openTool": "打开",
+    "blastRadiusEyebrow": "节点变更",
+    "blastRadiusDescription": "显示所选节点的直接影响与间接影响。",
+    "heatmapEyebrow": "仓库热点",
+    "heatmapDescription": "突出显示不稳定文件和频繁修改的区域。",
+    "prImpactEyebrow": "分支审查",
+    "prImpactDescription": "构建基础分支与目标分支之间的风险和爆炸半径上下文。",
+    "quickActions": {
+      "title": "快速场景",
+      "highRisk": "高风险",
+      "review": "代码审查",
+      "hotspots": "热点",
+      "blastDescription": "评估文件、类或函数的变更会影响哪些节点和依赖关系。",
+      "prDescription": "在代码审查、发布或合并之前审查分支影响。",
+      "heatmapDescription": "找出高频变更的文件，为稳定性改进和重构工作提供依据。"
+    }
   },
   "updateNotification": {
-    "updateAvailable": "Update available",
-    "downloadingUpdate": "Downloading update {{version}}… {{progress}}%",
-    "updateReady": "Update <1>v{{version}}</1> is ready to install!",
-    "later": "Later",
-    "restart": "Restart",
-    "checkingForUpdates": "Checking for updates…"
+    "updateAvailable": "有可用更新",
+    "downloadingUpdate": "正在下载更新 {{version}}… {{progress}}%",
+    "updateReady": "更新 <1>v{{version}}</1> 已可安装！",
+    "later": "稍后",
+    "restart": "重启",
+    "checkingForUpdates": "正在检查更新…"
   }
 }

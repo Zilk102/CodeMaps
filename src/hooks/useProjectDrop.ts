@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type DragEvent } from 'react';
 
 type FetchGraph = (path: string) => Promise<unknown>;
 
@@ -28,7 +28,10 @@ async function getPathFromItem(item: DataTransferItem) {
   const file = item.getAsFile();
   if (file && 'path' in file) {
     const filePath = (file as File & { path: string }).path;
-    return filePath.substring(0, filePath.lastIndexOf('/')) || filePath.substring(0, filePath.lastIndexOf('\\'));
+    return (
+      filePath.substring(0, filePath.lastIndexOf('/')) ||
+      filePath.substring(0, filePath.lastIndexOf('\\'))
+    );
   }
 
   return null;
@@ -38,19 +41,19 @@ export function useProjectDrop(fetchGraph: FetchGraph) {
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
-  const handleDragOver = useCallback((event: React.DragEvent) => {
+  const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
   }, []);
 
-  const handleDragEnter = useCallback((event: React.DragEvent) => {
+  const handleDragEnter = useCallback((event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
     dragCounter.current += 1;
     setDragOver(true);
   }, []);
 
-  const handleDragLeave = useCallback((event: React.DragEvent) => {
+  const handleDragLeave = useCallback((event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
     dragCounter.current -= 1;
@@ -60,7 +63,7 @@ export function useProjectDrop(fetchGraph: FetchGraph) {
   }, []);
 
   const handleDrop = useCallback(
-    (event: React.DragEvent) => {
+    (event: DragEvent) => {
       event.preventDefault();
       event.stopPropagation();
       dragCounter.current = 0;

@@ -1,6 +1,10 @@
 import { GraphData, GraphNode } from '../store';
 import { toStructuralNodeId } from './AgentContextUtils';
-import { ArchitectureNodeClassification, ArchitectureRule, ArchitectureLayer } from './architectureTypes';
+import {
+  ArchitectureNodeClassification,
+  ArchitectureRule,
+  ArchitectureLayer,
+} from './architectureTypes';
 
 const normalizeNodePath = (node: GraphNode) => node.id.replace(/\\/g, '/').toLowerCase();
 
@@ -83,7 +87,8 @@ export const refineDirectoryClassifications = (
     const counts = new Map<ArchitectureLayer, number>();
 
     for (const child of childrenByParentId.get(nodeId) || []) {
-      const childClassification = initialByNodeId.get(child.id) || createUnknownClassification(child.id);
+      const childClassification =
+        initialByNodeId.get(child.id) || createUnknownClassification(child.id);
       if (childClassification.layer !== 'unknown') {
         incrementLayerCount(counts, childClassification.layer);
       }

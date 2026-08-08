@@ -231,7 +231,10 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
           .enum(['bugfix', 'feature', 'refactor', 'explore'])
           .optional()
           .describe('High-level change mode used to tailor agent guidance'),
-        changeIntent: z.string().optional().describe('Short human description of the planned change'),
+        changeIntent: z
+          .string()
+          .optional()
+          .describe('Short human description of the planned change'),
         type: z
           .string()
           .optional()
@@ -299,7 +302,9 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         focusQuery: z
           .string()
           .optional()
-          .describe('Optional free-text query to narrow the review to a specific directory or file'),
+          .describe(
+            'Optional free-text query to narrow the review to a specific directory or file'
+          ),
         projectPath: z
           .string()
           .optional()

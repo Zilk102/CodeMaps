@@ -1,14 +1,6 @@
 import { GraphData, GraphNode } from '../store';
-import {
-  ChangeContextResult,
-  ChangeTaskMode,
-  ChangeContextService,
-} from './ChangeContextService';
-import {
-  ReviewContextResult,
-  ReviewTaskMode,
-  ReviewContextService,
-} from './ReviewContextService';
+import { ChangeContextResult, ChangeContextService } from './ChangeContextService';
+import { ReviewContextResult, ReviewContextService } from './ReviewContextService';
 import {
   PrepareProjectContextInput,
   ProjectInsightResult,
@@ -137,12 +129,7 @@ export class TaskIntelligenceService {
     projectContext: ProjectInsightResult
   ): Promise<TaskContextResult['selectedContext']> {
     if (
-      shouldUseCampaignContext(
-        input.userRequest,
-        inferredIntent,
-        targetCandidates,
-        projectContext
-      )
+      shouldUseCampaignContext(input.userRequest, inferredIntent, targetCandidates, projectContext)
     ) {
       const context = await this.changeCampaignService.prepareContext(graph, {
         userRequest: input.userRequest,

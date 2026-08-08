@@ -4,50 +4,207 @@ import { RoutedTaskKind, TaskIntentInference } from './TaskIntelligenceService';
 
 const MAX_KEYWORDS = 8;
 const STOP_WORDS = new Set([
-  'и', 'или', 'но', 'а', 'не', 'да', 'как', 'что', 'это', 'так', 'для', 'при', 'про', 'без',
-  'если', 'когда', 'где', 'почему', 'надо', 'нужно', 'чтобы', 'какой', 'какая', 'какие',
-  'какого', 'меня', 'мой', 'моя', 'мои', 'твой', 'твоя', 'его', 'ее', 'их', 'наш', 'ваш',
-  'там', 'тут', 'очень', 'просто', 'после', 'почему-то', 'сломалось', 'ломается', 'ошибка',
-  'проблема', 'изменений', 'проведи', 'скажи', 'найди', 'причину', 'где', 'риски', 'before',
-  'after', 'with', 'from', 'that', 'this', 'user', 'users', 'the', 'and', 'for', 'why', 'how',
-  'when', 'where', 'not', 'into',
+  'и',
+  'или',
+  'но',
+  'а',
+  'не',
+  'да',
+  'как',
+  'что',
+  'это',
+  'так',
+  'для',
+  'при',
+  'про',
+  'без',
+  'если',
+  'когда',
+  'где',
+  'почему',
+  'надо',
+  'нужно',
+  'чтобы',
+  'какой',
+  'какая',
+  'какие',
+  'какого',
+  'меня',
+  'мой',
+  'моя',
+  'мои',
+  'твой',
+  'твоя',
+  'его',
+  'ее',
+  'их',
+  'наш',
+  'ваш',
+  'там',
+  'тут',
+  'очень',
+  'просто',
+  'после',
+  'почему-то',
+  'сломалось',
+  'ломается',
+  'ошибка',
+  'проблема',
+  'изменений',
+  'проведи',
+  'скажи',
+  'найди',
+  'причину',
+  'где',
+  'риски',
+  'before',
+  'after',
+  'with',
+  'from',
+  'that',
+  'this',
+  'user',
+  'users',
+  'the',
+  'and',
+  'for',
+  'why',
+  'how',
+  'when',
+  'where',
+  'not',
+  'into',
 ]);
 
 const BUGFIX_HINTS = [
-  'ломается', 'сломалось', 'не работает', 'ошибка', 'баг', 'crash', 'broken', 'fails',
-  'failing', 'issue', 'problem', 'debug',
+  'ломается',
+  'сломалось',
+  'не работает',
+  'ошибка',
+  'баг',
+  'crash',
+  'broken',
+  'fails',
+  'failing',
+  'issue',
+  'problem',
+  'debug',
 ];
 const FEATURE_HINTS = [
-  'добавь', 'добавить', 'реализуй', 'реализовать', 'поддержку', 'support', 'implement', 'feature',
+  'добавь',
+  'добавить',
+  'реализуй',
+  'реализовать',
+  'поддержку',
+  'support',
+  'implement',
+  'feature',
 ];
 const REFACTOR_HINTS = [
-  'рефактор', 'refactor', 'упрости', 'почисти', 'перестрой', 'restructure', 'cleanup',
-  'переведи', 'замени', 'обнови', 'миграц', 'migration', 'switch', 'upgrade', 'replace',
+  'рефактор',
+  'refactor',
+  'упрости',
+  'почисти',
+  'перестрой',
+  'restructure',
+  'cleanup',
+  'переведи',
+  'замени',
+  'обнови',
+  'миграц',
+  'migration',
+  'switch',
+  'upgrade',
+  'replace',
 ];
 const REVIEW_HINTS = ['ревью', 'review', 'проверь', 'audit', 'аудит', 'оцени'];
 const ARCHITECTURE_HINTS = ['архитектур', 'слой', 'границ', 'solid', 'dependency', 'design'];
 const SECURITY_HINTS = [
-  'security', 'безопас', 'xss', 'csrf', 'sql', 'token', 'cookie', 'auth', 'авторизац',
+  'security',
+  'безопас',
+  'xss',
+  'csrf',
+  'sql',
+  'token',
+  'cookie',
+  'auth',
+  'авторизац',
   'аутентификац',
 ];
 const STABILIZATION_HINTS = [
-  'нестабиль', 'flaky', 'memory leak', 'утечк', 'медленно', 'slow', 'performance', 'hang',
+  'нестабиль',
+  'flaky',
+  'memory leak',
+  'утечк',
+  'медленно',
+  'slow',
+  'performance',
+  'hang',
   'зависает',
 ];
 export const DI_RUNTIME_HINTS = [
-  'dependency injection', 'di ', ' di', 'inject', 'injection', 'provider', 'binding', 'bean',
-  'registration', 'container', 'ioc', 'wiring', 'runtime contract', 'внедрен', 'инжект',
-  'провайдер', 'бин', 'регистрац', 'контракт',
+  'dependency injection',
+  'di ',
+  ' di',
+  'inject',
+  'injection',
+  'provider',
+  'binding',
+  'bean',
+  'registration',
+  'container',
+  'ioc',
+  'wiring',
+  'runtime contract',
+  'внедрен',
+  'инжект',
+  'провайдер',
+  'бин',
+  'регистрац',
+  'контракт',
 ];
 export const OPERATIONAL_REFRESH_HINTS = [
-  'watcher', 'refresh', 'reindex', 'incremental', 'batch', 'batching', 'coalesc', 'latency',
-  'debounce', 'stale graph', 'graph update', 'pipeline', 'watch', 'индексац', 'обновлен',
-  'обновля', 'батч', 'задержк', 'латент', 'пайплайн',
+  'watcher',
+  'refresh',
+  'reindex',
+  'incremental',
+  'batch',
+  'batching',
+  'coalesc',
+  'latency',
+  'debounce',
+  'stale graph',
+  'graph update',
+  'pipeline',
+  'watch',
+  'индексац',
+  'обновлен',
+  'обновля',
+  'батч',
+  'задержк',
+  'латент',
+  'пайплайн',
 ];
 export const CAMPAIGN_HINTS = [
-  'все', 'all', 'массов', 'миграц', 'migration', 'переведи', 'замени', 'replace', 'switch',
-  'upgrade', 'across', 'по всему', 'повсюду', 'несколько', 'много', 'сервисы', 'service',
-  'library', 'библиотек',
+  'все',
+  'all',
+  'массов',
+  'миграц',
+  'migration',
+  'переведи',
+  'замени',
+  'replace',
+  'switch',
+  'upgrade',
+  'across',
+  'по всему',
+  'повсюду',
+  'несколько',
+  'много',
+  'сервисы',
+  'service',
+  'library',
+  'библиотек',
 ];
 
 export function inferTaskIntent(userRequest: string): TaskIntentInference {
@@ -67,7 +224,10 @@ export function inferTaskIntent(userRequest: string): TaskIntentInference {
 
   if (
     has(CAMPAIGN_HINTS) &&
-    (has(REFACTOR_HINTS) || has(FEATURE_HINTS) || normalized.includes('нов') || normalized.includes('библиотек'))
+    (has(REFACTOR_HINTS) ||
+      has(FEATURE_HINTS) ||
+      normalized.includes('нов') ||
+      normalized.includes('библиотек'))
   ) {
     reasoning.push('Signals of massive migration or broad refactor change detected.');
     return { taskKind: 'refactor', confidence: 'high', reasoning, extractedKeywords };
@@ -109,22 +269,44 @@ export function extractCandidateQueries(userRequest: string) {
     normalized.matchAll(/[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md|cs|java|kt)/gu),
     (match) => match[0]
   );
-  const tokens = Array.from(normalized.matchAll(/[\p{L}\p{N}_-]{3,}/gu), (match) => match[0]).filter(
-    (token) => !STOP_WORDS.has(token)
-  );
+  const tokens = Array.from(
+    normalized.matchAll(/[\p{L}\p{N}_-]{3,}/gu),
+    (match) => match[0]
+  ).filter((token) => !STOP_WORDS.has(token));
 
   const expanded = new Set<string>([...quoted, ...fileLike, ...tokens]);
   if (normalized.includes('авторизац') || normalized.includes('auth')) {
-    ['auth', 'authentication', 'login', 'token', 'cookie', 'session'].forEach((term) => expanded.add(term));
+    ['auth', 'authentication', 'login', 'token', 'cookie', 'session'].forEach((term) =>
+      expanded.add(term)
+    );
   }
   if (normalized.includes('логин')) {
     ['login', 'auth', 'session'].forEach((term) => expanded.add(term));
   }
   if (hasDiRuntimeSignals(normalized)) {
-    ['program', 'module', 'provider', 'binding', 'bean', 'registration', 'inject', 'wiring'].forEach((term) => expanded.add(term));
+    [
+      'program',
+      'module',
+      'provider',
+      'binding',
+      'bean',
+      'registration',
+      'inject',
+      'wiring',
+    ].forEach((term) => expanded.add(term));
   }
   if (hasOperationalRefreshSignals(normalized)) {
-    ['filewatcher', 'stackgraphenrichmentservice', 'graphrepository', 'projectindexer', 'refresh', 'watcher', 'incremental', 'latency', 'batching'].forEach((term) => expanded.add(term));
+    [
+      'filewatcher',
+      'stackgraphenrichmentservice',
+      'graphrepository',
+      'projectindexer',
+      'refresh',
+      'watcher',
+      'incremental',
+      'latency',
+      'batching',
+    ].forEach((term) => expanded.add(term));
   }
 
   return Array.from(expanded).filter(Boolean).slice(0, MAX_KEYWORDS);

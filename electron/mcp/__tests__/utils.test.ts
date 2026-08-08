@@ -67,8 +67,6 @@ describe('mcp utils', () => {
   it('teaches agents to route refresh degradation through task context', () => {
     const playbook = createAgentPlaybook();
 
-    expect(
-      playbook.rules.some((rule) => rule.includes('refresh latency'))
-    ).toBe(true);
+    expect(playbook.rules.some((rule) => rule.includes('refresh latency'))).toBe(true);
   });
 });

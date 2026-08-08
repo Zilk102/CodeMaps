@@ -5,9 +5,7 @@ import type {
   HealthScoreSummary,
 } from './healthScoreTypes';
 
-export function buildHealthScoreResult(
-  metrics: HealthScoreMetricSnapshot
-): HealthScoreResult {
+export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): HealthScoreResult {
   const issues: HealthScoreIssue[] = [];
   let score = 100;
 
@@ -153,9 +151,7 @@ export function buildHealthScoreResult(
     issues.push({
       code: 'refresh_pipeline_degradation',
       severity:
-        metrics.avgRefreshLatencyMs >= 50 || metrics.runtimePriorityRate >= 0.5
-          ? 'high'
-          : 'medium',
+        metrics.avgRefreshLatencyMs >= 50 || metrics.runtimePriorityRate >= 0.5 ? 'high' : 'medium',
       message: `Incremental refresh деградирует: latency trend=${metrics.refreshLatencyTrend}, runtime priority rate=${(metrics.runtimePriorityRate * 100).toFixed(1)}%, avg latency=${metrics.avgRefreshLatencyMs.toFixed(1)} ms.`,
     });
     score -= refreshPenalty;

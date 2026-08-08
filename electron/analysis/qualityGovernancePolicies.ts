@@ -121,8 +121,7 @@ export function buildRefactoringWaves(
     {
       id: 'wave-boundaries',
       title: 'Wave 1: Boundary Split',
-      goal:
-        'Split mixed-responsibility modules first so later extractions happen inside clearer seams.',
+      goal: 'Split mixed-responsibility modules first so later extractions happen inside clearer seams.',
       include: (candidate) =>
         candidate.targetType === 'module' ||
         candidate.action === 'split_responsibilities' ||
@@ -131,15 +130,13 @@ export function buildRefactoringWaves(
     {
       id: 'wave-classes',
       title: 'Wave 2: Class Extraction',
-      goal:
-        'Extract god classes into narrower collaborators before touching downstream orchestration logic.',
+      goal: 'Extract god classes into narrower collaborators before touching downstream orchestration logic.',
       include: (candidate) => candidate.targetType === 'class',
     },
     {
       id: 'wave-methods',
       title: 'Wave 3: Method Simplification',
-      goal:
-        'Reduce long/complex methods last, once module and class boundaries are stable enough to reveal clean helper seams.',
+      goal: 'Reduce long/complex methods last, once module and class boundaries are stable enough to reveal clean helper seams.',
       include: (candidate) => candidate.targetType === 'method',
     },
   ];
@@ -175,7 +172,8 @@ export function buildRefactoringWaves(
       blockingFileIds: unique(previousWaveFiles).slice(0, 12),
       priorityScore: Math.round(
         candidates.reduce(
-          (sum, candidate) => sum + candidate.score + scoreCandidateDependencyPressure(candidate, collapsed),
+          (sum, candidate) =>
+            sum + candidate.score + scoreCandidateDependencyPressure(candidate, collapsed),
           0
         ) / candidates.length
       ),
@@ -284,8 +282,7 @@ function scoreCandidateDependencyPressure(
 ) {
   const fileId = toStructuralNodeId(candidate.fileNodeId);
   return (
-    (collapsed.outgoing.get(fileId)?.length || 0) +
-    (collapsed.incoming.get(fileId)?.length || 0)
+    (collapsed.outgoing.get(fileId)?.length || 0) + (collapsed.incoming.get(fileId)?.length || 0)
   );
 }
 

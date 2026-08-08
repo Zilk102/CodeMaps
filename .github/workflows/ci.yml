@@ -8,14 +8,29 @@ on:
   pull_request:
     branches: ['main']
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
 
     steps:
+      # Windows runners default to core.autocrlf=true, which converts the LF blobs
+      # Prettier expects into CRLF on disk and makes format:check fail on every file.
+      - name: Disable git autocrlf
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -43,8 +58,17 @@ jobs:
             console.log('Version updated to:', pkg.version);
           "
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
       - name: Build (compile only)
         run: |

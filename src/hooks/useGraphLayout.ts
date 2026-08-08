@@ -49,7 +49,7 @@ export const useGraphLayout = (
         if (isMounted) setIsCalculating(false);
       }
     };
-    
+
     performLayout();
 
     return () => {
@@ -69,14 +69,18 @@ export const useGraphLayout = (
         )
       : [];
     const relatedNodeIds = new Set<string>(selectedVisibleId ? [selectedVisibleId] : []);
-    
+
     connectedEdges.forEach((edge) => {
       relatedNodeIds.add(edge.sourceId);
       relatedNodeIds.add(edge.targetId);
     });
 
-    const incomingCount = connectedEdges.filter((edge) => edge.targetId === selectedVisibleId).length;
-    const outgoingCount = connectedEdges.filter((edge) => edge.sourceId === selectedVisibleId).length;
+    const incomingCount = connectedEdges.filter(
+      (edge) => edge.targetId === selectedVisibleId
+    ).length;
+    const outgoingCount = connectedEdges.filter(
+      (edge) => edge.sourceId === selectedVisibleId
+    ).length;
 
     return {
       selectedVisibleId,

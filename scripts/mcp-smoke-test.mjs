@@ -33,7 +33,7 @@ const parseFirstTextPayload = (response, toolName) => {
   if (text.startsWith('```json\n') && text.endsWith('\n```')) {
     text = text.slice(8, -4);
   }
-  
+
   try {
     payload = JSON.parse(text);
   } catch {

@@ -12,7 +12,8 @@ const idbLanguageDetector = {
   init: () => {},
   detect: (callback: (lng: string | undefined) => void) => {
     const storage = getIDBStorage('codemaps-db', 'ui-store');
-    storage.getItem('i18nextLng')
+    storage
+      .getItem('i18nextLng')
       .then((lng) => {
         if (lng) {
           callback(lng);
@@ -27,7 +28,7 @@ const idbLanguageDetector = {
   cacheUserLanguage: (lng: string) => {
     const storage = getIDBStorage('codemaps-db', 'ui-store');
     storage.setItem('i18nextLng', lng).catch(console.error);
-  }
+  },
 };
 
 i18n

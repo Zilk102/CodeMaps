@@ -1,9 +1,5 @@
-import { GraphData, GraphNode } from '../store';
-import type {
-  ArchitectureNodeClassification,
-  ArchitectureOverview,
-  ArchitectureViolation,
-} from './ArchitectureInsightService';
+import { GraphData } from '../store';
+import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
 import type { HealthScoreResult } from './HealthScoreAnalyzer';
 import { collectPatternNodeIds, isDesignSmellPattern } from './patternPolicies';
@@ -142,8 +138,7 @@ export function buildReviewPriorities(
   if (hasDesignSmellSignals(health)) {
     priorities.push(
       createPriority({
-        severity:
-          health.summary.godFiles > 0 || health.summary.godClasses > 0 ? 'high' : 'medium',
+        severity: health.summary.godFiles > 0 || health.summary.godClasses > 0 ? 'high' : 'medium',
         title: 'Design Smells',
         reason:
           'Some modules/classes already show SRP/OOP smell signals, so the review should explicitly check extraction boundaries, class API size, and long-method decomposition opportunities.',
@@ -218,7 +213,9 @@ export function buildReviewNextSteps(
   ];
 
   if (securityFindings.length > 0) {
-    nextSteps.unshift('Address security findings first, especially critical and high severity ones.');
+    nextSteps.unshift(
+      'Address security findings first, especially critical and high severity ones.'
+    );
   }
 
   if (health.issues.length > 0) {
@@ -351,7 +348,9 @@ function collectLinkedNodeIds(
   return unique(
     graph.nodes
       .filter((node) =>
-        graph.links.some((link) => predicate(link) && (link.source === node.id || link.target === node.id))
+        graph.links.some(
+          (link) => predicate(link) && (link.source === node.id || link.target === node.id)
+        )
       )
       .map((node) => node.id)
   ).slice(0, 10);
@@ -369,7 +368,10 @@ function collectStructuralLinkedNodeIds(
 
   return unique(
     graph.nodes
-      .filter((node) => structuralIds.includes(node.id) || structuralIds.includes(toStructuralNodeId(node.id)))
+      .filter(
+        (node) =>
+          structuralIds.includes(node.id) || structuralIds.includes(toStructuralNodeId(node.id))
+      )
       .map((node) => node.id)
   ).slice(0, 10);
 }

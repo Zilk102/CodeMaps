@@ -26,31 +26,37 @@ export const CONTRACT_SEMANTIC_LINK_REASONS = [
 ] as const;
 
 export const isArchitecturalDependencyLink = (link: GraphLink) =>
-  Boolean(link.type && ARCHITECTURAL_LINK_TYPES.includes(link.type as (typeof ARCHITECTURAL_LINK_TYPES)[number]));
+  Boolean(
+    link.type &&
+    ARCHITECTURAL_LINK_TYPES.includes(link.type as (typeof ARCHITECTURAL_LINK_TYPES)[number])
+  );
 
 export const isRuntimeArchitecturalLink = (link: GraphLink) =>
   Boolean(
     link.type &&
-      RUNTIME_ARCHITECTURAL_LINK_TYPES.includes(
-        link.type as (typeof RUNTIME_ARCHITECTURAL_LINK_TYPES)[number]
-      )
+    RUNTIME_ARCHITECTURAL_LINK_TYPES.includes(
+      link.type as (typeof RUNTIME_ARCHITECTURAL_LINK_TYPES)[number]
+    )
   );
 
 export const isStackAwareLink = (link: GraphLink) =>
-  Boolean(link.type && STACK_AWARE_LINK_TYPES.includes(link.type as (typeof STACK_AWARE_LINK_TYPES)[number]));
+  Boolean(
+    link.type &&
+    STACK_AWARE_LINK_TYPES.includes(link.type as (typeof STACK_AWARE_LINK_TYPES)[number])
+  );
 
 export const isDiRuntimeLink = (link: GraphLink) =>
   Boolean(
     link.reason &&
-      DI_RUNTIME_LINK_REASONS.includes(link.reason as (typeof DI_RUNTIME_LINK_REASONS)[number])
+    DI_RUNTIME_LINK_REASONS.includes(link.reason as (typeof DI_RUNTIME_LINK_REASONS)[number])
   );
 
 export const isContractSemanticLink = (link: GraphLink) =>
   Boolean(
     link.reason &&
-      CONTRACT_SEMANTIC_LINK_REASONS.includes(
-        link.reason as (typeof CONTRACT_SEMANTIC_LINK_REASONS)[number]
-      )
+    CONTRACT_SEMANTIC_LINK_REASONS.includes(
+      link.reason as (typeof CONTRACT_SEMANTIC_LINK_REASONS)[number]
+    )
   );
 
 export interface GraphAdjacency {

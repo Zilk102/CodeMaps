@@ -14,7 +14,9 @@ export interface GraphSlice {
 
   setFilter: (key: keyof GraphFilters, value: boolean) => void;
   setLayoutMode: (mode: LayoutMode) => void;
-  setParsingProgress: (progress: { status: string; current: number; total: number; filename: string } | null) => void;
+  setParsingProgress: (
+    progress: { status: string; current: number; total: number; filename: string } | null
+  ) => void;
   setSelectedNode: (node: GraphNode | null) => void;
   setSelectedPath: (path: string | null) => void;
   closeProject: () => void;

@@ -106,10 +106,7 @@ export const summarizeArchitectureDependencies = (
 
   const dependencies = Array.from(dependencyCounts.entries())
     .map(([key, count]) => {
-      const [sourceLayer, targetLayer] = key.split('->') as [
-        ArchitectureLayer,
-        ArchitectureLayer,
-      ];
+      const [sourceLayer, targetLayer] = key.split('->') as [ArchitectureLayer, ArchitectureLayer];
       return { sourceLayer, targetLayer, count };
     })
     .sort(

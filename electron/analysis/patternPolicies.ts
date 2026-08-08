@@ -26,5 +26,7 @@ export const isDesignSmellPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
 export const isChangeRiskPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
   changeRiskPatternIdSet.has(pattern.id);
 
-export const collectPatternNodeIds = (patterns: DetectedPattern[], predicate: (pattern: DetectedPattern) => boolean) =>
-  Array.from(new Set(patterns.filter(predicate).flatMap((pattern) => pattern.nodeIds)));
+export const collectPatternNodeIds = (
+  patterns: DetectedPattern[],
+  predicate: (pattern: DetectedPattern) => boolean
+) => Array.from(new Set(patterns.filter(predicate).flatMap((pattern) => pattern.nodeIds)));

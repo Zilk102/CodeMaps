@@ -49,10 +49,10 @@ class ErrorBoundary extends Component<Props, State> {
           }}
         >
           <h1 style={{ color: 'var(--acc)', marginBottom: '10px' }}>
-            {t('app.errorBoundary.title', { defaultValue: 'Something went wrong.' })}
+            {t('app.errorBoundary.title')}
           </h1>
           <p style={{ marginBottom: '20px', maxWidth: '600px', lineHeight: '1.5' }}>
-            {t('app.errorBoundary.message', { defaultValue: 'An unexpected error occurred in the application. You can try refreshing the page or restarting the app.' })}
+            {t('app.errorBoundary.message')}
           </p>
           {this.state.error && (
             <pre
@@ -86,7 +86,7 @@ class ErrorBoundary extends Component<Props, State> {
               fontWeight: 'bold',
             }}
           >
-            {t('app.errorBoundary.reload', { defaultValue: 'Reload App' })}
+            {t('app.errorBoundary.reload')}
           </button>
         </div>
       );

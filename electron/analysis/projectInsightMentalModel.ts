@@ -1,10 +1,6 @@
 import { GraphData, GraphNode } from '../store';
 import type { ArchitectureLayer, ArchitectureOverview } from './ArchitectureInsightService';
-import {
-  buildGraphAdjacency,
-  isContractSemanticLink,
-  isDiRuntimeLink,
-} from './graphAnalysisUtils';
+import { buildGraphAdjacency, isContractSemanticLink, isDiRuntimeLink } from './graphAnalysisUtils';
 import type { ProjectInsightResult } from './ProjectInsightService';
 
 const FILE_LIMIT = 8;
@@ -78,13 +74,12 @@ export function buildProjectMentalModel(
   };
 }
 
-function collectRankedFiles(
-  fileNodes: GraphNode[],
-  scoreNode: (node: GraphNode) => number | null
-) {
+function collectRankedFiles(fileNodes: GraphNode[], scoreNode: (node: GraphNode) => number | null) {
   return fileNodes
     .map((node) => ({ node, score: scoreNode(node) }))
-    .filter((entry): entry is { node: GraphNode; score: number } => Boolean(entry.score && entry.score > 0))
+    .filter((entry): entry is { node: GraphNode; score: number } =>
+      Boolean(entry.score && entry.score > 0)
+    )
     .sort((a, b) => b.score - a.score || a.node.label.localeCompare(b.node.label))
     .slice(0, FILE_LIMIT)
     .map(({ node }) => node);

@@ -5,6 +5,7 @@ import type { GraphSlice } from './graphSlice';
 export interface ConnectionSlice {
   initializeWatcher: () => void;
   initializeWebSocket: () => void;
+  teardownRealtime: () => void;
   fetchGraph: (path?: string) => Promise<void>;
   openProject: () => Promise<void>;
 }
@@ -15,22 +16,20 @@ export const createConnectionSlice: StateCreator<
   [],
   ConnectionSlice
 > = (set, get) => {
-  let isWatcherInitialized = false;
+  let unsubscribeIpc: Array<() => void> = [];
 
   return {
     initializeWatcher: () => {
-      if (isWatcherInitialized) return;
-      isWatcherInitialized = true;
-      if (window.api?.onGraphUpdate) {
-        window.api.onGraphUpdate((data) => {
+      if (unsubscribeIpc.length > 0) return;
+
+      unsubscribeIpc = [
+        window.api?.onGraphUpdate?.((data) => {
           set({ graphData: data });
-        });
-      }
-      if (window.api?.onParsingProgress) {
-        window.api.onParsingProgress((progress) => {
-          set({ parsingProgress: progress as { status: string; current: number; total: number; filename: string } });
-        });
-      }
+        }),
+        window.api?.onParsingProgress?.((progress) => {
+          set({ parsingProgress: progress });
+        }),
+      ].filter((unsubscribe): unsubscribe is () => void => typeof unsubscribe === 'function');
     },
 
     initializeWebSocket: () => {
@@ -39,9 +38,15 @@ export const createConnectionSlice: StateCreator<
           set({ graphData });
         },
         onParsingProgress: (progress) => {
-          set({ parsingProgress: progress as { status: string; current: number; total: number; filename: string } });
+          set({ parsingProgress: progress });
         },
       });
+    },
+
+    teardownRealtime: () => {
+      for (const unsubscribe of unsubscribeIpc) unsubscribe();
+      unsubscribeIpc = [];
+      GraphRealtimeClient.getInstance().disconnect();
     },
 
     fetchGraph: async (path?: string) => {
@@ -59,7 +64,8 @@ export const createConnectionSlice: StateCreator<
     },
 
     openProject: async () => {
-      const dirPath = await window.api.openDirectory?.() ?? await window.api.selectDirectory?.();
+      const dirPath =
+        (await window.api.openDirectory?.()) ?? (await window.api.selectDirectory?.());
       if (dirPath) {
         await get().fetchGraph(dirPath);
       }

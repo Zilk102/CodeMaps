@@ -64,26 +64,26 @@ export class KuzuIntegration {
 
   private mapNodeType(type?: string): GraphNode['type'] {
     const mapping: Record<string, GraphNode['type']> = {
-      'file': 'file',
-      'class': 'class',
-      'function': 'function',
-      'method': 'method',
-      'interface': 'interface',
-      'variable': 'variable',
-      'adr': 'adr',
-      'directory': 'directory',
+      file: 'file',
+      class: 'class',
+      function: 'function',
+      method: 'method',
+      interface: 'interface',
+      variable: 'variable',
+      adr: 'adr',
+      directory: 'directory',
     };
     return mapping[type || ''] || 'file';
   }
 
   private mapLinkType(type?: string): GraphEdge['type'] {
     const mapping: Record<string, GraphEdge['type']> = {
-      'structure': 'contains',
-      'import': 'imports',
-      'adr': 'references',
-      'entity': 'depends_on',
-      'framework': 'depends_on',
-      'build': 'depends_on',
+      structure: 'contains',
+      import: 'imports',
+      adr: 'references',
+      entity: 'depends_on',
+      framework: 'depends_on',
+      build: 'depends_on',
     };
     return mapping[type || ''] || 'depends_on';
   }

@@ -8,6 +8,12 @@ updates:
     rebase-strategy: 'auto'
     labels:
       - 'dependencies'
+    ignore:
+      # web-tree-sitter >= 0.26 only accepts grammars built as Emscripten side
+      # modules, which the prebuilt tree-sitter-wasms grammars are not.
+      # Upgrade only together with a grammar source that ships 0.26-compatible WASM.
+      - dependency-name: 'web-tree-sitter'
+        versions: ['>=0.26.0']
 
   - package-ecosystem: 'github-actions'
     directory: '/'

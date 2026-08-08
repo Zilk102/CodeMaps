@@ -74,7 +74,9 @@ describe('parseFile through language adapters', () => {
 
     expect(result.detectedLanguage).toBe('typescript');
     expect(result.adr).toBe('Authentication flow');
-    expect(result.entities.some((entity) => entity.type === 'function' && entity.name === 'runTask')).toBe(true);
+    expect(
+      result.entities.some((entity) => entity.type === 'function' && entity.name === 'runTask')
+    ).toBe(true);
     expect(result.exports.some((entry) => entry.exportedName === 'runTask')).toBe(true);
     expect(result.imports.some((entry) => entry.path === './helper')).toBe(true);
     expect(result.calls).toContain('helper');
@@ -85,7 +87,15 @@ describe('parseFile through language adapters', () => {
     const filePath = path.join(tempDir, '0001-authentication.md');
     fs.writeFileSync(
       filePath,
-      ['# Authentication Decision', '', 'Status: accepted', '', 'Context', '', 'We use secure cookies.'].join('\n')
+      [
+        '# Authentication Decision',
+        '',
+        'Status: accepted',
+        '',
+        'Context',
+        '',
+        'We use secure cookies.',
+      ].join('\n')
     );
 
     const result = await parseFile({ filePath, baseDir: tempDir });

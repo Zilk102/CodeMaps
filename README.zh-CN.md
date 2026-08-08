@@ -28,21 +28,25 @@
 ## 🖼️ 截图
 
 ### 交互式代码图表
+
 将整个代码库可视化为交互式图表，包含文件、类、函数及其关系。
 
 ![主图表](screenshots/main-graph.jpg)
 
 ### MCP 服务器设置 — 概览
+
 CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理提供对项目架构的结构化访问。
 
 ![MCP 概览](screenshots/mcp-overview.jpg)
 
 ### MCP 工具
+
 为 AI 代理提供 10 多种内置工具：分析项目、获取图表上下文、搜索节点、检测模式、运行安全扫描等。
 
 ![MCP 工具](screenshots/mcp-tools.jpg)
 
 ### MCP 资源
+
 资源为 AI 代理提供高级项目摘要、完整的图表导出和自主执行手册。
 
 ![MCP 资源](screenshots/mcp-resources.jpg)
@@ -53,7 +57,7 @@ CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理
 
 从 [Releases](https://github.com/Zilk102/CodeMaps/releases) 页面下载适合您平台的最新版本。
 
-该应用程序无需复杂的安装，可在 **Windows**、**Linux** 和 **macOS** 上直接使用。
+该应用程序无需复杂的安装，可在 **Windows** 和 **Linux** 上直接使用。目前尚未发布 macOS 版本。
 
 ### 快速开始
 
@@ -69,11 +73,12 @@ CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理
 
 ## 🛠️ 开发
 
-项目基于以下技术栈构建：**Electron + React + TypeScript + Vite**。图表可视化使用 Sigma.js。
+项目基于以下技术栈构建：**Electron + React + TypeScript + Vite**。图表以 SVG 渲染，布局由 elkjs 计算。
 
 ### 前提条件
 
-- Node.js 20+
+- Node.js 22+
+- yarn（项目使用 `yarn.lock`，不支持 npm 锁文件）
 - npm 或 yarn
 
 ### 本地运行
@@ -84,7 +89,7 @@ git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
 
 # 安装依赖
-npm install
+yarn install
 
 # 在开发模式下启动应用程序
 npm run dev

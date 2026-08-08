@@ -1,5 +1,5 @@
-import * as fs from 'fs/promises';
 import { GraphData } from '../store';
+import { readFileWithinLimit } from '../parsing/fileLimits';
 
 import safeRegex from 'safe-regex';
 
@@ -58,7 +58,9 @@ export class SignatureSearchService {
       if (matches.length >= limit) break;
 
       try {
-        const content = await fs.readFile(fileNode.id, 'utf-8');
+        const content = await readFileWithinLimit(fileNode.id);
+        if (content === null) continue;
+
         const lines = content.split(/\r?\n/);
         const fileSymbols = symbolByFile.get(fileNode.id) || [];
 

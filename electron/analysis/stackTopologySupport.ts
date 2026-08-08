@@ -58,9 +58,7 @@ export class ProjectFileContext implements StackAdapterContext {
     public readonly graph: GraphData,
     public readonly stackProfile: StackInsightResult
   ) {
-    this.filePaths = graph.nodes
-      .filter((node) => node.type === 'file')
-      .map((node) => node.id);
+    this.filePaths = graph.nodes.filter((node) => node.type === 'file').map((node) => node.id);
 
     for (const filePath of this.filePaths) {
       const relativePath = this.normalize(path.relative(graph.projectRoot, filePath));
@@ -83,7 +81,10 @@ export class ProjectFileContext implements StackAdapterContext {
   }
 
   getProjectRelativePath(filePath: string) {
-    return this.relativePathByAbsolute.get(filePath) || this.normalize(path.relative(this.graph.projectRoot, filePath));
+    return (
+      this.relativePathByAbsolute.get(filePath) ||
+      this.normalize(path.relative(this.graph.projectRoot, filePath))
+    );
   }
 
   hasRelativePath(relativePath: string) {
@@ -106,7 +107,10 @@ export class ProjectFileContext implements StackAdapterContext {
 
   async readText(filePath: string) {
     if (!this.textCache.has(filePath)) {
-      this.textCache.set(filePath, fs.readFile(filePath, 'utf-8').catch(() => null));
+      this.textCache.set(
+        filePath,
+        fs.readFile(filePath, 'utf-8').catch(() => null)
+      );
     }
 
     return this.textCache.get(filePath)!;
@@ -164,7 +168,10 @@ export const buildIdentifierVariants = (value: string) => {
     const snakeCase = words.join('_');
     const kebabCase = words.join('-');
     const pascalCase = toPascalCase(words);
-    const camelCase = `${words[0]}${words.slice(1).map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join('')}`;
+    const camelCase = `${words[0]}${words
+      .slice(1)
+      .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+      .join('')}`;
     const flatLower = words.join('');
 
     [snakeCase, kebabCase, pascalCase, camelCase, flatLower].forEach((candidate) => {
@@ -203,7 +210,9 @@ export const findMatchingIdentifierSymbols = (symbols: string[], identifier: str
 export const findContainingIdentifierSymbols = (symbols: string[], identifier: string) => {
   const normalizedVariants = Array.from(
     new Set(
-      buildIdentifierVariants(identifier).map((variant) => normalizeIdentifierForComparison(variant))
+      buildIdentifierVariants(identifier).map((variant) =>
+        normalizeIdentifierForComparison(variant)
+      )
     )
   ).filter(Boolean);
 
@@ -230,7 +239,9 @@ export const inferSymbolsForFile = (filePath: string, text: string) => {
     }
   }
 
-  for (const match of text.matchAll(/\bexport\s+(?:default\s+)?(?:class|function|const)\s+([A-Z][A-Za-z0-9_]*)/g)) {
+  for (const match of text.matchAll(
+    /\bexport\s+(?:default\s+)?(?:class|function|const)\s+([A-Z][A-Za-z0-9_]*)/g
+  )) {
     if (match[1]) {
       symbols.add(match[1]);
     }
@@ -261,7 +272,9 @@ export const buildGraphSymbolIndex = (graph: GraphData): GraphSymbolIndex => {
       continue;
     }
 
-    const relativeFile = fileId.replace(/\\/g, '/').startsWith(graph.projectRoot.replace(/\\/g, '/'))
+    const relativeFile = fileId
+      .replace(/\\/g, '/')
+      .startsWith(graph.projectRoot.replace(/\\/g, '/'))
       ? path.relative(graph.projectRoot, fileId).replace(/\\/g, '/')
       : fileId.replace(/\\/g, '/');
     const symbols = index.get(relativeFile) || new Set<string>();
@@ -436,7 +449,9 @@ export const extractJvmFunctionNames = (text: string) =>
   Array.from(
     new Set([
       ...Array.from(
-        text.matchAll(/\b(?:public|private|protected|internal|open|final|abstract|suspend|inline|static|async|\s)*fun\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)
+        text.matchAll(
+          /\b(?:public|private|protected|internal|open|final|abstract|suspend|inline|static|async|\s)*fun\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g
+        )
       )
         .map((match) => match[1])
         .filter((value): value is string => Boolean(value)),
@@ -454,9 +469,7 @@ export const extractKtorRouteFunctions = (text: string) =>
   Array.from(
     new Set([
       ...Array.from(
-        text.matchAll(
-          /\bfun\s+(?:Application\.|Route\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/g
-        )
+        text.matchAll(/\bfun\s+(?:Application\.|Route\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)
       )
         .map((match) => match[1])
         .filter((value): value is string => Boolean(value)),
@@ -503,7 +516,13 @@ export const extractDjangoUrlTargets = (text: string) =>
       Array.from(text.matchAll(/\b(?:path|re_path)\s*\([^,]+,\s*([A-Za-z_][A-Za-z0-9_.]*)/g))
         .map((match) => match[1])
         .filter((value): value is string => Boolean(value))
-        .map((value) => value.replace(/\.as_view$/, '').split('.').pop() || value)
+        .map(
+          (value) =>
+            value
+              .replace(/\.as_view$/, '')
+              .split('.')
+              .pop() || value
+        )
         .filter((value) => value !== 'include')
     )
   );
@@ -555,9 +574,7 @@ export const extractPhpMethodNames = (text: string) =>
   Array.from(
     new Set(
       Array.from(
-        text.matchAll(
-          /\b(?:public|protected|private)?\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g
-        )
+        text.matchAll(/\b(?:public|protected|private)?\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)
       )
         .map((match) => match[1])
         .filter((value): value is string => Boolean(value))
@@ -626,14 +643,21 @@ export const extractActixHandlerNames = (text: string) =>
       )
         .map((match) => match[1])
         .filter((value): value is string => Boolean(value)),
-      ...Array.from(text.matchAll(/#\[(?:get|post|put|patch|delete|head|route)[^\]]*\]\s*(?:pub\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g))
+      ...Array.from(
+        text.matchAll(
+          /#\[(?:get|post|put|patch|delete|head|route)[^\]]*\]\s*(?:pub\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g
+        )
+      )
         .map((match) => match[1])
         .filter((value): value is string => Boolean(value)),
     ])
   );
 
 export const normalizeTypeName = (value: string) =>
-  value.replace(/<.*>/g, '').replace(/^\s*I(?=[A-Z])/, 'I').trim();
+  value
+    .replace(/<.*>/g, '')
+    .replace(/^\s*I(?=[A-Z])/, 'I')
+    .trim();
 
 export const extractNestProviderBindings = (text: string) =>
   Array.from(
@@ -681,7 +705,9 @@ export const createInsight = (
     routes = [],
     modules = [],
     relationships = [],
-  }: Partial<Omit<StackStructuralInsight, 'adapterId' | 'displayName' | 'category' | 'summary'>> = {}
+  }: Partial<
+    Omit<StackStructuralInsight, 'adapterId' | 'displayName' | 'category' | 'summary'>
+  > = {}
 ): StackStructuralInsight => ({
   adapterId,
   displayName,
@@ -694,14 +720,15 @@ export const createInsight = (
   routes: Array.from(new Set(routes)).sort(),
   modules: Array.from(new Set(modules)).sort(),
   relationships: relationships
-    .filter((relationship, index, all) =>
-      all.findIndex(
-        (candidate) =>
-          candidate.source === relationship.source &&
-          candidate.target === relationship.target &&
-          candidate.type === relationship.type &&
-          candidate.reason === relationship.reason
-      ) === index
+    .filter(
+      (relationship, index, all) =>
+        all.findIndex(
+          (candidate) =>
+            candidate.source === relationship.source &&
+            candidate.target === relationship.target &&
+            candidate.type === relationship.type &&
+            candidate.reason === relationship.reason
+        ) === index
     )
     .sort(
       (a, b) =>
@@ -711,4 +738,3 @@ export const createInsight = (
         a.reason.localeCompare(b.reason)
     ),
 });
-

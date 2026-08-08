@@ -1,5 +1,5 @@
 import { GraphData, GraphNode } from '../store';
-import { toStructuralNodeId, unique } from './AgentContextUtils';
+import { toStructuralNodeId } from './AgentContextUtils';
 import { ProjectInsightResult } from './ProjectInsightService';
 import {
   CAMPAIGN_HINTS,
@@ -7,7 +7,11 @@ import {
   hasOperationalRefreshSignals,
   isChangeIntent,
 } from './taskIntelligenceIntent';
-import type { TaskContextResult, TaskIntentInference, TaskRoutePlan } from './TaskIntelligenceService';
+import type {
+  TaskContextResult,
+  TaskIntentInference,
+  TaskRoutePlan,
+} from './TaskIntelligenceService';
 
 const MAX_CANDIDATES = 6;
 
@@ -91,55 +95,90 @@ export function buildTaskNextSteps(
   if (targetCandidates.length > 0) {
     nextSteps.push(`First target candidate: ${targetCandidates[0].id}.`);
   } else {
-    nextSteps.push('No clear code target found yet; use focus candidates and project mental model to refine the scope.');
+    nextSteps.push(
+      'No clear code target found yet; use focus candidates and project mental model to refine the scope.'
+    );
   }
 
   if (selectedContext?.kind === 'change') {
-    nextSteps.push('Next, the agent should read change-context risks, blast radius, and recommendedFilesToInspect before editing.');
+    nextSteps.push(
+      'Next, the agent should read change-context risks, blast radius, and recommendedFilesToInspect before editing.'
+    );
     if (selectedContext.context.decompositionCandidates.length > 0) {
-      nextSteps.push(`Because the target already has decomposition candidates, prefer starting with ${selectedContext.context.decompositionCandidates[0].targetLabel} as the first extraction seam.`);
+      nextSteps.push(
+        `Because the target already has decomposition candidates, prefer starting with ${selectedContext.context.decompositionCandidates[0].targetLabel} as the first extraction seam.`
+      );
     }
     if (selectedContext.context.dependencies.runtimeContractLinks.length > 0) {
-      nextSteps.push('Because the target touches runtime DI wiring, the agent should verify composition roots and concrete registrations before modifying contracts.');
+      nextSteps.push(
+        'Because the target touches runtime DI wiring, the agent should verify composition roots and concrete registrations before modifying contracts.'
+      );
     }
     if (selectedContext.context.dependencies.contractBindingLinks.length > 0) {
-      nextSteps.push('Because the target touches API contract/runtime bindings, the agent should verify schema roots, generated modules, and bound handlers/clients before editing the implementation.');
+      nextSteps.push(
+        'Because the target touches API contract/runtime bindings, the agent should verify schema roots, generated modules, and bound handlers/clients before editing the implementation.'
+      );
     }
   } else if (selectedContext?.kind === 'campaign') {
-    nextSteps.push('Next, the agent should read execution waves, affected files, and campaign risks, then perform the migration in phases.');
-    nextSteps.push('Review refactoring waves as the architectural cleanup track for the campaign, even if only a subset of files currently has ranked extraction candidates.');
+    nextSteps.push(
+      'Next, the agent should read execution waves, affected files, and campaign risks, then perform the migration in phases.'
+    );
+    nextSteps.push(
+      'Review refactoring waves as the architectural cleanup track for the campaign, even if only a subset of files currently has ranked extraction candidates.'
+    );
     if (selectedContext.context.scope.runtimeCompositionRoots.length > 0) {
-      nextSteps.push('Campaign scope includes runtime composition roots, so migration should start from DI wiring and only then move to dependent files.');
+      nextSteps.push(
+        'Campaign scope includes runtime composition roots, so migration should start from DI wiring and only then move to dependent files.'
+      );
     }
     if (selectedContext.context.executionPlan.refactoringWaves.length > 0) {
-      nextSteps.push(`Campaign already includes refactoring waves; start with ${selectedContext.context.executionPlan.refactoringWaves[0].title} before broader rollout.`);
+      nextSteps.push(
+        `Campaign already includes refactoring waves; start with ${selectedContext.context.executionPlan.refactoringWaves[0].title} before broader rollout.`
+      );
     }
     if (selectedContext.context.qualityDashboard.gates.some((gate) => gate.status === 'block')) {
-      nextSteps.push('Quality dashboard contains blocking gates, so campaign execution should stay in stabilization/refactoring mode until those gates are cleared.');
+      nextSteps.push(
+        'Quality dashboard contains blocking gates, so campaign execution should stay in stabilization/refactoring mode until those gates are cleared.'
+      );
     }
   } else if (selectedContext?.kind === 'review') {
-    nextSteps.push('Next, the agent should read review priorities, patterns, and architecture summary before diving deep into the code.');
+    nextSteps.push(
+      'Next, the agent should read review priorities, patterns, and architecture summary before diving deep into the code.'
+    );
     if (
       hasOperationalRefreshSignals(route.rationale.toLowerCase()) ||
-      selectedContext.context.reviewPriorities.some((priority) => priority.title === 'Incremental Refresh Pipeline')
+      selectedContext.context.reviewPriorities.some(
+        (priority) => priority.title === 'Incremental Refresh Pipeline'
+      )
     ) {
-      nextSteps.push('Because the focus includes incremental refresh behavior, the agent should inspect watcher batching, skipped refreshes, and runtime-priority rebuild latency before editing pipeline code.');
+      nextSteps.push(
+        'Because the focus includes incremental refresh behavior, the agent should inspect watcher batching, skipped refreshes, and runtime-priority rebuild latency before editing pipeline code.'
+      );
     }
     if (
       selectedContext.context.reviewPriorities.some(
-        (priority) => priority.title === 'Design Smells' || priority.title === 'Maintainability Budget'
+        (priority) =>
+          priority.title === 'Design Smells' || priority.title === 'Maintainability Budget'
       )
     ) {
-      nextSteps.push('Because the focus includes maintainability debt, the agent should prefer extraction boundaries and class/method decomposition over additive edits in already overloaded modules.');
+      nextSteps.push(
+        'Because the focus includes maintainability debt, the agent should prefer extraction boundaries and class/method decomposition over additive edits in already overloaded modules.'
+      );
     }
     if (selectedContext.context.decompositionGuidance.candidates.length > 0) {
-      nextSteps.push(`Use the review decomposition guidance as a ranked extraction queue; current top candidate: ${selectedContext.context.decompositionGuidance.candidates[0].targetLabel}.`);
+      nextSteps.push(
+        `Use the review decomposition guidance as a ranked extraction queue; current top candidate: ${selectedContext.context.decompositionGuidance.candidates[0].targetLabel}.`
+      );
     }
     if (selectedContext.context.qualityDashboard.gates.some((gate) => gate.status === 'block')) {
-      nextSteps.push('Because quality dashboard gates are blocking, the review should treat growth in hotspot areas as disallowed until the first remediation wave is complete.');
+      nextSteps.push(
+        'Because quality dashboard gates are blocking, the review should treat growth in hotspot areas as disallowed until the first remediation wave is complete.'
+      );
     }
   } else {
-    nextSteps.push('Next, the agent should select a focusQuery from candidateQueries and then dive into the review/change context.');
+    nextSteps.push(
+      'Next, the agent should select a focusQuery from candidateQueries and then dive into the review/change context.'
+    );
   }
 
   return nextSteps;
@@ -156,7 +195,9 @@ export function findTargetCandidates(
     projectContext.mentalModel.runtimeCompositionRoots.map((node) => toStructuralNodeId(node.id))
   );
   const requestHasDiRuntimeSignals = hasDiRuntimeSignals(userRequest.toLowerCase());
-  const requestHasOperationalRefreshSignals = hasOperationalRefreshSignals(userRequest.toLowerCase());
+  const requestHasOperationalRefreshSignals = hasOperationalRefreshSignals(
+    userRequest.toLowerCase()
+  );
 
   for (const query of candidateQueries) {
     for (const node of graph.nodes) {
@@ -166,7 +207,9 @@ export function findTargetCandidates(
       }
       if (
         requestHasOperationalRefreshSignals &&
-        /(filewatcher|stackgraphenrichmentservice|graphrepository|projectindexer|cachemanager)/i.test(node.id)
+        /(filewatcher|stackgraphenrichmentservice|graphrepository|projectindexer|cachemanager)/i.test(
+          node.id
+        )
       ) {
         score += 140;
       }
@@ -208,10 +251,18 @@ export function shouldUseCampaignContext(
       normalized
     );
 
-  if (hasExplicitFileMention && targetCandidates.length > 0 && targetCandidates[0].type === 'file' && !hasBroadRuntimeScope) {
+  if (
+    hasExplicitFileMention &&
+    targetCandidates.length > 0 &&
+    targetCandidates[0].type === 'file' &&
+    !hasBroadRuntimeScope
+  ) {
     return false;
   }
-  if (hasCampaignHints && (isChangeIntent(inferredIntent.taskKind) || inferredIntent.taskKind === 'explore')) {
+  if (
+    hasCampaignHints &&
+    (isChangeIntent(inferredIntent.taskKind) || inferredIntent.taskKind === 'explore')
+  ) {
     return true;
   }
   if (!isChangeIntent(inferredIntent.taskKind)) {
@@ -246,7 +297,8 @@ function scoreNodeMatch(node: GraphNode, rawQuery: string) {
   if (basenameWithoutExtension === normalizedQuery) textScore += node.type === 'file' ? 220 : 100;
   if (normalizedLabel.startsWith(normalizedQuery)) textScore += 90;
   if (basename.startsWith(normalizedQuery)) textScore += node.type === 'file' ? 100 : 50;
-  if (basenameWithoutExtension.startsWith(normalizedQuery)) textScore += node.type === 'file' ? 120 : 60;
+  if (basenameWithoutExtension.startsWith(normalizedQuery))
+    textScore += node.type === 'file' ? 120 : 60;
   if (normalizedLabel.includes(normalizedQuery)) textScore += 40;
   if (normalizedId.includes(normalizedQuery)) textScore += node.type === 'file' ? 35 : 20;
 

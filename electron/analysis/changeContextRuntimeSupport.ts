@@ -21,10 +21,7 @@ export function resolveTargetClassification(args: {
   architecture: ArchitectureOverview;
   resolvedTarget: ResolvedTargetContext;
   graphProjectRoot: string;
-  architectureInsightService: Pick<
-    ArchitectureInsightService,
-    'classifyNode' | 'getActiveRules'
-  >;
+  architectureInsightService: Pick<ArchitectureInsightService, 'classifyNode' | 'getActiveRules'>;
 }): ArchitectureNodeClassification {
   return (
     args.architecture.classifications.find(

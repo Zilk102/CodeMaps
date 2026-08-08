@@ -1,8 +1,8 @@
 export function getIDBStorage(dbName: string, storeName: string) {
   // Fallback to 'readonly' and 'readwrite' string literals if IDBTransactionMode is not available globally
-type TransactionMode = 'readonly' | 'readwrite';
+  type TransactionMode = 'readonly' | 'readwrite';
 
-let dbInstance: IDBDatabase | null = null;
+  let dbInstance: IDBDatabase | null = null;
 
   const initDB = (): Promise<IDBDatabase> => {
     if (dbInstance) return Promise.resolve(dbInstance);

@@ -2,10 +2,9 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getLanguageAdapter } from './languageAdapters';
 import { getLanguageByExtension } from './languageRegistry';
+import { MAX_ANALYZED_FILE_SIZE } from './fileLimits';
 import { createEmptyParseResult, extractAdrReference } from './parseResultUtils';
 import { ParseResult, ParseWorkerInput } from './types';
-
-const MAX_FILE_SIZE = 300 * 1024;
 
 export const parseFile = async ({
   filePath,
@@ -25,7 +24,7 @@ export const parseFile = async ({
 
   try {
     const stat = await fs.stat(filePath);
-    if (stat.size > MAX_FILE_SIZE) {
+    if (stat.size > MAX_ANALYZED_FILE_SIZE) {
       return { ...createEmptyParseResult(definition.id), sizeExceeded: true };
     }
 

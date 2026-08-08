@@ -124,7 +124,8 @@ describe('StackGraphEnrichmentService integration', () => {
 
   it('adds framework and build edges to the graph after project analysis', async () => {
     const graph = await oracle.analyzeProject(testProjectDir);
-    const toId = (relativePath: string) => path.join(testProjectDir, relativePath).replace(/\\/g, '/');
+    const toId = (relativePath: string) =>
+      path.join(testProjectDir, relativePath).replace(/\\/g, '/');
 
     expect(
       graph.links.some(
@@ -175,12 +176,12 @@ describe('StackGraphEnrichmentService integration', () => {
           link.target === `${toId('nest/app.controller.ts')}#getUsers`
       )
     ).toBe(true);
-
   });
 
   it('skips generic watcher refreshes but rebuilds on runtime composition roots', async () => {
     const graph = await oracle.analyzeProject(testProjectDir);
-    const toId = (relativePath: string) => path.join(testProjectDir, relativePath).replace(/\\/g, '/');
+    const toId = (relativePath: string) =>
+      path.join(testProjectDir, relativePath).replace(/\\/g, '/');
     const oracleInternal = oracle as unknown as {
       stackGraphEnrichmentService: StackGraphEnrichmentService;
     };
@@ -204,7 +205,9 @@ describe('StackGraphEnrichmentService integration', () => {
     expect(rebuilt.linksAdded).toBeGreaterThan(0);
     const latestGraph = oracle.getGraph();
     expect(latestGraph.refreshTelemetry?.enrichment.skippedRefreshes).toBeGreaterThanOrEqual(1);
-    expect(latestGraph.refreshTelemetry?.enrichment.runtimePriorityRebuilds).toBeGreaterThanOrEqual(1);
+    expect(latestGraph.refreshTelemetry?.enrichment.runtimePriorityRebuilds).toBeGreaterThanOrEqual(
+      1
+    );
     expect(latestGraph.refreshTelemetry?.enrichment.avgRefreshLatencyMs).toBeGreaterThanOrEqual(0);
   });
 });

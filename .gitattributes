@@ -1,0 +1,17 @@
+# Keep the working tree on LF everywhere so Prettier's endOfLine: "lf" check
+# (and every other text-based tool) behaves the same on Windows and Unix.
+* text=auto eol=lf
+
+# Binary assets — never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.wasm binary
+*.db binary
+*.wal binary
+*.exe binary
+*.dll binary
+*.node binary

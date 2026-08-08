@@ -161,11 +161,15 @@ export class StackInsightService {
   async analyze(graph: GraphData): Promise<StackInsightResult> {
     const context = new StackDetectionContext(graph);
     const detected = (
-      await Promise.all(this.definitions.map((definition) => this.detectDefinition(context, definition)))
+      await Promise.all(
+        this.definitions.map((definition) => this.detectDefinition(context, definition))
+      )
     ).filter((entry): entry is DetectedStack => !!entry);
 
     return {
-      packageManagers: this.sortStacks(detected.filter((entry) => entry.category === 'package_manager')),
+      packageManagers: this.sortStacks(
+        detected.filter((entry) => entry.category === 'package_manager')
+      ),
       buildSystems: this.sortStacks(detected.filter((entry) => entry.category === 'build_system')),
       frameworks: this.sortStacks(detected.filter((entry) => entry.category === 'framework')),
     };
@@ -173,9 +177,7 @@ export class StackInsightService {
 
   private sortStacks(entries: DetectedStack[]) {
     return entries.sort(
-      (a, b) =>
-        a.displayName.localeCompare(b.displayName) ||
-        a.id.localeCompare(b.id)
+      (a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id)
     );
   }
 
@@ -280,7 +282,9 @@ export class StackInsightService {
         const flattened = texts.flat();
         const matches: string[] = [];
         for (const candidate of rule.anyOf) {
-          if (flattened.some((entry) => entry.text && includesCaseInsensitive(entry.text, candidate))) {
+          if (
+            flattened.some((entry) => entry.text && includesCaseInsensitive(entry.text, candidate))
+          ) {
             matches.push(`text-suffix:${candidate}`);
           }
         }

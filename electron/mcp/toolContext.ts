@@ -31,7 +31,9 @@ export const resolveMcpToolContext = (registry: ServiceRegistry): McpToolContext
   patternDetectionAnalyzer: registry.get<PatternDetectionAnalyzer>('patternDetectionAnalyzer'),
   securityScanner: registry.get<SecurityScanner>('securityScanner'),
   signatureSearchService: registry.get<SignatureSearchService>('signatureSearchService'),
-  architectureInsightService: registry.get<ArchitectureInsightService>('architectureInsightService'),
+  architectureInsightService: registry.get<ArchitectureInsightService>(
+    'architectureInsightService'
+  ),
   changeContextService: registry.get<ChangeContextService>('changeContextService'),
   reviewContextService: registry.get<ReviewContextService>('reviewContextService'),
   projectInsightService: registry.get<ProjectInsightService>('projectInsightService'),

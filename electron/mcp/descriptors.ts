@@ -35,7 +35,8 @@ export const MCP_RESOURCES: McpStatusResourceDescriptor[] = [
   {
     uri: 'codemaps://project/summary',
     title: 'Project Summary',
-    description: 'Brief summary of the project graph: root, node count, link count, and node types.',
+    description:
+      'Brief summary of the project graph: root, node count, link count, and node types.',
   },
   {
     uri: 'codemaps://graph/full',
@@ -72,7 +73,8 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     title: 'Get Graph Context',
     description:
       'Returns a graph summary or the full graph payload. Useful as a low-level fallback when the raw graph is needed.',
-    recommendedWhen: 'When the composite context is insufficient and the agent needs a full snapshot of the graph.',
+    recommendedWhen:
+      'When the composite context is insufficient and the agent needs a full snapshot of the graph.',
   },
   {
     name: 'get_node_dependencies',
@@ -100,14 +102,16 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     title: 'Get Health Score',
     description:
       'Evaluates graph health and architectural risks as a score/grade. Usually already included in prepare_review_context.',
-    recommendedWhen: 'When you need to quickly re-verify overall degradation after a series of changes.',
+    recommendedWhen:
+      'When you need to quickly re-verify overall degradation after a series of changes.',
   },
   {
     name: 'get_architecture_overview',
     title: 'Get Architecture Overview',
     description:
       'Classifies layers, shows cross-layer dependencies, and boundary violations. Usually already included in prepare_review_context.',
-    recommendedWhen: 'When a detailed layer overview is needed outside of a composite review context.',
+    recommendedWhen:
+      'When a detailed layer overview is needed outside of a composite review context.',
   },
   {
     name: 'detect_patterns',
@@ -121,7 +125,8 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     title: 'Run Security Scan',
     description:
       'Scans indexed files for risky and suspicious patterns. Usually already included in prepare_review_context or prepare_change_context.',
-    recommendedWhen: 'When the review is focused on security or there are already findings near the target.',
+    recommendedWhen:
+      'When the review is focused on security or there are already findings near the target.',
   },
   {
     name: 'search_signatures',
@@ -133,7 +138,8 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
   {
     name: 'analyze_pr_impact',
     title: 'Analyze PR Impact',
-    description: 'Analyzes the architectural blast radius of a Pull Request (or branch comparison).',
+    description:
+      'Analyzes the architectural blast radius of a Pull Request (or branch comparison).',
     recommendedWhen: 'When reviewing a PR or assessing the impact of a branch before merging.',
   },
   {
@@ -189,8 +195,7 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     description:
       'Preferred tool for the agent before review: gathers health, architecture, patterns, security, and check priorities.',
     preferredForAgents: true,
-    recommendedWhen:
-      'Use by default for reviews, architecture audits, and post-change validation.',
+    recommendedWhen: 'Use by default for reviews, architecture audits, and post-change validation.',
   },
 ];
 

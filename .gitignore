@@ -125,3 +125,15 @@ electron/parsing/tree-sitter-runtime.js
 electron/parsing/treeSitterRuntime.js
 lint_output.txt
 lint_results.json
+
+# Per-project Kuzu graph database written when CodeMaps analyses itself
+.codemaps/
+
+# Accidental tsc emit next to the TypeScript sources
+src/types/*.js
+src/types/*.d.ts
+!src/types/css.d.ts
+!src/types/electron.d.ts
+
+# This project builds with yarn; a second lockfile only causes drift
+package-lock.json

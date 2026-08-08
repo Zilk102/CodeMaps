@@ -13,9 +13,10 @@ if (!fs.existsSync(electronEntrypoint)) {
   process.exit(1);
 }
 
-const electronBinary = process.platform === 'win32'
-  ? path.join(projectRoot, 'node_modules', '.bin', 'electron.cmd')
-  : path.join(projectRoot, 'node_modules', '.bin', 'electron');
+const electronBinary =
+  process.platform === 'win32'
+    ? path.join(projectRoot, 'node_modules', '.bin', 'electron.cmd')
+    : path.join(projectRoot, 'node_modules', '.bin', 'electron');
 
 if (!fs.existsSync(electronBinary)) {
   console.error(`Electron binary not found: ${electronBinary}`);

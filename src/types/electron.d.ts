@@ -45,8 +45,12 @@ export interface ElectronAPI {
   minimize: () => Promise<void>;
   maximize: () => Promise<void>;
   close: () => Promise<void>;
-  onGraphUpdate: (callback: (data: GraphData) => void) => void;
-  onParsingProgress: (callback: (data: { current: number; total: number; filename: string }) => void) => void;
+  /** Returns an unsubscribe function. */
+  onGraphUpdate: (callback: (data: GraphData) => void) => () => void;
+  /** Returns an unsubscribe function. */
+  onParsingProgress: (
+    callback: (data: { status: string; current: number; total: number; filename: string }) => void
+  ) => () => void;
   // Updater
   checkForUpdates: () => Promise<{ success: boolean; updateInfo?: unknown; error?: string }>;
   installUpdate: () => Promise<void>;
@@ -57,15 +61,16 @@ export interface ElectronAPI {
   // Recent Projects
   getRecentProjects: () => Promise<RecentProject[]>;
   clearRecentProjects: () => Promise<void>;
-  openRecentProject: (projectPath: string) => Promise<{ success: boolean; data?: GraphData; error?: string }>;
-
-  // Graph Persistence
-  saveGraphToKuzu: (projectPath: string, graphData: GraphData) => Promise<{ success: boolean; error?: string }>;
-  loadGraphFromKuzu: (projectPath: string) => Promise<{ success: boolean; stats?: { nodes: number; edges: number }; error?: string }>;
-  clearGraphCache: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
+  openRecentProject: (
+    projectPath: string
+  ) => Promise<{ success: boolean; data?: GraphData; error?: string }>;
 
   // Blast Radius v2
-  calculateBlastRadius: (projectPath: string, nodeId: string, maxDepth?: number) => Promise<{
+  calculateBlastRadius: (
+    projectPath: string,
+    nodeId: string,
+    maxDepth?: number
+  ) => Promise<{
     success: boolean;
     data?: {
       targetNode: string;
@@ -91,7 +96,11 @@ export interface ElectronAPI {
   }>;
 
   // PR Impact Analysis
-  analyzePRImpact: (projectPath: string, baseBranch: string, headBranch: string) => Promise<{
+  analyzePRImpact: (
+    projectPath: string,
+    baseBranch: string,
+    headBranch: string
+  ) => Promise<{
     success: boolean;
     data?: {
       changedFiles: Array<{
@@ -109,7 +118,11 @@ export interface ElectronAPI {
   }>;
 
   // Activity Heatmap
-  analyzeActivityHeatmap: (projectPath: string, since?: string, until?: string) => Promise<{
+  analyzeActivityHeatmap: (
+    projectPath: string,
+    since?: string,
+    until?: string
+  ) => Promise<{
     success: boolean;
     data?: {
       files: Array<{

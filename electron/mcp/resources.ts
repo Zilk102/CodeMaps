@@ -7,10 +7,7 @@ import {
   createAgentPlaybook,
 } from './utils';
 
-export function registerResources(
-  server: McpServer,
-  projectInsightService: ProjectInsightService
-) {
+export function registerResources(server: McpServer, projectInsightService: ProjectInsightService) {
   server.registerResource(
     'project-summary',
     'codemaps://project/summary',

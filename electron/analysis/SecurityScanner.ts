@@ -1,5 +1,5 @@
-import * as fs from 'fs/promises';
 import { GraphData } from '../store';
+import { readFileWithinLimit } from '../parsing/fileLimits';
 
 export interface SecurityFinding {
   ruleId: string;
@@ -55,8 +55,7 @@ const SANITIZED_CONTENT_RULES: Array<{
     ruleId: 'dynamic_code_execution',
     severity: 'high',
     pattern: /\b(?:eval\s*\(|new Function\s*\()/,
-    message:
-      'Dynamic code execution (`eval`/`Function`) found, increasing RCE/XSS risk.',
+    message: 'Dynamic code execution (`eval`/`Function`) found, increasing RCE/XSS risk.',
   },
   {
     ruleId: 'child_process_shell',
@@ -125,7 +124,9 @@ export class SecurityScanner {
       }
 
       try {
-        const content = await fs.readFile(node.id, 'utf-8');
+        const content = await readFileWithinLimit(node.id);
+        if (content === null) continue;
+
         const sanitizedContent = stripStringsAndComments(content);
 
         for (const rule of SANITIZED_CONTENT_RULES) {

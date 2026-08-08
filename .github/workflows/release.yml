@@ -8,7 +8,14 @@ on:
     inputs:
       version:
         description: 'Version to release (e.g., 1.0.0)'
-        required: false
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-linux:
@@ -37,16 +44,24 @@ jobs:
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 
       - name: Update version from tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
           jq ".version = \"$VERSION\"" package.json > package.json.tmp && mv package.json.tmp package.json
           echo "Set version to: $VERSION"
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
       - name: Build Linux
         run: |
@@ -81,8 +96,10 @@ jobs:
           cache: 'yarn'
 
       - name: Update version from tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          $VERSION = $env:GITHUB_REF_NAME -replace '^v', ''
+          $VERSION = if ($env:INPUT_VERSION) { $env:INPUT_VERSION } else { $env:GITHUB_REF_NAME -replace '^v', '' }
           $json = Get-Content package.json | ConvertFrom-Json
           $json.version = $VERSION
           $json | ConvertTo-Json -Depth 10 | Set-Content package.json
@@ -92,8 +109,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
       - name: Build Windows
         run: |

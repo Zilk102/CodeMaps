@@ -47,7 +47,7 @@ export const createGraphSummary = (graph: GraphData) => {
         trends: graph.refreshTelemetry.trends,
       }
     : undefined;
-  
+
   return {
     projectRoot: graph.projectRoot,
     nodesCount,
@@ -59,21 +59,20 @@ export const createGraphSummary = (graph: GraphData) => {
 
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
   const state = oracleStore.getState();
-  
+
   // Разрешаем любой абсолютный путь. Если путь относительный, резолвим от cwd.
   // Мы убираем жесткую привязку к SAFE_ROOT, так как CodeMaps должен иметь возможность
   // анализировать любые проекты на машине пользователя по запросу ИИ-агента или UI.
   let targetPath: string;
   if (projectPath) {
-    targetPath = normalizePath(path.isAbsolute(projectPath) ? projectPath : path.resolve(process.cwd(), projectPath))!;
+    targetPath = normalizePath(
+      path.isAbsolute(projectPath) ? projectPath : path.resolve(process.cwd(), projectPath)
+    )!;
   } else {
     targetPath = state.baseDir || normalizePath(process.env.CODEMAPS_ROOT || process.cwd())!;
   }
 
-  if (
-    !state.baseDir ||
-    (projectPath && normalizePath(state.baseDir) !== targetPath)
-  ) {
+  if (!state.baseDir || (projectPath && normalizePath(state.baseDir) !== targetPath)) {
     return analyzeLimit(async () => {
       // Create a timeout promise
       const timeout = new Promise<never>((_, reject) =>

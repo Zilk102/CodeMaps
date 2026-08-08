@@ -6,10 +6,7 @@ import { registerContextTools } from './registerContextTools';
 import { registerGraphTools } from './registerGraphTools';
 import { resolveMcpToolContext } from './toolContext';
 
-export function registerTools(
-  server: McpServer,
-  registry: ServiceRegistry
-) {
+export function registerTools(server: McpServer, registry: ServiceRegistry) {
   const context = resolveMcpToolContext(registry);
   registerGraphTools(server, context);
   registerAnalysisTools(server, context);

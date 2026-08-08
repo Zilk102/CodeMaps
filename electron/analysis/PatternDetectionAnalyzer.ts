@@ -1,7 +1,5 @@
 import { GraphData } from '../store';
-import {
-  buildGraphAdjacency,
-} from './graphAnalysisUtils';
+import { buildGraphAdjacency } from './graphAnalysisUtils';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 import { analyzeModuleQuality } from './moduleQualityMetrics';
 import {

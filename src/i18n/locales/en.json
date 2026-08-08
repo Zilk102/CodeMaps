@@ -270,7 +270,10 @@
     "openFolder": "Open Project",
     "closeProject": "Close Project",
     "mcpSettings": "MCP Settings",
-    "tools": "Workspace"
+    "tools": "Workspace",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "close": "Close"
   },
   "indexing": {
     "status": {
@@ -281,7 +284,12 @@
   "app": {
     "loading": "Loading…",
     "indexing_files": "Indexing files...",
-    "indexing_complete": "Indexing complete"
+    "indexing_complete": "Indexing complete",
+    "errorBoundary": {
+      "title": "Something went wrong.",
+      "message": "An unexpected error occurred in the application. You can try refreshing the page or restarting the app.",
+      "reload": "Reload App"
+    }
   },
   "languageSwitcher": {
     "language": "Language"
@@ -289,27 +297,6 @@
   "dragDrop": {
     "dropHere": "Drop project folder here",
     "dropSubtitle": "Release to analyze"
-  },
-  "persistence": {
-    "graphSaved": "Graph saved to local database",
-    "graphLoaded": "Graph loaded from local database",
-    "savingGraph": "Saving graph to database...",
-    "loadingGraph": "Loading graph from database...",
-    "cacheCleared": "Local graph cache cleared",
-    "clearCache": "Clear Graph Cache",
-    "clearCacheConfirm": "Are you sure you want to clear the local graph cache? This will require re-analyzing the project.",
-    "settings": "Graph Persistence",
-    "enablePersistence": "Enable graph persistence",
-    "enablePersistenceDescription": "Save graph to local database for instant loading on next open",
-    "persistenceEnabled": "Graph persistence enabled",
-    "persistenceDisabled": "Graph persistence disabled",
-    "error": {
-      "saveFailed": "Failed to save graph: {{message}}",
-      "loadFailed": "Failed to load graph: {{message}}",
-      "clearFailed": "Failed to clear cache: {{message}}",
-      "diskFull": "Disk space is running low. Graph may not be saved.",
-      "corrupted": "Graph database appears corrupted. Re-analyzing project..."
-    }
   },
   "prImpact": {
     "title": "PR Impact Analysis",

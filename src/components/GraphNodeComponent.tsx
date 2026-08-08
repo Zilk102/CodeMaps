@@ -9,9 +9,15 @@ interface NodeComponentProps {
   onClick: () => void;
 }
 
-export const GraphNodeComponent: React.FC<NodeComponentProps> = ({ node, layoutMode, emphasis, isSelected, onClick }) => {
+export const GraphNodeComponent: React.FC<NodeComponentProps> = ({
+  node,
+  layoutMode,
+  emphasis,
+  isSelected,
+  onClick,
+}) => {
   const { type, label, churn } = node.data;
-  
+
   let bgColor = 'var(--bg2)';
   let border = isSelected ? '2px solid var(--acc)' : '1px solid var(--border)';
   let borderRadius = '6px';
@@ -73,16 +79,16 @@ export const GraphNodeComponent: React.FC<NodeComponentProps> = ({ node, layoutM
   }
 
   const opacity = emphasis === 'muted' ? 0.24 : 1;
-  const nodeTransform = emphasis === 'selected'
-    ? 'scale(1.03)'
-    : emphasis === 'related'
-      ? 'scale(1.01)'
-      : 'scale(1)';
-  const computedBoxShadow = emphasis === 'selected'
-    ? `0 0 0 1px var(--acc), 0 10px 28px rgba(0,0,0,0.55)`
-    : emphasis === 'related'
-      ? `0 0 0 1px rgba(255,255,255,0.14), ${boxShadow}`
-      : (isContainer ? boxShadow : '0 2px 8px rgba(0,0,0,0.4)');
+  const nodeTransform =
+    emphasis === 'selected' ? 'scale(1.03)' : emphasis === 'related' ? 'scale(1.01)' : 'scale(1)';
+  const computedBoxShadow =
+    emphasis === 'selected'
+      ? `0 0 0 1px var(--acc), 0 10px 28px rgba(0,0,0,0.55)`
+      : emphasis === 'related'
+        ? `0 0 0 1px rgba(255,255,255,0.14), ${boxShadow}`
+        : isContainer
+          ? boxShadow
+          : '0 2px 8px rgba(0,0,0,0.4)';
 
   return (
     <div
@@ -120,21 +126,24 @@ export const GraphNodeComponent: React.FC<NodeComponentProps> = ({ node, layoutM
       }}
       title={label}
       onMouseEnter={(e) => {
-        if (!isContainer) e.currentTarget.style.transform = emphasis === 'selected' ? 'scale(1.06)' : 'scale(1.05)';
+        if (!isContainer)
+          e.currentTarget.style.transform = emphasis === 'selected' ? 'scale(1.06)' : 'scale(1.05)';
       }}
       onMouseLeave={(e) => {
         if (!isContainer) e.currentTarget.style.transform = nodeTransform;
       }}
     >
-      <div style={{
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        maxWidth: '100%',
-        background: isContainer ? labelBackground : 'transparent',
-        padding: isContainer ? '2px 8px' : 0,
-        borderRadius: isContainer ? '999px' : 0
-      }}>
+      <div
+        style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%',
+          background: isContainer ? labelBackground : 'transparent',
+          padding: isContainer ? '2px 8px' : 0,
+          borderRadius: isContainer ? '999px' : 0,
+        }}
+      >
         {label}
       </div>
     </div>

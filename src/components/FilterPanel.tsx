@@ -6,9 +6,10 @@ export const FilterPanel: React.FC = () => {
   const { filters, layoutMode, setFilter, setLayoutMode } = useGraphStore();
   const { t } = useTranslation();
 
-  const modeDescription = layoutMode === 'hierarchy'
-    ? t('filterPanel.hierarchyDescription')
-    : t('filterPanel.dependenciesDescription');
+  const modeDescription =
+    layoutMode === 'hierarchy'
+      ? t('filterPanel.hierarchyDescription')
+      : t('filterPanel.dependenciesDescription');
 
   const filterItems = [
     { key: 'showDirectories', label: t('filterPanel.directories') },
@@ -55,9 +56,7 @@ export const FilterPanel: React.FC = () => {
             {t('filterPanel.dependencies')}
           </button>
         </div>
-        <div className="mt-2 text-[11px] leading-5 text-(--t3)">
-          {modeDescription}
-        </div>
+        <div className="mt-2 text-[11px] leading-5 text-(--t3)">{modeDescription}</div>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2">

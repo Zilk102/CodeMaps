@@ -9,7 +9,11 @@ import type { ChangeTaskMode } from './ChangeContextService';
 import { isDiRuntimeLink } from './graphAnalysisUtils';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
 import { isChangeRiskPattern, isDesignSmellPattern } from './patternPolicies';
-import type { QualityBudget, RefactoringWave, QualityGovernanceService } from './QualityGovernanceService';
+import type {
+  QualityBudget,
+  RefactoringWave,
+  QualityGovernanceService,
+} from './QualityGovernanceService';
 import type { SecurityFinding } from './SecurityScanner';
 import { toStructuralNodeId, unique } from './AgentContextUtils';
 

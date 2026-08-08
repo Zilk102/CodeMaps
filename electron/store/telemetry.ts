@@ -47,7 +47,9 @@ const computeLatencyTrend = (recentLatencyMs: number[]): TrendState => {
   return 'stable';
 };
 
-const buildRefreshTrends = (telemetry: Omit<RefreshTelemetry, 'trends'>): RefreshTelemetry['trends'] => {
+const buildRefreshTrends = (
+  telemetry: Omit<RefreshTelemetry, 'trends'>
+): RefreshTelemetry['trends'] => {
   const totalWatcherFlushes = telemetry.watcher.flushCount || 1;
   const totalEnrichmentRefreshes =
     telemetry.enrichment.skippedRefreshes + telemetry.enrichment.rebuiltRefreshes || 1;
@@ -74,8 +76,7 @@ const buildRefreshTrends = (telemetry: Omit<RefreshTelemetry, 'trends'>): Refres
       skipRate,
       runtimePriorityRate,
       latencyTrend,
-      degraded:
-        latencyPressure || directoryRebuildPressure || (rebuildPressure && runtimePressure),
+      degraded: latencyPressure || directoryRebuildPressure || (rebuildPressure && runtimePressure),
     },
   };
 };

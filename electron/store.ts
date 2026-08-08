@@ -1,13 +1,17 @@
 import { createStore } from 'zustand/vanilla';
 import { buildValidGraphSnapshot, normalizeCachedNodes } from './store/graphSnapshot';
-import { loadRecentProjects, normalizeProjectPath, saveRecentProjects } from './store/recentProjects';
+import {
+  loadRecentProjects,
+  normalizeProjectPath,
+  saveRecentProjects,
+} from './store/recentProjects';
 import {
   buildRecentProjectTelemetrySnapshot,
   initialRefreshTelemetry,
   recordEnrichmentRefresh as applyEnrichmentRefresh,
   recordWatcherFlush as applyWatcherFlush,
 } from './store/telemetry';
-import { GraphDiff, GraphLink, GraphNode, OracleState } from './store/types';
+import { GraphDiff, OracleState } from './store/types';
 
 export * from './store/types';
 
@@ -172,8 +176,7 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
       refreshTelemetry: initialRefreshTelemetry,
     }),
   getValidGraph: () => buildValidGraphSnapshot(get()),
-  resetDiff: () =>
-    set({ pendingDiff: emptyDiff() }),
+  resetDiff: () => set({ pendingDiff: emptyDiff() }),
   getAndResetDiff: () => {
     const diff = get().pendingDiff;
     set({ pendingDiff: emptyDiff() });

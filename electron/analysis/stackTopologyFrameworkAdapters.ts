@@ -23,7 +23,7 @@ import {
   inferClassSymbolsForFile,
   resolveSymbolEndpoint,
   StackAdapter,
-  toRelativeList
+  toRelativeList,
 } from './stackTopologySupport';
 import { POLYGLOT_FRAMEWORK_STACK_ADAPTERS } from './stackTopologyPolyglotFrameworkAdapters';
 
@@ -35,16 +35,23 @@ const nextJsAdapter: StackAdapter = {
   analyze: async (context) => {
     const graphSymbolIndex = buildGraphSymbolIndex(context.graph);
     const routeFiles = [
-      ...context.findByRelativePrefix('app/').filter((filePath) =>
-        /(?:^|\/)(page|layout|route)\.(tsx|ts|jsx|js)$/i.test(context.getProjectRelativePath(filePath))
-      ),
-      ...context.findByRelativePrefix('pages/').filter((filePath) =>
-        /\.(tsx|ts|jsx|js)$/i.test(filePath)
-      ),
+      ...context
+        .findByRelativePrefix('app/')
+        .filter((filePath) =>
+          /(?:^|\/)(page|layout|route)\.(tsx|ts|jsx|js)$/i.test(
+            context.getProjectRelativePath(filePath)
+          )
+        ),
+      ...context
+        .findByRelativePrefix('pages/')
+        .filter((filePath) => /\.(tsx|ts|jsx|js)$/i.test(filePath)),
     ];
     const apiRoutes = routeFiles
       .map((filePath) => context.getProjectRelativePath(filePath))
-      .filter((relativePath) => relativePath.includes('/api/') || /\/route\.(tsx|ts|jsx|js)$/i.test(relativePath));
+      .filter(
+        (relativePath) =>
+          relativePath.includes('/api/') || /\/route\.(tsx|ts|jsx|js)$/i.test(relativePath)
+      );
     const configFiles = context
       .getAllFilePaths()
       .filter((filePath) =>
@@ -124,7 +131,10 @@ const nextJsAdapter: StackAdapter = {
           ...configFiles.flatMap((configFile) =>
             entryFiles.map((entryFile) => ({
               source: context.getProjectRelativePath(configFile),
-              target: resolveSymbolEndpoint(context.getProjectRelativePath(entryFile), graphSymbolIndex),
+              target: resolveSymbolEndpoint(
+                context.getProjectRelativePath(entryFile),
+                graphSymbolIndex
+              ),
               type: 'build' as const,
               reason: 'nextjs_config_entry',
             }))
@@ -134,7 +144,10 @@ const nextJsAdapter: StackAdapter = {
             .map((relativePath) =>
               createRelationship(
                 entryFiles[0]
-                  ? resolveSymbolEndpoint(context.getProjectRelativePath(entryFiles[0]), graphSymbolIndex)
+                  ? resolveSymbolEndpoint(
+                      context.getProjectRelativePath(entryFiles[0]),
+                      graphSymbolIndex
+                    )
                   : relativePath,
                 resolveSymbolEndpoint(relativePath, graphSymbolIndex, {
                   preferredSymbols: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -196,7 +209,9 @@ const nestJsAdapter: StackAdapter = {
       ).map(({ filePath, symbol }) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
           }),
           resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
           'framework',
@@ -246,9 +261,13 @@ const nestJsAdapter: StackAdapter = {
       extractNestRouteMethods(contentByRelativePath.get(controllerFile) || '').map((methodName) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
           }),
-          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, { preferredSymbols: [methodName] }),
+          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
+            preferredSymbols: [methodName],
+          }),
           'framework',
           'nestjs_controller_method'
         )
@@ -266,7 +285,9 @@ const nestJsAdapter: StackAdapter = {
           .map(([, filePath]) =>
             createRelationship(
               moduleEndpoint,
-              resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [implementation] }),
+              resolveSymbolEndpoint(filePath, graphSymbolIndex, {
+                preferredSymbols: [implementation],
+              }),
               'framework',
               'nestjs_provider_binding'
             )
@@ -290,7 +311,9 @@ const nestJsAdapter: StackAdapter = {
               createRelationship(
                 entryFile,
                 resolveSymbolEndpoint(moduleFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(moduleFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(moduleFile) || ''
+                  ),
                 }),
                 'framework',
                 'nestjs_entry_module'
@@ -339,9 +362,13 @@ const springBootAdapter: StackAdapter = {
     const configs = context
       .getAllFilePaths()
       .filter((filePath) =>
-        ['pom.xml', 'build.gradle', 'build.gradle.kts', 'src/main/resources/application.yml', 'src/main/resources/application.properties'].includes(
-          context.getProjectRelativePath(filePath)
-        )
+        [
+          'pom.xml',
+          'build.gradle',
+          'build.gradle.kts',
+          'src/main/resources/application.yml',
+          'src/main/resources/application.properties',
+        ].includes(context.getProjectRelativePath(filePath))
       );
     const serviceSymbols = buildSymbolToFileMap(
       relativeContentEntries.filter((entry) => services.includes(entry.filePath))
@@ -350,14 +377,14 @@ const springBootAdapter: StackAdapter = {
       relativeContentEntries.filter((entry) => repositories.includes(entry.filePath))
     );
     const controllerServiceLinks = controllers.flatMap((controllerFile) =>
-      findReferencedSymbolMatches(
-        contentByRelativePath.get(controllerFile) || '',
-        serviceSymbols,
-        [controllerFile]
-      ).map(({ filePath, symbol }) =>
+      findReferencedSymbolMatches(contentByRelativePath.get(controllerFile) || '', serviceSymbols, [
+        controllerFile,
+      ]).map(({ filePath, symbol }) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
           }),
           resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
           'framework',
@@ -366,14 +393,14 @@ const springBootAdapter: StackAdapter = {
       )
     );
     const serviceRepositoryLinks = services.flatMap((serviceFile) =>
-      findReferencedSymbolMatches(
-        contentByRelativePath.get(serviceFile) || '',
-        repositorySymbols,
-        [serviceFile]
-      ).map(({ filePath, symbol }) =>
+      findReferencedSymbolMatches(contentByRelativePath.get(serviceFile) || '', repositorySymbols, [
+        serviceFile,
+      ]).map(({ filePath, symbol }) =>
         createRelationship(
           resolveSymbolEndpoint(serviceFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(serviceFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(serviceFile) || ''
+            ),
           }),
           resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
           'framework',
@@ -385,9 +412,13 @@ const springBootAdapter: StackAdapter = {
       extractSpringRouteMethods(contentByRelativePath.get(controllerFile) || '').map((methodName) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
           }),
-          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, { preferredSymbols: [methodName] }),
+          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
+            preferredSymbols: [methodName],
+          }),
           'framework',
           'springboot_controller_method'
         )
@@ -399,31 +430,38 @@ const springBootAdapter: StackAdapter = {
         preferredSymbols: inferClassSymbolsForFile(entryText),
       });
 
-      return extractSpringBeanBindings(entryText).flatMap(({ returnType, methodName, implementationType }) => {
-        const methodEndpoint = resolveSymbolEndpoint(entryFile, graphSymbolIndex, {
-          preferredSymbols: [methodName],
-        });
-        const bindingTarget = implementationType || returnType;
-        const matchingService = Array.from(serviceSymbols.entries()).find(
-          ([symbol]) => symbol === bindingTarget
-        );
+      return extractSpringBeanBindings(entryText).flatMap(
+        ({ returnType, methodName, implementationType }) => {
+          const methodEndpoint = resolveSymbolEndpoint(entryFile, graphSymbolIndex, {
+            preferredSymbols: [methodName],
+          });
+          const bindingTarget = implementationType || returnType;
+          const matchingService = Array.from(serviceSymbols.entries()).find(
+            ([symbol]) => symbol === bindingTarget
+          );
 
-        return [
-          createRelationship(entryEndpoint, methodEndpoint, 'framework', 'springboot_bean_method'),
-          ...(matchingService
-            ? [
-                createRelationship(
-                  methodEndpoint,
-                  resolveSymbolEndpoint(matchingService[1], graphSymbolIndex, {
-                    preferredSymbols: [bindingTarget],
-                  }),
-                  'framework',
-                  'springboot_bean_binding'
-                ),
-              ]
-            : []),
-        ];
-      });
+          return [
+            createRelationship(
+              entryEndpoint,
+              methodEndpoint,
+              'framework',
+              'springboot_bean_method'
+            ),
+            ...(matchingService
+              ? [
+                  createRelationship(
+                    methodEndpoint,
+                    resolveSymbolEndpoint(matchingService[1], graphSymbolIndex, {
+                      preferredSymbols: [bindingTarget],
+                    }),
+                    'framework',
+                    'springboot_bean_binding'
+                  ),
+                ]
+              : []),
+          ];
+        }
+      );
     });
 
     return createInsight(
@@ -442,10 +480,14 @@ const springBootAdapter: StackAdapter = {
             controllers.map((controllerFile) =>
               createRelationship(
                 resolveSymbolEndpoint(entryFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(entryFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(entryFile) || ''
+                  ),
                 }),
                 resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(controllerFile) || ''
+                  ),
                 }),
                 'framework',
                 'springboot_entry_controller'
@@ -477,20 +519,29 @@ const ktorAdapter: StackAdapter = {
   supports: (context) => !!context.getDetectedStack('ktor'),
   analyze: async (context) => {
     const graphSymbolIndex = buildGraphSymbolIndex(context.graph);
-    const candidateFiles = context.getAllFilePaths().filter((filePath) => /\.(kt|java)$/i.test(filePath));
+    const candidateFiles = context
+      .getAllFilePaths()
+      .filter((filePath) => /\.(kt|java)$/i.test(filePath));
     const contents = await context.readTexts(candidateFiles);
     const relativeContentEntries = contents.map((entry) => ({
       filePath: context.getProjectRelativePath(entry.filePath),
       text: entry.text,
     }));
     const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
-    const functionSymbols = buildNamedSymbolToFileMap(relativeContentEntries, extractJvmFunctionNames);
+    const functionSymbols = buildNamedSymbolToFileMap(
+      relativeContentEntries,
+      extractJvmFunctionNames
+    );
 
     const entryFiles = relativeContentEntries
-      .filter(({ text }) => /\bembeddedServer\s*\(|\bEngineMain\b|fun\s+Application\.module\s*\(/.test(text))
+      .filter(({ text }) =>
+        /\bembeddedServer\s*\(|\bEngineMain\b|fun\s+Application\.module\s*\(/.test(text)
+      )
       .map(({ filePath }) => filePath);
     const routeFiles = relativeContentEntries
-      .filter(({ text }) => /\brouting\s*\{|\broute\s*\(|\b(?:get|post|put|patch|delete)\s*\(/.test(text))
+      .filter(({ text }) =>
+        /\brouting\s*\{|\broute\s*\(|\b(?:get|post|put|patch|delete)\s*\(/.test(text)
+      )
       .map(({ filePath }) => filePath);
     const configFiles = context
       .getAllFilePaths()
@@ -507,7 +558,10 @@ const ktorAdapter: StackAdapter = {
 
     const routeFunctionLinks = routeFiles.flatMap((routeFile) =>
       extractKtorRouteFunctions(contentByRelativePath.get(routeFile) || '')
-        .map((functionName) => ({ functionName, filePath: functionSymbols.get(functionName) || routeFile }))
+        .map((functionName) => ({
+          functionName,
+          filePath: functionSymbols.get(functionName) || routeFile,
+        }))
         .map(({ functionName, filePath }) =>
           createRelationship(
             resolveSymbolEndpoint(routeFile, graphSymbolIndex),
@@ -561,7 +615,9 @@ const micronautAdapter: StackAdapter = {
   supports: (context) => !!context.getDetectedStack('micronaut'),
   analyze: async (context) => {
     const graphSymbolIndex = buildGraphSymbolIndex(context.graph);
-    const candidateFiles = context.getAllFilePaths().filter((filePath) => /\.(java|kt)$/i.test(filePath));
+    const candidateFiles = context
+      .getAllFilePaths()
+      .filter((filePath) => /\.(java|kt)$/i.test(filePath));
     const contents = await context.readTexts(candidateFiles);
     const relativeContentEntries = contents.map((entry) => ({
       filePath: context.getProjectRelativePath(entry.filePath),
@@ -601,43 +657,54 @@ const micronautAdapter: StackAdapter = {
     );
 
     const controllerServiceLinks = controllers.flatMap((controllerFile) =>
-      findReferencedSymbolMatches(contentByRelativePath.get(controllerFile) || '', serviceSymbols, [controllerFile]).map(
-        ({ filePath, symbol }) =>
-          createRelationship(
-            resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-              preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
-            }),
-            resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-            'framework',
-            'micronaut_controller_service'
-          )
+      findReferencedSymbolMatches(contentByRelativePath.get(controllerFile) || '', serviceSymbols, [
+        controllerFile,
+      ]).map(({ filePath, symbol }) =>
+        createRelationship(
+          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
+          }),
+          resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
+          'framework',
+          'micronaut_controller_service'
+        )
       )
     );
 
     const serviceRepositoryLinks = services.flatMap((serviceFile) =>
-      findReferencedSymbolMatches(contentByRelativePath.get(serviceFile) || '', repositorySymbols, [serviceFile]).map(
-        ({ filePath, symbol }) =>
-          createRelationship(
-            resolveSymbolEndpoint(serviceFile, graphSymbolIndex, {
-              preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(serviceFile) || ''),
-            }),
-            resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-            'framework',
-            'micronaut_service_repository'
-          )
+      findReferencedSymbolMatches(contentByRelativePath.get(serviceFile) || '', repositorySymbols, [
+        serviceFile,
+      ]).map(({ filePath, symbol }) =>
+        createRelationship(
+          resolveSymbolEndpoint(serviceFile, graphSymbolIndex, {
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(serviceFile) || ''
+            ),
+          }),
+          resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
+          'framework',
+          'micronaut_service_repository'
+        )
       )
     );
 
     const controllerMethodLinks = controllers.flatMap((controllerFile) =>
-      extractMicronautRouteMethods(contentByRelativePath.get(controllerFile) || '').map((methodName) =>
-        createRelationship(
-          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
-          }),
-          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, { preferredSymbols: [methodName] }),
-          'framework',
-          'micronaut_controller_method'
-        )
+      extractMicronautRouteMethods(contentByRelativePath.get(controllerFile) || '').map(
+        (methodName) =>
+          createRelationship(
+            resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
+              preferredSymbols: inferClassSymbolsForFile(
+                contentByRelativePath.get(controllerFile) || ''
+              ),
+            }),
+            resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
+              preferredSymbols: [methodName],
+            }),
+            'framework',
+            'micronaut_controller_method'
+          )
       )
     );
 
@@ -658,7 +725,9 @@ const micronautAdapter: StackAdapter = {
               createRelationship(
                 resolveSymbolEndpoint(entryFile, graphSymbolIndex),
                 resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(controllerFile) || ''
+                  ),
                 }),
                 'framework',
                 'micronaut_entry_controller'
@@ -689,7 +758,9 @@ const quarkusAdapter: StackAdapter = {
   supports: (context) => !!context.getDetectedStack('quarkus'),
   analyze: async (context) => {
     const graphSymbolIndex = buildGraphSymbolIndex(context.graph);
-    const candidateFiles = context.getAllFilePaths().filter((filePath) => /\.(java|kt)$/i.test(filePath));
+    const candidateFiles = context
+      .getAllFilePaths()
+      .filter((filePath) => /\.(java|kt)$/i.test(filePath));
     const contents = await context.readTexts(candidateFiles);
     const relativeContentEntries = contents.map((entry) => ({
       filePath: context.getProjectRelativePath(entry.filePath),
@@ -698,7 +769,9 @@ const quarkusAdapter: StackAdapter = {
     const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
 
     const entryFiles = relativeContentEntries
-      .filter(({ text }) => /\bQuarkus\.run\s*\(|@QuarkusMain\b|\bimplements\s+QuarkusApplication\b/.test(text))
+      .filter(({ text }) =>
+        /\bQuarkus\.run\s*\(|@QuarkusMain\b|\bimplements\s+QuarkusApplication\b/.test(text)
+      )
       .map(({ filePath }) => filePath);
     const resources = relativeContentEntries
       .filter(({ text }) => /@Path\s*\(/.test(text))
@@ -723,16 +796,19 @@ const quarkusAdapter: StackAdapter = {
     );
 
     const resourceServiceLinks = resources.flatMap((resourceFile) =>
-      findReferencedSymbolMatches(contentByRelativePath.get(resourceFile) || '', serviceSymbols, [resourceFile]).map(
-        ({ filePath, symbol }) =>
-          createRelationship(
-            resolveSymbolEndpoint(resourceFile, graphSymbolIndex, {
-              preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(resourceFile) || ''),
-            }),
-            resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-            'framework',
-            'quarkus_resource_service'
-          )
+      findReferencedSymbolMatches(contentByRelativePath.get(resourceFile) || '', serviceSymbols, [
+        resourceFile,
+      ]).map(({ filePath, symbol }) =>
+        createRelationship(
+          resolveSymbolEndpoint(resourceFile, graphSymbolIndex, {
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(resourceFile) || ''
+            ),
+          }),
+          resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
+          'framework',
+          'quarkus_resource_service'
+        )
       )
     );
 
@@ -740,7 +816,9 @@ const quarkusAdapter: StackAdapter = {
       extractJakartaRouteMethods(contentByRelativePath.get(resourceFile) || '').map((methodName) =>
         createRelationship(
           resolveSymbolEndpoint(resourceFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(resourceFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(resourceFile) || ''
+            ),
           }),
           resolveSymbolEndpoint(resourceFile, graphSymbolIndex, { preferredSymbols: [methodName] }),
           'framework',
@@ -766,7 +844,9 @@ const quarkusAdapter: StackAdapter = {
               createRelationship(
                 resolveSymbolEndpoint(entryFile, graphSymbolIndex),
                 resolveSymbolEndpoint(resourceFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(resourceFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(resourceFile) || ''
+                  ),
                 }),
                 'framework',
                 'quarkus_entry_resource'
@@ -807,7 +887,9 @@ const aspNetAdapter: StackAdapter = {
     const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
 
     const programFiles = relativeContentEntries
-      .filter(({ text }) => /WebApplication\.CreateBuilder|Host\.CreateDefaultBuilder|CreateHostBuilder/.test(text))
+      .filter(({ text }) =>
+        /WebApplication\.CreateBuilder|Host\.CreateDefaultBuilder|CreateHostBuilder/.test(text)
+      )
       .map(({ filePath }) => filePath);
     const controllers = relativeContentEntries
       .filter(({ text }) => /\[ApiController\]|ControllerBase|: Controller\b/.test(text))
@@ -829,14 +911,14 @@ const aspNetAdapter: StackAdapter = {
       relativeContentEntries.filter((entry) => serviceCandidates.includes(entry.filePath))
     );
     const controllerServiceLinks = controllers.flatMap((controllerFile) =>
-      findReferencedSymbolMatches(
-        contentByRelativePath.get(controllerFile) || '',
-        serviceSymbols,
-        [controllerFile]
-      ).map(({ filePath, symbol }) =>
+      findReferencedSymbolMatches(contentByRelativePath.get(controllerFile) || '', serviceSymbols, [
+        controllerFile,
+      ]).map(({ filePath, symbol }) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
           }),
           resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
           'framework',
@@ -848,9 +930,13 @@ const aspNetAdapter: StackAdapter = {
       extractAspNetRouteMethods(contentByRelativePath.get(controllerFile) || '').map((methodName) =>
         createRelationship(
           resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(controllerFile) || ''),
+            preferredSymbols: inferClassSymbolsForFile(
+              contentByRelativePath.get(controllerFile) || ''
+            ),
           }),
-          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, { preferredSymbols: [methodName] }),
+          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
+            preferredSymbols: [methodName],
+          }),
           'framework',
           'aspnet_controller_method'
         )
@@ -862,39 +948,43 @@ const aspNetAdapter: StackAdapter = {
         preferredSymbols: inferClassSymbolsForFile(programText),
       });
 
-      return extractAspNetServiceRegistrations(programText).flatMap(({ contract, implementation }) => {
-        const matchingContract = Array.from(serviceSymbols.entries()).find(([symbol]) => symbol === contract);
-        const matchingImplementation = Array.from(serviceSymbols.entries()).find(
-          ([symbol]) => symbol === implementation
-        );
+      return extractAspNetServiceRegistrations(programText).flatMap(
+        ({ contract, implementation }) => {
+          const matchingContract = Array.from(serviceSymbols.entries()).find(
+            ([symbol]) => symbol === contract
+          );
+          const matchingImplementation = Array.from(serviceSymbols.entries()).find(
+            ([symbol]) => symbol === implementation
+          );
 
-        return [
-          ...(matchingContract
-            ? [
-                createRelationship(
-                  programEndpoint,
-                  resolveSymbolEndpoint(matchingContract[1], graphSymbolIndex, {
-                    preferredSymbols: [contract],
-                  }),
-                  'framework',
-                  'aspnet_service_contract'
-                ),
-              ]
-            : []),
-          ...(matchingImplementation
-            ? [
-                createRelationship(
-                  programEndpoint,
-                  resolveSymbolEndpoint(matchingImplementation[1], graphSymbolIndex, {
-                    preferredSymbols: [implementation],
-                  }),
-                  'framework',
-                  'aspnet_service_registration'
-                ),
-              ]
-            : []),
-        ];
-      });
+          return [
+            ...(matchingContract
+              ? [
+                  createRelationship(
+                    programEndpoint,
+                    resolveSymbolEndpoint(matchingContract[1], graphSymbolIndex, {
+                      preferredSymbols: [contract],
+                    }),
+                    'framework',
+                    'aspnet_service_contract'
+                  ),
+                ]
+              : []),
+            ...(matchingImplementation
+              ? [
+                  createRelationship(
+                    programEndpoint,
+                    resolveSymbolEndpoint(matchingImplementation[1], graphSymbolIndex, {
+                      preferredSymbols: [implementation],
+                    }),
+                    'framework',
+                    'aspnet_service_registration'
+                  ),
+                ]
+              : []),
+          ];
+        }
+      );
     });
 
     return createInsight(
@@ -913,10 +1003,14 @@ const aspNetAdapter: StackAdapter = {
             [...controllers, ...minimalApis].map((targetFile) =>
               createRelationship(
                 resolveSymbolEndpoint(entryFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(entryFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(entryFile) || ''
+                  ),
                 }),
                 resolveSymbolEndpoint(targetFile, graphSymbolIndex, {
-                  preferredSymbols: inferClassSymbolsForFile(contentByRelativePath.get(targetFile) || ''),
+                  preferredSymbols: inferClassSymbolsForFile(
+                    contentByRelativePath.get(targetFile) || ''
+                  ),
                 }),
                 'framework',
                 'aspnet_entry_runtime'

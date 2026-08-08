@@ -43,18 +43,17 @@ export const extractWithTreeSitterQuery = (
   const callSet = new Set<string>();
   const commentSet = new Set<string>();
 
-  const toSourceLocation = (node: { startPosition: { row: number; column: number }; endPosition: { row: number; column: number } }): SourceLocation => ({
+  const toSourceLocation = (node: {
+    startPosition: { row: number; column: number };
+    endPosition: { row: number; column: number };
+  }): SourceLocation => ({
     startLine: node.startPosition.row + 1,
     startColumn: node.startPosition.column + 1,
     endLine: node.endPosition.row + 1,
     endColumn: node.endPosition.column + 1,
   });
 
-  const pushEntity = (
-    type: 'class' | 'function',
-    name: string,
-    location?: SourceLocation
-  ) => {
+  const pushEntity = (type: 'class' | 'function', name: string, location?: SourceLocation) => {
     const normalized = name.trim();
     if (!normalized) return;
     const key = `${type}:${normalized}`;

@@ -270,7 +270,10 @@
     "openProject": "Открыть проект",
     "openFolder": "Открыть проект",
     "closeProject": "Закрыть проект",
-    "mcpSettings": "Настройки MCP"
+    "mcpSettings": "Настройки MCP",
+    "minimize": "Свернуть",
+    "maximize": "Развернуть",
+    "close": "Закрыть"
   },
   "indexing": {
     "status": {
@@ -281,7 +284,12 @@
   "app": {
     "loading": "Загрузка…",
     "indexing_files": "Индексация файлов...",
-    "indexing_complete": "Индексация завершена"
+    "indexing_complete": "Индексация завершена",
+    "errorBoundary": {
+      "title": "Что-то пошло не так.",
+      "message": "В приложении произошла непредвиденная ошибка. Попробуйте обновить страницу или перезапустить приложение.",
+      "reload": "Перезагрузить приложение"
+    }
   },
   "languageSwitcher": {
     "language": "Язык"
@@ -289,27 +297,6 @@
   "dragDrop": {
     "dropHere": "Перетащите папку проекта сюда",
     "dropSubtitle": "Отпустите для анализа"
-  },
-  "persistence": {
-    "graphSaved": "Граф сохранен в локальную базу данных",
-    "graphLoaded": "Граф загружен из локальной базы данных",
-    "savingGraph": "Сохранение графа в базу данных...",
-    "loadingGraph": "Загрузка графа из базы данных...",
-    "cacheCleared": "Локальный кэш графа очищен",
-    "clearCache": "Очистить кэш графа",
-    "clearCacheConfirm": "Вы уверены, что хотите очистить локальный кэш графа? Потребуется повторный анализ проекта.",
-    "settings": "Сохранение графа",
-    "enablePersistence": "Включить сохранение графа",
-    "enablePersistenceDescription": "Сохранять граф в локальную базу данных для мгновенной загрузки при следующем открытии",
-    "persistenceEnabled": "Сохранение графа включено",
-    "persistenceDisabled": "Сохранение графа отключено",
-    "error": {
-      "saveFailed": "Ошибка сохранения графа: {{message}}",
-      "loadFailed": "Ошибка загрузки графа: {{message}}",
-      "clearFailed": "Ошибка очистки кэша: {{message}}",
-      "diskFull": "Мало места на диске. Граф может не сохраниться.",
-      "corrupted": "База данных графа повреждена. Повторный анализ проекта..."
-    }
   },
   "prImpact": {
     "title": "Анализ влияния PR",
@@ -370,7 +357,7 @@
   },
   "tools": {
     "workspace": "Рабочая область",
-    "workspaceEyebrow": "Analysis workspace",
+    "workspaceEyebrow": "Рабочая область анализа",
     "workspaceDescription": "Сценарии расследования и impact-анализ в одном месте.",
     "workspaceSummary": "Операционная сводка",
     "workspaceHeadline": "Открывай инструмент по задаче, а не по названию вкладки.",
