@@ -149,9 +149,9 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
             <h4 className="text-[13px] font-semibold text-(--t0)">{t('blastRadius.riskPaths')}</h4>
             {result.riskPaths.length > 0 ? (
               <ul className="mt-3 space-y-2">
-                {result.riskPaths.map((path: string[], i: number) => (
+                {result.riskPaths.map((path: string[]) => (
                   <li
-                    key={i}
+                    key={path.join('>')}
                     className="overflow-x-auto rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-xs font-mono text-(--t1)"
                   >
                     {path.join(' → ')}

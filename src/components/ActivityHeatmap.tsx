@@ -164,9 +164,9 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath })
           </div>
 
           <div className="space-y-2">
-            {heatmap.files.slice(0, 50).map((file, index) => (
+            {heatmap.files.slice(0, 50).map((file) => (
               <div
-                key={index}
+                key={file.filePath}
                 className={`relative overflow-hidden rounded-2xl border border-(--border) p-3 ${getHeatColor(file.commits, heatmap.maxCommits)}`}
               >
                 <div className="relative z-10">

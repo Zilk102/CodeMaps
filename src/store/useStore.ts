@@ -4,10 +4,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { createGraphSlice, type GraphSlice } from './slices/graphSlice';
 import { createUISlice, type UISlice } from './slices/uiSlice';
 import { createConnectionSlice, type ConnectionSlice } from './slices/connectionSlice';
-import { createPersistenceSlice, type PersistenceSlice } from './slices/persistenceSlice';
 import { getIDBStorage } from './idb-storage';
 
-export type StoreState = GraphSlice & UISlice & ConnectionSlice & PersistenceSlice;
+export type StoreState = GraphSlice & UISlice & ConnectionSlice;
 
 export const useStore = create<StoreState>()(
   persist(
@@ -15,7 +14,6 @@ export const useStore = create<StoreState>()(
       ...createGraphSlice(...a),
       ...createUISlice(...a),
       ...createConnectionSlice(...a),
-      ...createPersistenceSlice(...a),
     }),
     {
       name: 'codemaps-ui-storage',
@@ -66,20 +64,8 @@ export const useUIStore = () => useStore(useShallow((state) => ({
 export const useConnectionStore = () => useStore(useShallow((state) => ({
   initializeWatcher: state.initializeWatcher,
   initializeWebSocket: state.initializeWebSocket,
+  teardownRealtime: state.teardownRealtime,
   fetchGraph: state.fetchGraph,
   openProject: state.openProject,
 })));
 
-export const usePersistenceStore = () => useStore(useShallow((state) => ({
-  persistenceEnabled: state.persistenceEnabled,
-  isLoadingGraph: state.isLoadingGraph,
-  isSavingGraph: state.isSavingGraph,
-  lastSavedGraph: state.lastSavedGraph,
-  persistenceError: state.persistenceError,
-  setPersistenceEnabled: state.setPersistenceEnabled,
-  setLoadingGraph: state.setLoadingGraph,
-  setSavingGraph: state.setSavingGraph,
-  setLastSavedGraph: state.setLastSavedGraph,
-  setPersistenceError: state.setPersistenceError,
-  clearPersistenceError: state.clearPersistenceError,
-})));

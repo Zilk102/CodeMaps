@@ -25,7 +25,6 @@ const ToolsPanel = React.lazy(() =>
 
 import TitleBar from './components/TitleBar';
 import LanguageSwitcher from './components/LanguageSwitcher';
-import PersistenceStatus from './components/PersistenceStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useUIStore, useGraphStore, useConnectionStore } from './store/useStore';
 import { useProjectDrop } from './hooks/useProjectDrop';
@@ -44,7 +43,8 @@ const App: React.FC = () => {
   const { t } = useTranslation();
   const { sidebarWidth, setSidebarWidth, isToolsPanelOpen, parsingProgress } = useUIStore();
   const { graphData } = useGraphStore();
-  const { initializeWatcher, initializeWebSocket, fetchGraph } = useConnectionStore();
+  const { initializeWatcher, initializeWebSocket, teardownRealtime, fetchGraph } =
+    useConnectionStore();
   const { isDraggingState, startSidebarDrag, sidebarViewportState } = useSidebarResize(
     setSidebarWidth
   );
@@ -54,7 +54,8 @@ const App: React.FC = () => {
   useEffect(() => {
     initializeWatcher();
     initializeWebSocket();
-  }, [initializeWatcher, initializeWebSocket]);
+    return () => teardownRealtime();
+  }, [initializeWatcher, initializeWebSocket, teardownRealtime]);
 
   return (
     <ErrorBoundary>
@@ -152,8 +153,6 @@ const App: React.FC = () => {
         <McpSettingsModal />
       </Suspense>
 
-      <PersistenceStatus />
-      
       <LanguageSwitcher />
     </div>
     </ErrorBoundary>

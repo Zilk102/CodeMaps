@@ -2,6 +2,19 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore, useUIStore, useConnectionStore } from '../store/useStore';
 
+const windowControlStyle: React.CSSProperties = {
+  width: '46px',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  color: 'var(--t1)',
+  background: 'transparent',
+  border: 'none',
+  padding: 0,
+};
+
 const TitleBar: React.FC = () => {
   const { t } = useTranslation();
   const { openProject } = useConnectionStore();
@@ -67,27 +80,33 @@ const TitleBar: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', height: '100%', WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {/* Window buttons (Windows) */}
         <div style={{ display: 'flex', WebkitAppRegion: 'no-drag', height: '100%', alignItems: 'center' } as React.CSSProperties}>
-          <div 
+          <button
+            type="button"
             className="window-control"
-            style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 
+            style={windowControlStyle}
+            aria-label={t('titleBar.minimize')}
             onClick={() => window.api.minimize?.()}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,5 L 10,5" stroke="currentColor" strokeWidth="1"/></svg>
-          </div>
-          <div 
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M 0,5 L 10,5" stroke="currentColor" strokeWidth="1"/></svg>
+          </button>
+          <button
+            type="button"
             className="window-control"
-            style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)' }} 
+            style={windowControlStyle}
+            aria-label={t('titleBar.maximize')}
             onClick={() => window.api.maximize?.()}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,0 L 10,0 L 10,10 L 0,10 Z" fill="none" stroke="currentColor" strokeWidth="1"/></svg>
-          </div>
-          <div 
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M 0,0 L 10,0 L 10,10 L 0,10 Z" fill="none" stroke="currentColor" strokeWidth="1"/></svg>
+          </button>
+          <button
+            type="button"
             className="window-control close"
-            style={{ width: '46px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t1)', transition: 'background-color 0.1s' }} 
+            style={{ ...windowControlStyle, transition: 'background-color 0.1s' }}
+            aria-label={t('titleBar.close')}
             onClick={() => window.api.close?.()}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M 0,0 L 10,10 M 10,0 L 0,10" stroke="currentColor" strokeWidth="1"/></svg>
-          </div>
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M 0,0 L 10,10 M 10,0 L 0,10" stroke="currentColor" strokeWidth="1"/></svg>
+          </button>
         </div>
       </div>
     </div>

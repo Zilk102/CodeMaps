@@ -5,6 +5,7 @@ import type { GraphSlice } from './graphSlice';
 export interface ConnectionSlice {
   initializeWatcher: () => void;
   initializeWebSocket: () => void;
+  teardownRealtime: () => void;
   fetchGraph: (path?: string) => Promise<void>;
   openProject: () => Promise<void>;
 }
@@ -15,18 +16,20 @@ export const createConnectionSlice: StateCreator<
   [],
   ConnectionSlice
 > = (set, get) => {
-  let isWatcherInitialized = false;
+  let unsubscribeIpc: Array<() => void> = [];
 
   return {
     initializeWatcher: () => {
-      if (isWatcherInitialized) return;
-      isWatcherInitialized = true;
-      window.api?.onGraphUpdate?.((data) => {
-        set({ graphData: data });
-      });
-      window.api?.onParsingProgress?.((progress) => {
-        set({ parsingProgress: progress });
-      });
+      if (unsubscribeIpc.length > 0) return;
+
+      unsubscribeIpc = [
+        window.api?.onGraphUpdate?.((data) => {
+          set({ graphData: data });
+        }),
+        window.api?.onParsingProgress?.((progress) => {
+          set({ parsingProgress: progress });
+        }),
+      ].filter((unsubscribe): unsubscribe is () => void => typeof unsubscribe === 'function');
     },
 
     initializeWebSocket: () => {
@@ -35,9 +38,15 @@ export const createConnectionSlice: StateCreator<
           set({ graphData });
         },
         onParsingProgress: (progress) => {
-          set({ parsingProgress: progress as { status: string; current: number; total: number; filename: string } });
+          set({ parsingProgress: progress });
         },
       });
+    },
+
+    teardownRealtime: () => {
+      for (const unsubscribe of unsubscribeIpc) unsubscribe();
+      unsubscribeIpc = [];
+      GraphRealtimeClient.getInstance().disconnect();
     },
 
     fetchGraph: async (path?: string) => {

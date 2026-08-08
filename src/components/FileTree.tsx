@@ -76,12 +76,13 @@ const FileTreeNode: React.FC<{
   node: TreeNode;
   level: number;
   expandedFolders: Record<string, boolean>;
-  toggleFolder: (path: string) => void;
+  toggleFolder: (path: string, currentlyExpanded: boolean) => void;
   selectedPath: string | null;
   onSelect: (node: TreeNode) => void;
 }> = ({ node, level, expandedFolders, toggleFolder, selectedPath, onSelect }) => {
   const isSelected = selectedPath === node.path;
-  const isExpanded = !!expandedFolders[node.path];
+  // Top-level folders start open; deeper ones stay closed until the user opens them.
+  const isExpanded = expandedFolders[node.path] ?? level === 0;
   
   if (!node.name || node.name === 'root') {
     return (
@@ -112,7 +113,7 @@ const FileTreeNode: React.FC<{
       <div 
         onClick={(e) => {
           e.stopPropagation();
-          if (node.isDir) toggleFolder(node.path);
+          if (node.isDir) toggleFolder(node.path, isExpanded);
           onSelect(node);
         }}
         style={{ 
@@ -197,8 +198,8 @@ export const FileTree: React.FC = () => {
   const { openProject } = useConnectionStore();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
-  const toggleFolder = (path: string) => {
-    setExpandedFolders(prev => ({ ...prev, [path]: !prev[path] }));
+  const toggleFolder = (path: string, currentlyExpanded: boolean) => {
+    setExpandedFolders(prev => ({ ...prev, [path]: !currentlyExpanded }));
   };
 
   const handleSelect = (node: TreeNode) => {
@@ -236,10 +237,6 @@ export const FileTree: React.FC = () => {
             nodeData: isLast ? file : undefined
           };
           
-          // Auto-expand first level by default
-          if (idx === 0) {
-            setExpandedFolders(prev => ({ ...prev, [path]: true }));
-          }
         }
         current = current.children[part];
       });
@@ -277,7 +274,7 @@ export const FileTree: React.FC = () => {
                 display: 'flex', alignItems: 'center', padding: '4px 10px', cursor: 'pointer',
                 fontWeight: '600', fontSize: '10px', textTransform: 'uppercase', color: 'var(--t2)'
               }}
-              onClick={() => toggleFolder('root_folder')}
+              onClick={() => toggleFolder('root_folder', expandedFolders['root_folder'] !== false)}
             >
               <ChevronIcon expanded={expandedFolders['root_folder'] !== false} />
               <span style={{ marginLeft: 4 }}>{t('fileTree.project')}</span>

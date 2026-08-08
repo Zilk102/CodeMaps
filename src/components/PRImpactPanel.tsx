@@ -163,9 +163,9 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
               {t('prImpact.changedFilesList')}
             </h4>
             <ul className="mt-3 space-y-2">
-              {result.changedFiles.map((file: Record<string, unknown>, index: number) => (
+              {result.changedFiles.map((file: Record<string, unknown>) => (
                 <li
-                  key={index}
+                  key={String(file.path)}
                   className="flex items-center justify-between gap-3 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2"
                 >
                   <span className="flex min-w-0 items-center gap-2">
@@ -194,9 +194,9 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({
                 {t('prImpact.recommendations')}
               </h4>
               <ul className="mt-3 space-y-2">
-                {result.recommendations.map((rec: string, index: number) => (
+                {result.recommendations.map((rec: string) => (
                   <li
-                    key={index}
+                    key={rec}
                     className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-sm text-(--t1)"
                   >
                     {rec}
