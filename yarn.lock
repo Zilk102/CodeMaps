@@ -5837,10 +5837,10 @@ wait-on@^9.0.5:
     minimist "^1.2.8"
     rxjs "^7.8.2"
 
-web-tree-sitter@^0.26.8:
-  version "0.26.8"
-  resolved "https://registry.npmjs.org/web-tree-sitter/-/web-tree-sitter-0.26.8.tgz"
-  integrity sha512-4sUwi7ZyOrIk5KLgYLkc2A/F0LFMQnBhfb+2Cdl7ik4ePJ6JD+fk4ofI2sA5eGawBKBaK4Vntt7Ww5KcEsay4A==
+web-tree-sitter@~0.25.10:
+  version "0.25.10"
+  resolved "https://registry.yarnpkg.com/web-tree-sitter/-/web-tree-sitter-0.25.10.tgz#b21f1df7aaa87ad235b4c3d07005168349496706"
+  integrity sha512-Y09sF44/13XvgVKgO2cNDw5rGk6s26MgoZPXLESvMXeefBf7i6/73eFurre0IsTW6E14Y0ArIzhUMmjoc7xyzA==
 
 webidl-conversions@^8.0.1:
   version "8.0.1"
