@@ -1,5 +1,5 @@
 import { GraphData, GraphNode } from '../store';
-import { toStructuralNodeId, unique } from './AgentContextUtils';
+import { toStructuralNodeId } from './AgentContextUtils';
 import { ProjectInsightResult } from './ProjectInsightService';
 import {
   CAMPAIGN_HINTS,

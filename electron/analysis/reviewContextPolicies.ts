@@ -1,9 +1,5 @@
-import { GraphData, GraphNode } from '../store';
-import type {
-  ArchitectureNodeClassification,
-  ArchitectureOverview,
-  ArchitectureViolation,
-} from './ArchitectureInsightService';
+import { GraphData } from '../store';
+import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
 import type { HealthScoreResult } from './HealthScoreAnalyzer';
 import { collectPatternNodeIds, isDesignSmellPattern } from './patternPolicies';

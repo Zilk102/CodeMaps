@@ -44,7 +44,7 @@ export interface GraphData {
             avgRefreshLatencyMs: number;
             lastRefreshMode: 'skipped' | 'rebuilt' | null;
             lastRefreshReason: 'no_stack_impact' | 'directory_structure_changed' | 'stack_runtime_path_changed' | null;
-            recentLatencyMs: Array<number>;
+            recentLatencyMs: number[];
             recentModes: Array<'skipped' | 'rebuilt'>;
         };
         trends: {

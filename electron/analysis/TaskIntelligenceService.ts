@@ -1,14 +1,6 @@
 import { GraphData, GraphNode } from '../store';
-import {
-  ChangeContextResult,
-  ChangeTaskMode,
-  ChangeContextService,
-} from './ChangeContextService';
-import {
-  ReviewContextResult,
-  ReviewTaskMode,
-  ReviewContextService,
-} from './ReviewContextService';
+import { ChangeContextResult, ChangeContextService } from './ChangeContextService';
+import { ReviewContextResult, ReviewContextService } from './ReviewContextService';
 import {
   PrepareProjectContextInput,
   ProjectInsightResult,

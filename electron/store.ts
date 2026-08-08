@@ -7,7 +7,7 @@ import {
   recordEnrichmentRefresh as applyEnrichmentRefresh,
   recordWatcherFlush as applyWatcherFlush,
 } from './store/telemetry';
-import { GraphDiff, GraphLink, GraphNode, OracleState } from './store/types';
+import { GraphDiff, OracleState } from './store/types';
 
 export * from './store/types';
 

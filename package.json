@@ -26,9 +26,10 @@
     "mcp:smoke": "node scripts/mcp-smoke-test.mjs",
     "test:shutdown:e2e": "npm run build:electron && node scripts/e2e-shutdown-test.mjs",
     "test": "vitest run",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "format": "prettier --write ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "build": {
     "productName": "CodeMaps",

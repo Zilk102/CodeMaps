@@ -450,8 +450,8 @@ const resolveBazelLabel = (
     return context.hasRelativePath(fileCandidate) ? { file: fileCandidate } : null;
   }
 
-  let packagePath = '';
-  let target = '';
+  let packagePath: string;
+  let target: string;
 
   if (label.startsWith('//')) {
     const [, body] = label.split('//');

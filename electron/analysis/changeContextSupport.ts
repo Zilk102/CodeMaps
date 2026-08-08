@@ -1,8 +1,5 @@
 import { GraphData, GraphLink, GraphNode } from '../store';
-import type {
-  ArchitectureOverview,
-  ArchitectureViolation,
-} from './ArchitectureInsightService';
+import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { BlastRadiusResult } from './BlastRadiusAnalyzer';
 import {
   promoteCodeTarget,
