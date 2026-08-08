@@ -68,10 +68,11 @@ jobs:
           npm run clean:build
           npm run build:renderer
           npm run build:electron
+          # tree-sitter-wasms self-dep makes electron-builder 26 OOM; patch after install
+          node scripts/patch-tree-sitter-wasms.js
           npx electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # electron-builder's yarn module collector can exceed the default ~4GB heap
           NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload Linux Artifacts
@@ -125,10 +126,10 @@ jobs:
           npm run clean:build
           npm run build:renderer
           npm run build:electron
+          node scripts/patch-tree-sitter-wasms.js
           npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # electron-builder's yarn module collector can exceed the default ~4GB heap
           NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload Windows Artifacts

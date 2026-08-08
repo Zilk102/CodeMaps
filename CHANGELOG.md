@@ -19,6 +19,7 @@
 
 - CI now runs lint, formatting, tests and typecheck; the suite passes from a clean clone.
 - Windows CI keeps LF line endings for Prettier and invokes the TypeScript compiler without `npx`.
+- Packaging no longer OOMs: a postinstall patch removes the self-dependency shipped by `tree-sitter-wasms`, which sent electron-builder 26's module collector into an unbounded cycle.
 - Removed dead services, stray root files, the duplicate `package-lock.json` and unused dependencies.
 
 ---

@@ -17,6 +17,7 @@
 - **📊 Activity heatmap:** Исправлена двойная передача `git` в argv и чтение автора коммита из неверного поля.
 - **🌍 Локализация и a11y:** Дополнен китайский каталог (десятки недостающих ключей), строки `ErrorBoundary` вынесены во все языки; улучшена доступность элементов управления окном и MCP-диалога.
 - **🧪 CI и качество:** На каждый PR гоняются lint, Prettier, typecheck и тесты; Windows-сборки стабилизированы (LF line endings, вызов `tsc` без `npx`); удалён мёртвый код, лишние зависимости и дублирующий `package-lock.json`.
+- **📦 Сборка релиза:** Устранён OOM electron-builder из‑за self-dependency в `tree-sitter-wasms` (postinstall-патч).
 
 ---
 
@@ -37,6 +38,7 @@ This release fixes a critical multi-language analysis outage: after `web-tree-si
 - **📊 Activity heatmap:** Fixed duplicate `git` on the command line and reading the commit author from the wrong field.
 - **🌍 Localization & a11y:** Completed the Chinese catalogue (dozens of missing keys), moved `ErrorBoundary` strings into all locales, and improved accessibility for window controls and the MCP dialog.
 - **🧪 CI & hygiene:** Every PR runs lint, Prettier, typecheck, and tests; Windows CI is stabilized (LF endings, `tsc` without `npx`); dead services, unused dependencies, and the duplicate `package-lock.json` are gone.
+- **📦 Release packaging:** Fixed electron-builder OOM caused by a self-dependency in `tree-sitter-wasms` (postinstall patch).
 
 ---
 
@@ -57,3 +59,4 @@ This release fixes a critical multi-language analysis outage: after `web-tree-si
 - **📊 活动热力图：** 修复命令行重复传入 `git`，以及从错误字段读取提交作者的问题。
 - **🌍 本地化与无障碍：** 补全中文词条（数十个缺失键），将 `ErrorBoundary` 文案纳入全部语言目录，并改进窗口控件与 MCP 对话框的可访问性。
 - **🧪 CI 与工程卫生：** 每个 PR 运行 lint、Prettier、typecheck 与测试；稳定 Windows CI（LF 换行、不经 `npx` 调用 `tsc`）；移除死代码、无用依赖及重复的 `package-lock.json`。
+- **📦 发布打包：** 修复 `tree-sitter-wasms` 自依赖导致的 electron-builder OOM（postinstall 补丁）。
