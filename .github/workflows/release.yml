@@ -170,7 +170,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          name: v1.1.9: Parsing Restoration & Hardening
+          name: ${{ github.ref_name }}: Parsing Restoration & Hardening
           body_path: .github/release-body.md
           files: |
             artifacts/CodeMaps-*
