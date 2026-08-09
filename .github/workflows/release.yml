@@ -68,9 +68,12 @@ jobs:
           npm run clean:build
           npm run build:renderer
           npm run build:electron
+          # tree-sitter-wasms self-dep makes electron-builder 26 OOM; patch after install
+          node scripts/patch-tree-sitter-wasms.js
           npx electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
@@ -123,9 +126,11 @@ jobs:
           npm run clean:build
           npm run build:renderer
           npm run build:electron
+          node scripts/patch-tree-sitter-wasms.js
           npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -170,6 +175,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
+          name: 'v1.1.9: Parsing Restoration & Hardening'
+          body_path: .github/release-body.md
           files: |
             artifacts/CodeMaps-*
             artifacts/latest*.yml

@@ -1,7 +1,7 @@
 {
   "name": "codemaps",
   "productName": "CodeMaps",
-  "version": "1.0.2",
+  "version": "1.1.9",
   "author": {
     "name": "Zilk102",
     "email": "moskvi-ivan@yandex.ru"
@@ -17,11 +17,12 @@
     "dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
     "electron:wait": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .",
     "typecheck": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
+    "postinstall": "node scripts/patch-tree-sitter-wasms.js",
     "clean:build": "node scripts/clean-build.js",
     "build:renderer": "vite build",
     "build:electron": "tsc -p electron/tsconfig.json",
-    "package:portable": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win portable --x64",
-    "build": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && electron-builder",
+    "package:portable": "node scripts/patch-tree-sitter-wasms.js && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win portable --x64",
+    "build": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && node scripts/patch-tree-sitter-wasms.js && electron-builder",
     "build:portable": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && npm run package:portable",
     "mcp:smoke": "node scripts/mcp-smoke-test.mjs",
     "test:shutdown:e2e": "npm run build:electron && node scripts/e2e-shutdown-test.mjs",
