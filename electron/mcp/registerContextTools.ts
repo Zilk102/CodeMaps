@@ -284,7 +284,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         depth,
         includeSecurityFindings,
       });
-      return okStatusToolResult({ context: preparedContext });
+      return okStatusToolResult({ changeContext: preparedContext });
     }
   );
 
@@ -351,7 +351,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         includeSecurityFindings,
         limit,
       });
-      return okStatusToolResult({ context: preparedContext });
+      return okStatusToolResult({ reviewContext: preparedContext });
     }
   );
 }
