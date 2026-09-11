@@ -28,10 +28,7 @@ export interface RecentProject {
     lastBatchSize: number;
     lastRefreshMode: 'skipped' | 'rebuilt' | null;
     lastRefreshReason:
-      | 'no_stack_impact'
-      | 'directory_structure_changed'
-      | 'stack_runtime_path_changed'
-      | null;
+      'no_stack_impact' | 'directory_structure_changed' | 'stack_runtime_path_changed' | null;
   };
 }
 

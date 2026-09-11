@@ -2,9 +2,7 @@ export type TrendState = 'stable' | 'improving' | 'degrading';
 export type RefreshEvent = 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
 export type RefreshMode = 'skipped' | 'rebuilt';
 export type RefreshReason =
-  | 'no_stack_impact'
-  | 'directory_structure_changed'
-  | 'stack_runtime_path_changed';
+  'no_stack_impact' | 'directory_structure_changed' | 'stack_runtime_path_changed';
 
 export interface GraphNode {
   id: string;
