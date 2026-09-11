@@ -9,6 +9,7 @@ import globals from 'globals';
 export default [
   {
     ignores: [
+      '.release-app/**',
       'dist/**',
       'dist-electron/**',
       'dist-renderer/**',
