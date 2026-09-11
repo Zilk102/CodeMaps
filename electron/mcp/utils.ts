@@ -108,7 +108,7 @@ export const searchGraph = (graph: GraphData, query: string, type?: string, limi
 
 export const createTextContent = (payload: unknown) => {
   if (typeof payload === 'string') return payload;
-  return `\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+  return JSON.stringify(payload, null, 2);
 };
 
 export const createAgentPlaybook = () => ({
