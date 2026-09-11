@@ -97,10 +97,7 @@ export interface ChangeContextResult {
     primaryGoal: string;
     whyThisTarget: string;
     preferredNextAction:
-      | 'inspect_code'
-      | 'review_dependencies'
-      | 'check_security'
-      | 'verify_architecture';
+      'inspect_code' | 'review_dependencies' | 'check_security' | 'verify_architecture';
     shouldFallbackToLowLevelTools: boolean;
   };
   nextSteps: string[];

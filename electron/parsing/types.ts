@@ -2,9 +2,7 @@ export type EntityType = 'class' | 'function';
 export type ParserEngine = 'tree-sitter' | 'markdown-adr' | 'typescript-semantic';
 export type LanguageSupportTier = 'semantic' | 'structural' | 'limited' | 'metadata';
 export type LanguageAdapterId =
-  | 'tree-sitter-query-adapter'
-  | 'markdown-adr-adapter'
-  | 'typescript-semantic-adapter';
+  'tree-sitter-query-adapter' | 'markdown-adr-adapter' | 'typescript-semantic-adapter';
 
 export interface ImportRecord {
   path: string;
