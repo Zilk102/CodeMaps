@@ -35,7 +35,7 @@
     "qs": "6.16.0",
     "tmp": "0.2.7",
     "undici": "7.29.0",
-    "vite": "8.0.16"
+    "vite": "8.2.2"
   },
   "license": "MIT",
   "description": "Living Blueprint for Code",
@@ -213,7 +213,7 @@
     "react-dom": "19.3.0",
     "react-zoom-pan-pinch": "4.2.0",
     "tailwindcss": "4.3.3",
-    "vite": "8.0.16",
+    "vite": "8.2.2",
     "vitest": "4.1.11",
     "wait-on": "9.1.0"
   }
