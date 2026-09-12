@@ -1,7 +1,7 @@
 {
   "name": "codemaps",
   "productName": "CodeMaps",
-  "version": "1.1.12",
+  "version": "1.1.13",
   "author": {
     "name": "Zilk102",
     "email": "moskvi-ivan@yandex.ru"
@@ -101,7 +101,7 @@
     "nsis": {
       "oneClick": false,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.png",
@@ -110,7 +110,7 @@
       "shortcutName": "CodeMaps",
       "license": "LICENSE.md",
       "artifactName": "CodeMaps-${version}-setup-${arch}.${ext}",
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": false
     },
     "linux": {
       "target": [

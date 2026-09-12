@@ -1,5 +1,13 @@
 # CodeMaps Changelog
 
+## v1.1.13 (2026-09-12)
+
+### Windows Installer & Auto-Update
+
+- Re-enabled installation directory selection in the NSIS wizard instead of forcing the default per-user path.
+- Stopped deleting app data during uninstall/update so the Windows upgrade path no longer tears through updater state while replacing the installed app.
+- Published as a dedicated follow-up release to validate the Windows auto-update flow after the NSIS configuration fix.
+
 ## v1.1.12 (2026-09-12)
 
 ### Windows Auto-Update Verification
