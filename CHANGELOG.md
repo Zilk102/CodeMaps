@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## v1.1.14 (2026-09-12)
+
+### Windows Auto-Update Verification
+
+- Published the next follow-up release so an installed `v1.1.13` client can verify the Windows upgrade path against a newer tag.
+- Kept the installer logic unchanged from `v1.1.13` to isolate auto-update validation from any new packaging changes.
+
 ## v1.1.13 (2026-09-12)
 
 ### Windows Installer & Auto-Update
