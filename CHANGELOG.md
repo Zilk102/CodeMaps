@@ -1,5 +1,13 @@
 # CodeMaps Changelog
 
+## v1.1.15 (2026-09-12)
+
+### Windows Auto-Update Reliability
+
+- Fixed the real Windows upgrade failure: the packaged app no longer ships Kuzu's `kuzu-source` tree, which pushed NSIS uninstall/rename paths past the Win32 limit during auto-update.
+- Added a post-pack cleanup hook that strips Kuzu build-only artifacts from `app.asar.unpacked` while keeping the required `kuzujs.node` runtime module in place.
+- Kept the installer directory picker and non-destructive uninstall behavior from `v1.1.13`, so this release focuses on the NSIS upgrade path instead of changing user-facing install semantics again.
+
 ## v1.1.14 (2026-09-12)
 
 ### Windows Auto-Update Verification

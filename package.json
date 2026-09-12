@@ -1,7 +1,7 @@
 {
   "name": "codemaps",
   "productName": "CodeMaps",
-  "version": "1.1.14",
+  "version": "1.1.15",
   "author": {
     "name": "Zilk102",
     "email": "moskvi-ivan@yandex.ru"
@@ -61,6 +61,7 @@
   },
   "build": {
     "productName": "CodeMaps",
+    "afterPack": "scripts/after-pack-cleanup.js",
     "publish": [
       {
         "provider": "github",
@@ -146,7 +147,9 @@
       "dist-renderer/**/*",
       "dist-electron/**/*",
       "build/**/*",
-      "package.json"
+      "package.json",
+      "!**/node_modules/kuzu/kuzu-source{,/**/*}",
+      "!**/node_modules/kuzu/node_modules/.bin{,/**/*}"
     ],
     "asarUnpack": [
       "**/*.node",
