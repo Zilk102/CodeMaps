@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## v1.1.12 (2026-09-12)
+
+### Windows Auto-Update Verification
+
+- Published a follow-up release specifically to validate the fixed Windows updater path from an installed `v1.1.11` client.
+- Reused the stabilized updater flow from `v1.1.11` so the verification target differs only by release version and published artifacts.
+
 ## v1.1.11 (2026-09-12)
 
 ### Windows Auto-Update
