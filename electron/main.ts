@@ -128,12 +128,12 @@ async function installDownloadedUpdate() {
   updateInstallStarted = true;
 
   try {
-    log.info('[App] Preparing downloaded update installation');
-    await shutdownApplication();
+    log.info('[App] Requesting downloaded update installation through quitAndInstall');
     quitAndInstallDownloadedUpdate();
   } catch (error: unknown) {
     updateInstallStarted = false;
-    log.error('[App] Failed to prepare update installation:', getErrorMessage(error));
+    log.error('[App] Failed to request update installation:', getErrorMessage(error));
+
     throw error;
   }
 }

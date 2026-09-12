@@ -1,5 +1,17 @@
 # CodeMaps Changelog
 
+## v1.1.11 (2026-09-12)
+
+### Windows Auto-Update
+
+- Disabled `autoInstallOnAppQuit` on Windows so a downloaded NSIS update is not kicked off implicitly during a normal quit path.
+- Switched explicit update installation to a direct `quitAndInstall()` request, which lets the existing `before-quit` shutdown flow run once instead of racing manual shutdown against the updater's own quit cycle.
+- Added a Windows-specific updater test to prevent silent install-on-quit from regressing in future releases.
+
+### Verification
+
+- Verified locally: updater unit tests, ESLint, and full TypeScript typecheck after the Windows updater fix.
+
 ## v1.1.10 (2026-09-12)
 
 ### 🚀 Release Pipeline

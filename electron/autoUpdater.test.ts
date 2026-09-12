@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ipcHandlers = new Map<string, (...args: unknown[]) => unknown>();
 
@@ -38,6 +38,8 @@ vi.mock('electron-log/main', () => ({
 }));
 
 describe('initAutoUpdater install flow', () => {
+  const originalPlatform = process.platform;
+
   beforeEach(() => {
     vi.resetModules();
     ipcHandlers.clear();
@@ -47,6 +49,13 @@ describe('initAutoUpdater install flow', () => {
     removeAllListenersMock.mockClear();
     onMock.mockClear();
     process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', {
+      value: originalPlatform,
+      configurable: true,
+    });
   });
 
   it('delegates update installation through provided callback', async () => {
@@ -90,5 +99,30 @@ describe('initAutoUpdater install flow', () => {
     expect(quitAndInstallMock).toHaveBeenCalledTimes(1);
     expect(quitAndInstallMock).toHaveBeenCalledWith(true, true);
     expect(result).toEqual({ success: true });
+  });
+
+  it('disables auto install on app quit for packaged Windows builds', async () => {
+    Object.defineProperty(process, 'platform', {
+      value: 'win32',
+      configurable: true,
+    });
+
+    const { app } = await import('electron');
+    const { autoUpdater } = await import('electron-updater');
+    const { initAutoUpdater } = await import('./autoUpdater.js');
+
+    (app as any).isPackaged = true;
+
+    const fakeWindow = {
+      isDestroyed: () => false,
+      webContents: {
+        send: vi.fn(),
+      },
+    };
+
+    initAutoUpdater(fakeWindow as any);
+
+    expect((autoUpdater as any).autoDownload).toBe(true);
+    expect((autoUpdater as any).autoInstallOnAppQuit).toBe(false);
   });
 });

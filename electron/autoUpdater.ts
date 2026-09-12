@@ -74,6 +74,7 @@ export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptio
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       log.error('[AutoUpdater] Failed to install update:', message);
+
       return { success: false, error: message };
     }
   });
@@ -85,11 +86,14 @@ export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptio
   // Only check for updates in packaged mode
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
     log.info('[AutoUpdater] Skipping update checks in development mode');
+
     return;
   }
 
+  const autoInstallOnQuit = process.platform !== 'win32';
+
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoInstallOnAppQuit = autoInstallOnQuit;
 
   if (!listenersRegistered) {
     autoUpdater.on('checking-for-update', () => {
@@ -177,5 +181,6 @@ function sendUpdateState() {
 
 export function quitAndInstallDownloadedUpdate() {
   log.info('[AutoUpdater] Installing downloaded update');
+
   autoUpdater.quitAndInstall(true, true);
 }
