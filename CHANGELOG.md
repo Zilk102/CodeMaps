@@ -1,5 +1,23 @@
 # CodeMaps Changelog
 
+## v1.1.10 (2026-09-12)
+
+### 🚀 Release Pipeline
+
+- GitHub Release names are now derived directly from the pushed tag, so the workflow no longer reuses a stale hard-coded version string.
+- Release notes are generated from `.github/release-body.md` with automatic `{{VERSION}}` substitution before publishing.
+- The trilingual release-notes format (RU / EN / ZH) is now part of the documented release procedure instead of an informal convention.
+
+### 🔒 Security & Reliability
+
+- The dependency graph is now audit-clean locally (`0 high / 0 moderate / 0 low`).
+- MCP composite tool contracts were aligned with the smoke-test expectations (`changeContext`, `reviewContext`).
+- MCP resources now return raw JSON instead of fenced markdown, which makes resource parsing deterministic.
+
+### 🧪 Verification
+
+- Verified locally: formatting, lint, typecheck, test suite, renderer build, electron build, and the full MCP smoke flow.
+
 ## v1.1.9 (2026-08-08)
 
 ### 🐛 Fixes

@@ -43,6 +43,7 @@ dist-renderer
 release/
 out/
 build/
+.github/release-body.generated.md
 *.exe
 *.dmg
 *.AppImage

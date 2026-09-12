@@ -1,62 +1,47 @@
-# Release v1.1.9 🚀 — Parsing Restoration & Hardening
+# Release v{{VERSION}} 🚀
 
 ## 🇷🇺 Русская версия
 
-### Обновление «Восстановление парсинга и укрепление»
+### Надёжность релизного контура, MCP и сборок
 
-В этом релизе мы устранили критический сбой мультиязычного анализа: после обновления `web-tree-sitter` до 0.26 все языки кроме TypeScript молча отдавали пустой результат. Восстановлены грамматики и запросы, усилены безопасность Electron/MCP/IPC и доведена до ума инфраструктура CI и локализации.
+Этот релиз доводит релизный контур и инфраструктуру качества до предсказуемого состояния: имя GitHub Release теперь берётся прямо из git-тега, тело релиза генерируется из шаблона с автоматической подстановкой версии, а сами release notes сохраняют обязательную трёхъязычную структуру.
 
 **Что нового:**
 
-- **🌳 Восстановление polyglot-парсинга:** `web-tree-sitter` зафиксирован на линии 0.25 — совместимой с готовыми WASM-грамматиками `tree-sitter-wasms`. Добавлен тест загрузки грамматик, чтобы регрессия больше не прошла незамеченной.
-- **🔧 Починка запросов языков:** Исправлены tree-sitter queries для **C#, PHP, Kotlin, Swift и Zig**, которые были написаны под более новые грамматики и не компилировались.
-- **🔒 Безопасность:**
-  - PR Impact Analyzer больше не собирает `git`-команды через shell-строки из имён веток — только argv и валидация ревизий.
-  - MCP CORS ограничен loopback-оригинами; окно Electron работает в sandbox с блокировкой навигации, popups и `<webview>`.
-  - Валидация путей проекта и имён веток по IPC; пользовательские regex архитектурных правил проверяются через `safe-regex`; сканеры соблюдают лимит размера файла парсера.
-- **📊 Activity heatmap:** Исправлена двойная передача `git` в argv и чтение автора коммита из неверного поля.
-- **🌍 Локализация и a11y:** Дополнен китайский каталог (десятки недостающих ключей), строки `ErrorBoundary` вынесены во все языки; улучшена доступность элементов управления окном и MCP-диалога.
-- **🧪 CI и качество:** На каждый PR гоняются lint, Prettier, typecheck и тесты; Windows-сборки стабилизированы (LF line endings, вызов `tsc` без `npx`); удалён мёртвый код, лишние зависимости и дублирующий `package-lock.json`.
-- **📦 Сборка релиза:** Устранён OOM electron-builder из‑за self-dependency в `tree-sitter-wasms` (postinstall-патч).
+- **🏷 Релизы без version-хардкода:** workflow больше не содержит зашитого имени релиза от старой версии; имя релиза теперь берётся из `github.ref_name`.
+- **📝 Трёхъязычные release notes как шаблон:** `.github/release-body.md` теперь работает как шаблон с `{{VERSION}}`, а перед публикацией workflow генерирует итоговое тело релиза автоматически.
+- **🔒 Чистый dependency graph:** локальный `yarn audit` доведён до `0 high / 0 moderate / 0 low`.
+- **🧩 MCP-контракты стабилизированы:** composite tools отдают ожидаемые поля (`changeContext`, `reviewContext`), а resources возвращают чистый JSON вместо fenced markdown.
+- **🧪 Полная проверка контура:** локально подтверждены `format:check`, `lint`, `typecheck`, `test`, сборки `renderer/electron` и полный `mcp:smoke`.
 
 ---
 
 ## 🇺🇸 English Version
 
-### Parsing Restoration & Hardening
+### Release Pipeline, MCP, and Build Reliability
 
-This release fixes a critical multi-language analysis outage: after `web-tree-sitter` 0.26, every language outside the TypeScript path silently returned empty parse results. Grammars and queries are restored, Electron/MCP/IPC hardening is tightened, and CI plus localization are brought up to date.
+This release finishes the release pipeline cleanup and makes it deterministic: the GitHub Release name now comes directly from the pushed git tag, the release body is generated from a template with automatic version substitution, and the mandatory three-language release notes format is preserved.
 
 **Key Highlights:**
 
-- **🌳 Polyglot parsing restored:** `web-tree-sitter` is pinned to the 0.25 line, which loads the prebuilt `tree-sitter-wasms` grammars correctly. A grammar-loading test guards against regressions.
-- **🔧 Language query repairs:** Tree-sitter queries for **C#, PHP, Kotlin, Swift, and Zig** — written against newer grammars — now compile and extract symbols again.
-- **🔒 Security hardening:**
-  - PR Impact Analyzer no longer builds `git` commands as shell strings from caller-supplied branch names; it uses argv plus revision validation.
-  - MCP CORS is restricted to loopback origins; the Electron renderer runs sandboxed with navigation, popups, and `<webview>` blocked.
-  - Project paths and branch names over IPC are validated; custom architecture-rule regexes are checked with `safe-regex`; content scanners honour the parser file-size cap.
-- **📊 Activity heatmap:** Fixed duplicate `git` on the command line and reading the commit author from the wrong field.
-- **🌍 Localization & a11y:** Completed the Chinese catalogue (dozens of missing keys), moved `ErrorBoundary` strings into all locales, and improved accessibility for window controls and the MCP dialog.
-- **🧪 CI & hygiene:** Every PR runs lint, Prettier, typecheck, and tests; Windows CI is stabilized (LF endings, `tsc` without `npx`); dead services, unused dependencies, and the duplicate `package-lock.json` are gone.
-- **📦 Release packaging:** Fixed electron-builder OOM caused by a self-dependency in `tree-sitter-wasms` (postinstall patch).
+- **🏷 No version hardcode in release names:** the workflow no longer bakes an old release version into the GitHub Release title; it uses `github.ref_name`.
+- **📝 Three-language release notes as a template:** `.github/release-body.md` is now treated as a template with `{{VERSION}}`, and the workflow generates the final release body before publishing.
+- **🔒 Clean dependency graph:** local `yarn audit` is down to `0 high / 0 moderate / 0 low`.
+- **🧩 MCP contracts stabilized:** composite tools now return the expected keys (`changeContext`, `reviewContext`), and resources return raw JSON instead of fenced markdown.
+- **🧪 End-to-end verification:** `format:check`, `lint`, `typecheck`, `test`, renderer/electron builds, and the full `mcp:smoke` flow were validated locally.
 
 ---
 
 ## 🇨🇳 中文版本
 
-### “解析恢复与加固” 更新
+### 发布流程、MCP 与构建稳定性
 
-本版本修复了关键的多语言分析故障：升级到 `web-tree-sitter` 0.26 后，除 TypeScript 外的所有语言都会静默返回空解析结果。现已恢复语法与查询，强化 Electron/MCP/IPC 安全性，并完善 CI 与本地化。
+本版本将发布流程整理为可预测、可复用的状态：GitHub Release 名称直接取自推送的 git tag，发布说明正文由模板自动注入版本号生成，并继续保持必须的三语言结构。
 
 **主要更新：**
 
-- **🌳 多语言解析恢复：** 将 `web-tree-sitter` 固定在 0.25 系列，以正确加载预构建的 `tree-sitter-wasms` 语法，并新增语法加载测试防止回归。
-- **🔧 语言查询修复：** 修复了面向较新语法编写、无法编译的 **C#、PHP、Kotlin、Swift、Zig** tree-sitter 查询。
-- **🔒 安全加固：**
-  - PR 影响分析不再用调用方提供的分支名拼接 shell 字符串执行 `git`，改为 argv + 修订校验。
-  - MCP CORS 仅允许 loopback 来源；Electron 渲染进程启用 sandbox，并阻止导航、弹窗与 `<webview>`。
-  - 校验 IPC 传入的项目路径与分支名；架构规则自定义正则经 `safe-regex` 检查；扫描器遵守解析器文件大小上限。
-- **📊 活动热力图：** 修复命令行重复传入 `git`，以及从错误字段读取提交作者的问题。
-- **🌍 本地化与无障碍：** 补全中文词条（数十个缺失键），将 `ErrorBoundary` 文案纳入全部语言目录，并改进窗口控件与 MCP 对话框的可访问性。
-- **🧪 CI 与工程卫生：** 每个 PR 运行 lint、Prettier、typecheck 与测试；稳定 Windows CI（LF 换行、不经 `npx` 调用 `tsc`）；移除死代码、无用依赖及重复的 `package-lock.json`。
-- **📦 发布打包：** 修复 `tree-sitter-wasms` 自依赖导致的 electron-builder OOM（postinstall 补丁）。
+- **🏷 发布名称不再硬编码旧版本：** workflow 不再把旧版本号写死在 GitHub Release 标题中，而是直接使用 `github.ref_name`。
+- **📝 三语言发布说明模板化：** `.github/release-body.md` 现在作为带有 `{{VERSION}}` 占位符的模板使用，workflow 会在发布前生成最终正文。
+- **🔒 依赖图已清理干净：** 本地 `yarn audit` 已降为 `0 high / 0 moderate / 0 low`。
+- **🧩 MCP 契约已稳定：** composite tools 返回预期字段（`changeContext`、`reviewContext`），resources 返回纯 JSON，而不是 fenced markdown。
+- **🧪 端到端验证完成：** 已本地验证 `format:check`、`lint`、`typecheck`、`test`、renderer/electron 构建以及完整 `mcp:smoke`。
