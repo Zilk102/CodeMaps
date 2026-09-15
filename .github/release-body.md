@@ -2,21 +2,18 @@
 
 ### 🇷🇺 Изменения (RU)
 
-- **Идеальная отладка UI**: Проведена комплексная визуальная отладка интерфейса с использованием скриншотов.
-- **Улучшение отступов**: Оптимизированы паддинги, марджины и выравнивание элементов на стартовом экране и в TitleBar.
-- **Enterprise SaaS UX**: Внедрены аккуратные `surface-card`, стильные эффекты наведения и полупрозрачные фоны (backdrop-blur) для переключателя языков.
-- **Исправление цветов**: Всплывающие уведомления об обновлении полностью переведены на оригинальный зеленый цвет (`#00ff9d`).
+- **Глобальный фикс отступов**: Удален конфликтный CSS-сброс `* { padding: 0 }`, который ломал все Tailwind-классы отступов (`px-`, `py-`). Теперь все кнопки, бейджи и панели выглядят идеально и не прилипают к краям.
+- **Интерактивность**: Добавлены и улучшены hover/active состояния (`transition-all`, `hover:-translate-y-0.5`, `shadow-md`) для карточек недавних проектов.
+- **Z-index и перекрытия**: Добавлен отступ `pb-24` для скролл-контейнера `RecentProjects`, чтобы проекты больше не перекрывались фиксированным переключателем языков.
 
 ### 🇬🇧 Changes (EN)
 
-- **Perfect UI Debugging**: Comprehensive visual debugging of the interface using screenshots.
-- **Padding Improvements**: Optimized paddings, margins, and alignment of elements on the start screen and in the TitleBar.
-- **Enterprise SaaS UX**: Introduced neat `surface-card`, stylish hover effects, and translucent backgrounds (backdrop-blur) for the language switcher.
-- **Color Fixes**: Update notifications are now fully using the original green accent color (`#00ff9d`).
+- **Global Padding Fix**: Removed conflicting CSS reset `* { padding: 0 }` that was breaking all Tailwind padding classes (`px-`, `py-`). All buttons, badges, and panels now look perfect and are not stuck to edges.
+- **Interactivity**: Added and improved hover/active states (`transition-all`, `hover:-translate-y-0.5`, `shadow-md`) for recent project cards.
+- **Z-index & Overlaps**: Added `pb-24` padding to the `RecentProjects` scroll container so projects no longer overlap with the fixed language switcher.
 
 ### 🇨🇳 变更 (ZH)
 
-- **完美的 UI 调试**：使用屏幕截图对界面进行了全面的视觉调试。
-- **内边距改进**：优化了起始屏幕和标题栏中元素的内边距、外边距和对齐方式。
-- **企业级 SaaS UX**：引入了整洁的 `surface-card`、时尚的悬停效果以及用于语言切换器的半透明背景 (backdrop-blur)。
-- **颜色修复**：更新通知现在完全使用原始的绿色强调色 (`#00ff9d`)。
+- **全局内边距修复**：删除了破坏所有 Tailwind 内边距类（`px-`、`py-`）的冲突 CSS 重置 `* { padding: 0 }`。现在所有的按钮、徽章和面板看起来都很完美，不再紧贴边缘。
+- **交互性**：为最近的项目卡片添加并改进了悬停/活动状态（`transition-all`、`hover:-translate-y-0.5`、`shadow-md`）。
+- **Z-index & 重叠**：为 `RecentProjects` 滚动容器添加了 `pb-24` 内边距，因此项目不再与固定的语言切换器重叠。

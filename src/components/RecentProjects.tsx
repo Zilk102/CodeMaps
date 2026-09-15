@@ -132,8 +132,8 @@ export const RecentProjects: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 pt-24 pb-12 text-(--t1)">
-      <div className="flex w-full max-w-[800px] flex-col gap-8">
+    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 pt-24 pb-24 text-(--t1)">
+      <div className="flex w-full max-w-[800px] flex-col gap-8 relative z-10">
         {/* Welcome Section */}
         <div className="flex items-end justify-between border-b border-(--border2) pb-5">
           <div>
@@ -186,11 +186,13 @@ export const RecentProjects: React.FC = () => {
                     key={project.path}
                     onClick={() => handleOpenProject(project.path)}
                     disabled={isLoading}
-                    className="group flex w-full flex-col gap-2 rounded-md border border-(--border) bg-(--bg1) p-3 text-left transition-colors hover:border-(--border2) hover:bg-(--hover)"
+                    className="group flex w-full flex-col gap-2 rounded-lg border border-(--border) bg-(--bg1) p-4 text-left transition-all duration-200 hover:border-(--acc) hover:bg-(--hover) hover:shadow-md hover:-translate-y-0.5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="text-[14px] font-medium text-(--t0)">{project.name}</div>
+                        <div className="text-[15px] font-semibold text-(--t0) group-hover:text-(--acc) transition-colors">
+                          {project.name}
+                        </div>
                         {telemetryBadge && (
                           <div
                             className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
