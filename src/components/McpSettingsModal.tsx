@@ -683,12 +683,11 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
   <button
     type="button"
     onClick={onClick}
-    className="btn-glass"
-    style={{
-      borderColor: active ? 'rgba(0,255,157,0.45)' : 'var(--border)',
-      color: active ? 'var(--acc)' : 'var(--t1)',
-      background: active ? 'rgba(0,255,157,0.12)' : 'var(--bg3)',
-    }}
+    className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
+      active
+        ? 'bg-(--bg3) text-(--t0) shadow-sm'
+        : 'text-(--t2) hover:text-(--t0) hover:bg-(--hover)'
+    }`}
   >
     {children}
   </button>

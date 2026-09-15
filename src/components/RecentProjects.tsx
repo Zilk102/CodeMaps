@@ -101,7 +101,7 @@ function getTelemetryBadge(
       ? t('recentProjects.telemetry.statusDegraded')
       : t('recentProjects.telemetry.statusStable'),
     color: project.telemetry.degraded ? 'var(--red)' : 'var(--acc)',
-    background: project.telemetry.degraded ? 'rgba(255, 92, 92, 0.12)' : 'rgba(68, 170, 255, 0.12)',
+    background: project.telemetry.degraded ? 'rgba(238, 0, 0, 0.1)' : 'rgba(0, 112, 243, 0.1)',
   };
 }
 
@@ -148,57 +148,54 @@ export const RecentProjects: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 py-8 text-(--t1)">
-      <div className="grid w-full max-w-[1040px] gap-5 xl:grid-cols-[0.88fr_1.12fr]">
-        <div className="surface-card flex flex-col justify-between gap-5 p-7">
-          <div>
-            <div className="section-label">{t('recentProjects.title')}</div>
-            <h1 className="mt-2 text-[42px] font-semibold tracking-[-0.05em] text-(--t0)">
-              CodeMaps
-            </h1>
-            <p className="mt-3 max-w-[420px] text-[16px] leading-7 text-(--t2)">
-              {t('recentProjects.tagline')}
-            </p>
+    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 py-12 text-(--t1)">
+      <div className="grid w-full max-w-[960px] gap-6 xl:grid-cols-[1fr_1.5fr]">
+        {/* Left Column: Welcome & Stats */}
+        <div className="flex flex-col gap-6">
+          <div className="surface-card p-6 flex flex-col gap-4">
+            <div>
+              <div className="section-label mb-2">{t('recentProjects.title')}</div>
+              <h1 className="text-[32px] font-bold tracking-tight text-(--t0) leading-tight">
+                CodeMaps
+              </h1>
+              <p className="mt-2 text-[14px] leading-relaxed text-(--t2)">
+                {t('recentProjects.tagline')}
+              </p>
+            </div>
+            <button
+              onClick={openProject}
+              disabled={isLoading}
+              className="btn-primary w-full justify-center py-2.5 text-[14px] rounded-md font-medium"
+            >
+              {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
+            </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="section-label">{t('recentProjects.statRecent')}</div>
-              <div className="mt-2 text-[26px] font-semibold text-(--t0)">
-                {recentProjects.length}
+          <div className="surface-card p-6">
+            <div className="grid gap-4">
+              <div className="flex justify-between items-center border-b border-(--border) pb-3">
+                <div className="text-[13px] text-(--t2)">{t('recentProjects.statRecent')}</div>
+                <div className="text-[14px] font-semibold text-(--t0)">{recentProjects.length}</div>
               </div>
-            </div>
-            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="section-label">{t('recentProjects.statStatus')}</div>
-              <div className="mt-2 text-[15px] font-semibold text-(--t0)">
-                {isLoading ? t('recentProjects.opening') : t('recentProjects.ready')}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="section-label">{t('recentProjects.statEntry')}</div>
-              <div className="mt-2 text-[15px] font-semibold text-(--t0)">
-                {t('recentProjects.openFolder')}
+              <div className="flex justify-between items-center border-b border-(--border) pb-3">
+                <div className="text-[13px] text-(--t2)">{t('recentProjects.statStatus')}</div>
+                <div className="text-[14px] font-semibold text-(--t0)">
+                  {isLoading ? t('recentProjects.opening') : t('recentProjects.ready')}
+                </div>
               </div>
             </div>
           </div>
-
-          <button
-            onClick={openProject}
-            disabled={isLoading}
-            className="btn-glass btn-primary w-full justify-center text-[14px]"
-          >
-            {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
-          </button>
         </div>
 
-        <div className="surface-card overflow-hidden">
-          <div className="flex items-center justify-between gap-3 border-b border-(--border) px-5 py-4">
-            <div className="flex items-center gap-2 text-[14px] font-semibold text-(--t0)">
+        {/* Right Column: Project List */}
+        <div className="surface-card flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-(--border) px-6 py-4 bg-(--bg2)">
+            <div className="flex items-center gap-2 text-[14px] font-medium text-(--t0)">
               <ClockIcon />
               {t('recentProjects.title')}
             </div>
             {recentProjects.length > 0 && (
-              <button onClick={handleClearHistory} className="btn-glass btn-danger">
+              <button onClick={handleClearHistory} className="btn-glass btn-danger text-[12px]">
                 <TrashIcon />
                 {t('recentProjects.clearHistory')}
               </button>
@@ -206,41 +203,37 @@ export const RecentProjects: React.FC = () => {
           </div>
 
           {recentProjects.length === 0 ? (
-            <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 px-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-(--border) bg-(--bg2) text-(--acc)">
+            <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 px-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-(--bg2) text-(--t3)">
                 <FolderIcon />
               </div>
-              <div className="text-[14px] text-(--t2)">{t('recentProjects.noProjects')}</div>
-              <button onClick={openProject} disabled={isLoading} className="btn-glass btn-primary">
-                {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
-              </button>
+              <div className="text-[13px] text-(--t2)">{t('recentProjects.noProjects')}</div>
             </div>
           ) : (
-            <div className="max-h-[560px] overflow-y-auto p-4">
-              <div className="grid gap-3">
-                {recentProjects.map((project: RecentProject) => {
-                  const telemetryBadge = getTelemetryBadge(project, t);
+            <div className="max-h-[600px] overflow-y-auto p-4 flex flex-col gap-2">
+              {recentProjects.map((project: RecentProject) => {
+                const telemetryBadge = getTelemetryBadge(project, t);
 
-                  return (
-                    <button
-                      key={project.path}
-                      onClick={() => handleOpenProject(project.path)}
-                      disabled={isLoading}
-                      className="group rounded-2xl border border-(--border) bg-(--bg2) p-4 text-left transition-colors hover:border-(--acc) hover:bg-[rgba(255,255,255,0.03)]"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--border) bg-(--bg1) text-(--acc)">
+                return (
+                  <button
+                    key={project.path}
+                    onClick={() => handleOpenProject(project.path)}
+                    disabled={isLoading}
+                    className="group flex flex-col gap-3 rounded-lg border border-transparent bg-(--bg0) p-4 text-left transition-colors hover:border-(--border) hover:bg-(--bg2)"
+                  >
+                    <div className="flex items-start justify-between w-full">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--bg2) text-(--acc) group-hover:bg-(--accbg)">
                           <FolderIcon />
                         </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="truncate text-[15px] font-semibold text-(--t0)">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[14px] font-semibold text-(--t0)">
                               {project.name}
                             </div>
                             {telemetryBadge && (
                               <span
-                                className="rounded-full px-2.5 py-1 text-[10px] font-bold tracking-[0.04em]"
+                                className="rounded px-2 py-0.5 text-[10px] font-bold"
                                 style={{
                                   color: telemetryBadge.color,
                                   background: telemetryBadge.background,
@@ -250,64 +243,47 @@ export const RecentProjects: React.FC = () => {
                               </span>
                             )}
                           </div>
-
-                          <div
-                            className="mt-2 break-all text-[12px] leading-5 text-(--t3)"
-                            style={{ fontFamily: 'var(--font-mono)' }}
-                          >
+                          <div className="mt-0.5 text-[12px] text-(--t3) truncate max-w-[300px]">
                             {project.path}
                           </div>
-
-                          {project.telemetry && (
-                            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                              <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
-                                <div className="section-label">
-                                  {t('recentProjects.telemetry.latency')}
-                                </div>
-                                <div className="mt-1 text-[13px] text-(--t1)">
-                                  {formatLatency(project.telemetry.avgRefreshLatencyMs)}
-                                </div>
-                              </div>
-                              <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
-                                <div className="section-label">
-                                  {t('recentProjects.telemetry.skipRate')}
-                                </div>
-                                <div className="mt-1 text-[13px] text-(--t1)">
-                                  {formatRate(project.telemetry.skipRate)}
-                                </div>
-                              </div>
-                              <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
-                                <div className="section-label">
-                                  {t('recentProjects.telemetry.coalescing')}
-                                </div>
-                                <div className="mt-1 text-[13px] text-(--t1)">
-                                  {formatRate(project.telemetry.coalescingRatio)}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="shrink-0 text-right text-[11px] leading-5 text-(--t3)">
-                          <div>{formatDate(project.lastOpened, t)}</div>
-                          {project.telemetry && (
-                            <div className="mt-2">
-                              {t('recentProjects.telemetry.updated')}:{' '}
-                              {formatDate(project.telemetry.updatedAt, t)}
-                            </div>
-                          )}
-                          {project.telemetry && (
-                            <div className="mt-2 text-(--t2)">
-                              {t('recentProjects.telemetry.trend')}:{' '}
-                              {translateTelemetryTrend(project.telemetry.latencyTrend, t)}
-                            </div>
-                          )}
                         </div>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      <div className="text-[12px] text-(--t3)">
+                        {formatDate(project.lastOpened, t)}
+                      </div>
+                    </div>
+
+                    {project.telemetry && (
+                      <div className="flex items-center gap-6 mt-1 text-[12px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-(--t3)">
+                            {t('recentProjects.telemetry.latency')}:
+                          </span>
+                          <span className="text-(--t1) font-medium">
+                            {formatLatency(project.telemetry.avgRefreshLatencyMs)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-(--t3)">
+                            {t('recentProjects.telemetry.skipRate')}:
+                          </span>
+                          <span className="text-(--t1) font-medium">
+                            {formatRate(project.telemetry.skipRate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-(--t3)">
+                            {t('recentProjects.telemetry.trend')}:
+                          </span>
+                          <span className="text-(--t1) font-medium">
+                            {translateTelemetryTrend(project.telemetry.latencyTrend, t)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

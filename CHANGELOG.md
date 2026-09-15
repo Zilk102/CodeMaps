@@ -1,5 +1,18 @@
 # CodeMaps Changelog
 
+## v1.1.18 (2026-09-15)
+
+### Changed
+
+- **UI/UX Enterprise Polish**: Completely redesigned the user interface to match modern Enterprise SaaS standards (Linear/Vercel style).
+- **Global Styles**: Removed harsh pill-shaped borders, replaced extreme green accents with subtle Vercel Blue (`#0070f3`), and unified text typography to standard system/Inter fonts.
+- **TitleBar**: Cleaned up toolbar actions, removed excessive margins and pill borders. Added a sleek project status indicator.
+- **FileTree**: Increased data density, improved indentation, replaced custom noisy SVG icons with standard ones, and added clean row hover states.
+- **Recent Projects**: Simplified layout, removed excessive nested borders from telemetry cards, and improved readability of project metadata.
+- **FilterPanel & HUDs**: Converted to clean `surface-card` design with subtle backdrop blurs and standard checkboxes instead of massive toggles.
+- **Language Switcher**: Moved to a discreet, compact segmented control at the bottom left of the sidebar.
+- **Update Notification**: Redesigned to use a clean floating toast with proper typography and unified action buttons.
+
 ## v1.1.17 (2026-09-15)
 
 ### UI Hotfix: Typography, Layout, and Startup Responsiveness

@@ -24,18 +24,18 @@ const TitleBar: React.FC = () => {
 
   return (
     <div
-      className="flex h-[56px] shrink-0 items-center justify-between border-b border-(--border) bg-(--bg1)/98 px-3 text-(--t1)"
+      className="flex h-[48px] shrink-0 items-center justify-between border-b border-(--border) bg-(--bg0) px-4 text-(--t1)"
       style={{ WebkitAppRegion: 'drag', userSelect: 'none' } as React.CSSProperties}
     >
       <div
-        className="flex min-w-0 items-center gap-3"
+        className="flex min-w-0 items-center gap-4"
         style={{ WebkitAppRegion: 'no-drag', height: '100%' } as React.CSSProperties}
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(135deg,var(--acc),var(--cyan))] text-(--bg0)">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-(--acc) text-(--bg0)">
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -46,35 +46,29 @@ const TitleBar: React.FC = () => {
               <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
             </svg>
           </div>
-          <div className="min-w-0">
-            <div className="text-[16px] font-semibold tracking-[-0.02em] text-(--t0)">CodeMaps</div>
-            <div className="text-[11px] text-(--t3)">
-              {graphData ? t('titleBar.projectLoaded') : t('titleBar.noProject')}
-            </div>
-          </div>
+          <div className="font-semibold text-(--t0) tracking-tight">CodeMaps</div>
         </div>
 
-        {graphData && <div className="hidden h-8 w-px bg-(--border) lg:block" />}
+        {graphData && <div className="h-4 w-px bg-(--border)" />}
 
         {graphData && (
-          <div className="hidden min-w-0 items-center gap-2 xl:flex">
-            <div className="status-chip min-w-0">
-              <span className="status-dot" style={{ background: 'var(--acc)' }} />
-              <span className="truncate">{projectName}</span>
+          <div className="hidden min-w-0 items-center gap-3 xl:flex text-xs">
+            <div className="flex items-center gap-2 text-(--t1)">
+              <span className="w-2 h-2 rounded-full bg-(--acc)" />
+              <span className="truncate font-medium">{projectName}</span>
             </div>
-            <div className="status-chip">
-              <span className="text-(--acc)">{t('titleBar.analysisReady')}</span>
-            </div>
+            <span className="text-(--t3)">/</span>
+            <div className="text-(--t2)">{t('titleBar.analysisReady')}</div>
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <button className="btn-glass btn-primary" onClick={openProject}>
+        <div className="flex items-center gap-1 ml-2">
+          <button className="btn-glass" onClick={openProject}>
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -84,12 +78,12 @@ const TitleBar: React.FC = () => {
           </button>
 
           {graphData && (
-            <button className="btn-glass btn-danger" onClick={closeProject}>
+            <button className="btn-glass" onClick={closeProject}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
@@ -105,7 +99,7 @@ const TitleBar: React.FC = () => {
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -124,7 +118,7 @@ const TitleBar: React.FC = () => {
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
@@ -140,15 +134,6 @@ const TitleBar: React.FC = () => {
         className="flex items-center gap-2"
         style={{ height: '100%', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        {graphData && (
-          <div className="hidden max-w-[320px] items-center gap-2 rounded-full border border-(--border) bg-(--bg2)/90 px-3 py-1.5 md:flex">
-            <div className="section-label">{t('titleBar.project')}</div>
-            <div className="truncate text-[11px] text-(--t2)" title={graphData.projectRoot}>
-              {graphData.projectRoot}
-            </div>
-          </div>
-        )}
-
         <div
           className="flex h-full items-center"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}

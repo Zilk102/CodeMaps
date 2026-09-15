@@ -6,11 +6,6 @@ export const FilterPanel: React.FC = () => {
   const { filters, layoutMode, setFilter, setLayoutMode } = useGraphStore();
   const { t } = useTranslation();
 
-  const modeDescription =
-    layoutMode === 'hierarchy'
-      ? t('filterPanel.hierarchyDescription')
-      : t('filterPanel.dependenciesDescription');
-
   const filterItems = [
     { key: 'showDirectories', label: t('filterPanel.directories') },
     { key: 'showFiles', label: t('filterPanel.files') },
@@ -57,104 +52,112 @@ export const FilterPanel: React.FC = () => {
   };
 
   return (
-    <div className="surface-card rounded-[20px] border border-(--border) bg-(--bg1)/96 p-3.5 text-(--t1) backdrop-blur-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="section-label">{t('filterPanel.layoutMode')}</div>
-          <h4 className="mt-1 text-[15px] font-semibold text-(--t0)">{t('filterPanel.filters')}</h4>
-          <div className="mt-1 text-[11px] text-(--t3)">
+    <div className="surface-card p-4 text-(--t1) w-[320px]">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="section-label mb-1">{t('filterPanel.layoutMode')}</div>
+          <h4 className="text-[14px] font-semibold text-(--t0) leading-tight">
+            {t('filterPanel.filters')}
+          </h4>
+          <div className="text-[12px] text-(--t3) mt-0.5">
             {t('filterPanel.enabledSummary', { count: enabledCount, total: filterItems.length })}
           </div>
         </div>
-        <div className="rounded-full border border-(--border) bg-(--bg2) px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-(--t2)">
+        <div className="status-chip text-[10px] font-bold uppercase tracking-wide">
           {layoutMode === 'hierarchy' ? t('filterPanel.hierarchy') : t('filterPanel.dependencies')}
         </div>
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setLayoutMode('hierarchy')}
-            className={`rounded-2xl border px-3 py-2.5 text-left transition-colors ${
+            className={`rounded-lg border px-3 py-2 text-left transition-colors ${
               layoutMode === 'hierarchy'
-                ? 'border-(--acc) bg-[rgba(0,255,157,0.12)] text-(--t0)'
-                : 'border-(--border) bg-(--bg2) text-(--t2) hover:border-(--acc) hover:text-(--t0)'
+                ? 'border-(--acc) bg-(--accbg) text-(--t0)'
+                : 'border-(--border) bg-(--bg2) text-(--t2) hover:border-(--border2) hover:text-(--t1)'
             }`}
           >
-            <div className="text-[11px] font-semibold">{t('filterPanel.hierarchy')}</div>
-            <div className="mt-1 text-[10px] leading-4 text-(--t3)">
+            <div className="text-[12px] font-medium mb-1">{t('filterPanel.hierarchy')}</div>
+            <div className="text-[11px] leading-snug text-(--t3)">
               {t('filterPanel.hierarchyDescription')}
             </div>
           </button>
           <button
             type="button"
             onClick={() => setLayoutMode('dependencies')}
-            className={`rounded-2xl border px-3 py-2.5 text-left transition-colors ${
+            className={`rounded-lg border px-3 py-2 text-left transition-colors ${
               layoutMode === 'dependencies'
-                ? 'border-(--acc) bg-[rgba(0,255,157,0.12)] text-(--t0)'
-                : 'border-(--border) bg-(--bg2) text-(--t2) hover:border-(--acc) hover:text-(--t0)'
+                ? 'border-(--acc) bg-(--accbg) text-(--t0)'
+                : 'border-(--border) bg-(--bg2) text-(--t2) hover:border-(--border2) hover:text-(--t1)'
             }`}
           >
-            <div className="text-[11px] font-semibold">{t('filterPanel.dependencies')}</div>
-            <div className="mt-1 text-[10px] leading-4 text-(--t3)">
+            <div className="text-[12px] font-medium mb-1">{t('filterPanel.dependencies')}</div>
+            <div className="text-[11px] leading-snug text-(--t3)">
               {t('filterPanel.dependenciesDescription')}
             </div>
           </button>
         </div>
 
-        <div className="rounded-2xl border border-(--border) bg-(--bg2)/80 p-2.5">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-(--t3)">
+        <div className="rounded-lg border border-(--border) bg-(--bg2) p-3">
+          <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-(--t3)">
             {t('filterPanel.presets')}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={() => applyPreset('all')}
-              className="rounded-full border border-(--border) bg-(--bg1) px-3 py-1.5 text-[10px] font-semibold text-(--t2) transition-colors hover:border-(--acc) hover:text-(--t0)"
+              className="flex-1 rounded-md border border-(--border) bg-(--bg1) py-1.5 text-[11px] font-medium text-(--t2) transition-colors hover:border-(--t3) hover:text-(--t0)"
             >
               {t('filterPanel.showAll')}
             </button>
             <button
               type="button"
               onClick={() => applyPreset('focus')}
-              className="rounded-full border border-(--border) bg-(--bg1) px-3 py-1.5 text-[10px] font-semibold text-(--t2) transition-colors hover:border-(--acc) hover:text-(--t0)"
+              className="flex-1 rounded-md border border-(--border) bg-(--bg1) py-1.5 text-[11px] font-medium text-(--t2) transition-colors hover:border-(--t3) hover:text-(--t0)"
             >
               {t('filterPanel.focusCode')}
             </button>
             <button
               type="button"
               onClick={() => applyPreset('reset')}
-              className="rounded-full border border-(--border) bg-(--bg1) px-3 py-1.5 text-[10px] font-semibold text-(--t2) transition-colors hover:border-(--acc) hover:text-(--t0)"
+              className="flex-1 rounded-md border border-(--border) bg-(--bg1) py-1.5 text-[11px] font-medium text-(--t2) transition-colors hover:border-(--t3) hover:text-(--t0)"
             >
               {t('filterPanel.reset')}
             </button>
           </div>
         </div>
-
-        <div className="rounded-xl border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] px-3 py-2 text-[11px] leading-5 text-(--t3)">
-          {modeDescription}
-        </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         {filterItems.map((item) => (
           <label
             key={item.key}
-            className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-2.5 py-2.5 text-[11px] transition-colors ${
+            className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-colors ${
               filters[item.key]
-                ? 'border-[rgba(0,255,157,0.4)] bg-[rgba(0,255,157,0.08)] text-(--t0)'
-                : 'border-(--border) bg-(--bg2) text-(--t1) hover:border-(--acc)'
+                ? 'border-(--acc) bg-(--accbg) text-(--t0)'
+                : 'border-(--border) bg-(--bg2) text-(--t1) hover:border-(--border2)'
             }`}
           >
-            <input
-              type="checkbox"
-              checked={filters[item.key]}
-              onChange={(e) => setFilter(item.key, e.target.checked)}
-              className="h-3.5 w-3.5 shrink-0"
-              style={{ accentColor: 'var(--acc)' }}
-            />
-            <span className="leading-4">{item.label}</span>
+            <div
+              className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${
+                filters[item.key] ? 'bg-(--acc) border-(--acc)' : 'border-(--t3) bg-transparent'
+              }`}
+            >
+              {filters[item.key] && (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path
+                    d="M2 5L4 7L8 3"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </div>
+            <span className="leading-none">{item.label}</span>
           </label>
         ))}
       </div>

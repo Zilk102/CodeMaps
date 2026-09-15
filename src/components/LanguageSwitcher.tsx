@@ -2,31 +2,30 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 const LanguageSwitcher: React.FC = () => {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
 
   const languages = [
-    { code: 'en', label: 'EN', flag: '🇬🇧' },
-    { code: 'ru', label: 'RU', flag: '🇷🇺' },
-    { code: 'zh', label: 'ZH', flag: '🇨🇳' },
+    { code: 'en', label: 'EN' },
+    { code: 'ru', label: 'RU' },
+    { code: 'zh', label: 'ZH' },
   ];
 
   const currentLang = i18n.language?.split('-')[0] || 'en';
 
   return (
-    <div className="floating-toast fixed bottom-5 left-5 z-[1000] flex items-center gap-2 rounded-full border px-3 py-2">
-      <span className="text-[11px] text-(--t3)">{t('languageSwitcher.language')}:</span>
+    <div className="fixed bottom-4 left-4 z-[1000] flex items-center gap-1 rounded-md border border-(--border) bg-(--bg1) p-1 shadow-sm">
       {languages.map((lang) => (
         <button
           key={lang.code}
           onClick={() => i18n.changeLanguage(lang.code)}
-          className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+          className={`rounded-[4px] px-2 py-1 text-[11px] font-medium transition-colors ${
             currentLang === lang.code
-              ? 'border-(--acc) bg-[rgba(0,255,157,0.12)] font-bold text-(--acc)'
-              : 'border-transparent text-(--t1) hover:border-(--border) hover:text-(--t0)'
+              ? 'bg-(--bg3) text-(--t0) shadow-sm'
+              : 'text-(--t2) hover:text-(--t0)'
           }`}
           title={lang.code}
         >
-          {lang.flag} {lang.label}
+          {lang.label}
         </button>
       ))}
     </div>

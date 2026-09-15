@@ -1,39 +1,44 @@
 @import 'tailwindcss';
 
+/* Enterprise SaaS UI Variables */
 :root {
-  --bg0: #0a0a0c;
-  --bg1: #0f0f12;
-  --bg2: #161619;
-  --bg3: #1c1c21;
-  --bg4: #252529;
-  --hover: #2a2a30;
-  --border: #2d2d35;
-  --border2: #222228;
-  --t0: #f0f0f2;
-  --t1: #c8c8cd;
-  --t2: #8b8b95;
-  --t3: #5c5c66;
-  --acc: #00ff9d;
-  --acc2: #00cc7d;
-  --accbg: rgba(0, 255, 157, 0.08);
-  --blue: #4d9fff;
-  --purple: #a78bfa;
-  --orange: #ff9f43;
-  --red: #ff5f5f;
-  --cyan: #22d3ee;
-  --pink: #ec4899;
-  --green: #22c55e;
+  --bg0: #0a0a0a;
+  --bg1: #111111;
+  --bg2: #1a1a1a;
+  --bg3: #222222;
+  --bg4: #2a2a2a;
+  --hover: #1f1f1f;
+  --border: #2e2e2e;
+  --border2: #3a3a3a;
+  --t0: #ffffff;
+  --t1: #ededed;
+  --t2: #a1a1a1;
+  --t3: #707070;
+
+  --acc: #0070f3; /* Vercel Blue instead of harsh green */
+  --acc2: #3291ff;
+  --accbg: rgba(0, 112, 243, 0.1);
+  --acc-hover: rgba(0, 112, 243, 0.15);
+
+  --blue: #0070f3;
+  --purple: #7928ca;
+  --orange: #f5a623;
+  --red: #e00;
+  --cyan: #50e3c2;
+  --pink: #ff0080;
+  --green: #10b981;
+
   --accent: var(--acc);
   --text-primary: var(--t0);
   --text-secondary: var(--t2);
-  --glass-bg: rgba(255, 255, 255, 0.04);
-  --glass-border: rgba(255, 255, 255, 0.08);
+
+  --glass-bg: rgba(17, 17, 17, 0.8);
+  --glass-border: var(--border);
+
   --font-ui:
-    'Segoe UI', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    'Helvetica Neue', Arial, sans-serif;
-  --font-mono:
-    'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
-    monospace;
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
   --font-family: var(--font-ui);
   color-scheme: dark;
 }
@@ -50,13 +55,15 @@ html {
   height: 100%;
   font-family: var(--font-family);
   background: var(--bg0);
-  color: var(--t0);
+  color: var(--t1);
   overflow: hidden;
+  font-size: 13px;
 }
 
 body {
   -webkit-font-smoothing: antialiased;
-  line-height: 1.4;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
 button,
@@ -70,86 +77,85 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(0, 255, 157, 0.9);
-  outline-offset: 2px;
+  outline: 2px solid var(--acc);
+  outline-offset: -1px;
 }
 
-/* Glassmorphism Buttons - adapted to CodeFlow style */
+/* Minimalist Buttons */
 .btn-glass {
-  padding: 8px 14px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
   color: var(--t1);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  min-height: 36px;
   transition:
-    all 0.2s ease,
-    transform 0.16s ease;
+    background 0.15s ease,
+    color 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
 .btn-glass:hover {
-  background: var(--bg4);
-  border-color: var(--acc);
-  color: var(--acc);
-  transform: translateY(-1px);
+  background: var(--hover);
+  color: var(--t0);
 }
 
 .btn-glass:active {
-  transform: translateY(0);
+  background: var(--bg3);
 }
 
 .btn-glass.active {
-  background: linear-gradient(180deg, rgba(0, 255, 157, 0.18), rgba(0, 255, 157, 0.1));
-  border-color: rgba(0, 255, 157, 0.5);
-  color: var(--acc);
+  background: var(--bg2);
+  color: var(--t0);
 }
 
 .btn-glass svg {
   width: 14px;
   height: 14px;
+  opacity: 0.8;
+}
+
+.btn-glass:hover svg {
+  opacity: 1;
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, rgba(0, 255, 157, 0.16), rgba(0, 255, 157, 0.1));
-  border-color: rgba(0, 255, 157, 0.45);
-  color: var(--acc);
+  background: var(--t0);
+  color: var(--bg0);
+  border: 1px solid var(--t0);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, rgba(0, 255, 157, 0.24), rgba(0, 255, 157, 0.14));
-  color: #d7ffef;
+  background: var(--t1);
+  color: var(--bg0);
 }
 
 .btn-danger {
-  color: #ff9a9a;
+  color: var(--red);
 }
 
 .btn-danger:hover {
-  color: #ffd3d3;
-  border-color: rgba(255, 95, 95, 0.45);
-  background: rgba(255, 95, 95, 0.08);
+  background: rgba(238, 0, 0, 0.1);
+  color: var(--red);
 }
 
 .surface-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.015));
+  background: var(--bg1);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--t3);
 }
@@ -158,58 +164,53 @@ select:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bg2);
   color: var(--t1);
   font-size: 12px;
-  line-height: 1;
+  border: 1px solid var(--border);
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.68), rgba(0, 0, 0, 0.78)),
-    radial-gradient(circle at top, rgba(0, 255, 157, 0.08), transparent 32%);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   z-index: 1000;
-  animation: fadeIn 0.18s ease;
-  backdrop-filter: blur(6px);
+  animation: fadeIn 0.15s ease;
 }
 
 .modal-content {
-  background: linear-gradient(180deg, rgba(15, 15, 18, 0.98), rgba(10, 10, 12, 0.98));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   width: 90%;
   max-width: 500px;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  box-shadow:
-    0 18px 54px rgba(0, 0, 0, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  animation: slideUp 0.22s ease;
+  padding: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.2s ease;
 }
 
 /* Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -217,8 +218,9 @@ select:focus-visible {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background: var(--bg3);
+  border: 3px solid var(--bg1);
+  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -246,7 +248,7 @@ select:focus-visible {
 
 @keyframes slideUp {
   from {
-    transform: translateY(20px);
+    transform: translateY(10px);
     opacity: 0;
   }
   to {
@@ -255,33 +257,22 @@ select:focus-visible {
   }
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Drag & Drop Zone */
 .drag-drop-zone {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 12, 0.85);
+  background: rgba(10, 10, 10, 0.8);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   animation: fadeIn 0.15s ease;
-  border: 2px dashed transparent;
   pointer-events: none;
 }
 
 .drag-drop-zone.drag-active {
-  border-color: var(--acc);
-  background: rgba(0, 255, 157, 0.05);
+  background: rgba(0, 112, 243, 0.1);
 }
 
 .drag-drop-content {
@@ -292,16 +283,19 @@ select:focus-visible {
   gap: 16px;
   color: var(--t1);
   pointer-events: none;
+  background: var(--bg1);
+  padding: 32px 48px;
+  border-radius: 12px;
+  border: 1px dashed var(--border2);
 }
 
 .drag-drop-content svg {
   color: var(--acc);
-  opacity: 0.8;
 }
 
 .drag-drop-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   color: var(--t0);
   text-align: center;
 }
@@ -313,8 +307,8 @@ select:focus-visible {
 }
 
 .floating-toast {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(15, 15, 18, 0.95), rgba(10, 10, 12, 0.95));
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  background: var(--bg1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
 }

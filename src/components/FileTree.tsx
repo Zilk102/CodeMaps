@@ -20,6 +20,7 @@ const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
       transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
       transition: 'transform 0.1s',
       minWidth: 16,
+      opacity: 0.6,
     }}
   >
     <path
@@ -42,7 +43,7 @@ const FileIcon = ({ name, isDir }: { name: string; isDir: boolean }) => {
         viewBox="0 0 16 16"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ minWidth: 16 }}
+        style={{ minWidth: 16, color: 'var(--t2)' }}
       >
         <path
           d="M1.5 4.5C1.5 3.39543 2.39543 2.5 3.5 2.5H6.58579C6.851 2.5 7.10536 2.60536 7.29289 2.79289L8.70711 4.20711C8.89464 4.39464 9.149 4.5 9.41421 4.5H12.5C13.6046 4.5 14.5 5.39543 14.5 6.5V11.5C14.5 12.6046 13.6046 13.5 12.5 13.5H3.5C2.39543 13.5 1.5 12.6046 1.5 11.5V4.5Z"
@@ -130,7 +131,21 @@ const FileIcon = ({ name, isDir }: { name: string; isDir: boolean }) => {
     return <span style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>⚡</span>;
   }
 
-  return <span style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>📄</span>;
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      style={{ minWidth: 16, color: 'var(--t2)' }}
+    >
+      <path
+        d="M4 2.5C4 1.67157 4.67157 1 5.5 1H9.5L13.5 5V13.5C13.5 14.3284 12.8284 15 12 15H5.5C4.67157 15 4 14.3284 4 13.5V2.5Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
 };
 
 const FileTreeNode: React.FC<{
@@ -142,12 +157,11 @@ const FileTreeNode: React.FC<{
   onSelect: (node: TreeNode) => void;
 }> = ({ node, level, expandedFolders, toggleFolder, selectedPath, onSelect }) => {
   const isSelected = selectedPath === node.path;
-  // Top-level folders start open; deeper ones stay closed until the user opens them.
   const isExpanded = expandedFolders[node.path] ?? level === 0;
 
   if (!node.name || node.name === 'root') {
     return (
-      <div style={{ padding: '0 10px' }}>
+      <div style={{ padding: '0 8px' }}>
         {Object.values(node.children || {})
           .sort((a, b) => {
             if (a.isDir && !b.isDir) return -1;
@@ -180,27 +194,26 @@ const FileTreeNode: React.FC<{
         style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '4px 0',
+          padding: '6px 0',
           paddingLeft: `${level * 16}px`,
           cursor: 'pointer',
           background: isSelected ? 'var(--accbg)' : 'transparent',
-          color: isSelected ? 'var(--acc)' : 'var(--t1)',
-          fontSize: '11px',
+          color: isSelected ? 'var(--t0)' : 'var(--t1)',
+          fontSize: '13px',
           fontFamily: 'var(--font-family)',
           userSelect: 'none',
-          borderRadius: '4px',
-          transition: 'background 0.15s, color 0.15s',
+          borderRadius: '6px',
+          transition: 'background 0.1s, color 0.1s',
+          fontWeight: isSelected ? 500 : 400,
         }}
         onMouseEnter={(e) => {
           if (!isSelected) {
             e.currentTarget.style.background = 'var(--hover)';
-            e.currentTarget.style.color = 'var(--t0)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isSelected) {
             e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'var(--t1)';
           }
         }}
       >
@@ -216,7 +229,7 @@ const FileTreeNode: React.FC<{
           {node.isDir ? <ChevronIcon expanded={isExpanded} /> : <div style={{ width: 16 }} />}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', marginRight: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
           <FileIcon name={node.name} isDir={node.isDir} />
         </div>
 
@@ -229,7 +242,6 @@ const FileTreeNode: React.FC<{
 
       {node.isDir && isExpanded && node.children && (
         <div style={{ position: 'relative' }}>
-          {/* Indentation Guide */}
           <div
             style={{
               position: 'absolute',
@@ -330,32 +342,21 @@ export const FileTree: React.FC = () => {
         fontFamily: 'var(--font-family)',
       }}
     >
-      <div style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: '9px',
-            fontWeight: 600,
-            color: 'var(--t3)',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-          }}
-        >
-          {t('fileTree.explorer')}
-        </h2>
+      <div style={{ padding: '16px', borderBottom: '1px solid var(--border)' }}>
+        <h2 className="section-label">{t('fileTree.explorer')}</h2>
       </div>
 
       <div
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px' }}
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 4px' }}
         className="sidebar-scroll"
       >
         {error ? (
           <div
             style={{
               color: 'var(--red)',
-              fontSize: 11,
-              padding: '10px',
-              background: 'rgba(255, 95, 95, 0.1)',
+              fontSize: 13,
+              padding: '12px',
+              background: 'rgba(238, 0, 0, 0.1)',
               borderRadius: 6,
             }}
           >
@@ -363,22 +364,22 @@ export const FileTree: React.FC = () => {
           </div>
         ) : tree ? (
           <div style={{ paddingBottom: 20 }}>
-            {/* Folder Root Label */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                padding: '4px 10px',
+                padding: '6px 12px',
                 cursor: 'pointer',
                 fontWeight: '600',
-                fontSize: '10px',
+                fontSize: '11px',
                 textTransform: 'uppercase',
                 color: 'var(--t2)',
+                marginBottom: '8px',
               }}
               onClick={() => toggleFolder('root_folder', expandedFolders['root_folder'] !== false)}
             >
               <ChevronIcon expanded={expandedFolders['root_folder'] !== false} />
-              <span style={{ marginLeft: 4 }}>{t('fileTree.project')}</span>
+              <span style={{ marginLeft: 6 }}>{t('fileTree.project')}</span>
             </div>
 
             {expandedFolders['root_folder'] !== false && (
@@ -393,22 +394,22 @@ export const FileTree: React.FC = () => {
             )}
           </div>
         ) : (
-          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ color: '#888', fontSize: 13, textAlign: 'center' }}>
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ color: 'var(--t2)', fontSize: 13, textAlign: 'center' }}>
               {t('fileTree.noFolderOpen')}
             </div>
             <button
               onClick={openProject}
               disabled={isLoading}
+              className="btn-primary"
               style={{
                 width: '100%',
                 padding: '8px',
-                background: '#0e639c',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '2px',
+                borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '13px',
+                fontWeight: 500,
+                textAlign: 'center',
               }}
             >
               {isLoading ? t('fileTree.analyzing') : t('fileTree.openFolder')}
