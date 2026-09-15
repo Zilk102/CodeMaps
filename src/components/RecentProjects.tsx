@@ -148,13 +148,15 @@ export const RecentProjects: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-(--bg0) px-6 py-10 text-(--t1)">
-      <div className="grid w-full max-w-[1180px] gap-6 xl:grid-cols-[0.95fr_1.35fr]">
-        <div className="surface-card flex flex-col justify-between gap-6 p-7">
+    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 py-8 text-(--t1)">
+      <div className="grid w-full max-w-[1040px] gap-5 xl:grid-cols-[0.88fr_1.12fr]">
+        <div className="surface-card flex flex-col justify-between gap-5 p-7">
           <div>
             <div className="section-label">{t('recentProjects.title')}</div>
-            <h1 className="mt-3 text-[34px] font-bold tracking-[-0.04em] text-(--t0)">CodeMaps</h1>
-            <p className="mt-3 max-w-[420px] text-[14px] leading-6 text-(--t2)">
+            <h1 className="mt-2 text-[42px] font-semibold tracking-[-0.05em] text-(--t0)">
+              CodeMaps
+            </h1>
+            <p className="mt-3 max-w-[420px] text-[16px] leading-7 text-(--t2)">
               {t('recentProjects.tagline')}
             </p>
           </div>
@@ -162,19 +164,19 @@ export const RecentProjects: React.FC = () => {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
               <div className="section-label">{t('recentProjects.statRecent')}</div>
-              <div className="mt-2 text-[22px] font-semibold text-(--t0)">
+              <div className="mt-2 text-[26px] font-semibold text-(--t0)">
                 {recentProjects.length}
               </div>
             </div>
             <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
               <div className="section-label">{t('recentProjects.statStatus')}</div>
-              <div className="mt-2 text-[14px] font-semibold text-(--t0)">
+              <div className="mt-2 text-[15px] font-semibold text-(--t0)">
                 {isLoading ? t('recentProjects.opening') : t('recentProjects.ready')}
               </div>
             </div>
             <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
               <div className="section-label">{t('recentProjects.statEntry')}</div>
-              <div className="mt-2 text-[14px] font-semibold text-(--t0)">
+              <div className="mt-2 text-[15px] font-semibold text-(--t0)">
                 {t('recentProjects.openFolder')}
               </div>
             </div>
@@ -183,7 +185,7 @@ export const RecentProjects: React.FC = () => {
           <button
             onClick={openProject}
             disabled={isLoading}
-            className="btn-glass btn-primary w-full justify-center text-[13px]"
+            className="btn-glass btn-primary w-full justify-center text-[14px]"
           >
             {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
           </button>
@@ -191,7 +193,7 @@ export const RecentProjects: React.FC = () => {
 
         <div className="surface-card overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-(--border) px-5 py-4">
-            <div className="flex items-center gap-2 text-[13px] font-semibold text-(--t0)">
+            <div className="flex items-center gap-2 text-[14px] font-semibold text-(--t0)">
               <ClockIcon />
               {t('recentProjects.title')}
             </div>
@@ -214,7 +216,7 @@ export const RecentProjects: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="max-h-[560px] overflow-y-auto p-3">
+            <div className="max-h-[560px] overflow-y-auto p-4">
               <div className="grid gap-3">
                 {recentProjects.map((project: RecentProject) => {
                   const telemetryBadge = getTelemetryBadge(project, t);
@@ -224,7 +226,7 @@ export const RecentProjects: React.FC = () => {
                       key={project.path}
                       onClick={() => handleOpenProject(project.path)}
                       disabled={isLoading}
-                      className="group rounded-2xl border border-(--border) bg-(--bg2)/82 p-4 text-left transition-all hover:border-(--acc) hover:bg-[rgba(255,255,255,0.035)]"
+                      className="group rounded-2xl border border-(--border) bg-(--bg2) p-4 text-left transition-colors hover:border-(--acc) hover:bg-[rgba(255,255,255,0.03)]"
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--border) bg-(--bg1) text-(--acc)">
@@ -233,7 +235,7 @@ export const RecentProjects: React.FC = () => {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="truncate text-[14px] font-semibold text-(--t0)">
+                            <div className="truncate text-[15px] font-semibold text-(--t0)">
                               {project.name}
                             </div>
                             {telemetryBadge && (
@@ -249,7 +251,10 @@ export const RecentProjects: React.FC = () => {
                             )}
                           </div>
 
-                          <div className="mt-2 break-all text-[11px] leading-5 text-(--t3)">
+                          <div
+                            className="mt-2 break-all text-[12px] leading-5 text-(--t3)"
+                            style={{ fontFamily: 'var(--font-mono)' }}
+                          >
                             {project.path}
                           </div>
 
@@ -259,7 +264,7 @@ export const RecentProjects: React.FC = () => {
                                 <div className="section-label">
                                   {t('recentProjects.telemetry.latency')}
                                 </div>
-                                <div className="mt-1 text-[12px] text-(--t1)">
+                                <div className="mt-1 text-[13px] text-(--t1)">
                                   {formatLatency(project.telemetry.avgRefreshLatencyMs)}
                                 </div>
                               </div>
@@ -267,7 +272,7 @@ export const RecentProjects: React.FC = () => {
                                 <div className="section-label">
                                   {t('recentProjects.telemetry.skipRate')}
                                 </div>
-                                <div className="mt-1 text-[12px] text-(--t1)">
+                                <div className="mt-1 text-[13px] text-(--t1)">
                                   {formatRate(project.telemetry.skipRate)}
                                 </div>
                               </div>
@@ -275,7 +280,7 @@ export const RecentProjects: React.FC = () => {
                                 <div className="section-label">
                                   {t('recentProjects.telemetry.coalescing')}
                                 </div>
-                                <div className="mt-1 text-[12px] text-(--t1)">
+                                <div className="mt-1 text-[13px] text-(--t1)">
                                   {formatRate(project.telemetry.coalescingRatio)}
                                 </div>
                               </div>

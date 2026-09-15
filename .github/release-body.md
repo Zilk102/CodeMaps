@@ -2,46 +2,46 @@
 
 ## 🇷🇺 Русская версия
 
-### Аккуратность интерфейса и понятность сценариев
+### Hotfix интерфейса: шрифты, отступы и стартовый экран
 
-Этот релиз приводит интерфейс CodeMaps в более цельное и управляемое состояние. Основные пользовательские сценарии стали понятнее: верхнее меню больше не выглядит перегруженным, недавние проекты читаются быстрее, фильтры дают явную обратную связь, а всплывающие панели больше не теряются на фоне остального интерфейса.
+Это быстрый исправляющий релиз поверх `v1.1.16`. Он убирает самые грубые визуальные проблемы: переломанные пропорции, слишком тяжёлый моноширинный интерфейс, некорректный стартовый layout с пустым проводником и лишнюю визуальную “грязь”, которая делала приложение похожим на неаккуратную debug-сборку.
 
 **Что нового:**
 
-- **🧭 Пересобрана верхняя навигация:** title bar теперь лучше разделяет основные и вторичные действия, показывает состояние проекта и делает переключение рабочей области более явным.
-- **🗂 Улучшен экран недавних проектов:** стартовый экран стал чище, легче сканируется и быстрее подводит пользователя к открытию проекта.
-- **🎛 Переработаны фильтры графа:** добавлены быстрые пресеты, индикатор количества активных фильтров и более понятное переключение между режимами `Hierarchy` и `Dependencies`.
-- **🔔 Обновлены всплывающие уведомления:** уведомления об обновлении теперь оформлены как заметные floating toast-панели с более понятными действиями.
-- **🪟 Выровнены модалки и визуальная система:** MCP modal, кнопки, поверхности и фокус-состояния приведены к единому стилю; также исправлены отсутствовавшие CSS-переменные, из-за которых часть UI выглядела нестабильно.
+- **🔤 Исправлена типографика:** внешний импорт Google Fonts убран, а глобальный UI больше не принудительно рендерится моноширинным шрифтом.
+- **🧱 Исправлен стартовый layout:** боковая панель проводника теперь не показывается до открытия проекта, поэтому главный экран больше не зажат в сломанной двухпанельной сетке.
+- **📏 Пересобрана геометрия шапки:** title bar стал компактнее, спокойнее по визуальному весу и больше не выглядит как набор случайных капсул с разными отступами.
+- **🗂 Дочищен экран недавних проектов:** размеры текста, интервалы и карточки приведены к более читаемой и стабильной иерархии.
+- **⚡ Убран лишний рендер-шум:** уменьшены blur и тяжелые тени на карточках, toast-уведомлениях и модалках, чтобы интерфейс ощущался легче и работал стабильнее.
 
 ---
 
 ## 🇺🇸 English Version
 
-### Cleaner UI and More Intuitive Flows
+### UI Hotfix: Fonts, Spacing, and Startup Layout
 
-This release makes the CodeMaps interface feel much more deliberate and easier to operate. Core user flows are now clearer: the top bar is less noisy, recent projects are easier to scan, filters provide stronger feedback, and transient UI like notifications and modals now reads as part of one coherent system.
+This is a corrective hotfix on top of `v1.1.16`. It removes the most visible regressions: distorted spacing, an overly monospace-heavy UI, a broken startup layout with an empty explorer sidebar, and overly aggressive visual effects that made the app feel rough and unstable.
 
 **Key Highlights:**
 
-- **🧭 Reworked top navigation:** the title bar now separates primary and secondary actions more clearly, exposes project state, and makes the workspace toggle easier to understand.
-- **🗂 Upgraded recent-projects home screen:** the landing area is cleaner, faster to scan, and gives users a much more obvious way to get into a project.
-- **🎛 Improved graph filters:** added quick presets, visible active-filter counts, and clearer switching between `Hierarchy` and `Dependencies` modes.
-- **🔔 Refined update notifications:** update prompts now use floating toast panels with stronger visibility and clearer actions.
-- **🪟 Unified modals and visual system:** the MCP modal, buttons, surfaces, and focus states now share the same visual language; missing CSS tokens that caused inconsistent rendering were also fixed.
+- **🔤 Typography fixed:** the external Google Fonts import is gone, and the entire UI is no longer forced into a monospace font.
+- **🧱 Startup layout fixed:** the explorer sidebar now stays hidden until a project is opened, so the landing screen is no longer squeezed into a broken split layout.
+- **📏 Header geometry cleaned up:** the title bar is more compact, visually calmer, and no longer feels like a row of mismatched pills with inconsistent spacing.
+- **🗂 Recent-projects screen refined:** text sizing, spacing, and card hierarchy were rebalanced to make the landing experience readable again.
+- **⚡ Reduced render noise:** blur and heavy shadow usage were toned down across cards, toasts, and modals so the interface feels lighter and renders more smoothly.
 
 ---
 
 ## 🇨🇳 中文版本
 
-### 更整洁的界面与更直观的操作流程
+### 界面热修复：字体、间距与启动布局
 
-本次版本让 CodeMaps 的界面更加统一、易读、易操作。核心使用路径现在更清晰：顶部菜单不再显得杂乱，最近项目列表更容易快速浏览，筛选器会提供更明确的状态反馈，而通知与弹窗也终于像同一套系统的一部分。
+这是针对 `v1.1.16` 的修复版本。它解决了最明显的界面回退问题：错乱的间距、过度使用等宽字体、启动时空白资源管理器挤压首页布局，以及过重的视觉特效造成的粗糙与卡顿感。
 
 **主要更新：**
 
-- **🧭 重新设计顶部导航：** title bar 现在能更清楚地区分主要操作与次要操作，同时直接展示项目状态，并让工作区切换更容易理解。
-- **🗂 优化最近项目首页：** 进入页面更整洁、更易扫描，也更容易引导用户快速进入项目。
-- **🎛 改进图筛选器：** 新增快捷预设、活动筛选数量提示，以及更清晰的 `Hierarchy` / `Dependencies` 模式切换。
-- **🔔 更新通知样式升级：** 更新提示改为更醒目的浮动 toast 面板，操作按钮也更直观。
-- **🪟 统一弹窗与视觉系统：** MCP 设置弹窗、按钮、卡片表面与焦点状态现在使用同一套视觉语言，同时修复了部分缺失的 CSS 变量，解决了界面渲染不一致的问题。
+- **🔤 修复字体系统：** 去掉了外部 Google Fonts 导入，并取消了整个界面强制使用等宽字体的做法。
+- **🧱 修复启动布局：** 在项目未打开前不再显示左侧资源管理器，因此首页不会再被挤进错误的分栏布局里。
+- **📏 清理顶部栏几何结构：** title bar 变得更紧凑、更克制，不再像一排间距失控的胶囊按钮。
+- **🗂 优化最近项目首页：** 文本尺寸、留白和卡片层级重新调整，恢复了正常的可读性。
+- **⚡ 降低渲染负担：** 卡片、toast 通知和弹窗上的模糊与重阴影被减弱，让界面更轻、更顺滑。

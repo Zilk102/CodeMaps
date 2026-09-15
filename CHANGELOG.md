@@ -1,5 +1,15 @@
 # CodeMaps Changelog
 
+## v1.1.17 (2026-09-15)
+
+### UI Hotfix: Typography, Layout, and Startup Responsiveness
+
+- Removed the external Google Fonts import and stopped forcing the entire app into a monospace font, which fixes the distorted typography and eliminates an unnecessary renderer-time font fetch.
+- Hid the left explorer panel before a project is opened, so the startup screen is no longer squeezed into a broken split layout with wasted empty space.
+- Tightened the title bar spacing and simplified the visual treatment of the header to reduce the “debug build” look introduced in `v1.1.16`.
+- Rebalanced the recent-projects screen with cleaner spacing, saner type sizes, and monospace reserved only for project paths instead of the whole interface.
+- Reduced excessive blur and shadow intensity across modals, toasts, and cards to improve visual clarity and cut some unnecessary rendering cost.
+
 ## v1.1.16 (2026-09-15)
 
 ### UI Clarity and Interaction Polish

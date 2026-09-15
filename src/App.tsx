@@ -47,6 +47,7 @@ const App: React.FC = () => {
     useSidebarResize(setSidebarWidth);
   const { dragOver, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } =
     useProjectDrop(fetchGraph);
+  const showSidebar = Boolean(graphData);
 
   useEffect(() => {
     initializeWatcher();
@@ -69,41 +70,41 @@ const App: React.FC = () => {
         </Suspense>
 
         <div className="flex flex-1 overflow-hidden relative">
-          {/* Left Panel */}
-          <div
-            className="flex flex-col h-full bg-(--bg1) border-r border-(--border) transition-[width] duration-200 ease-in-out"
-            style={{
-              width: sidebarWidth,
-              minWidth: 200,
-              maxWidth: sidebarViewportState.maxWidth,
-              position: sidebarViewportState.isMobile ? 'absolute' : 'relative',
-              zIndex: sidebarViewportState.isMobile ? 20 : 1,
-              ...(isDraggingState ? { transition: 'none' } : {}),
-            }}
-          >
-            <Suspense fallback={<LazyFallback />}>
-              <FileTree />
-            </Suspense>
-          </div>
+          {showSidebar && (
+            <>
+              <div
+                className="flex flex-col h-full bg-(--bg1) border-r border-(--border) transition-[width] duration-200 ease-in-out"
+                style={{
+                  width: sidebarWidth,
+                  minWidth: 200,
+                  maxWidth: sidebarViewportState.maxWidth,
+                  position: sidebarViewportState.isMobile ? 'absolute' : 'relative',
+                  zIndex: sidebarViewportState.isMobile ? 20 : 1,
+                  ...(isDraggingState ? { transition: 'none' } : {}),
+                }}
+              >
+                <Suspense fallback={<LazyFallback />}>
+                  <FileTree />
+                </Suspense>
+              </div>
 
-          {/* Splitter (Drag Handle) */}
-          <div
-            onMouseDown={startSidebarDrag}
-            className="absolute h-full w-2 cursor-col-resize bg-transparent hover:bg-(--acc) hover:opacity-30 transition-all"
-            style={{
-              zIndex: sidebarViewportState.isMobile ? 21 : 10,
-              left: sidebarWidth - 4,
-            }}
-          />
+              <div
+                onMouseDown={startSidebarDrag}
+                className="absolute h-full w-2 cursor-col-resize bg-transparent hover:bg-(--acc) hover:opacity-30 transition-all"
+                style={{
+                  zIndex: sidebarViewportState.isMobile ? 21 : 10,
+                  left: sidebarWidth - 4,
+                }}
+              />
+            </>
+          )}
 
-          {/* Main Area */}
           <div className="flex-1 relative min-w-0 bg-(--bg0)">
             <Suspense fallback={<LazyFallback />}>
               {graphData ? <GraphView /> : <RecentProjects />}
             </Suspense>
           </div>
 
-          {/* Right Panel (Tools) */}
           {graphData && isToolsPanelOpen && (
             <Suspense fallback={<LazyFallback />}>
               <ToolsPanel projectPath={graphData.projectRoot} />
