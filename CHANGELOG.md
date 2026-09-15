@@ -1,5 +1,11 @@
 # CodeMaps Changelog
 
+## v1.1.19 (2026-09-15)
+
+### Fixed
+
+- **CI Pipeline Fix**: Resolved a formatting issue in `.github/release-body.md` that caused the GitHub Actions CI pipeline to fail during the `format:check` step.
+
 ## v1.1.18 (2026-09-15)
 
 ### Changed
