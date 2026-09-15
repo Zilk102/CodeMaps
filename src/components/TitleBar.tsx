@@ -2,19 +2,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore, useUIStore, useConnectionStore } from '../store/useStore';
 
-const windowControlStyle: React.CSSProperties = {
-  width: '46px',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  color: 'var(--t1)',
-  background: 'transparent',
-  border: 'none',
-  padding: 0,
-};
-
 const TitleBar: React.FC = () => {
   const { t } = useTranslation();
   const { openProject } = useConnectionStore();
@@ -141,7 +128,6 @@ const TitleBar: React.FC = () => {
           <button
             type="button"
             className="window-control"
-            style={windowControlStyle}
             aria-label={t('titleBar.minimize')}
             onClick={() => window.api.minimize?.()}
           >
@@ -152,7 +138,6 @@ const TitleBar: React.FC = () => {
           <button
             type="button"
             className="window-control"
-            style={windowControlStyle}
             aria-label={t('titleBar.maximize')}
             onClick={() => window.api.maximize?.()}
           >
@@ -168,7 +153,6 @@ const TitleBar: React.FC = () => {
           <button
             type="button"
             className="window-control close"
-            style={{ ...windowControlStyle, transition: 'background-color 0.1s' }}
             aria-label={t('titleBar.close')}
             onClick={() => window.api.close?.()}
           >

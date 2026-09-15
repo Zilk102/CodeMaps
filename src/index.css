@@ -134,7 +134,13 @@ select:focus-visible {
 
 .btn-primary:hover {
   background: var(--t1);
+  border-color: var(--t1);
   color: var(--bg0);
+}
+
+.btn-primary:active {
+  background: var(--t2);
+  border-color: var(--t2);
 }
 
 .btn-danger {
@@ -144,6 +150,33 @@ select:focus-visible {
 .btn-danger:hover {
   background: rgba(238, 0, 0, 0.1);
   color: var(--red);
+}
+
+.window-control {
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--t1);
+  background: transparent;
+  border: none;
+  padding: 0;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.window-control:hover {
+  background: var(--hover);
+  color: var(--t0);
+}
+
+.window-control.close:hover {
+  background: #e81123;
+  color: #fff;
 }
 
 .surface-card {

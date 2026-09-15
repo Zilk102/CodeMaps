@@ -13,15 +13,15 @@ const LanguageSwitcher: React.FC = () => {
   const currentLang = i18n.language?.split('-')[0] || 'en';
 
   return (
-    <div className="fixed bottom-4 left-4 z-[1000] flex items-center gap-1 rounded-md border border-(--border) bg-(--bg1) p-1 shadow-sm">
+    <div className="fixed bottom-6 left-6 z-[1000] flex items-center gap-1 rounded-lg border border-(--border2) bg-(--bg0)/80 p-1.5 shadow-sm backdrop-blur-md">
       {languages.map((lang) => (
         <button
           key={lang.code}
           onClick={() => i18n.changeLanguage(lang.code)}
-          className={`rounded-[4px] px-2 py-1 text-[11px] font-medium transition-colors ${
+          className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-all ${
             currentLang === lang.code
-              ? 'bg-(--bg3) text-(--t0) shadow-sm'
-              : 'text-(--t2) hover:text-(--t0)'
+              ? 'bg-(--bg2) text-(--t0) shadow-sm'
+              : 'text-(--t2) hover:text-(--t0) hover:bg-(--bg1)'
           }`}
           title={lang.code}
         >

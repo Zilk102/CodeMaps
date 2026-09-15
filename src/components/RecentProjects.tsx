@@ -34,22 +34,6 @@ const FolderIcon = () => (
   </svg>
 );
 
-const TrashIcon = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-  </svg>
-);
-
 function formatDate(
   isoString: string,
   t: (key: string, options?: Record<string, unknown>) => string
@@ -148,69 +132,52 @@ export const RecentProjects: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 py-12 text-(--t1)">
-      <div className="grid w-full max-w-[960px] gap-6 xl:grid-cols-[1fr_1.5fr]">
-        {/* Left Column: Welcome & Stats */}
-        <div className="flex flex-col gap-6">
-          <div className="surface-card p-6 flex flex-col gap-4">
-            <div>
-              <div className="section-label mb-2">{t('recentProjects.title')}</div>
-              <h1 className="text-[32px] font-bold tracking-tight text-(--t0) leading-tight">
-                CodeMaps
-              </h1>
-              <p className="mt-2 text-[14px] leading-relaxed text-(--t2)">
-                {t('recentProjects.tagline')}
-              </p>
-            </div>
-            <button
-              onClick={openProject}
-              disabled={isLoading}
-              className="btn-primary w-full justify-center py-2.5 text-[14px] rounded-md font-medium"
-            >
-              {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
-            </button>
+    <div className="flex h-full w-full items-start justify-center overflow-auto bg-(--bg0) px-6 pt-24 pb-12 text-(--t1)">
+      <div className="flex w-full max-w-[800px] flex-col gap-8">
+        {/* Welcome Section */}
+        <div className="flex items-end justify-between border-b border-(--border2) pb-5">
+          <div>
+            <h1 className="text-[28px] font-semibold tracking-tight text-(--t0)">CodeMaps</h1>
+            <p className="mt-1.5 text-[14px] text-(--t2)">{t('recentProjects.tagline')}</p>
           </div>
-
-          <div className="surface-card p-6">
-            <div className="grid gap-4">
-              <div className="flex justify-between items-center border-b border-(--border) pb-3">
-                <div className="text-[13px] text-(--t2)">{t('recentProjects.statRecent')}</div>
-                <div className="text-[14px] font-semibold text-(--t0)">{recentProjects.length}</div>
-              </div>
-              <div className="flex justify-between items-center border-b border-(--border) pb-3">
-                <div className="text-[13px] text-(--t2)">{t('recentProjects.statStatus')}</div>
-                <div className="text-[14px] font-semibold text-(--t0)">
-                  {isLoading ? t('recentProjects.opening') : t('recentProjects.ready')}
-                </div>
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={openProject}
+            disabled={isLoading}
+            className="btn-primary flex items-center gap-2 rounded-md px-4 py-2 text-[13px] font-medium shadow-sm transition-transform active:scale-95"
+          >
+            <FolderIcon />
+            {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
+          </button>
         </div>
 
-        {/* Right Column: Project List */}
-        <div className="surface-card flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b border-(--border) px-6 py-4 bg-(--bg2)">
-            <div className="flex items-center gap-2 text-[14px] font-medium text-(--t0)">
+        {/* Project List */}
+        <div className="flex flex-col">
+          <div className="mb-4 flex items-center justify-between text-[12px] font-semibold uppercase tracking-wider text-(--t3)">
+            <div className="flex items-center gap-2">
               <ClockIcon />
               {t('recentProjects.title')}
             </div>
             {recentProjects.length > 0 && (
-              <button onClick={handleClearHistory} className="btn-glass btn-danger text-[12px]">
-                <TrashIcon />
+              <button
+                onClick={handleClearHistory}
+                className="text-(--t3) hover:text-(--red) transition-colors"
+              >
                 {t('recentProjects.clearHistory')}
               </button>
             )}
           </div>
 
           {recentProjects.length === 0 ? (
-            <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 px-6 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-(--bg2) text-(--t3)">
+            <div className="surface-card flex h-[240px] flex-col items-center justify-center gap-4 text-(--t3)">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-(--bg2) text-(--t2)">
                 <FolderIcon />
               </div>
-              <div className="text-[13px] text-(--t2)">{t('recentProjects.noProjects')}</div>
+              <div className="text-[14px] font-medium text-(--t2)">
+                {t('recentProjects.noProjects')}
+              </div>
             </div>
           ) : (
-            <div className="max-h-[600px] overflow-y-auto p-4 flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               {recentProjects.map((project: RecentProject) => {
                 const telemetryBadge = getTelemetryBadge(project, t);
 
@@ -219,47 +186,37 @@ export const RecentProjects: React.FC = () => {
                     key={project.path}
                     onClick={() => handleOpenProject(project.path)}
                     disabled={isLoading}
-                    className="group flex flex-col gap-3 rounded-lg border border-transparent bg-(--bg0) p-4 text-left transition-colors hover:border-(--border) hover:bg-(--bg2)"
+                    className="group flex w-full flex-col gap-2 rounded-md border border-(--border) bg-(--bg1) p-3 text-left transition-colors hover:border-(--border2) hover:bg-(--hover)"
                   >
-                    <div className="flex items-start justify-between w-full">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--bg2) text-(--acc) group-hover:bg-(--accbg)">
-                          <FolderIcon />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-[14px] font-semibold text-(--t0)">
-                              {project.name}
-                            </div>
-                            {telemetryBadge && (
-                              <span
-                                className="rounded px-2 py-0.5 text-[10px] font-bold"
-                                style={{
-                                  color: telemetryBadge.color,
-                                  background: telemetryBadge.background,
-                                }}
-                              >
-                                {telemetryBadge.label}
-                              </span>
-                            )}
+                        <div className="text-[14px] font-medium text-(--t0)">{project.name}</div>
+                        {telemetryBadge && (
+                          <div
+                            className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                            style={{
+                              color: telemetryBadge.color,
+                              background: telemetryBadge.background,
+                            }}
+                          >
+                            {telemetryBadge.label}
                           </div>
-                          <div className="mt-0.5 text-[12px] text-(--t3) truncate max-w-[300px]">
-                            {project.path}
-                          </div>
-                        </div>
+                        )}
                       </div>
                       <div className="text-[12px] text-(--t3)">
                         {formatDate(project.lastOpened, t)}
                       </div>
                     </div>
 
+                    <div className="truncate text-[12px] text-(--t3) font-mono">{project.path}</div>
+
                     {project.telemetry && (
-                      <div className="flex items-center gap-6 mt-1 text-[12px]">
+                      <div className="mt-1 flex items-center gap-4 text-[11px]">
                         <div className="flex items-center gap-1.5">
                           <span className="text-(--t3)">
                             {t('recentProjects.telemetry.latency')}:
                           </span>
-                          <span className="text-(--t1) font-medium">
+                          <span className="font-mono text-(--t2)">
                             {formatLatency(project.telemetry.avgRefreshLatencyMs)}
                           </span>
                         </div>
@@ -267,7 +224,7 @@ export const RecentProjects: React.FC = () => {
                           <span className="text-(--t3)">
                             {t('recentProjects.telemetry.skipRate')}:
                           </span>
-                          <span className="text-(--t1) font-medium">
+                          <span className="font-mono text-(--t2)">
                             {formatRate(project.telemetry.skipRate)}
                           </span>
                         </div>
@@ -275,7 +232,7 @@ export const RecentProjects: React.FC = () => {
                           <span className="text-(--t3)">
                             {t('recentProjects.telemetry.trend')}:
                           </span>
-                          <span className="text-(--t1) font-medium">
+                          <span className="text-(--t2)">
                             {translateTelemetryTrend(project.telemetry.latencyTrend, t)}
                           </span>
                         </div>
