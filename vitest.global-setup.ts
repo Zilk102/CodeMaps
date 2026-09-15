@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 // The oracle runs file parsing inside a Piscina worker, which loads the compiled
@@ -11,6 +12,11 @@ import path from 'node:path';
 // cannot resolve `npx.cmd` without `shell: true`, which produced spawnSync ENOENT
 // in CI.
 export default function setup() {
+  const testLocalAppData = path.join(process.cwd(), '.artifacts', 'test-localappdata');
+  fs.mkdirSync(testLocalAppData, { recursive: true });
+  process.env.LOCALAPPDATA = testLocalAppData;
+  process.env.APPDATA = testLocalAppData;
+
   const tscJs = path.join(process.cwd(), 'node_modules', 'typescript', 'lib', 'tsc.js');
   execFileSync(process.execPath, [tscJs, '-p', 'electron/tsconfig.json'], {
     stdio: 'inherit',
