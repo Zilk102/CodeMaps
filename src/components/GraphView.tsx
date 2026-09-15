@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ElkPoint } from 'elkjs/lib/elk.bundled';
@@ -7,24 +7,8 @@ import { FilterPanel } from './FilterPanel';
 import { useGraphLayout } from '../hooks/useGraphLayout';
 import { GraphNodeComponent } from './GraphNodeComponent';
 
-const translateTelemetryTrend = (
-  trend: 'stable' | 'improving' | 'degrading',
-  t: (key: string, options?: Record<string, unknown>) => string
-) => t(`graphView.telemetry.trends.${trend}`);
-
-const translateRefreshMode = (
-  mode: 'skipped' | 'rebuilt' | null,
-  t: (key: string, options?: Record<string, unknown>) => string
-) => (mode ? t(`graphView.telemetry.modes.${mode}`) : t('graphView.telemetry.notAvailable'));
-
-const translateRefreshReason = (
-  reason: 'no_stack_impact' | 'directory_structure_changed' | 'stack_runtime_path_changed' | null,
-  t: (key: string, options?: Record<string, unknown>) => string
-) => (reason ? t(`graphView.telemetry.reasons.${reason}`) : t('graphView.telemetry.notAvailable'));
-
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
-  const [isTelemetryExpanded, setIsTelemetryExpanded] = useState(false);
   const { graphData, error, filters, layoutMode, setSelectedNode, selectedNode } = useGraphStore();
 
   const { layoutData, setLayoutData } = useUIStore();
@@ -37,42 +21,8 @@ export const GraphView: React.FC = () => {
     setLayoutData,
     layoutData
   );
-  const refreshTelemetry = graphData?.refreshTelemetry;
-  const telemetryHud = useMemo(() => {
-    if (!refreshTelemetry) {
-      return null;
-    }
 
-    return {
-      degraded: refreshTelemetry.trends.enrichment.degraded,
-      statusLabel: refreshTelemetry.trends.enrichment.degraded
-        ? t('graphView.telemetry.statusDegraded')
-        : t('graphView.telemetry.statusStable'),
-      avgLatencyMs: refreshTelemetry.enrichment.avgRefreshLatencyMs.toFixed(1),
-      skipRate: (refreshTelemetry.trends.enrichment.skipRate * 100).toFixed(0),
-      coalescingRatio: (refreshTelemetry.trends.watcher.coalescingRatio * 100).toFixed(0),
-      latencyTrend: translateTelemetryTrend(refreshTelemetry.trends.enrichment.latencyTrend, t),
-      lastRefreshMode: translateRefreshMode(refreshTelemetry.enrichment.lastRefreshMode, t),
-      lastRefreshReason: translateRefreshReason(refreshTelemetry.enrichment.lastRefreshReason, t),
-      watcherFlushCount: refreshTelemetry.watcher.flushCount,
-      lastBatchSize: refreshTelemetry.watcher.lastBatchSize,
-      rebuiltRefreshes: refreshTelemetry.enrichment.rebuiltRefreshes,
-      skippedRefreshes: refreshTelemetry.enrichment.skippedRefreshes,
-      runtimePriorityRebuilds: refreshTelemetry.enrichment.runtimePriorityRebuilds,
-      recentBatchSizes:
-        refreshTelemetry.watcher.recentBatchSizes.slice(-4).join(', ') ||
-        t('graphView.telemetry.notAvailable'),
-      recentLatencyMs:
-        refreshTelemetry.enrichment.recentLatencyMs
-          .slice(-4)
-          .map((value) => value.toFixed(0))
-          .join(', ') || t('graphView.telemetry.notAvailable'),
-    };
-  }, [refreshTelemetry, t]);
-
-  const graphInfoWidth = telemetryHud
-    ? 'min(420px, calc(100% - 320px))'
-    : 'min(420px, calc(100% - 1.5rem))';
+  const graphInfoWidth = 'min(420px, calc(100% - 320px))';
 
   const edgeElements = useMemo(() => {
     if (!layoutData?.edges) return null;
@@ -220,108 +170,6 @@ export const GraphView: React.FC = () => {
         </div>
       </div>
       <div className="pointer-events-none absolute right-4 top-4 z-10 flex w-[min(320px,calc(100%-1.25rem))] flex-col gap-4">
-        {telemetryHud && (
-          <div className="pointer-events-auto surface-card p-4 text-(--t1) backdrop-blur-md bg-(--bg1)/90">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="min-w-0">
-                <div
-                  className={`inline-flex rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                    telemetryHud.degraded
-                      ? 'bg-[rgba(238,0,0,0.1)] text-(--red)'
-                      : 'bg-(--accbg) text-(--acc)'
-                  }`}
-                >
-                  {telemetryHud.statusLabel}
-                </div>
-                <div className="mt-2 text-[13px] font-semibold text-(--t0)">
-                  {t('graphView.refreshTelemetry')}
-                </div>
-                <div className="mt-0.5 text-[11px] text-(--t3)">
-                  {t('graphView.telemetry.lastRefresh')}: {telemetryHud.lastRefreshMode}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsTelemetryExpanded((value) => !value)}
-                className="text-[11px] font-medium text-(--t2) hover:text-(--t0) transition-colors"
-              >
-                {isTelemetryExpanded
-                  ? t('graphView.telemetry.hideDetails')
-                  : t('graphView.telemetry.details')}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-md bg-(--bg2) p-2">
-                <div className="text-[10px] uppercase tracking-wider text-(--t3) font-medium">
-                  {t('graphView.telemetry.avgLatency')}
-                </div>
-                <div className="mt-1 text-[13px] font-medium text-(--t0)">
-                  {telemetryHud.avgLatencyMs} ms
-                </div>
-              </div>
-              <div className="rounded-md bg-(--bg2) p-2">
-                <div className="text-[10px] uppercase tracking-wider text-(--t3) font-medium">
-                  {t('graphView.telemetry.skipRate')}
-                </div>
-                <div className="mt-1 text-[13px] font-medium text-(--t0)">
-                  {telemetryHud.skipRate}%
-                </div>
-              </div>
-              <div className="rounded-md bg-(--bg2) p-2">
-                <div className="text-[10px] uppercase tracking-wider text-(--t3) font-medium">
-                  {t('graphView.telemetry.coalescing')}
-                </div>
-                <div className="mt-1 text-[13px] font-medium text-(--t0)">
-                  {telemetryHud.coalescingRatio}%
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <div className="text-[11px] text-(--t2) font-medium">
-                {t('graphView.telemetry.trend')}:{' '}
-                <span className="text-(--t1)">{telemetryHud.latencyTrend}</span>
-              </div>
-            </div>
-
-            {isTelemetryExpanded && (
-              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-(--border) pt-3">
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-(--t3) font-medium">
-                    {t('graphView.telemetry.watcherFlushes')}
-                  </div>
-                  <div className="mt-1 text-[12px] text-(--t0)">
-                    {telemetryHud.watcherFlushCount}
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-(--t2)">
-                    {t('graphView.telemetry.lastBatch')}: {telemetryHud.lastBatchSize}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-(--t3) font-medium">
-                    {t('graphView.telemetry.runtimePriority')}
-                  </div>
-                  <div className="mt-1 text-[12px] text-(--t0)">
-                    {telemetryHud.runtimePriorityRebuilds}
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-(--t2)">
-                    {t('graphView.telemetry.rebuilt')}: {telemetryHud.rebuiltRefreshes} ·{' '}
-                    {t('graphView.telemetry.skipped')}: {telemetryHud.skippedRefreshes}
-                  </div>
-                </div>
-                <div className="col-span-2 mt-1">
-                  <div className="text-[10px] uppercase tracking-wider text-(--t3) font-medium">
-                    {t('graphView.telemetry.lastReason')}
-                  </div>
-                  <div className="mt-1 text-[11px] leading-snug text-(--t1)">
-                    {telemetryHud.lastRefreshReason}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         <div className="pointer-events-auto">
           <FilterPanel />
         </div>

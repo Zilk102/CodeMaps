@@ -161,7 +161,7 @@ const FileTreeNode: React.FC<{
 
   if (!node.name || node.name === 'root') {
     return (
-      <div style={{ padding: '0 8px' }}>
+      <div className="px-2">
         {Object.values(node.children || {})
           .sort((a, b) => {
             if (a.isDir && !b.isDir) return -1;
@@ -183,75 +183,43 @@ const FileTreeNode: React.FC<{
     );
   }
 
+  const basePadding = 8;
+  const indentStep = 16;
+  const currentIndent = basePadding + level * indentStep;
+  // Line should align with the center of the chevron icon (which is 16px wide, so +8px from its left edge)
+  const lineLeft = currentIndent + 8;
+
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative">
       <div
         onClick={(e) => {
           e.stopPropagation();
           if (node.isDir) toggleFolder(node.path, isExpanded);
           onSelect(node);
         }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '6px 0',
-          paddingLeft: `${level * 16}px`,
-          cursor: 'pointer',
-          background: isSelected ? 'var(--accbg)' : 'transparent',
-          color: isSelected ? 'var(--t0)' : 'var(--t1)',
-          fontSize: '13px',
-          fontFamily: 'var(--font-family)',
-          userSelect: 'none',
-          borderRadius: '6px',
-          transition: 'background 0.1s, color 0.1s',
-          fontWeight: isSelected ? 500 : 400,
-        }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.background = 'var(--hover)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.background = 'transparent';
-          }
-        }}
+        className={`group flex items-center py-1.5 cursor-pointer rounded-md transition-colors select-none text-[13px] ${
+          isSelected ? 'bg-(--accbg) text-(--t0) font-medium' : 'text-(--t1) hover:bg-(--hover)'
+        }`}
+        style={{ paddingLeft: `${currentIndent}px`, paddingRight: '8px' }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            width: 16,
-            justifyContent: 'center',
-            marginRight: 4,
-          }}
-        >
-          {node.isDir ? <ChevronIcon expanded={isExpanded} /> : <div style={{ width: 16 }} />}
+        <div className="flex items-center justify-center w-4 mr-1 shrink-0">
+          {node.isDir ? <ChevronIcon expanded={isExpanded} /> : null}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
+        <div className="flex items-center mr-2 shrink-0">
           <FileIcon name={node.name} isDir={node.isDir} />
         </div>
 
-        <span
-          style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        >
+        <span className="flex-1 truncate group-hover:text-(--t0) transition-colors">
           {node.name}
         </span>
       </div>
 
       {node.isDir && isExpanded && node.children && (
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           <div
-            style={{
-              position: 'absolute',
-              left: `${(level + 1) * 16 + 8}px`,
-              top: 0,
-              bottom: 0,
-              width: '1px',
-              background: 'var(--border)',
-              zIndex: 1,
-            }}
+            className="absolute top-0 bottom-0 w-px bg-(--border)"
+            style={{ left: `${lineLeft}px`, zIndex: 1 }}
           />
 
           {Object.values(node.children)
@@ -347,7 +315,13 @@ export const FileTree: React.FC = () => {
       </div>
 
       <div
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 4px' }}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '8px 4px',
+          paddingBottom: '80px',
+        }}
         className="sidebar-scroll"
       >
         {error ? (

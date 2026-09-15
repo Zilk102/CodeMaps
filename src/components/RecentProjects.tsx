@@ -57,21 +57,6 @@ function formatDate(
   });
 }
 
-function formatRate(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
-function formatLatency(value: number): string {
-  return `${value.toFixed(1)} ms`;
-}
-
-function translateTelemetryTrend(
-  trend: 'stable' | 'improving' | 'degrading',
-  t: (key: string, options?: Record<string, unknown>) => string
-) {
-  return t(`recentProjects.telemetry.trends.${trend}`);
-}
-
 function getTelemetryBadge(
   project: RecentProject,
   t: (key: string, options?: Record<string, unknown>) => string
@@ -211,35 +196,6 @@ export const RecentProjects: React.FC = () => {
                     </div>
 
                     <div className="truncate text-[12px] text-(--t3) font-mono">{project.path}</div>
-
-                    {project.telemetry && (
-                      <div className="mt-1 flex items-center gap-4 text-[11px]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-(--t3)">
-                            {t('recentProjects.telemetry.latency')}:
-                          </span>
-                          <span className="font-mono text-(--t2)">
-                            {formatLatency(project.telemetry.avgRefreshLatencyMs)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-(--t3)">
-                            {t('recentProjects.telemetry.skipRate')}:
-                          </span>
-                          <span className="font-mono text-(--t2)">
-                            {formatRate(project.telemetry.skipRate)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-(--t3)">
-                            {t('recentProjects.telemetry.trend')}:
-                          </span>
-                          <span className="text-(--t2)">
-                            {translateTelemetryTrend(project.telemetry.latencyTrend, t)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </button>
                 );
               })}
