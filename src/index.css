@@ -24,6 +24,13 @@
   --cyan: #22d3ee;
   --pink: #ec4899;
   --green: #22c55e;
+  --accent: var(--acc);
+  --text-primary: var(--t0);
+  --text-secondary: var(--t2);
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --font-family: 'JetBrains Mono', monospace;
+  color-scheme: dark;
 }
 
 * {
@@ -36,40 +43,163 @@ body,
 html {
   width: 100%;
   height: 100%;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-family);
   background: var(--bg0);
   color: var(--t0);
   overflow: hidden;
 }
 
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(0, 255, 157, 0.9);
+  outline-offset: 2px;
+}
+
 /* Glassmorphism Buttons - adapted to CodeFlow style */
 .btn-glass {
-  padding: 6px 12px;
+  padding: 8px 12px;
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   color: var(--t1);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  min-height: 32px;
-  transition: all 0.2s ease;
+  min-height: 36px;
+  transition:
+    all 0.2s ease,
+    transform 0.16s ease;
   -webkit-app-region: no-drag;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 
 .btn-glass:hover {
   background: var(--bg4);
   border-color: var(--acc);
   color: var(--acc);
+  transform: translateY(-1px);
+}
+
+.btn-glass:active {
+  transform: translateY(0);
+}
+
+.btn-glass.active {
+  background: linear-gradient(180deg, rgba(0, 255, 157, 0.18), rgba(0, 255, 157, 0.1));
+  border-color: rgba(0, 255, 157, 0.5);
+  color: var(--acc);
 }
 
 .btn-glass svg {
   width: 14px;
   height: 14px;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, rgba(0, 255, 157, 0.16), rgba(0, 255, 157, 0.1));
+  border-color: rgba(0, 255, 157, 0.45);
+  color: var(--acc);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, rgba(0, 255, 157, 0.24), rgba(0, 255, 157, 0.14));
+  color: #d7ffef;
+}
+
+.btn-danger {
+  color: #ff9a9a;
+}
+
+.btn-danger:hover {
+  color: #ffd3d3;
+  border-color: rgba(255, 95, 95, 0.45);
+  background: rgba(255, 95, 95, 0.08);
+}
+
+.surface-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--t1);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.68), rgba(0, 0, 0, 0.78)),
+    radial-gradient(circle at top, rgba(0, 255, 157, 0.08), transparent 32%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+  animation: fadeIn 0.18s ease;
+  backdrop-filter: blur(10px);
+}
+
+.modal-content {
+  background: linear-gradient(180deg, rgba(15, 15, 18, 0.98), rgba(10, 10, 12, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: slideUp 0.22s ease;
 }
 
 /* Scrollbars */
@@ -99,30 +229,6 @@ html {
 .window-control.close:hover {
   background-color: var(--red);
   color: white;
-}
-
-/* Modal Overlay */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--bg1);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
 }
 
 @keyframes fadeIn {
@@ -200,4 +306,11 @@ html {
   font-size: 13px;
   color: var(--t2);
   text-align: center;
+}
+
+.floating-toast {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(15, 15, 18, 0.95), rgba(10, 10, 12, 0.95));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
 }

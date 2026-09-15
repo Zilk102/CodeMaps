@@ -1,5 +1,19 @@
 # CodeMaps Changelog
 
+## v1.1.16 (2026-09-15)
+
+### UI Clarity and Interaction Polish
+
+- Reworked the main title bar so primary actions are clearer, project state is visible at a glance, and the workspace toggle no longer blends into secondary controls.
+- Redesigned the recent-projects home screen into a cleaner two-column layout with stronger hierarchy, better scanning, and a more obvious entry point into the app.
+- Upgraded the filter panel with clearer layout-mode cards, active-state feedback, enabled-count visibility, and quick presets for common graph investigation scenarios.
+
+### Modal, Toast, and Visual System Consistency
+
+- Rebuilt the update notifications as floating toast panels with better action affordances instead of thin edge banners that were easy to miss.
+- Refined the MCP settings modal styling so tabs, code blocks, and section cards follow the same visual language as the rest of the app.
+- Introduced a consistent surface/button/token layer in global styles, including fixed missing CSS variables that previously made parts of the UI render inconsistently.
+
 ## v1.1.15 (2026-09-12)
 
 ### Windows Auto-Update Reliability

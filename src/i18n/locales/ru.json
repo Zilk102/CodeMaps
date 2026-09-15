@@ -216,6 +216,11 @@
   "filterPanel": {
     "filters": "Фильтры",
     "layoutMode": "Режим раскладки",
+    "enabledSummary": "Видно {{count}} из {{total}}",
+    "presets": "Быстрые пресеты",
+    "showAll": "Показать всё",
+    "focusCode": "Фокус на коде",
+    "reset": "Сбалансировано",
     "hierarchy": "Иерархия",
     "dependencies": "Зависимости",
     "hierarchyDescription": "Рамки и вложенность проекта. Связи лучше читать после выбора конкретного узла.",
@@ -230,6 +235,10 @@
   "recentProjects": {
     "tagline": "Живая схема кода",
     "title": "Недавние проекты",
+    "statRecent": "Проекты",
+    "statStatus": "Состояние",
+    "statEntry": "Основное действие",
+    "ready": "Готово",
     "clearHistory": "Очистить историю",
     "noProjects": "Нет недавних проектов",
     "openFolder": "Открыть папку",
@@ -271,6 +280,10 @@
     "openFolder": "Открыть проект",
     "closeProject": "Закрыть проект",
     "mcpSettings": "Настройки MCP",
+    "projectLoaded": "Проект загружен",
+    "noProject": "Проект не выбран",
+    "analysisReady": "Граф готов",
+    "project": "Проект",
     "minimize": "Свернуть",
     "maximize": "Развернуть",
     "close": "Закрыть"

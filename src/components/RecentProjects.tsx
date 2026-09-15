@@ -148,89 +148,55 @@ export const RecentProjects: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: 'var(--bg0)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--t1)',
-        fontFamily: 'var(--font-family)',
-      }}
-    >
-      <div style={{ maxWidth: 520, width: '100%', padding: '0 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              margin: '0 0 8px 0',
-              color: 'var(--t0)',
-              letterSpacing: '-0.5px',
-            }}
+    <div className="flex h-full w-full items-center justify-center bg-(--bg0) px-6 py-10 text-(--t1)">
+      <div className="grid w-full max-w-[1180px] gap-6 xl:grid-cols-[0.95fr_1.35fr]">
+        <div className="surface-card flex flex-col justify-between gap-6 p-7">
+          <div>
+            <div className="section-label">{t('recentProjects.title')}</div>
+            <h1 className="mt-3 text-[34px] font-bold tracking-[-0.04em] text-(--t0)">CodeMaps</h1>
+            <p className="mt-3 max-w-[420px] text-[14px] leading-6 text-(--t2)">
+              {t('recentProjects.tagline')}
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="section-label">{t('recentProjects.statRecent')}</div>
+              <div className="mt-2 text-[22px] font-semibold text-(--t0)">
+                {recentProjects.length}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="section-label">{t('recentProjects.statStatus')}</div>
+              <div className="mt-2 text-[14px] font-semibold text-(--t0)">
+                {isLoading ? t('recentProjects.opening') : t('recentProjects.ready')}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+              <div className="section-label">{t('recentProjects.statEntry')}</div>
+              <div className="mt-2 text-[14px] font-semibold text-(--t0)">
+                {t('recentProjects.openFolder')}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={openProject}
+            disabled={isLoading}
+            className="btn-glass btn-primary w-full justify-center text-[13px]"
           >
-            CodeMaps
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--t2)', margin: 0 }}>
-            {t('recentProjects.tagline')}
-          </p>
+            {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
+          </button>
         </div>
 
-        <div
-          style={{
-            background: 'var(--bg1)',
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 18px',
-              borderBottom: '1px solid var(--border)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--t0)',
-              }}
-            >
+        <div className="surface-card overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-(--border) px-5 py-4">
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-(--t0)">
               <ClockIcon />
               {t('recentProjects.title')}
             </div>
             {recentProjects.length > 0 && (
-              <button
-                onClick={handleClearHistory}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12,
-                  color: 'var(--t3)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: 4,
-                  transition: 'color 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--red)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--t3)';
-                }}
-              >
+              <button onClick={handleClearHistory} className="btn-glass btn-danger">
                 <TrashIcon />
                 {t('recentProjects.clearHistory')}
               </button>
@@ -238,198 +204,107 @@ export const RecentProjects: React.FC = () => {
           </div>
 
           {recentProjects.length === 0 ? (
-            <div
-              style={{
-                padding: '36px 24px',
-                textAlign: 'center',
-                color: 'var(--t3)',
-                fontSize: 13,
-              }}
-            >
-              <div style={{ marginBottom: 12, opacity: 0.5 }}>
+            <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 px-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-(--border) bg-(--bg2) text-(--acc)">
                 <FolderIcon />
               </div>
-              <div>{t('recentProjects.noProjects')}</div>
+              <div className="text-[14px] text-(--t2)">{t('recentProjects.noProjects')}</div>
+              <button onClick={openProject} disabled={isLoading} className="btn-glass btn-primary">
+                {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
+              </button>
             </div>
           ) : (
-            <div>
-              {recentProjects.map((project: RecentProject) => {
-                const telemetryBadge = getTelemetryBadge(project, t);
+            <div className="max-h-[560px] overflow-y-auto p-3">
+              <div className="grid gap-3">
+                {recentProjects.map((project: RecentProject) => {
+                  const telemetryBadge = getTelemetryBadge(project, t);
 
-                return (
-                  <button
-                    key={project.path}
-                    onClick={() => handleOpenProject(project.path)}
-                    disabled={isLoading}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      padding: '12px 18px',
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: '1px solid var(--border)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      color: 'inherit',
-                      fontFamily: 'inherit',
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--hover)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: 'var(--acc)',
-                        opacity: 0.8,
-                        display: 'flex',
-                        alignItems: 'center',
-                        paddingTop: 2,
-                      }}
+                  return (
+                    <button
+                      key={project.path}
+                      onClick={() => handleOpenProject(project.path)}
+                      disabled={isLoading}
+                      className="group rounded-2xl border border-(--border) bg-(--bg2)/82 p-4 text-left transition-all hover:border-(--acc) hover:bg-[rgba(255,255,255,0.035)]"
                     >
-                      <FolderIcon />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          minWidth: 0,
-                          marginBottom: 2,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 500,
-                            color: 'var(--t0)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            minWidth: 0,
-                          }}
-                        >
-                          {project.name}
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--border) bg-(--bg1) text-(--acc)">
+                          <FolderIcon />
                         </div>
-                        {telemetryBadge && (
-                          <span
-                            style={{
-                              flexShrink: 0,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: telemetryBadge.color,
-                              background: telemetryBadge.background,
-                              borderRadius: 999,
-                              padding: '2px 7px',
-                              letterSpacing: '0.02em',
-                            }}
-                          >
-                            {telemetryBadge.label}
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: 'var(--t3)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontFamily: 'monospace',
-                          marginBottom: project.telemetry ? 6 : 0,
-                        }}
-                      >
-                        {project.path}
-                      </div>
-                      {project.telemetry && (
-                        <>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: 'var(--t2)',
-                              lineHeight: 1.45,
-                            }}
-                          >
-                            {t('recentProjects.telemetry.latency')}:{' '}
-                            {formatLatency(project.telemetry.avgRefreshLatencyMs)} |{' '}
-                            {t('recentProjects.telemetry.skipRate')}:{' '}
-                            {formatRate(project.telemetry.skipRate)} |{' '}
-                            {t('recentProjects.telemetry.coalescing')}:{' '}
-                            {formatRate(project.telemetry.coalescingRatio)}
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-[14px] font-semibold text-(--t0)">
+                              {project.name}
+                            </div>
+                            {telemetryBadge && (
+                              <span
+                                className="rounded-full px-2.5 py-1 text-[10px] font-bold tracking-[0.04em]"
+                                style={{
+                                  color: telemetryBadge.color,
+                                  background: telemetryBadge.background,
+                                }}
+                              >
+                                {telemetryBadge.label}
+                              </span>
+                            )}
                           </div>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: 'var(--t3)',
-                              lineHeight: 1.45,
-                            }}
-                          >
-                            {t('recentProjects.telemetry.trend')}:{' '}
-                            {translateTelemetryTrend(project.telemetry.latencyTrend, t)} |{' '}
-                            {t('recentProjects.telemetry.batchTrend')}:{' '}
-                            {translateTelemetryTrend(project.telemetry.batchSizeTrend, t)} |{' '}
-                            {t('recentProjects.telemetry.runtimePriority')}:{' '}
-                            {formatRate(project.telemetry.runtimePriorityRate)}
+
+                          <div className="mt-2 break-all text-[11px] leading-5 text-(--t3)">
+                            {project.path}
                           </div>
-                        </>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--t3)',
-                        whiteSpace: 'nowrap',
-                        textAlign: 'right',
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      <div>{formatDate(project.lastOpened, t)}</div>
-                      {project.telemetry && (
-                        <div style={{ marginTop: 4 }}>
-                          {t('recentProjects.telemetry.updated')}:{' '}
-                          {formatDate(project.telemetry.updatedAt, t)}
+
+                          {project.telemetry && (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                              <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
+                                <div className="section-label">
+                                  {t('recentProjects.telemetry.latency')}
+                                </div>
+                                <div className="mt-1 text-[12px] text-(--t1)">
+                                  {formatLatency(project.telemetry.avgRefreshLatencyMs)}
+                                </div>
+                              </div>
+                              <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
+                                <div className="section-label">
+                                  {t('recentProjects.telemetry.skipRate')}
+                                </div>
+                                <div className="mt-1 text-[12px] text-(--t1)">
+                                  {formatRate(project.telemetry.skipRate)}
+                                </div>
+                              </div>
+                              <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
+                                <div className="section-label">
+                                  {t('recentProjects.telemetry.coalescing')}
+                                </div>
+                                <div className="mt-1 text-[12px] text-(--t1)">
+                                  {formatRate(project.telemetry.coalescingRatio)}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+
+                        <div className="shrink-0 text-right text-[11px] leading-5 text-(--t3)">
+                          <div>{formatDate(project.lastOpened, t)}</div>
+                          {project.telemetry && (
+                            <div className="mt-2">
+                              {t('recentProjects.telemetry.updated')}:{' '}
+                              {formatDate(project.telemetry.updatedAt, t)}
+                            </div>
+                          )}
+                          {project.telemetry && (
+                            <div className="mt-2 text-(--t2)">
+                              {t('recentProjects.telemetry.trend')}:{' '}
+                              {translateTelemetryTrend(project.telemetry.latencyTrend, t)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
-
-          <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)' }}>
-            <button
-              onClick={openProject}
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: 'var(--acc)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: 'inherit',
-                transition: 'opacity 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.9';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1';
-              }}
-            >
-              {isLoading ? t('recentProjects.opening') : t('recentProjects.openFolder')}
-            </button>
-          </div>
         </div>
       </div>
     </div>

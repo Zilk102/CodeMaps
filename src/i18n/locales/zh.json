@@ -216,6 +216,11 @@
   "filterPanel": {
     "filters": "筛选器",
     "layoutMode": "布局模式",
+    "enabledSummary": "显示 {{count}} / {{total}}",
+    "presets": "快捷预设",
+    "showAll": "显示全部",
+    "focusCode": "聚焦代码",
+    "reset": "平衡模式",
     "hierarchy": "层级",
     "dependencies": "依赖关系",
     "hierarchyDescription": "项目结构和嵌套。选择特定节点后更容易读取连接。",
@@ -230,6 +235,10 @@
   "recentProjects": {
     "tagline": "代码的活体蓝图",
     "title": "最近的项目",
+    "statRecent": "最近项目",
+    "statStatus": "状态",
+    "statEntry": "主要操作",
+    "ready": "就绪",
     "clearHistory": "清除历史",
     "noProjects": "没有最近的项目",
     "openFolder": "打开文件夹",
@@ -263,6 +272,10 @@
     "closeProject": "关闭项目",
     "mcpSettings": "MCP 设置",
     "tools": "工具",
+    "projectLoaded": "项目已加载",
+    "noProject": "未选择项目",
+    "analysisReady": "图已就绪",
+    "project": "项目",
     "minimize": "最小化",
     "maximize": "最大化",
     "close": "关闭"

@@ -216,6 +216,11 @@
   "filterPanel": {
     "filters": "Filters",
     "layoutMode": "Layout Mode",
+    "enabledSummary": "{{count}} of {{total}} visible",
+    "presets": "Quick presets",
+    "showAll": "Show all",
+    "focusCode": "Focus code",
+    "reset": "Balanced",
     "hierarchy": "Hierarchy",
     "dependencies": "Dependencies",
     "hierarchyDescription": "Project structure and nesting. Connections are better read after selecting a specific node.",
@@ -230,6 +235,10 @@
   "recentProjects": {
     "tagline": "Living Blueprint for Code",
     "title": "Recent Projects",
+    "statRecent": "Recent",
+    "statStatus": "Status",
+    "statEntry": "Primary action",
+    "ready": "Ready",
     "clearHistory": "Clear History",
     "noProjects": "No recent projects",
     "openFolder": "Open Folder",
@@ -271,6 +280,10 @@
     "closeProject": "Close Project",
     "mcpSettings": "MCP Settings",
     "tools": "Workspace",
+    "projectLoaded": "Project loaded",
+    "noProject": "No project selected",
+    "analysisReady": "Graph ready",
+    "project": "Project",
     "minimize": "Minimize",
     "maximize": "Maximize",
     "close": "Close"

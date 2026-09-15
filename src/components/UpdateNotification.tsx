@@ -50,70 +50,49 @@ const UpdateNotification: React.FC = () => {
   }, []);
 
   if (dismissed) {
-    // Show a small dot indicator if update is available but dismissed
     if (state?.available || state?.downloaded) {
       return (
         <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 150,
-            zIndex: 1000,
-            cursor: 'pointer',
-          }}
+          className="floating-toast absolute right-5 top-4 z-[1000] cursor-pointer rounded-full border px-3 py-2"
           onClick={() => setDismissed(false)}
           title={t('updateNotification.updateAvailable')}
         >
-          <div
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: 'var(--cyan)',
-              boxShadow: '0 0 8px var(--cyan)',
-            }}
-          />
+          <div className="flex items-center gap-2 text-[11px] text-(--t1)">
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: 'var(--cyan)',
+                boxShadow: '0 0 8px var(--cyan)',
+              }}
+            />
+            <span>{t('updateNotification.updateAvailable')}</span>
+          </div>
         </div>
       );
     }
     return null;
   }
 
-  // Download in progress
   if (state?.available && !state.downloaded && state.progress !== undefined && state.progress > 0) {
     return (
-      <div
-        style={{
-          position: 'absolute',
-          top: 48,
-          left: 0,
-          right: 0,
-          zIndex: 999,
-          background: 'var(--bg1)',
-          borderBottom: '1px solid var(--border)',
-          padding: '8px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          fontSize: 13,
-          color: 'var(--t2)',
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          {t('updateNotification.downloadingUpdate', {
-            version: state.version ? `v${state.version}` : '',
-            progress: state.progress,
-          })}
+      <div className="floating-toast absolute right-5 top-20 z-[999] flex w-[min(420px,calc(100%-2.5rem))] flex-col gap-3 rounded-2xl p-4 text-[13px] text-(--t2)">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="section-label">{t('updateNotification.updateAvailable')}</div>
+            <div className="mt-1 text-[13px] text-(--t1)">
+              {t('updateNotification.downloadingUpdate', {
+                version: state.version ? `v${state.version}` : '',
+                progress: state.progress,
+              })}
+            </div>
+          </div>
+          <button className="btn-glass" onClick={handleLater}>
+            {t('updateNotification.later')}
+          </button>
         </div>
-        <div
-          style={{
-            width: 200,
-            height: 4,
-            background: 'var(--bg3)',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}
-        >
+        <div className="h-1.5 overflow-hidden rounded-full bg-(--bg3)">
           <div
             style={{
               width: `${state.progress}%`,
@@ -127,28 +106,10 @@ const UpdateNotification: React.FC = () => {
     );
   }
 
-  // Update ready to install
   if (state?.downloaded) {
     return (
-      <div
-        style={{
-          position: 'absolute',
-          top: 48,
-          left: 0,
-          right: 0,
-          zIndex: 999,
-          background: 'var(--bg1)',
-          borderBottom: '1px solid var(--cyan)',
-          padding: '10px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          fontSize: 13,
-          color: 'var(--t1)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="floating-toast absolute right-5 top-20 z-[999] flex w-[min(460px,calc(100%-2.5rem))] items-center justify-between gap-4 rounded-2xl border-[rgba(34,211,238,0.32)] p-4 text-[13px] text-(--t1)">
+        <div className="flex min-w-0 items-center gap-3">
           <svg
             width="16"
             height="16"
@@ -163,44 +124,24 @@ const UpdateNotification: React.FC = () => {
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          <span>
-            <Trans
-              i18nKey="updateNotification.updateReady"
-              values={{ version: state.version }}
-              components={{
-                1: <strong style={{ color: 'var(--cyan)' }} />,
-              }}
-            />
-          </span>
+          <div className="min-w-0">
+            <div className="section-label">{t('updateNotification.updateAvailable')}</div>
+            <div className="mt-1">
+              <Trans
+                i18nKey="updateNotification.updateReady"
+                values={{ version: state.version }}
+                components={{
+                  1: <strong style={{ color: 'var(--cyan)' }} />,
+                }}
+              />
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={handleLater}
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--t2)',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
-          >
+        <div className="flex shrink-0 gap-2">
+          <button onClick={handleLater} className="btn-glass">
             {t('updateNotification.later')}
           </button>
-          <button
-            onClick={handleRestart}
-            style={{
-              padding: '4px 12px',
-              borderRadius: 4,
-              border: 'none',
-              background: 'var(--cyan)',
-              color: 'var(--bg0)',
-              fontSize: 12,
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
+          <button onClick={handleRestart} className="btn-glass btn-primary">
             {t('updateNotification.restart')}
           </button>
         </div>
@@ -208,26 +149,9 @@ const UpdateNotification: React.FC = () => {
     );
   }
 
-  // Update available (not yet downloaded) - typically auto-downloads, but show checking
   if (state?.checking) {
     return (
-      <div
-        style={{
-          position: 'absolute',
-          top: 48,
-          left: 0,
-          right: 0,
-          zIndex: 999,
-          background: 'var(--bg1)',
-          borderBottom: '1px solid var(--border)',
-          padding: '8px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          fontSize: 13,
-          color: 'var(--t2)',
-        }}
-      >
+      <div className="floating-toast absolute right-5 top-20 z-[999] flex w-[min(360px,calc(100%-2.5rem))] items-center gap-3 rounded-2xl p-4 text-[13px] text-(--t2)">
         <div
           style={{
             width: 14,

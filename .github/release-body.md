@@ -2,46 +2,46 @@
 
 ## 🇷🇺 Русская версия
 
-### Надёжность релизного контура, MCP и сборок
+### Аккуратность интерфейса и понятность сценариев
 
-Этот релиз доводит релизный контур и инфраструктуру качества до предсказуемого состояния: имя GitHub Release теперь берётся прямо из git-тега, тело релиза генерируется из шаблона с автоматической подстановкой версии, а сами release notes сохраняют обязательную трёхъязычную структуру.
+Этот релиз приводит интерфейс CodeMaps в более цельное и управляемое состояние. Основные пользовательские сценарии стали понятнее: верхнее меню больше не выглядит перегруженным, недавние проекты читаются быстрее, фильтры дают явную обратную связь, а всплывающие панели больше не теряются на фоне остального интерфейса.
 
 **Что нового:**
 
-- **🏷 Релизы без version-хардкода:** workflow больше не содержит зашитого имени релиза от старой версии; имя релиза теперь берётся из `github.ref_name`.
-- **📝 Трёхъязычные release notes как шаблон:** `.github/release-body.md` теперь работает как шаблон с `{{VERSION}}`, а перед публикацией workflow генерирует итоговое тело релиза автоматически.
-- **🔒 Чистый dependency graph:** локальный `yarn audit` доведён до `0 high / 0 moderate / 0 low`.
-- **🧩 MCP-контракты стабилизированы:** composite tools отдают ожидаемые поля (`changeContext`, `reviewContext`), а resources возвращают чистый JSON вместо fenced markdown.
-- **🧪 Полная проверка контура:** локально подтверждены `format:check`, `lint`, `typecheck`, `test`, сборки `renderer/electron` и полный `mcp:smoke`.
+- **🧭 Пересобрана верхняя навигация:** title bar теперь лучше разделяет основные и вторичные действия, показывает состояние проекта и делает переключение рабочей области более явным.
+- **🗂 Улучшен экран недавних проектов:** стартовый экран стал чище, легче сканируется и быстрее подводит пользователя к открытию проекта.
+- **🎛 Переработаны фильтры графа:** добавлены быстрые пресеты, индикатор количества активных фильтров и более понятное переключение между режимами `Hierarchy` и `Dependencies`.
+- **🔔 Обновлены всплывающие уведомления:** уведомления об обновлении теперь оформлены как заметные floating toast-панели с более понятными действиями.
+- **🪟 Выровнены модалки и визуальная система:** MCP modal, кнопки, поверхности и фокус-состояния приведены к единому стилю; также исправлены отсутствовавшие CSS-переменные, из-за которых часть UI выглядела нестабильно.
 
 ---
 
 ## 🇺🇸 English Version
 
-### Release Pipeline, MCP, and Build Reliability
+### Cleaner UI and More Intuitive Flows
 
-This release finishes the release pipeline cleanup and makes it deterministic: the GitHub Release name now comes directly from the pushed git tag, the release body is generated from a template with automatic version substitution, and the mandatory three-language release notes format is preserved.
+This release makes the CodeMaps interface feel much more deliberate and easier to operate. Core user flows are now clearer: the top bar is less noisy, recent projects are easier to scan, filters provide stronger feedback, and transient UI like notifications and modals now reads as part of one coherent system.
 
 **Key Highlights:**
 
-- **🏷 No version hardcode in release names:** the workflow no longer bakes an old release version into the GitHub Release title; it uses `github.ref_name`.
-- **📝 Three-language release notes as a template:** `.github/release-body.md` is now treated as a template with `{{VERSION}}`, and the workflow generates the final release body before publishing.
-- **🔒 Clean dependency graph:** local `yarn audit` is down to `0 high / 0 moderate / 0 low`.
-- **🧩 MCP contracts stabilized:** composite tools now return the expected keys (`changeContext`, `reviewContext`), and resources return raw JSON instead of fenced markdown.
-- **🧪 End-to-end verification:** `format:check`, `lint`, `typecheck`, `test`, renderer/electron builds, and the full `mcp:smoke` flow were validated locally.
+- **🧭 Reworked top navigation:** the title bar now separates primary and secondary actions more clearly, exposes project state, and makes the workspace toggle easier to understand.
+- **🗂 Upgraded recent-projects home screen:** the landing area is cleaner, faster to scan, and gives users a much more obvious way to get into a project.
+- **🎛 Improved graph filters:** added quick presets, visible active-filter counts, and clearer switching between `Hierarchy` and `Dependencies` modes.
+- **🔔 Refined update notifications:** update prompts now use floating toast panels with stronger visibility and clearer actions.
+- **🪟 Unified modals and visual system:** the MCP modal, buttons, surfaces, and focus states now share the same visual language; missing CSS tokens that caused inconsistent rendering were also fixed.
 
 ---
 
 ## 🇨🇳 中文版本
 
-### 发布流程、MCP 与构建稳定性
+### 更整洁的界面与更直观的操作流程
 
-本版本将发布流程整理为可预测、可复用的状态：GitHub Release 名称直接取自推送的 git tag，发布说明正文由模板自动注入版本号生成，并继续保持必须的三语言结构。
+本次版本让 CodeMaps 的界面更加统一、易读、易操作。核心使用路径现在更清晰：顶部菜单不再显得杂乱，最近项目列表更容易快速浏览，筛选器会提供更明确的状态反馈，而通知与弹窗也终于像同一套系统的一部分。
 
 **主要更新：**
 
-- **🏷 发布名称不再硬编码旧版本：** workflow 不再把旧版本号写死在 GitHub Release 标题中，而是直接使用 `github.ref_name`。
-- **📝 三语言发布说明模板化：** `.github/release-body.md` 现在作为带有 `{{VERSION}}` 占位符的模板使用，workflow 会在发布前生成最终正文。
-- **🔒 依赖图已清理干净：** 本地 `yarn audit` 已降为 `0 high / 0 moderate / 0 low`。
-- **🧩 MCP 契约已稳定：** composite tools 返回预期字段（`changeContext`、`reviewContext`），resources 返回纯 JSON，而不是 fenced markdown。
-- **🧪 端到端验证完成：** 已本地验证 `format:check`、`lint`、`typecheck`、`test`、renderer/electron 构建以及完整 `mcp:smoke`。
+- **🧭 重新设计顶部导航：** title bar 现在能更清楚地区分主要操作与次要操作，同时直接展示项目状态，并让工作区切换更容易理解。
+- **🗂 优化最近项目首页：** 进入页面更整洁、更易扫描，也更容易引导用户快速进入项目。
+- **🎛 改进图筛选器：** 新增快捷预设、活动筛选数量提示，以及更清晰的 `Hierarchy` / `Dependencies` 模式切换。
+- **🔔 更新通知样式升级：** 更新提示改为更醒目的浮动 toast 面板，操作按钮也更直观。
+- **🪟 统一弹窗与视觉系统：** MCP 设置弹窗、按钮、卡片表面与焦点状态现在使用同一套视觉语言，同时修复了部分缺失的 CSS 变量，解决了界面渲染不一致的问题。

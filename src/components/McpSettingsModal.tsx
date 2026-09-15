@@ -173,10 +173,11 @@ The agent should behave like it has a project-aware architectural map:
   if (!isOpen) return null;
 
   const commonSectionStyle: React.CSSProperties = {
-    background: 'var(--glass-bg)',
-    padding: '14px',
-    borderRadius: '10px',
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
+    padding: '16px',
+    borderRadius: '16px',
     border: '1px solid var(--glass-border)',
+    boxShadow: '0 12px 30px rgba(0,0,0,0.14)',
   };
 
   const renderOverview = () => (
@@ -530,12 +531,18 @@ The agent should behave like it has a project-aware architectural map:
         aria-labelledby="mcp-settings-title"
         style={{ maxWidth: 1080, width: '96vw', maxHeight: '88vh', padding: 0 }}
       >
-        <div style={{ padding: '18px 20px 12px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{
+            padding: '20px 20px 14px',
+            borderBottom: '1px solid var(--border)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+          }}
+        >
           <h2
             id="mcp-settings-title"
             style={{
-              margin: '0 0 20px 0',
-              fontSize: '18px',
+              margin: '0 0 10px 0',
+              fontSize: '20px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -556,6 +563,17 @@ The agent should behave like it has a project-aware architectural map:
             </svg>
             {t('mcpSettings.title')}
           </h2>
+          <div
+            style={{
+              marginBottom: '18px',
+              color: 'var(--text-secondary)',
+              fontSize: '12px',
+              lineHeight: 1.5,
+              maxWidth: '760px',
+            }}
+          >
+            {t('mcpSettings.streamableHttpServerDescription')}
+          </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
               {t('mcpSettings.overview')}
@@ -580,11 +598,12 @@ The agent should behave like it has a project-aware architectural map:
 
         <div
           style={{
-            padding: '18px 20px',
+            padding: '18px 20px 20px',
             overflow: 'auto',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
+            background: 'transparent',
           }}
         >
           {activeTab === 'overview' && renderOverview()}
@@ -640,10 +659,10 @@ const CodeBlock: React.FC<{ children: string }> = ({ children }) => (
   <pre
     style={{
       margin: 0,
-      background: 'rgba(255,255,255,0.03)',
+      background: 'rgba(255,255,255,0.025)',
       border: '1px solid var(--glass-border)',
-      borderRadius: '8px',
-      padding: '12px',
+      borderRadius: '14px',
+      padding: '14px',
       color: 'var(--text-primary)',
       fontFamily: 'Consolas, monospace',
       fontSize: '12px',
@@ -666,9 +685,9 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
     onClick={onClick}
     className="btn-glass"
     style={{
-      borderColor: active ? 'var(--acc)' : 'var(--border)',
+      borderColor: active ? 'rgba(0,255,157,0.45)' : 'var(--border)',
       color: active ? 'var(--acc)' : 'var(--t1)',
-      background: active ? 'var(--accbg)' : 'var(--bg3)',
+      background: active ? 'rgba(0,255,157,0.12)' : 'var(--bg3)',
     }}
   >
     {children}

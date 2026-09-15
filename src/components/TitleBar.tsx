@@ -20,49 +20,19 @@ const TitleBar: React.FC = () => {
   const { openProject } = useConnectionStore();
   const { closeProject, graphData } = useGraphStore();
   const { setMcpSettingsOpen, toggleToolsPanel, isToolsPanelOpen } = useUIStore();
+  const projectName = graphData?.projectRoot.split(/[/\\]/).filter(Boolean).pop();
 
   return (
     <div
-      style={
-        {
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: '48px',
-          background: 'var(--bg1)',
-          borderBottom: '1px solid var(--border)',
-          padding: '0 16px',
-          WebkitAppRegion: 'drag',
-          userSelect: 'none',
-          flexShrink: 0,
-        } as React.CSSProperties
-      }
+      className="flex h-[64px] shrink-0 items-center justify-between border-b border-(--border) bg-(--bg1)/98 px-4 text-(--t1) backdrop-blur-sm"
+      style={{ WebkitAppRegion: 'drag', userSelect: 'none' } as React.CSSProperties}
     >
-      {/* Left side */}
       <div
-        style={
-          {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '20px',
-            WebkitAppRegion: 'no-drag',
-            height: '100%',
-          } as React.CSSProperties
-        }
+        className="flex min-w-0 items-center gap-4"
+        style={{ WebkitAppRegion: 'no-drag', height: '100%' } as React.CSSProperties}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: 'linear-gradient(135deg, var(--acc), var(--cyan))',
-              borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--bg0)',
-            }}
-          >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.08)] bg-[linear-gradient(135deg,var(--acc),var(--cyan))] text-(--bg0) shadow-[0_10px_30px_rgba(34,211,238,0.18)]">
             <svg
               width="16"
               height="16"
@@ -76,20 +46,33 @@ const TitleBar: React.FC = () => {
               <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
             </svg>
           </div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: 'var(--acc)',
-              fontFamily: 'var(--font-family)',
-            }}
-          >
-            CodeMaps
+          <div className="min-w-0">
+            <div className="text-[15px] font-bold tracking-[-0.02em] text-(--t0)">CodeMaps</div>
+            <div className="text-[11px] text-(--t3)">
+              {graphData ? t('titleBar.projectLoaded') : t('titleBar.noProject')}
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: 20 }}>
-          <button className="btn-glass" onClick={openProject}>
+        <div className="hidden h-9 w-px bg-(--border) lg:block" />
+
+        <div className="hidden min-w-0 items-center gap-2 xl:flex">
+          <div className="status-chip min-w-0">
+            <span
+              className="status-dot"
+              style={{ background: graphData ? 'var(--acc)' : 'var(--t3)' }}
+            />
+            <span className="truncate">{projectName || t('titleBar.noProject')}</span>
+          </div>
+          {graphData && (
+            <div className="status-chip">
+              <span className="text-(--acc)">{t('titleBar.analysisReady')}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button className="btn-glass btn-primary" onClick={openProject}>
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -104,7 +87,7 @@ const TitleBar: React.FC = () => {
           </button>
 
           {graphData && (
-            <button className="btn-glass" onClick={closeProject} style={{ color: 'var(--danger)' }}>
+            <button className="btn-glass btn-danger" onClick={closeProject}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -139,7 +122,6 @@ const TitleBar: React.FC = () => {
             <button
               className={`btn-glass ${isToolsPanelOpen ? 'active' : ''}`}
               onClick={toggleToolsPanel}
-              style={isToolsPanelOpen ? { background: 'var(--acc)', color: 'var(--bg0)' } : {}}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -157,27 +139,22 @@ const TitleBar: React.FC = () => {
         </div>
       </div>
 
-      {/* Right side */}
       <div
-        style={
-          {
-            display: 'flex',
-            alignItems: 'center',
-            height: '100%',
-            WebkitAppRegion: 'no-drag',
-          } as React.CSSProperties
-        }
+        className="flex items-center gap-3"
+        style={{ height: '100%', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        {/* Window buttons (Windows) */}
+        {graphData && (
+          <div className="hidden max-w-[320px] items-center gap-2 rounded-full border border-(--border) bg-(--bg2)/90 px-3 py-1.5 md:flex">
+            <div className="section-label">{t('titleBar.project')}</div>
+            <div className="truncate text-[11px] text-(--t2)" title={graphData.projectRoot}>
+              {graphData.projectRoot}
+            </div>
+          </div>
+        )}
+
         <div
-          style={
-            {
-              display: 'flex',
-              WebkitAppRegion: 'no-drag',
-              height: '100%',
-              alignItems: 'center',
-            } as React.CSSProperties
-          }
+          className="flex h-full items-center"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
           <button
             type="button"
