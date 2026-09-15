@@ -3,11 +3,17 @@ updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
-    open-pull-requests-limit: 10
+      interval: 'monthly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'Europe/Moscow'
+    # Disable routine version-update PR spam. Security update PRs are managed
+    # separately by GitHub and are not subject to this limit.
+    open-pull-requests-limit: 0
     rebase-strategy: 'auto'
     labels:
       - 'dependencies'
+      - 'automated'
     ignore:
       # web-tree-sitter >= 0.26 only accepts grammars built as Emscripten side
       # modules, which the prebuilt tree-sitter-wasms grammars are not.
@@ -19,6 +25,12 @@ updates:
     directory: '/'
     schedule:
       interval: 'monthly'
+      day: 'monday'
+      time: '06:30'
+      timezone: 'Europe/Moscow'
+    # Disable routine version-update PR spam. Security updates remain separate.
+    open-pull-requests-limit: 0
     rebase-strategy: 'auto'
     labels:
       - 'dependencies'
+      - 'automated'
