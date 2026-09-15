@@ -101,7 +101,7 @@ function getTelemetryBadge(
       ? t('recentProjects.telemetry.statusDegraded')
       : t('recentProjects.telemetry.statusStable'),
     color: project.telemetry.degraded ? 'var(--red)' : 'var(--acc)',
-    background: project.telemetry.degraded ? 'rgba(238, 0, 0, 0.1)' : 'rgba(0, 112, 243, 0.1)',
+    background: project.telemetry.degraded ? 'rgba(238, 0, 0, 0.1)' : 'rgba(0, 255, 157, 0.12)',
   };
 }
 

@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## v1.1.20 (2026-09-15)
+
+### Fixed
+
+- **UI Colors Restored**: Reverted the core UI color scheme back to the original Dark/Green palette (`#00ff9d`). The previous update incorrectly changed the branding to Vercel Blue.
+- Kept all the layout, padding, margin, and typography improvements from the previous release.
+
 ## v1.1.19 (2026-09-15)
 
 ### Fixed

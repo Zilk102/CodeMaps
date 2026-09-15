@@ -57,7 +57,7 @@ const UpdateNotification: React.FC = () => {
           title={t('updateNotification.updateAvailable')}
         >
           <div className="flex items-center gap-2 text-[12px] font-medium text-(--t1)">
-            <div className="w-2 h-2 rounded-full bg-(--blue) shadow-[0_0_8px_var(--blue)]" />
+            <div className="w-2 h-2 rounded-full bg-(--cyan) shadow-[0_0_8px_var(--cyan)]" />
             <span>{t('updateNotification.updateAvailable')}</span>
           </div>
         </div>
@@ -88,7 +88,7 @@ const UpdateNotification: React.FC = () => {
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-(--bg3)">
           <div
-            className="h-full bg-(--blue) transition-[width] duration-300 linear"
+            className="h-full bg-(--cyan) transition-[width] duration-300 linear"
             style={{ width: `${state.progress}%` }}
           />
         </div>
@@ -98,9 +98,9 @@ const UpdateNotification: React.FC = () => {
 
   if (state?.downloaded) {
     return (
-      <div className="floating-toast absolute right-6 top-16 z-[999] flex w-[380px] flex-col gap-4 p-4 border-(--blue)">
+      <div className="floating-toast absolute right-6 top-16 z-[999] flex w-[380px] flex-col gap-4 p-4 border-(--cyan)">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[rgba(0,112,243,0.1)] text-(--blue)">
+          <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[rgba(34,211,238,0.12)] text-(--cyan)">
             <svg
               width="14"
               height="14"
@@ -123,7 +123,7 @@ const UpdateNotification: React.FC = () => {
                 i18nKey="updateNotification.updateReady"
                 values={{ version: state.version }}
                 components={{
-                  1: <strong className="font-semibold text-(--blue)" />,
+                  1: <strong className="font-semibold text-(--cyan)" />,
                 }}
               />
             </div>
@@ -147,7 +147,7 @@ const UpdateNotification: React.FC = () => {
   if (state?.checking) {
     return (
       <div className="floating-toast absolute right-6 top-16 z-[999] flex w-[300px] items-center gap-3 p-4">
-        <div className="h-4 w-4 rounded-full border-2 border-(--border) border-t-(--blue) animate-spin" />
+        <div className="h-4 w-4 rounded-full border-2 border-(--border) border-t-(--cyan) animate-spin" />
         <span className="text-[12px] font-medium text-(--t1)">
           {t('updateNotification.checkingForUpdates')}
         </span>
