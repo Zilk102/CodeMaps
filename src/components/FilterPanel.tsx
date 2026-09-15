@@ -104,26 +104,29 @@ export const FilterPanel: React.FC = () => {
 
       {/* Presets */}
       <div>
-        <div className="section-label mb-3">{t('filterPanel.presets')}</div>
-        <div className="flex gap-2">
+        <div className="section-label mb-2">{t('filterPanel.presets')}</div>
+        <div className="flex bg-(--bg2) p-1 rounded-lg border border-(--border)">
           <button
             type="button"
             onClick={() => applyPreset('all')}
-            className="flex-1 rounded-md border border-(--border) bg-(--bg1) py-1.5 text-[11px] font-medium text-(--t2) transition-colors hover:border-(--acc) hover:text-(--acc)"
+            className="flex-1 text-[11px] font-medium py-1 rounded transition-colors text-(--t2) hover:text-(--t0) hover:bg-(--bg1)"
+            title={t('filterPanel.showAll')}
           >
             {t('filterPanel.showAll')}
           </button>
           <button
             type="button"
             onClick={() => applyPreset('focus')}
-            className="flex-1 rounded-md border border-(--border) bg-(--bg1) py-1.5 text-[11px] font-medium text-(--t2) transition-colors hover:border-(--acc) hover:text-(--acc)"
+            className="flex-1 text-[11px] font-medium py-1 rounded transition-colors text-(--t2) hover:text-(--t0) hover:bg-(--bg1)"
+            title={t('filterPanel.focusCode')}
           >
             {t('filterPanel.focusCode')}
           </button>
           <button
             type="button"
             onClick={() => applyPreset('reset')}
-            className="flex-1 rounded-md border border-(--border) bg-(--bg1) py-1.5 text-[11px] font-medium text-(--t2) transition-colors hover:border-(--red) hover:text-(--red)"
+            className="flex-1 text-[11px] font-medium py-1 rounded transition-colors text-(--t2) hover:text-(--red) hover:bg-(--bg1)"
+            title={t('filterPanel.reset')}
           >
             {t('filterPanel.reset')}
           </button>
@@ -143,13 +146,13 @@ export const FilterPanel: React.FC = () => {
                 {item.label}
               </span>
               <div
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ${
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-300 ${
                   filters[item.key] ? 'bg-(--acc)' : 'bg-(--border)'
                 }`}
               >
                 <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-300 shadow-sm ${
-                    filters[item.key] ? 'translate-x-4' : 'translate-x-1'
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 shadow-sm ${
+                    filters[item.key] ? 'translate-x-[18px]' : 'translate-x-[2px]'
                   }`}
                 />
               </div>
