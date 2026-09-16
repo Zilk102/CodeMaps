@@ -138,3 +138,4 @@ src/types/*.d.ts
 
 # This project builds with yarn; a second lockfile only causes drift
 package-lock.json
+.artifacts/
