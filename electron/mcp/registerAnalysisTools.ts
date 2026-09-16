@@ -173,4 +173,57 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       return okStatusToolResult(result);
     }
   );
+
+  server.registerTool(
+    'get_semantic_skeleton',
+    {
+      title: 'Get Semantic Skeleton',
+      description:
+        'Strips out function/method bodies from a file, returning only the structural skeleton (imports, interfaces, signatures). Use this to save tokens when exploring large files.',
+      inputSchema: {
+        filePath: z.string().describe('Absolute path to the file to skeletonize'),
+      },
+    },
+    async ({ filePath }: { filePath: string }) => {
+      try {
+        const { SemanticSkeletonService } = await import('../analysis/SemanticSkeletonService.js');
+        const service = new SemanticSkeletonService();
+        const skeleton = await service.generateSkeleton(filePath);
+        return okStatusToolResult({ skeleton });
+      } catch (err: any) {
+        return {
+          content: [{ type: 'text', text: `Failed to generate skeleton: ${err.message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    'validate_architecture_changes',
+    {
+      title: 'Validate Architecture Changes',
+      description:
+        'Runs an on-the-fly architectural validation of the current graph state. Use this before finalizing code changes to ensure no SOLID principles or boundaries were violated.',
+      inputSchema: {},
+    },
+    async () => {
+      const graph = await ensureGraphLoaded();
+      const health = context.healthScoreAnalyzer.analyze(graph);
+      const patterns = context.patternDetectionAnalyzer.analyze(graph);
+
+      const highSeverityPatterns = patterns.patterns.filter((p) => p.severity === 'high');
+      const isValid = highSeverityPatterns.length === 0 && health.score > 60;
+
+      return okStatusToolResult({
+        isValid,
+        score: health.score,
+        grade: health.grade,
+        criticalViolations: highSeverityPatterns,
+        recommendation: isValid
+          ? 'Architecture is stable. Safe to proceed.'
+          : 'Critical architectural violations detected. Please refactor before proceeding.',
+      });
+    }
+  );
 }

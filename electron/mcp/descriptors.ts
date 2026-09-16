@@ -163,6 +163,20 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
       'When the user asks to clean up code, remove slop, or refactor oversized modules.',
   },
   {
+    name: 'get_semantic_skeleton',
+    title: 'Get Semantic Skeleton',
+    description:
+      'Strips out function/method bodies from a file, returning only the structural skeleton.',
+    recommendedWhen: 'When exploring large files to save tokens and understand contracts quickly.',
+  },
+  {
+    name: 'validate_architecture_changes',
+    title: 'Validate Architecture Changes',
+    description: 'Runs an on-the-fly architectural validation of the current graph state.',
+    recommendedWhen:
+      'Before finalizing code changes to ensure no SOLID principles or boundaries were violated.',
+  },
+  {
     name: 'prepare_task_context',
     title: 'Prepare Task Context',
     description:
