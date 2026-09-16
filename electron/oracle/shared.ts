@@ -49,10 +49,17 @@ export const ORACLE_IGNORE_GLOBS = [
   '**/*.dll',
   '**/*.so',
   '**/*.dylib',
+  '**/*.dat',
+  '**/*.pak',
   '**/*.bin',
   '**/*.pyc',
   '**/*.class',
   '**/*.asar',
+  '**/*.sqlite',
+  '**/*.sqlite3',
+  '**/*.db',
+  '**/*.log',
+  '**/LICENSES.chromium.html',
 ];
 
 export const normalizePath = (value: string) => value.replace(/\\/g, '/');
@@ -69,7 +76,15 @@ export const shouldIgnorePath = (filePath: string) => {
     normalized.includes('/build/') ||
     normalized.includes('/coverage/') ||
     normalized.includes('/out/') ||
-    normalized.endsWith('.asar')
+    normalized.endsWith('.asar') ||
+    normalized.endsWith('.dat') ||
+    normalized.endsWith('.pak') ||
+    normalized.endsWith('.bin') ||
+    normalized.endsWith('.db') ||
+    normalized.endsWith('.sqlite') ||
+    normalized.endsWith('.sqlite3') ||
+    normalized.endsWith('.log') ||
+    normalized.includes('licenses.chromium.html')
   );
 };
 

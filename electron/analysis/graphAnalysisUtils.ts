@@ -110,7 +110,16 @@ export const getChildCodeSymbolCount = (
 
 export const getFileLineCount = (filePath: string) => {
   try {
+    const stat = fs.statSync(filePath);
+    // Do not read files larger than 1MB to prevent memory bloat or counting lines in huge binaries
+    if (stat.size > 1024 * 1024) {
+      return null;
+    }
     const text = fs.readFileSync(filePath, 'utf-8');
+    // Basic heuristic to avoid splitting binary files
+    if (text.indexOf('\0') !== -1) {
+      return null;
+    }
     return text.split(/\r?\n/u).length;
   } catch {
     return null;
