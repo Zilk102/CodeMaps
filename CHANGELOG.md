@@ -1,5 +1,13 @@
 # CodeMaps Changelog
 
+## v1.1.29 (2026-09-16)
+
+### Changed
+
+- **RU**: Масштабный архитектурный рефакторинг бэкенда. Устранены God-классы (например, `KuzuNativeProcess` и `McpSettingsModal`), снижена цикломатическая сложность, внедрен паттерн Visitor для парсинга AST. Логика работы с Git инкапсулирована в выделенный `GitService`.
+- **EN**: Massive backend architectural refactoring. Eliminated God-classes (e.g., `KuzuNativeProcess` and `McpSettingsModal`), reduced cyclomatic complexity, and introduced the Visitor pattern for AST parsing. Git operations are now encapsulated in a dedicated `GitService`.
+- **ZH**: 大规模后端架构重构。消除了 God-class（如 `KuzuNativeProcess` 和 `McpSettingsModal`），降低了圈复杂度，并引入了 Visitor 模式用于 AST 解析。Git 操作现已封装在专用的 `GitService` 中。
+
 ## v1.1.20 (2026-09-15)
 
 ### Fixed
