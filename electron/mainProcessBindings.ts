@@ -189,7 +189,8 @@ function registerAnalyticsBindings(
         requireProjectDirectory(rawProjectPath); // validate
         const { oracleStore } = await import('./store.js');
         const graphData = oracleStore.getState().getValidGraph();
-        const { DecompositionGuidanceService } = await import('./analysis/DecompositionGuidanceService.js');
+        const { DecompositionGuidanceService } =
+          await import('./analysis/DecompositionGuidanceService.js');
         const service = new DecompositionGuidanceService();
         const result = service.prepareGuidance(graphData, { focusNodeIds });
         return { success: true, data: result };

@@ -155,6 +155,14 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     recommendedWhen: 'When a deep transitive dependency analysis is needed.',
   },
   {
+    name: 'analyze_decomposition',
+    title: 'Analyze Decomposition',
+    description:
+      'Finds and suggests splits for God classes, duplicate clones, and oversized monoliths.',
+    recommendedWhen:
+      'When the user asks to clean up code, remove slop, or refactor oversized modules.',
+  },
+  {
     name: 'prepare_task_context',
     title: 'Prepare Task Context',
     description:

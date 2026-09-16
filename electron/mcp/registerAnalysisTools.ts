@@ -143,4 +143,34 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       return okStatusToolResult(result);
     }
   );
+
+  server.registerTool(
+    'analyze_decomposition',
+    {
+      title: 'Analyze Decomposition',
+      description:
+        'Finds and suggests splits for God classes, duplicate clones, and oversized monoliths.',
+      inputSchema: {
+        focusNodeIds: z
+          .array(z.string())
+          .optional()
+          .describe('Optional array of specific node IDs to focus the decomposition analysis on.'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('Maximum number of refactoring candidates to return (default 12).'),
+      },
+    },
+    async ({ focusNodeIds, limit = 12 }: { focusNodeIds?: string[]; limit?: number }) => {
+      const graph = await ensureGraphLoaded();
+      const { DecompositionGuidanceService } =
+        await import('../analysis/DecompositionGuidanceService.js');
+      const service = new DecompositionGuidanceService();
+      const result = service.prepareGuidance(graph, { focusNodeIds, limit });
+      return okStatusToolResult(result);
+    }
+  );
 }
