@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import { DetectedStack, StackInsightResult } from './StackInsightService';
 
 export type StackAdapterCategory = 'framework' | 'build';

@@ -1,4 +1,4 @@
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import { ArchitectureInsightService, ArchitectureOverview } from './ArchitectureInsightService';
 import { resolveSecurityScan } from './contextSupport';
 import { HealthScoreAnalyzer, HealthScoreResult } from './HealthScoreAnalyzer';

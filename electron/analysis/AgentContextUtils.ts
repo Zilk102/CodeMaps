@@ -1,4 +1,4 @@
-import { GraphData, GraphNode } from '../store';
+import { GraphData, GraphNode } from '../store/types';
 
 export const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
 

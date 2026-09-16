@@ -1,4 +1,4 @@
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import { StackInsightResult } from './StackInsightService';
 import {
   BUILTIN_STACK_ADAPTERS,

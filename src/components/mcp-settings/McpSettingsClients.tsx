@@ -1,22 +1,39 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { commonSectionStyle, CodeBlock } from './shared';
 
-interface ClientExample {
-  id: string;
-  title: string;
-  description: string;
-  snippet: string;
-}
-
 interface Props {
-  clientExamples: ClientExample[];
+  endpoint: string;
   copiedKey: string | null;
   copyText: (key: string, text: string) => void;
 }
 
-export const McpSettingsClients: React.FC<Props> = ({ clientExamples, copiedKey, copyText }) => {
+export const McpSettingsClients: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
   const { t } = useTranslation();
+
+  const clientExamples = useMemo(
+    () => [
+      {
+        id: 'trae',
+        title: t('mcpSettings.trae'),
+        description: t('mcpSettings.traeDescription'),
+        snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "url": "${endpoint}"\n    }\n  }\n}`,
+      },
+      {
+        id: 'cursor',
+        title: t('mcpSettings.cursor'),
+        description: t('mcpSettings.cursorDescription'),
+        snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "transport": "streamable-http",\n      "url": "${endpoint}"\n    }\n  }\n}`,
+      },
+      {
+        id: 'claude-code',
+        title: t('mcpSettings.claudeCode'),
+        description: t('mcpSettings.claudeCodeDescription'),
+        snippet: `claude mcp add codemaps ${endpoint} --transport http`,
+      },
+    ],
+    [endpoint, t]
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

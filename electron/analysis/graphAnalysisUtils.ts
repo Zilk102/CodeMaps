@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { GraphData, GraphLink, GraphNode } from '../store';
+import { GraphData, GraphLink, GraphNode } from '../store/types';
 
 export const STACK_AWARE_LINK_TYPES = ['framework', 'build'] as const;
 export const ARCHITECTURAL_LINK_TYPES = ['import', ...STACK_AWARE_LINK_TYPES] as const;

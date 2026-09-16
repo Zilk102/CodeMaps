@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import {
   analyzeModuleQuality,
   ModuleQualityMetric,

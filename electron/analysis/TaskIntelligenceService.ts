@@ -1,4 +1,4 @@
-import { GraphData, GraphNode } from '../store';
+import { GraphData, GraphNode } from '../store/types';
 import { ChangeContextResult, ChangeContextService } from './ChangeContextService';
 import { ReviewContextResult, ReviewContextService } from './ReviewContextService';
 import {

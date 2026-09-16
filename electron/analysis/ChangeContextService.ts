@@ -1,4 +1,4 @@
-import { GraphData, GraphLink, GraphNode } from '../store';
+import { GraphData, GraphLink, GraphNode } from '../store/types';
 import {
   ArchitectureInsightService,
   ArchitectureNodeClassification,

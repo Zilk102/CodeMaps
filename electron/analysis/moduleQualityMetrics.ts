@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import ts from 'typescript';
-import { GraphData, GraphNode } from '../store';
+import { GraphData, GraphNode } from '../store/types';
 import {
   buildGraphAdjacency,
   getChildCodeSymbolCount,

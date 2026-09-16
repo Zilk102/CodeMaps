@@ -1,4 +1,4 @@
-import { GraphNode } from '../store';
+import { GraphNode } from '../store/types';
 import type {
   ArchitectureNodeClassification,
   ArchitectureViolation,

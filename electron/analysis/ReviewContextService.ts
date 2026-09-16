@@ -1,4 +1,4 @@
-import { GraphData, GraphNode } from '../store';
+import { GraphData, GraphNode } from '../store/types';
 import {
   ArchitectureNodeClassification,
   ArchitectureOverview,

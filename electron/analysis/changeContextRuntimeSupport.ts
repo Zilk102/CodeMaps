@@ -1,4 +1,4 @@
-import type { GraphData } from '../store';
+import type { GraphData } from '../store/types';
 import type {
   ArchitectureInsightService,
   ArchitectureNodeClassification,

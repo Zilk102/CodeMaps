@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { getLanguageByExtension } from '../parsing/languageRegistry';
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import { toStructuralNodeId, unique } from './AgentContextUtils';
 import { DecompositionGuidance } from './DecompositionGuidanceService';

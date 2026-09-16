@@ -1,4 +1,4 @@
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
 import type { HealthScoreResult } from './HealthScoreAnalyzer';

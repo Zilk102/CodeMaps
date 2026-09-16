@@ -1,4 +1,4 @@
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import { toStructuralNodeId } from './AgentContextUtils';
 import { isArchitecturalDependencyLink } from './graphAnalysisUtils';
 import {

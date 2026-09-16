@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore, useUIStore } from '../store/useStore';
 import { McpStatus, SettingsTab } from './mcp-settings/types';
@@ -44,102 +44,6 @@ export const McpSettingsModal: React.FC = () => {
   };
 
   const endpoint = status?.endpoint || 'http://127.0.0.1:3005/mcp';
-
-  const clientExamples = useMemo(
-    () => [
-      {
-        id: 'trae',
-        title: t('mcpSettings.trae'),
-        description: t('mcpSettings.traeDescription'),
-        snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "url": "${endpoint}"\n    }\n  }\n}`,
-      },
-      {
-        id: 'cursor',
-        title: t('mcpSettings.cursor'),
-        description: t('mcpSettings.cursorDescription'),
-        snippet: `{\n  "mcpServers": {\n    "codemaps": {\n      "transport": "streamable-http",\n      "url": "${endpoint}"\n    }\n  }\n}`,
-      },
-      {
-        id: 'claude-code',
-        title: t('mcpSettings.claudeCode'),
-        description: t('mcpSettings.claudeCodeDescription'),
-        snippet: `claude mcp add codemaps ${endpoint} --transport http`,
-      },
-    ],
-    [endpoint, t]
-  );
-
-  const skillSnippet = useMemo(
-    () => `---
-name: "codemaps-agent-autopilot"
-description: "Uses CodeMaps MCP as the default architectural brain for project understanding, debugging, refactors, reviews, and migration campaigns. Invoke whenever CodeMaps is connected."
----
-
-# CodeMaps Agent Autopilot
-
-Use this skill whenever the workspace has the \`codemaps\` MCP server available.
-
-## Goal
-
-Treat CodeMaps as the primary architectural intelligence layer before editing code.
-Do not wait until after file inspection to use it.
-
-## MCP Server
-
-- Server name: \`codemaps\`
-- MCP endpoint: \`${endpoint}\`
-
-## Default Flow
-
-1. If the project is not analyzed yet, call \`analyze_project\`.
-2. For any natural-language user request, call \`prepare_task_context\` first.
-3. If CodeMaps routes the task to a campaign-level change, use \`prepare_change_campaign\`.
-4. If CodeMaps routes the task to a single-target code change, use \`prepare_change_context\`.
-5. If CodeMaps routes the task to diagnostics, review, architecture, or stabilization, use \`prepare_review_context\`.
-6. Use low-level tools only as fallback when the composite context explicitly leaves ambiguity.
-
-## Routing Rules
-
-- Bug, incident, regression, "not working", "broken":
-  Start with \`prepare_task_context\`.
-- Broad migration, replace SDK/library everywhere, cross-cutting refactor:
-  Start with \`prepare_task_context\` and follow \`prepare_change_campaign\` if selected.
-- Localized feature/refactor with a clear code area:
-  Start with \`prepare_task_context\`, then follow \`prepare_change_context\`.
-- Review, architecture audit, security review, stabilization:
-  Start with \`prepare_task_context\`, then follow \`prepare_review_context\`.
-
-## Mandatory Behavior
-
-- Use CodeMaps before making non-trivial code decisions.
-- Prefer CodeMaps composite contexts over raw graph tools.
-- Do not guess target files when CodeMaps cannot resolve them confidently.
-- For large changes, work in waves from \`prepare_change_campaign\` instead of editing many files ad hoc.
-- Re-check CodeMaps after meaningful edits if the architectural context may have changed.
-
-## Low-Level Fallback Tools
-
-Use these only if the selected composite context is insufficient:
-
-- \`search_graph\`
-- \`get_node_dependencies\`
-- \`get_blast_radius\`
-- \`get_architecture_overview\`
-- \`get_health_score\`
-- \`detect_patterns\`
-- \`run_security_scan\`
-- \`search_signatures\`
-
-## Expected Outcome
-
-The agent should behave like it has a project-aware architectural map:
-- understand the system before editing,
-- choose the right scope automatically,
-- avoid blind file-by-file wandering,
-- treat CodeMaps as the default brain for project structure and impact analysis.
-`,
-    [endpoint]
-  );
 
   if (!isOpen) return null;
 
@@ -243,14 +147,14 @@ The agent should behave like it has a project-aware architectural map:
           )}
           {activeTab === 'clients' && (
             <McpSettingsClients
-              clientExamples={clientExamples}
+              endpoint={endpoint}
               copiedKey={copiedKey}
               copyText={copyText}
             />
           )}
           {activeTab === 'agent-skill' && (
             <McpSettingsAgentSkill
-              skillSnippet={skillSnippet}
+              endpoint={endpoint}
               copiedKey={copiedKey}
               copyText={copyText}
             />

@@ -1,4 +1,4 @@
-import { GraphData, GraphLink, GraphNode } from '../store';
+import { GraphData, GraphLink, GraphNode } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { BlastRadiusResult } from './BlastRadiusAnalyzer';
 import { promoteCodeTarget, searchGraph, toStructuralNodeId, unique } from './AgentContextUtils';

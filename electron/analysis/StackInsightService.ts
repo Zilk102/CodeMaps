@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import {
   BUILTIN_STACK_DEFINITIONS,
   StackCategory,

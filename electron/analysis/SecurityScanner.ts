@@ -1,4 +1,4 @@
-import { GraphData } from '../store';
+import { GraphData } from '../store/types';
 import { readFileWithinLimit } from '../parsing/fileLimits';
 
 export interface SecurityFinding {

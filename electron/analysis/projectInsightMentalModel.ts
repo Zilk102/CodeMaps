@@ -1,4 +1,4 @@
-import { GraphData, GraphNode } from '../store';
+import { GraphData, GraphNode } from '../store/types';
 import type { ArchitectureLayer, ArchitectureOverview } from './ArchitectureInsightService';
 import { buildGraphAdjacency, isContractSemanticLink, isDiRuntimeLink } from './graphAnalysisUtils';
 import type { ProjectInsightResult } from './ProjectInsightService';

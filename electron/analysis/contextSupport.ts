@@ -1,5 +1,5 @@
 import { initialRefreshTelemetry } from '../store/telemetry';
-import { GraphData, RefreshTelemetry } from '../store';
+import { GraphData, RefreshTelemetry } from '../store/types';
 import { DecompositionGuidance } from './DecompositionGuidanceService';
 import { HealthScoreResult } from './HealthScoreAnalyzer';
 import { DetectedPattern } from './PatternDetectionAnalyzer';

@@ -1,4 +1,4 @@
-import { languageQueries } from '../queries';
+import { languageQueries } from './queries';
 import { LanguageDefinition } from './types';
 
 const FULL_CODE_CAPABILITIES = {
