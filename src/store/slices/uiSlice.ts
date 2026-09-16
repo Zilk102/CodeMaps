@@ -5,13 +5,13 @@ export interface UISlice {
   layoutData: LayoutResult | null;
   isMcpSettingsOpen: boolean;
   isToolsPanelOpen: boolean;
-  activeTab: 'overview' | 'pr' | 'blast' | 'heatmap';
+  activeTab: 'overview' | 'pr' | 'blast' | 'heatmap' | 'decomposition';
   sidebarWidth: number;
 
   setMcpSettingsOpen: (isOpen: boolean) => void;
   setLayoutData: (data: LayoutResult | null) => void;
   toggleToolsPanel: () => void;
-  setActiveTab: (tab: 'overview' | 'pr' | 'blast' | 'heatmap') => void;
+  setActiveTab: (tab: 'overview' | 'pr' | 'blast' | 'heatmap' | 'decomposition') => void;
   setSidebarWidth: (width: number) => void;
 }
 

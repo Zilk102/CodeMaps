@@ -379,6 +379,9 @@
     "blastRadiusDescription": "显示所选节点的直接影响与间接影响。",
     "heatmapEyebrow": "仓库热点",
     "heatmapDescription": "突出显示不稳定文件和频繁修改的区域。",
+    "decomposition": "重构助手",
+    "decompositionEyebrow": "重构助手",
+    "decompositionDescription": "查找并拆分 God 类、重复代码和过大的模块。",
     "prImpactEyebrow": "分支审查",
     "prImpactDescription": "构建基础分支与目标分支之间的风险和爆炸半径上下文。",
     "quickActions": {
@@ -386,10 +389,48 @@
       "highRisk": "高风险",
       "review": "代码审查",
       "hotspots": "热点",
+      "refactoring": "重构",
       "blastDescription": "评估文件、类或函数的变更会影响哪些节点和依赖关系。",
       "prDescription": "在代码审查、发布或合并之前审查分支影响。",
-      "heatmapDescription": "找出高频变更的文件，为稳定性改进和重构工作提供依据。"
+      "heatmapDescription": "找出高频变更的文件，为稳定性改进和重构工作提供依据。",
+      "decompositionActionDescription": "分析 God 类、纠缠的方法和架构缺陷，以便安全地拆分它们。"
     }
+  },
+  "decomposition": {
+    "title": "重构助手",
+    "analyze": "分析",
+    "analyzing": "分析中...",
+    "error": "分析错误",
+    "focusNode": "关注节点 (可选)",
+    "nodePlaceholder": "要关注的节点 ID...",
+    "summary": "摘要",
+    "candidates": "重构候选者",
+    "candidatesCount": "候选者总数",
+    "highPriority": "高优先级",
+    "focusAreas": "重点区域",
+    "actions": {
+      "extract_module": "提取模块",
+      "split_responsibilities": "分离职责",
+      "extract_class": "提取类",
+      "extract_method": "提取方法",
+      "reduce_complexity": "降低复杂度"
+    },
+    "priority": {
+      "high": "严重",
+      "medium": "重要"
+    },
+    "metrics": {
+      "lineCount": "行数",
+      "complexity": "复杂度",
+      "branchCount": "分支",
+      "maxNesting": "最大嵌套",
+      "methodCount": "方法数",
+      "publicMethodCount": "公共方法数",
+      "designSmellScore": "坏味道分数",
+      "responsibilityAxisCount": "职责轴数"
+    },
+    "reason": "原因",
+    "evidence": "证据"
   },
   "updateNotification": {
     "updateAvailable": "有可用更新",

@@ -46,6 +46,10 @@ const api: ElectronAPI = {
   calculateBlastRadius: (projectPath, nodeId, maxDepth) =>
     ipcRenderer.invoke('calculate-blast-radius', projectPath, nodeId, maxDepth),
 
+  // Decomposition Guidance
+  analyzeDecomposition: (projectPath, focusNodeIds) =>
+    ipcRenderer.invoke('analyze-decomposition', projectPath, focusNodeIds),
+
   // Activity Heatmap
   analyzeActivityHeatmap: (projectPath, since, until) =>
     ipcRenderer.invoke('analyze-activity-heatmap', projectPath, since, until),

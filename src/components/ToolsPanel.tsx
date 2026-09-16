@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { PRImpactPanel } from './PRImpactPanel';
 import { BlastRadiusV2Panel } from './BlastRadiusV2Panel';
 import { ActivityHeatmap } from './ActivityHeatmap';
+import { DecompositionWizardPanel } from './DecompositionWizardPanel';
 import { useUIStore } from '../store/useStore';
 
 interface ToolsPanelProps {
   projectPath: string;
 }
 
-type WorkspaceTab = 'overview' | 'blast' | 'heatmap' | 'pr';
+type WorkspaceTab = 'overview' | 'blast' | 'heatmap' | 'pr' | 'decomposition';
 
 export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
@@ -41,6 +42,12 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
         description: t('tools.heatmapDescription'),
       },
       {
+        id: 'decomposition' as WorkspaceTab,
+        label: t('tools.decomposition'),
+        eyebrow: t('tools.decompositionEyebrow'),
+        description: t('tools.decompositionDescription'),
+      },
+      {
         id: 'pr' as WorkspaceTab,
         label: t('tools.prImpact'),
         eyebrow: t('tools.prImpactEyebrow'),
@@ -57,6 +64,12 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
         title: t('tools.blastRadius'),
         badge: t('tools.quickActions.highRisk'),
         description: t('tools.quickActions.blastDescription'),
+      },
+      {
+        id: 'decomposition' as WorkspaceTab,
+        title: t('tools.decomposition'),
+        badge: t('tools.quickActions.refactoring'),
+        description: t('tools.quickActions.decompositionActionDescription'),
       },
       {
         id: 'pr' as WorkspaceTab,
@@ -80,6 +93,11 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
         id: 'blast',
         title: t('tools.blastRadius'),
         description: t('tools.quickActions.blastDescription'),
+      },
+      {
+        id: 'decomposition',
+        title: t('tools.decomposition'),
+        description: t('tools.quickActions.decompositionActionDescription'),
       },
       {
         id: 'pr',
@@ -285,6 +303,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
             </div>
           )}
           {activeTab === 'blast' && <BlastRadiusV2Panel projectPath={projectPath} />}
+          {activeTab === 'decomposition' && <DecompositionWizardPanel projectPath={projectPath} />}
           {activeTab === 'heatmap' && <ActivityHeatmap projectPath={projectPath} />}
           {activeTab === 'pr' && <PRImpactPanel projectPath={projectPath} />}
         </div>

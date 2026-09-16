@@ -114,6 +114,52 @@ export interface ElectronAPI {
     error?: string;
   }>;
 
+  // Decomposition Guidance
+  analyzeDecomposition: (
+    projectPath: string,
+    focusNodeIds?: string[]
+  ) => Promise<{
+    success: boolean;
+    data?: {
+      summary: {
+        candidateCount: number;
+        highPriorityCount: number;
+        focusAreas: string[];
+      };
+      candidates: Array<{
+        fileNodeId: string;
+        targetNodeId: string;
+        targetType: 'module' | 'class' | 'method';
+        targetLabel: string;
+        action:
+          | 'extract_module'
+          | 'split_responsibilities'
+          | 'extract_class'
+          | 'extract_method'
+          | 'reduce_complexity';
+        priority: 'high' | 'medium';
+        score: number;
+        reason: string;
+        evidence: string[];
+        lineRange?: {
+          startLine: number;
+          endLine: number;
+        };
+        metrics: {
+          lineCount?: number;
+          complexity?: number;
+          branchCount?: number;
+          maxNesting?: number;
+          methodCount?: number;
+          publicMethodCount?: number;
+          designSmellScore?: number;
+          responsibilityAxisCount?: number;
+        };
+      }>;
+    };
+    error?: string;
+  }>;
+
   // Activity Heatmap
   analyzeActivityHeatmap: (
     projectPath: string,

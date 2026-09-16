@@ -386,6 +386,9 @@
     "heatmap": "Тепловая карта",
     "heatmapEyebrow": "Хотспоты репозитория",
     "heatmapDescription": "Помогает быстро найти нестабильные файлы и зоны частых изменений.",
+    "decomposition": "Мастер декомпозиции",
+    "decompositionEyebrow": "Рефакторинг монолитов",
+    "decompositionDescription": "Поиск и расщепление God-классов, дублей и перегруженных модулей.",
     "prImpact": "Влияние PR",
     "prImpactEyebrow": "Ревью ветки",
     "prImpactDescription": "Собирает риск и blast radius между базовой и текущей веткой.",
@@ -394,9 +397,47 @@
       "highRisk": "Высокий риск",
       "review": "Ревью",
       "hotspots": "Хотспоты",
+      "refactoring": "Рефакторинг",
       "blastDescription": "Оцени, какие узлы и зависимости затронет изменение конкретного файла, класса или функции.",
       "prDescription": "Проверь радиус изменений между ветками перед ревью, релизом или merge.",
-      "heatmapDescription": "Найди файлы с наибольшей churn-нагрузкой, чтобы планировать стабилизацию и рефакторинг."
+      "heatmapDescription": "Найди файлы с наибольшей churn-нагрузкой, чтобы планировать стабилизацию и рефакторинг.",
+      "decompositionActionDescription": "Анализируй God-классы, запутанные методы и архитектурные дефекты, чтобы безопасно их расщепить."
     }
+  },
+  "decomposition": {
+    "title": "Мастер декомпозиции",
+    "analyze": "Анализировать",
+    "analyzing": "Анализ...",
+    "error": "Ошибка анализа",
+    "focusNode": "Ограничить узлом (необязательно)",
+    "nodePlaceholder": "ID узла для фокуса...",
+    "summary": "Сводка",
+    "candidates": "Кандидаты на рефакторинг",
+    "candidatesCount": "Всего кандидатов",
+    "highPriority": "Высокий приоритет",
+    "focusAreas": "Зоны внимания",
+    "actions": {
+      "extract_module": "Вынести в модуль",
+      "split_responsibilities": "Разделить ответственности",
+      "extract_class": "Вынести класс",
+      "extract_method": "Вынести метод",
+      "reduce_complexity": "Снизить сложность"
+    },
+    "priority": {
+      "high": "Критично",
+      "medium": "Важно"
+    },
+    "metrics": {
+      "lineCount": "Строк",
+      "complexity": "Сложность",
+      "branchCount": "Ветвлений",
+      "maxNesting": "Вложенность",
+      "methodCount": "Методов",
+      "publicMethodCount": "Публичных методов",
+      "designSmellScore": "Smell Score",
+      "responsibilityAxisCount": "Осей ответственности"
+    },
+    "reason": "Причина",
+    "evidence": "Доказательства"
   }
 }

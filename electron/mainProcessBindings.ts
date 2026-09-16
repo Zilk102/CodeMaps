@@ -181,6 +181,24 @@ function registerAnalyticsBindings(
       }
     }
   );
+
+  ipcMain.handle(
+    'analyze-decomposition',
+    async (_, rawProjectPath: unknown, focusNodeIds?: string[]) => {
+      try {
+        requireProjectDirectory(rawProjectPath); // validate
+        const { oracleStore } = await import('./store.js');
+        const graphData = oracleStore.getState().getValidGraph();
+        const { DecompositionGuidanceService } = await import('./analysis/DecompositionGuidanceService.js');
+        const service = new DecompositionGuidanceService();
+        const result = service.prepareGuidance(graphData, { focusNodeIds });
+        return { success: true, data: result };
+      } catch (error: unknown) {
+        logger.error('[Decomposition] Analysis failed:', getErrorMessage(error));
+        return { success: false, error: getErrorMessage(error) };
+      }
+    }
+  );
 }
 
 function registerOracleBridges(

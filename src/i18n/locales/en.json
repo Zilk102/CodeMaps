@@ -386,6 +386,9 @@
     "heatmap": "Heatmap",
     "heatmapEyebrow": "Repository hotspots",
     "heatmapDescription": "Highlights unstable files and frequently modified areas.",
+    "decomposition": "Decomposition Wizard",
+    "decompositionEyebrow": "Monolith Refactoring",
+    "decompositionDescription": "Find and split God classes, clones, and oversized modules.",
     "prImpact": "PR Impact",
     "prImpactEyebrow": "Branch review",
     "prImpactDescription": "Builds risk and blast-radius context between base and head branches.",
@@ -394,9 +397,47 @@
       "highRisk": "High risk",
       "review": "Review",
       "hotspots": "Hotspots",
+      "refactoring": "Refactoring",
       "blastDescription": "Assess which nodes and dependencies are affected by a change in a file, class, or function.",
       "prDescription": "Review branch impact before code review, release, or merge.",
-      "heatmapDescription": "Find high-churn files to guide stabilization and refactoring work."
+      "heatmapDescription": "Find high-churn files to guide stabilization and refactoring work.",
+      "decompositionActionDescription": "Analyze God classes, tangled methods, and architectural defects to safely split them."
     }
+  },
+  "decomposition": {
+    "title": "Decomposition Wizard",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing...",
+    "error": "Analysis error",
+    "focusNode": "Focus on node (optional)",
+    "nodePlaceholder": "Node ID to focus...",
+    "summary": "Summary",
+    "candidates": "Refactoring Candidates",
+    "candidatesCount": "Total candidates",
+    "highPriority": "High priority",
+    "focusAreas": "Focus areas",
+    "actions": {
+      "extract_module": "Extract Module",
+      "split_responsibilities": "Split Responsibilities",
+      "extract_class": "Extract Class",
+      "extract_method": "Extract Method",
+      "reduce_complexity": "Reduce Complexity"
+    },
+    "priority": {
+      "high": "Critical",
+      "medium": "Important"
+    },
+    "metrics": {
+      "lineCount": "Lines",
+      "complexity": "Complexity",
+      "branchCount": "Branches",
+      "maxNesting": "Max Nesting",
+      "methodCount": "Methods",
+      "publicMethodCount": "Public Methods",
+      "designSmellScore": "Smell Score",
+      "responsibilityAxisCount": "Responsibility Axes"
+    },
+    "reason": "Reason",
+    "evidence": "Evidence"
   }
 }
