@@ -146,18 +146,10 @@ export const McpSettingsModal: React.FC = () => {
             <McpSettingsResources resourceDetails={status?.resourceDetails || []} />
           )}
           {activeTab === 'clients' && (
-            <McpSettingsClients
-              endpoint={endpoint}
-              copiedKey={copiedKey}
-              copyText={copyText}
-            />
+            <McpSettingsClients endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
           )}
           {activeTab === 'agent-skill' && (
-            <McpSettingsAgentSkill
-              endpoint={endpoint}
-              copiedKey={copiedKey}
-              copyText={copyText}
-            />
+            <McpSettingsAgentSkill endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
           )}
         </div>
 
