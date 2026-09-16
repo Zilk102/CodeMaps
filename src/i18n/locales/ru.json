@@ -434,7 +434,7 @@
       "maxNesting": "Вложенность",
       "methodCount": "Методов",
       "publicMethodCount": "Публичных методов",
-      "designSmellScore": "Smell Score",
+      "designSmellScore": "Оценка запаха кода (Smell Score)",
       "responsibilityAxisCount": "Осей ответственности"
     },
     "reason": "Причина",
