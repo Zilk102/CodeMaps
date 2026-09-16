@@ -1,7 +1,6 @@
-import { spawnSync } from 'child_process';
-import log from 'electron-log/main';
 import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
+import { GitService } from './GitService';
 
 const COMMIT_PREFIX = 'COMMIT:';
 
@@ -24,11 +23,13 @@ export interface HeatmapData {
 
 export class GitActivityService {
   private graphService: KuzuGraphService;
+  private gitService: GitService;
   private projectPath: string;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.graphService = new KuzuGraphService(projectPath);
+    this.gitService = new GitService(projectPath);
   }
 
   async init(): Promise<void> {
@@ -36,15 +37,16 @@ export class GitActivityService {
   }
 
   analyzeChurn(since?: Date, until?: Date): HeatmapData {
-    const logOutput = this.execGit([
-      'log',
-      `--format=${COMMIT_PREFIX}%H|%an|%at`,
-      '--numstat',
-      ...(since ? [`--since=${since.toISOString()}`] : []),
-      ...(until ? [`--until=${until.toISOString()}`] : []),
-      '--',
-      '.',
-    ]);
+    const logOutput =
+      this.gitService.execGit([
+        'log',
+        `--format=${COMMIT_PREFIX}%H|%an|%at`,
+        '--numstat',
+        ...(since ? [`--since=${since.toISOString()}`] : []),
+        ...(until ? [`--until=${until.toISOString()}`] : []),
+        '--',
+        '.',
+      ]) || '';
 
     const fileMap = new Map<string, FileChurn>();
     const commitsPerFile = new Map<string, Set<string>>();
@@ -113,21 +115,6 @@ export class GitActivityService {
         to: until || new Date(),
       },
     };
-  }
-
-  private execGit(args: string[]): string {
-    const result = spawnSync('git', args, {
-      encoding: 'utf-8',
-      cwd: this.projectPath,
-      maxBuffer: 50 * 1024 * 1024,
-    });
-
-    if (result.error || result.status !== 0) {
-      log.warn('[Heatmap] git command failed:', args.join(' '), result.stderr?.trim());
-      return '';
-    }
-
-    return result.stdout || '';
   }
 
   async getNodeChurn(nodeId: string): Promise<FileChurn | null> {

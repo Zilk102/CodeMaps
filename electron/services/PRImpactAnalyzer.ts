@@ -1,11 +1,5 @@
-import { spawnSync } from 'child_process';
-import log from 'electron-log/main';
 import { KuzuGraphService } from './KuzuGraphService';
-
-// Rejects anything git could mistake for an option and the characters that make a
-// revision ambiguous, so untrusted branch names from MCP/IPC stay plain arguments.
-const isSafeGitRevision = (revision: string) =>
-  /^[A-Za-z0-9][A-Za-z0-9._/\-@^~]*$/.test(revision) && !revision.includes('..');
+import { GitService } from './GitService';
 
 export interface PRImpactResult {
   changedFiles: ChangedFile[];
@@ -24,11 +18,13 @@ export interface ChangedFile {
 
 export class PRImpactAnalyzer {
   private graphService: KuzuGraphService;
+  private gitService: GitService;
   private projectPath: string;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.graphService = new KuzuGraphService(projectPath);
+    this.gitService = new GitService(projectPath);
   }
 
   async init(): Promise<void> {
@@ -39,7 +35,10 @@ export class PRImpactAnalyzer {
     baseBranch: string = 'main',
     headBranch: string = 'HEAD'
   ): Promise<PRImpactResult> {
-    if (!isSafeGitRevision(baseBranch) || !isSafeGitRevision(headBranch)) {
+    if (
+      !this.gitService.isSafeGitRevision(baseBranch) ||
+      !this.gitService.isSafeGitRevision(headBranch)
+    ) {
       throw new Error('Invalid branch name');
     }
 
@@ -60,7 +59,6 @@ export class PRImpactAnalyzer {
     let totalBlastRadius = 0;
 
     for (const file of changedFiles) {
-      // Find nodes matching this file path
       const nodes = await this.graphService.queryNodes(undefined, file.path);
 
       for (const node of nodes) {
@@ -69,11 +67,9 @@ export class PRImpactAnalyzer {
           affectedNodes.push(nodeId);
         }
 
-        // Calculate blast radius for this node
         const neighbors = await this.graphService.queryNeighbors(nodeId);
         totalBlastRadius += neighbors.length;
 
-        // Add recommendations based on change type
         if (file.status === 'deleted' && neighbors.length > 5) {
           recommendations.push(
             `⚠️ Deleting ${file.path} affects ${neighbors.length} dependent nodes. Consider refactoring instead.`
@@ -82,10 +78,8 @@ export class PRImpactAnalyzer {
       }
     }
 
-    // Calculate risk score
     const riskScore = this.calculateRiskScore(changedFiles, affectedNodes, totalBlastRadius);
 
-    // Add general recommendations
     if (affectedNodes.length > 10) {
       recommendations.push(
         `📊 Large impact: ${affectedNodes.length} nodes affected. Consider breaking into smaller PRs.`
@@ -107,23 +101,8 @@ export class PRImpactAnalyzer {
     };
   }
 
-  private execGit(args: string[]): string | null {
-    const result = spawnSync('git', args, {
-      encoding: 'utf-8',
-      cwd: this.projectPath,
-      maxBuffer: 50 * 1024 * 1024,
-    });
-
-    if (result.error || result.status !== 0) {
-      log.warn('[PRImpact] git command failed:', args.join(' '), result.stderr?.trim());
-      return null;
-    }
-
-    return result.stdout ?? '';
-  }
-
   private getChangedFiles(baseBranch: string, headBranch: string): ChangedFile[] {
-    const output = this.execGit(['diff', '--numstat', `${baseBranch}...${headBranch}`]);
+    const output = this.gitService.execGit(['diff', '--numstat', `${baseBranch}...${headBranch}`]);
     if (output === null) {
       return [];
     }
@@ -148,8 +127,8 @@ export class PRImpactAnalyzer {
     baseBranch: string,
     headBranch: string
   ): 'added' | 'modified' | 'deleted' {
-    const existsInBase = this.execGit(['ls-tree', baseBranch, '--', filePath])?.trim();
-    const existsInHead = this.execGit(['ls-tree', headBranch, '--', filePath])?.trim();
+    const existsInBase = this.gitService.execGit(['ls-tree', baseBranch, '--', filePath])?.trim();
+    const existsInHead = this.gitService.execGit(['ls-tree', headBranch, '--', filePath])?.trim();
 
     if (!existsInBase && existsInHead) return 'added';
     if (existsInBase && !existsInHead) return 'deleted';

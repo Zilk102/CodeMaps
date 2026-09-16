@@ -17,7 +17,6 @@ const getImportBindingName = (node: ts.ImportSpecifier) => {
   if (node.propertyName) {
     return node.propertyName.text;
   }
-
   return node.name.text;
 };
 
@@ -30,7 +29,6 @@ const getPropertyNameText = (name: ts.PropertyName | ts.BindingName) => {
   ) {
     return name.text;
   }
-
   return name.getText();
 };
 
@@ -38,15 +36,12 @@ const getCallName = (expression: ts.Expression): string | undefined => {
   if (ts.isIdentifier(expression)) {
     return expression.text;
   }
-
   if (ts.isPropertyAccessExpression(expression)) {
     return expression.name.text;
   }
-
   if (ts.isElementAccessExpression(expression)) {
     return expression.argumentExpression?.getText();
   }
-
   return undefined;
 };
 
@@ -115,13 +110,10 @@ const isFunctionLikeInitializer = (initializer?: ts.Expression) =>
 
 const collectImportedEntities = (clause?: ts.ImportClause) => {
   const importedEntities = new Set<string>();
-
   if (!clause) return importedEntities;
-
   if (clause.name) {
     importedEntities.add('default');
   }
-
   if (clause.namedBindings) {
     if (ts.isNamespaceImport(clause.namedBindings)) {
       importedEntities.add('*');
@@ -131,93 +123,75 @@ const collectImportedEntities = (clause?: ts.ImportClause) => {
       });
     }
   }
-
   return importedEntities;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const createImportRecord = (
-  sourceFilePath: string,
-  moduleSpecifier: string,
-  importedEntities: Set<string>,
-  baseDir?: string
-) => {
-  const record = {
-    path: moduleSpecifier,
-    importedEntities: Array.from(importedEntities),
-    resolvedPath: resolveTypeScriptModule(moduleSpecifier, sourceFilePath, baseDir),
-  };
+class TypeScriptASTVisitor {
+  importsMap = new Map<string, { importedEntities: Set<string>; resolvedPath?: string }>();
+  entities: ParseResult['entities'] = [];
+  exports: ParseResult['exports'] = [];
+  variables = new Set<string>();
+  calls = new Set<string>();
+  entityKeys = new Set<string>();
+  exportKeys = new Set<string>();
 
-  return record;
-};
+  constructor(
+    private sourceFile: ts.SourceFile,
+    private filePath: string,
+    private baseDir?: string
+  ) {}
 
-export const extractWithTypeScriptSemantic = (
-  filePath: string,
-  text: string,
-  definition: LanguageDefinition,
-  adr?: string,
-  baseDir?: string
-): ParseResult => {
-  const importsMap = new Map<string, { importedEntities: Set<string>; resolvedPath?: string }>();
-  const entities: ParseResult['entities'] = [];
-  const exports: ParseResult['exports'] = [];
-  const variables = new Set<string>();
-  const calls = new Set<string>();
-  const comments = new Set<string>();
-  const entityKeys = new Set<string>();
-  const exportKeys = new Set<string>();
-
-  const sourceFile = ts.createSourceFile(
-    filePath,
-    text,
-    ts.ScriptTarget.Latest,
-    true,
-    getScriptKind(filePath)
-  );
-
-  const addImport = (moduleSpecifier: string, importedEntities: Set<string>) => {
+  addImport(moduleSpecifier: string, importedEntities: Set<string>) {
     const normalizedSpecifier = moduleSpecifier.trim();
     if (!normalizedSpecifier) return;
-
-    const current = importsMap.get(normalizedSpecifier) || {
+    const current = this.importsMap.get(normalizedSpecifier) || {
       importedEntities: new Set<string>(),
-      resolvedPath: resolveTypeScriptModule(normalizedSpecifier, filePath, baseDir),
+      resolvedPath: resolveTypeScriptModule(normalizedSpecifier, this.filePath, this.baseDir),
     };
-
     importedEntities.forEach((entity) => current.importedEntities.add(entity));
-    importsMap.set(normalizedSpecifier, current);
-  };
+    this.importsMap.set(normalizedSpecifier, current);
+  }
 
-  const getNodeModifiers = (node: ts.Node): readonly ts.Modifier[] => {
+  getNodeModifiers(node: ts.Node): readonly ts.Modifier[] {
     const maybeWithModifiers = node as ts.Node & { modifiers?: ts.NodeArray<ts.Modifier> };
     return maybeWithModifiers.modifiers ?? [];
-  };
+  }
 
-  const hasExportModifier = (node: ts.Node) =>
-    getNodeModifiers(node).some(
+  hasExportModifier(node: ts.Node) {
+    return this.getNodeModifiers(node).some(
       (modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
     );
+  }
 
-  const hasDefaultModifier = (node: ts.Node) =>
-    getNodeModifiers(node).some(
+  hasDefaultModifier(node: ts.Node) {
+    return this.getNodeModifiers(node).some(
       (modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword
     );
+  }
 
-  const registerDeclarationExport = (node: ts.Node, localName?: string) => {
-    if (!hasExportModifier(node) || !localName) return;
-    maybeAddExport(exports, exportKeys, localName, localName, hasDefaultModifier(node));
-    if (hasDefaultModifier(node)) {
-      maybeAddExport(exports, exportKeys, 'default', localName, true);
+  registerDeclarationExport(node: ts.Node, localName?: string) {
+    if (!this.hasExportModifier(node) || !localName) return;
+    maybeAddExport(
+      this.exports,
+      this.exportKeys,
+      localName,
+      localName,
+      this.hasDefaultModifier(node)
+    );
+    if (this.hasDefaultModifier(node)) {
+      maybeAddExport(this.exports, this.exportKeys, 'default', localName, true);
     }
-  };
+  }
 
-  const walk = (node: ts.Node) => {
+  visitImportsAndExports(node: ts.Node) {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      addImport(node.moduleSpecifier.text, collectImportedEntities(node.importClause));
+      this.addImport(node.moduleSpecifier.text, collectImportedEntities(node.importClause));
       if (node.importClause?.name) {
-        variables.add(node.importClause.name.text);
+        this.variables.add(node.importClause.name.text);
       }
-    } else if (
+      return true;
+    }
+    if (
       ts.isExportDeclaration(node) &&
       node.moduleSpecifier &&
       ts.isStringLiteral(node.moduleSpecifier)
@@ -227,8 +201,8 @@ export const extractWithTypeScriptSemantic = (
         node.exportClause.elements.forEach((element) => {
           exportedEntities.add(element.propertyName?.text || element.name.text);
           maybeAddExport(
-            exports,
-            exportKeys,
+            this.exports,
+            this.exportKeys,
             element.name.text,
             element.propertyName?.text || element.name.text
           );
@@ -236,37 +210,58 @@ export const extractWithTypeScriptSemantic = (
       } else {
         exportedEntities.add('*');
       }
-      addImport(node.moduleSpecifier.text, exportedEntities);
-    } else if (
-      ts.isExportDeclaration(node) &&
-      node.exportClause &&
-      ts.isNamedExports(node.exportClause)
-    ) {
+      this.addImport(node.moduleSpecifier.text, exportedEntities);
+      return true;
+    }
+    if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
       node.exportClause.elements.forEach((element) => {
         maybeAddExport(
-          exports,
-          exportKeys,
+          this.exports,
+          this.exportKeys,
           element.name.text,
           element.propertyName?.text || element.name.text
         );
       });
-    } else if (
+      return true;
+    }
+    if (
       ts.isImportEqualsDeclaration(node) &&
       ts.isExternalModuleReference(node.moduleReference) &&
       ts.isStringLiteral(node.moduleReference.expression)
     ) {
-      const importedEntities = new Set<string>([node.name.text]);
-      addImport(node.moduleReference.expression.text, importedEntities);
-    } else if (ts.isCallExpression(node)) {
+      this.addImport(node.moduleReference.expression.text, new Set([node.name.text]));
+      return true;
+    }
+    if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
+      this.addImport(node.argument.literal.text, new Set(['type']));
+      return true;
+    }
+    if (ts.isExportAssignment(node)) {
+      if (ts.isIdentifier(node.expression)) {
+        maybeAddExport(this.exports, this.exportKeys, 'default', node.expression.text, true);
+      } else {
+        maybeAddExport(this.exports, this.exportKeys, 'default', undefined, true);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  visitCalls(node: ts.Node) {
+    if (ts.isCallExpression(node)) {
       const callName = getCallName(node.expression);
-      if (callName) calls.add(callName);
+      if (callName) this.calls.add(callName);
 
       if (
         node.expression.kind === ts.SyntaxKind.ImportKeyword &&
         node.arguments.length === 1 &&
         ts.isStringLiteral(node.arguments[0])
       ) {
-        addImport(node.arguments[0].text, new Set(['*']));
+        this.addImport(node.arguments[0].text, new Set(['*']));
       }
 
       if (
@@ -275,80 +270,109 @@ export const extractWithTypeScriptSemantic = (
         node.arguments.length === 1 &&
         ts.isStringLiteral(node.arguments[0])
       ) {
-        addImport(node.arguments[0].text, new Set());
+        this.addImport(node.arguments[0].text, new Set());
       }
-    } else if (
-      ts.isImportTypeNode(node) &&
-      ts.isLiteralTypeNode(node.argument) &&
-      ts.isStringLiteral(node.argument.literal)
-    ) {
-      addImport(node.argument.literal.text, new Set(['type']));
-    } else if (ts.isFunctionDeclaration(node)) {
+      return true;
+    }
+    return false;
+  }
+
+  visitDeclarations(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node)) {
       maybeAddFunctionEntity(
-        entities,
-        entityKeys,
+        this.entities,
+        this.entityKeys,
         node.name?.text,
-        getSourceLocation(sourceFile, node)
+        getSourceLocation(this.sourceFile, node)
       );
-      registerDeclarationExport(node, node.name?.text);
-    } else if (
+      this.registerDeclarationExport(node, node.name?.text);
+      return true;
+    }
+    if (
       ts.isMethodDeclaration(node) ||
       ts.isMethodSignature(node) ||
       ts.isGetAccessorDeclaration(node) ||
       ts.isSetAccessorDeclaration(node)
     ) {
       maybeAddFunctionEntity(
-        entities,
-        entityKeys,
+        this.entities,
+        this.entityKeys,
         getPropertyNameText(node.name),
-        getSourceLocation(sourceFile, node)
+        getSourceLocation(this.sourceFile, node)
       );
-    } else if (
+      return true;
+    }
+    if (
       ts.isClassDeclaration(node) ||
       ts.isInterfaceDeclaration(node) ||
       ts.isEnumDeclaration(node) ||
       ts.isTypeAliasDeclaration(node)
     ) {
       maybeAddClassEntity(
-        entities,
-        entityKeys,
+        this.entities,
+        this.entityKeys,
         node.name?.text,
-        getSourceLocation(sourceFile, node)
+        getSourceLocation(this.sourceFile, node)
       );
-      registerDeclarationExport(node, node.name?.text);
-    } else if (ts.isVariableDeclaration(node)) {
-      const variableName = node.name.getText(sourceFile).trim();
-      if (variableName) variables.add(variableName);
+      this.registerDeclarationExport(node, node.name?.text);
+      return true;
+    }
+    if (ts.isVariableDeclaration(node)) {
+      const variableName = node.name.getText(this.sourceFile).trim();
+      if (variableName) this.variables.add(variableName);
       if (ts.isIdentifier(node.name) && isFunctionLikeInitializer(node.initializer)) {
         maybeAddFunctionEntity(
-          entities,
-          entityKeys,
+          this.entities,
+          this.entityKeys,
           node.name.text,
-          getSourceLocation(sourceFile, node)
+          getSourceLocation(this.sourceFile, node)
         );
       }
       if (ts.isVariableDeclarationList(node.parent) && ts.isVariableStatement(node.parent.parent)) {
-        registerDeclarationExport(
+        this.registerDeclarationExport(
           node.parent.parent,
           ts.isIdentifier(node.name) ? node.name.text : undefined
         );
       }
-    } else if (ts.isPropertyDeclaration(node)) {
+      return true;
+    }
+    if (ts.isPropertyDeclaration(node)) {
       const propertyName = getPropertyNameText(node.name);
-      if (propertyName) variables.add(propertyName);
-    } else if (ts.isExportAssignment(node)) {
-      if (ts.isIdentifier(node.expression)) {
-        maybeAddExport(exports, exportKeys, 'default', node.expression.text, true);
-      } else {
-        maybeAddExport(exports, exportKeys, 'default', undefined, true);
+      if (propertyName) this.variables.add(propertyName);
+      return true;
+    }
+    return false;
+  }
+
+  walk = (node: ts.Node) => {
+    if (!this.visitImportsAndExports(node)) {
+      if (!this.visitCalls(node)) {
+        this.visitDeclarations(node);
       }
     }
-
-    ts.forEachChild(node, walk);
+    ts.forEachChild(node, this.walk);
   };
+}
 
-  walk(sourceFile);
+export const extractWithTypeScriptSemantic = (
+  filePath: string,
+  text: string,
+  definition: LanguageDefinition,
+  adr?: string,
+  baseDir?: string
+): ParseResult => {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    getScriptKind(filePath)
+  );
 
+  const visitor = new TypeScriptASTVisitor(sourceFile, filePath, baseDir);
+  visitor.walk(sourceFile);
+
+  const comments = new Set<string>();
   const commentRegex = /\/\/.*|\/\*[\s\S]*?\*\//g;
   const commentMatches = text.match(commentRegex) || [];
   commentMatches.forEach((comment) => {
@@ -356,7 +380,7 @@ export const extractWithTypeScriptSemantic = (
     if (normalized) comments.add(normalized);
   });
 
-  const imports = Array.from(importsMap.entries()).map(([moduleSpecifier, value]) => ({
+  const imports = Array.from(visitor.importsMap.entries()).map(([moduleSpecifier, value]) => ({
     path: moduleSpecifier,
     importedEntities: Array.from(value.importedEntities),
     resolvedPath: value.resolvedPath ? normalizePath(value.resolvedPath) : undefined,
@@ -365,11 +389,11 @@ export const extractWithTypeScriptSemantic = (
   return {
     sizeExceeded: false,
     imports,
-    entities,
-    exports,
+    entities: visitor.entities,
+    exports: visitor.exports,
     adr,
-    variables: Array.from(variables),
-    calls: Array.from(calls),
+    variables: Array.from(visitor.variables),
+    calls: Array.from(visitor.calls),
     comments: Array.from(comments),
     detectedLanguage: definition.id,
   };

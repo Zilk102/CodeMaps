@@ -74,52 +74,37 @@ export class ProjectIndexer {
     }
   }
 
-  async indexProject(
-    baseDir: string,
-    cache: ProjectCacheSnapshot | null,
-    onProgress?: (progress: {
-      status: string;
-      current: number;
-      total: number;
-      filename: string;
-    }) => void
-  ): Promise<IndexProjectResult> {
-    const filePaths = (await this.discoverFiles(baseDir)).map((filePath) =>
-      normalizePath(filePath)
-    );
-    if (filePaths.length === 0) {
-      throw new Error('No source code files found in the selected directory.');
-    }
+  private prepareCache(cache: ProjectCacheSnapshot | null, filePaths: string[]) {
+    if (!cache?.nodes || !cache.links || !cache.fileStats) return;
 
-    const languageProfile = this.createLanguageProfile(filePaths);
+    const store = oracleStore.getState();
+    store.restoreCache(cache.nodes, cache.links);
 
-    if (cache?.nodes && cache.links && cache.fileStats) {
-      const store = oracleStore.getState();
-      store.restoreCache(cache.nodes, cache.links);
+    const allFilesSet = new Set(filePaths);
+    Object.keys(cache.fileStats).forEach((cachedPath) => {
+      if (!allFilesSet.has(cachedPath)) {
+        this.graphBuilder.removeFile(cachedPath);
+      }
+    });
+  }
 
-      const allFilesSet = new Set(filePaths);
-      Object.keys(cache.fileStats).forEach((cachedPath) => {
-        if (!allFilesSet.has(cachedPath)) {
-          this.graphBuilder.removeFile(cachedPath);
-        }
-      });
-    }
-
+  private resetDirectories() {
     const state = oracleStore.getState();
     for (const [nodeId, node] of state.nodes) {
       if (node.type === 'directory') {
         state.removeNode(nodeId);
       }
     }
+  }
 
-    filePaths.forEach((filePath) =>
-      this.graphBuilder.ensureDirectoryChainForFile(filePath, baseDir)
-    );
-
+  private async collectFilesToParse(
+    filePaths: string[],
+    cache: ProjectCacheSnapshot | null
+  ): Promise<{ fileStats: Record<string, number>; filesToParse: string[] }> {
     const fileStats: Record<string, number> = {};
     const filesToParse: string[] = [];
-
     const statLimit = pLimit(this.performanceConfig.indexing.fileStatConcurrency);
+
     await Promise.all(
       filePaths.map((filePath) =>
         statLimit(async () => {
@@ -132,6 +117,20 @@ export class ProjectIndexer {
       )
     );
 
+    return { fileStats, filesToParse };
+  }
+
+  private async executeParsing(
+    filesToParse: string[],
+    baseDir: string,
+    languageProfile: ProjectLanguageProfile,
+    onProgress?: (progress: {
+      status: string;
+      current: number;
+      total: number;
+      filename: string;
+    }) => void
+  ) {
     const totalToParse = filesToParse.length;
     let processed = 0;
 
@@ -170,6 +169,36 @@ export class ProjectIndexer {
         filename: '',
       });
     }
+  }
+
+  async indexProject(
+    baseDir: string,
+    cache: ProjectCacheSnapshot | null,
+    onProgress?: (progress: {
+      status: string;
+      current: number;
+      total: number;
+      filename: string;
+    }) => void
+  ): Promise<IndexProjectResult> {
+    const filePaths = (await this.discoverFiles(baseDir)).map((filePath) =>
+      normalizePath(filePath)
+    );
+    if (filePaths.length === 0) {
+      throw new Error('No source code files found in the selected directory.');
+    }
+
+    const languageProfile = this.createLanguageProfile(filePaths);
+
+    this.prepareCache(cache, filePaths);
+    this.resetDirectories();
+
+    filePaths.forEach((filePath) =>
+      this.graphBuilder.ensureDirectoryChainForFile(filePath, baseDir)
+    );
+
+    const { fileStats, filesToParse } = await this.collectFilesToParse(filePaths, cache);
+    await this.executeParsing(filesToParse, baseDir, languageProfile, onProgress);
 
     return {
       filePaths,
