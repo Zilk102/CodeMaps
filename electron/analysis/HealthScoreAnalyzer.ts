@@ -70,6 +70,7 @@ export class HealthScoreAnalyzer {
       (count, metric) => count + metric.matchedMethods.length,
       0
     );
+    const codeClones = quality.codeClones ? quality.codeClones.length : 0;
     const mixedResponsibilityModules = quality.mixedResponsibilityModules.length;
     const avgDesignSmellScore =
       quality.metrics.length === 0
@@ -83,6 +84,7 @@ export class HealthScoreAnalyzer {
       oversizedModules,
       godFiles,
       fileNodes: fileNodes.length,
+      codeClones,
     });
     const solidScore = calculateSolidScore({
       godFiles,
@@ -133,6 +135,7 @@ export class HealthScoreAnalyzer {
       godClasses,
       longMethods,
       complexMethods,
+      codeClones,
       mixedResponsibilityModules,
       avgDesignSmellScore,
       maintainabilityScore,

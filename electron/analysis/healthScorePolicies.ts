@@ -114,6 +114,14 @@ export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): Heal
     });
   }
 
+  if (metrics.codeClones > 0) {
+    issues.push({
+      code: 'code_clones',
+      severity: metrics.codeClones >= 3 ? 'high' : 'medium',
+      message: `Обнаружено ${metrics.codeClones} групп дублирующегося кода (клонов). Дублирование усложняет поддержку и увеличивает объем кодовой базы.`,
+    });
+  }
+
   if (metrics.mixedResponsibilityModules > 0) {
     issues.push({
       code: 'mixed_responsibility_modules',
@@ -167,23 +175,34 @@ export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): Heal
   };
 }
 
-export function calculateMaintainabilityScore(input: {
+export function calculateMaintainabilityScore(args: {
   avgDesignSmellScore: number;
   longMethods: number;
   complexMethods: number;
   oversizedModules: number;
   godFiles: number;
   fileNodes: number;
-}) {
-  const fileScale = Math.max(1, Math.ceil(input.fileNodes / 20));
-  const maintainabilityPenalty =
-    Math.ceil(input.avgDesignSmellScore / 2) +
-    Math.ceil(input.longMethods / fileScale) * 2 +
-    Math.ceil(input.complexMethods / fileScale) * 2 +
-    input.oversizedModules * 2 +
-    input.godFiles * 3;
+  codeClones?: number;
+}): number {
+  const {
+    avgDesignSmellScore,
+    longMethods,
+    complexMethods,
+    oversizedModules,
+    godFiles,
+    fileNodes,
+    codeClones = 0,
+  } = args;
 
-  return Math.max(0, Math.min(100, 100 - Math.min(85, maintainabilityPenalty)));
+  if (fileNodes === 0) return 100;
+
+  const smellPenalty = Math.min(30, avgDesignSmellScore * 1.5);
+  const methodPenalty = Math.min(25, ((longMethods + complexMethods * 1.5) / fileNodes) * 20);
+  const modulePenalty = Math.min(25, ((oversizedModules + godFiles * 2) / fileNodes) * 50);
+  const clonePenalty = Math.min(20, (codeClones / fileNodes) * 30);
+
+  const rawScore = 100 - smellPenalty - methodPenalty - modulePenalty - clonePenalty;
+  return Math.max(0, Math.round(rawScore));
 }
 
 export function calculateSolidScore(input: {

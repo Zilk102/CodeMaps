@@ -22,6 +22,7 @@ export interface HealthScoreSummary {
   godClasses: number;
   longMethods: number;
   complexMethods: number;
+  codeClones: number;
   mixedResponsibilityModules: number;
   avgDesignSmellScore: number;
   maintainabilityScore: number;

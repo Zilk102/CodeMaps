@@ -306,6 +306,27 @@ export function buildQualityPatterns(quality: ModuleQualitySummary): DetectedPat
     });
   }
 
+  if (quality.codeClones && quality.codeClones.length > 0) {
+    patterns.push({
+      id: 'code_clones',
+      severity: quality.codeClones.some(
+        (clone) => clone.instances[0].lineCount >= 30 || clone.instances.length >= 4
+      )
+        ? 'high'
+        : 'medium',
+      title: 'Code Clones (Duplication)',
+      description:
+        'Identical or highly similar code structures were detected across multiple files. LLMs often duplicate logic instead of extracting reusable abstractions, bloating the codebase.',
+      nodeIds: Array.from(
+        new Set(quality.codeClones.flatMap((c) => c.instances.map((i) => i.nodeId)))
+      ),
+      evidence: quality.codeClones.slice(0, 5).map((clone) => ({
+        nodeId: clone.instances[0].nodeId,
+        message: `Duplicated ${clone.instances[0].lineCount} LOC across ${clone.instances.length} locations (e.g. ${clone.instances.map((i) => i.methodName).join(', ')})`,
+      })),
+    });
+  }
+
   return patterns;
 }
 

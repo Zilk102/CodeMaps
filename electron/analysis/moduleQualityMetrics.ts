@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import ts from 'typescript';
 import { GraphData, GraphNode } from '../store/types';
 import {
@@ -18,6 +19,7 @@ export interface SourceFunctionMetric {
   complexity: number;
   branchCount: number;
   maxNesting: number;
+  bodyHash?: string;
 }
 
 export interface SourceClassMetric {
@@ -41,6 +43,7 @@ export interface SourceFileMetrics {
   godClasses: SourceClassMetric[];
   longMethods: SourceFunctionMetric[];
   complexMethods: SourceFunctionMetric[];
+  allFunctions: SourceFunctionMetric[];
 }
 
 export interface ModuleQualityMetric {
@@ -66,6 +69,14 @@ export interface ModuleQualitySummary {
   longMethods: Array<ModuleQualityMetric & { matchedMethods: SourceFunctionMetric[] }>;
   complexMethods: Array<ModuleQualityMetric & { matchedMethods: SourceFunctionMetric[] }>;
   mixedResponsibilityModules: ModuleQualityMetric[];
+  codeClones: Array<{
+    bodyHash: string;
+    instances: Array<{
+      nodeId: string;
+      methodName: string;
+      lineCount: number;
+    }>;
+  }>;
 }
 
 const SUPPORTED_SOURCE_FILE_REGEX = /\.(?:[cm]?[jt]sx?)$/iu;
@@ -232,6 +243,9 @@ function analyzeClassBody(bodyText: string): {
       continue;
     }
 
+    const methodBody = bodyText.slice(openBraceIndex, closeBraceIndex + 1);
+    const bodyHash = crypto.createHash('md5').update(methodBody.replace(/\s+/g, '')).digest('hex');
+
     const lineCount = getLineCountForRange(bodyText, openBraceIndex, closeBraceIndex + 1);
     methods.push({
       name: methodName,
@@ -241,6 +255,7 @@ function analyzeClassBody(bodyText: string): {
       complexity: 1,
       branchCount: 0,
       maxNesting: 0,
+      bodyHash,
     });
 
     if (!visibility || visibility === 'public') {
@@ -381,6 +396,10 @@ function analyzeSourceFileStructureWithTypeScript(
     const range = getLineRange(sourceFile, body);
     const flow = analyzeControlFlowComplexity(sourceFile, body);
     maxMethodLineCount = Math.max(maxMethodLineCount, lineCount);
+    const bodyHash = crypto
+      .createHash('md5')
+      .update(body.getText(sourceFile).replace(/\s+/g, ''))
+      .digest('hex');
 
     return {
       name,
@@ -390,6 +409,7 @@ function analyzeSourceFileStructureWithTypeScript(
       complexity: flow.complexity,
       branchCount: flow.branchCount,
       maxNesting: flow.maxNesting,
+      bodyHash,
     };
   };
 
@@ -501,6 +521,7 @@ function analyzeSourceFileStructureWithTypeScript(
     complexMethods: [...topLevelFunctions, ...classMethodMetrics].filter(
       (item) => item.complexity >= 10 || item.maxNesting >= 4
     ),
+    allFunctions: [...topLevelFunctions, ...classMethodMetrics],
   };
 }
 
@@ -515,6 +536,7 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
       godClasses: [],
       longMethods: [],
       complexMethods: [],
+      allFunctions: [],
     };
   }
 
@@ -582,6 +604,9 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
       continue;
     }
 
+    const funcBody = text.slice(openBraceIndex, closeBraceIndex + 1);
+    const bodyHash = crypto.createHash('md5').update(funcBody.replace(/\s+/g, '')).digest('hex');
+
     const lineCount = getLineCountForRange(text, openBraceIndex, closeBraceIndex + 1);
     topLevelFunctions.push({
       name: functionName,
@@ -591,6 +616,7 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
       complexity: 1,
       branchCount: 0,
       maxNesting: 0,
+      bodyHash,
     });
     maxMethodLineCount = Math.max(maxMethodLineCount, lineCount);
 
@@ -631,6 +657,7 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
         )
       ),
     complexMethods: [],
+    allFunctions: topLevelFunctions,
   };
 }
 
@@ -849,6 +876,38 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
     )
     .slice(0, 10);
 
+  const functionInstancesByHash = new Map<
+    string,
+    Array<{ nodeId: string; methodName: string; lineCount: number }>
+  >();
+
+  for (const metric of metrics) {
+    for (const func of metric.sourceMetrics.allFunctions) {
+      if (func.lineCount >= 8 && func.bodyHash) {
+        const bucket = functionInstancesByHash.get(func.bodyHash) || [];
+        bucket.push({
+          nodeId: metric.node.id,
+          methodName: func.name,
+          lineCount: func.lineCount,
+        });
+        functionInstancesByHash.set(func.bodyHash, bucket);
+      }
+    }
+  }
+
+  const codeClones = Array.from(functionInstancesByHash.entries())
+    .filter(([, instances]) => instances.length >= 2)
+    .map(([bodyHash, instances]) => ({
+      bodyHash,
+      instances,
+    }))
+    .sort(
+      (a, b) =>
+        b.instances[0].lineCount * b.instances.length -
+        a.instances[0].lineCount * a.instances.length
+    )
+    .slice(0, 15);
+
   return {
     metrics,
     oversizedModules,
@@ -857,5 +916,6 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
     longMethods,
     complexMethods,
     mixedResponsibilityModules,
+    codeClones,
   };
 }
