@@ -1,9 +1,15 @@
+import { app } from 'electron';
 import { GraphData, oracleStore } from '../store';
 import { oracle } from '../oracle';
 import * as path from 'path';
-import pLimit from 'p-limit';
 
-const analyzeLimit = pLimit(1); // Only 1 analyzeProject at a time to prevent OOM
+// Simple concurrency limit of 1 (Mutex) to replace p-limit and avoid ESM issues
+let currentPromise: Promise<unknown> = Promise.resolve();
+const analyzeLimit = async <T>(fn: () => Promise<T>): Promise<T> => {
+  const result = currentPromise.then(() => fn());
+  currentPromise = result.catch(() => {});
+  return result;
+};
 
 export const normalizePath = (value?: string) => value?.replace(/\\/g, '/');
 
@@ -70,6 +76,25 @@ export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData
     )!;
   } else {
     targetPath = state.baseDir || normalizePath(process.env.CODEMAPS_ROOT || process.cwd())!;
+  }
+
+  // Prevent accidentally indexing the Electron installation directory if no project is opened
+  if (!projectPath && !state.baseDir && !process.env.CODEMAPS_ROOT) {
+    let isAppDir = false;
+    try {
+      const exeDir = normalizePath(path.dirname(app.getPath('exe')));
+      const resourcesDir = normalizePath(process.resourcesPath);
+      if (exeDir && targetPath.startsWith(exeDir)) isAppDir = true;
+      if (resourcesDir && targetPath.startsWith(resourcesDir)) isAppDir = true;
+    } catch {
+      // Ignore if app is not available
+    }
+
+    if (isAppDir) {
+      throw new Error(
+        'No active project loaded in CodeMaps. Please use the analyze_project tool to specify an absolute projectPath first.'
+      );
+    }
   }
 
   if (!state.baseDir || (projectPath && normalizePath(state.baseDir) !== targetPath)) {

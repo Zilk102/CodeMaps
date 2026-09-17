@@ -174,7 +174,7 @@ export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> =
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-(--t3) ml-1">
+            <h4 className="text-[13px] font-semibold uppercase tracking-widest text-(--t3) ml-1">
               {t('decomposition.candidates')}
             </h4>
             {result.candidates.length > 0 ? (
@@ -215,7 +215,7 @@ export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> =
 
                   {candidate.evidence && candidate.evidence.length > 0 && (
                     <div className="rounded-xl border border-(--border) bg-(--bg1) p-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-(--t3) mb-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-widest text-(--t3) mb-2">
                         {t('decomposition.evidence')}
                       </div>
                       <ul className="list-disc pl-4 space-y-1">
