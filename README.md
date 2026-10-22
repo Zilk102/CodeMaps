@@ -80,7 +80,7 @@ Start CodeMaps, then connect it:
 claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
-For Claude Desktop, add an `mcp-remote` bridge to `claude_desktop_config.json`. This repository also ships a project `.mcp.json` and a ready-made `codemaps-agent-autopilot` skill in `.claude/skills/`. Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
+For Claude Desktop, add an `mcp-remote` bridge to `claude_desktop_config.json`. This repository also ships a project `.mcp.json` and a ready-made `codemaps-agent-autopilot` skill in `.claude/skills/`. An optional Claude Code hook validates every edit through CodeMaps automatically. Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
 
 ---
 

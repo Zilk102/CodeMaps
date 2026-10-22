@@ -1,5 +1,16 @@
 # CodeMaps Changelog
 
+## v1.1.42 (2026-10-22)
+
+### Added
+
+- **Claude Code hook that validates every edit.** `scripts/codemaps-validate-hook.mjs` runs after `Edit`/`Write`/`MultiEdit`, asks the running CodeMaps to validate the changed file and returns the problems (god files, clones, long/complex methods, hubs, mixed responsibilities) to Claude with a fix hint, so they are fixed in the same turn. Dependency free (plain Node), silent when all is fine, when CodeMaps is not running or when another project is open (it never switches the project), and it does not repeat the same message for 15 minutes. Enabled for this repository in `.claude/settings.json`; MCP Settings → Connection has copy buttons for the settings and the script, and `docs/CLAUDE_INTEGRATION.md` describes it.
+- `validate_architecture_changes` waits until pending file changes are indexed before it validates (`oracle.whenIdle()`).
+
+### Fixed
+
+- **Files created right after a project was analysed were never indexed.** `analyzeProject` returned before the file watcher finished its initial scan, and chokidar ignores everything that happens before it is ready, so an agent that opened a project and immediately created or edited files saw a stale graph. Starting the watcher now waits for it to be ready (with a 15 s cap), and a watcher error is logged.
+
 ## v1.1.41 (2026-10-22)
 
 ### Changed

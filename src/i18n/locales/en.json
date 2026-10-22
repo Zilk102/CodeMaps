@@ -262,7 +262,11 @@
     "claudeCodeProject": "Claude Code (project .mcp.json)",
     "claudeCodeProjectDescription": "Commit this file to the repository root so everyone on the team gets the CodeMaps server automatically.",
     "claudeDesktop": "Claude Desktop",
-    "claudeDesktopDescription": "Add this to `claude_desktop_config.json` (Settings → Developer → Edit Config) and restart Claude Desktop. It bridges the local HTTP endpoint through `mcp-remote` and requires Node.js. CodeMaps must be running."
+    "claudeDesktopDescription": "Add this to `claude_desktop_config.json` (Settings → Developer → Edit Config) and restart Claude Desktop. It bridges the local HTTP endpoint through `mcp-remote` and requires Node.js. CodeMaps must be running.",
+    "claudeHook": "Claude Code hook (auto-validate edits)",
+    "claudeHookDescription": "Add to `.claude/settings.json`. After every edit Claude Code asks CodeMaps to validate the changed file and gets the problems (god files, clones, complex methods) back immediately. Silent when all is fine or CodeMaps is not running.",
+    "claudeHookScript": "Hook script",
+    "claudeHookScriptDescription": "Save as `.claude/hooks/codemaps-validate-hook.mjs` in your project. Needs only Node.js, no dependencies; it never switches the project open in CodeMaps."
   },
   "filterPanel": {
     "filters": "Filters",

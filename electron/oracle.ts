@@ -51,6 +51,11 @@ export class OracleService extends EventEmitter {
     this.fileWatcher = new FileWatcher(this.projectIndexer, this.graphBuilder, this.cacheManager);
   }
 
+  /** Resolves when pending file changes have been folded into the graph. */
+  public whenIdle() {
+    return this.fileWatcher.whenIdle();
+  }
+
   public getGraph() {
     return this.graphRepository.getGraph();
   }

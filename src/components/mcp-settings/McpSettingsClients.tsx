@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import hookScript from '../../../scripts/codemaps-validate-hook.mjs?raw';
 import { commonSectionStyle, CodeBlock } from './shared';
 
 interface Props {
@@ -43,6 +44,38 @@ export const McpSettingsClients: React.FC<Props> = ({ endpoint, copiedKey, copyT
     }
   }
 }`,
+      },
+      {
+        id: 'claude-hook',
+        title: t('mcpSettings.claudeHook'),
+        description: t('mcpSettings.claudeHookDescription'),
+        snippet: JSON.stringify(
+          {
+            hooks: {
+              PostToolUse: [
+                {
+                  matcher: 'Edit|Write|MultiEdit',
+                  hooks: [
+                    {
+                      type: 'command',
+                      command:
+                        'node "$CLAUDE_PROJECT_DIR/.claude/hooks/codemaps-validate-hook.mjs"',
+                      timeout: 20,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+          null,
+          2
+        ),
+      },
+      {
+        id: 'claude-hook-script',
+        title: t('mcpSettings.claudeHookScript'),
+        description: t('mcpSettings.claudeHookScriptDescription'),
+        snippet: hookScript,
       },
       {
         id: 'claude-desktop',

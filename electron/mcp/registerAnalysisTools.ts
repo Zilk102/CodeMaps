@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as z from 'zod/v4';
 import { validateChanges } from '../analysis/ChangeValidationService';
 import { GitService } from '../services/GitService';
+import { oracle } from '../oracle';
 import { ensureGraphLoaded } from './utils';
 import { McpToolContext } from './toolContext';
 import { okStatusToolResult } from './toolSupport';
@@ -240,6 +241,8 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       baseRef?: string;
       scope?: 'auto' | 'changed' | 'project';
     }) => {
+      // The edits being validated were probably saved a moment ago; wait for the indexer.
+      await oracle.whenIdle();
       const graph = await ensureGraphLoaded();
       const health = context.healthScoreAnalyzer.analyze(graph);
       const patterns = context.patternDetectionAnalyzer.analyze(graph);

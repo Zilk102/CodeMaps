@@ -262,7 +262,11 @@
     "claudeCodeProject": "Claude Code (проектный .mcp.json)",
     "claudeCodeProjectDescription": "Закоммить этот файл в корень репозитория, и вся команда получит сервер CodeMaps автоматически.",
     "claudeDesktop": "Claude Desktop",
-    "claudeDesktopDescription": "Добавь в `claude_desktop_config.json` (Настройки → Разработчик → Изменить конфиг) и перезапусти Claude Desktop. Локальный HTTP-эндпоинт подключается через мост `mcp-remote`, нужен Node.js. CodeMaps должен быть запущен."
+    "claudeDesktopDescription": "Добавь в `claude_desktop_config.json` (Настройки → Разработчик → Изменить конфиг) и перезапусти Claude Desktop. Локальный HTTP-эндпоинт подключается через мост `mcp-remote`, нужен Node.js. CodeMaps должен быть запущен.",
+    "claudeHook": "Хук Claude Code (автопроверка правок)",
+    "claudeHookDescription": "Добавь в `.claude/settings.json`. После каждой правки Claude Code просит CodeMaps проверить изменённый файл и сразу получает проблемы (god-файлы, клоны, сложные методы). Молчит, если всё хорошо или CodeMaps не запущен.",
+    "claudeHookScript": "Скрипт хука",
+    "claudeHookScriptDescription": "Сохрани как `.claude/hooks/codemaps-validate-hook.mjs` в проекте. Нужен только Node.js, без зависимостей; скрипт никогда не переключает проект, открытый в CodeMaps."
   },
   "filterPanel": {
     "filters": "Фильтры",

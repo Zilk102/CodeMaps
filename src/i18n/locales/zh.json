@@ -262,7 +262,11 @@
     "claudeCodeProject": "Claude Code（项目 .mcp.json）",
     "claudeCodeProjectDescription": "将此文件提交到仓库根目录，团队所有成员即可自动获得 CodeMaps 服务器。",
     "claudeDesktop": "Claude Desktop",
-    "claudeDesktopDescription": "添加到 `claude_desktop_config.json`（设置 → 开发者 → 编辑配置）并重启 Claude Desktop。通过 `mcp-remote` 桥接本地 HTTP 端点，需要 Node.js，且 CodeMaps 必须处于运行状态。"
+    "claudeDesktopDescription": "添加到 `claude_desktop_config.json`（设置 → 开发者 → 编辑配置）并重启 Claude Desktop。通过 `mcp-remote` 桥接本地 HTTP 端点，需要 Node.js，且 CodeMaps 必须处于运行状态。",
+    "claudeHook": "Claude Code 钩子（自动校验改动）",
+    "claudeHookDescription": "添加到 `.claude/settings.json`。每次编辑后，Claude Code 会请 CodeMaps 校验改动的文件，并立即收到问题（god 文件、代码克隆、复杂方法）。一切正常或 CodeMaps 未运行时保持静默。",
+    "claudeHookScript": "钩子脚本",
+    "claudeHookScriptDescription": "保存为项目中的 `.claude/hooks/codemaps-validate-hook.mjs`。只需 Node.js，无依赖；它不会切换 CodeMaps 中打开的项目。"
   },
   "filterPanel": {
     "filters": "筛选器",
