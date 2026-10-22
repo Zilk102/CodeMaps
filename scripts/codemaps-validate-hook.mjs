@@ -59,6 +59,9 @@ const REQUEST_TIMEOUT_MS = 8000;
 const normalize = (value) => value.replace(/\\/g, '/');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A Windows drive path is absolute on every platform; CodeMaps reports project roots that way.
+const isAbsolutePath = (value) => path.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value);
+
 export const isCandidateFile = (filePath) => {
   if (!filePath || !SOURCE_EXTENSIONS.has(path.extname(filePath).toLowerCase())) return false;
   const segments = normalize(filePath).split('/');
@@ -223,7 +226,7 @@ export const run = async (rawInput, env = process.env) => {
     return { exitCode: 0 };
   }
 
-  const absoluteFile = path.isAbsolute(editedFile)
+  const absoluteFile = isAbsolutePath(editedFile)
     ? editedFile
     : path.resolve(input.cwd ?? process.cwd(), editedFile);
   if (!isInsideProject(absoluteFile, projectRoot)) {
