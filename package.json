@@ -1,7 +1,7 @@
 {
   "name": "codemaps",
   "productName": "CodeMaps",
-  "version": "1.1.38",
+  "version": "1.1.39",
   "author": {
     "name": "Zilk102",
     "email": "moskvi-ivan@yandex.ru"
@@ -161,7 +161,8 @@
     "asarUnpack": [
       "**/*.node",
       "**/*.wasm",
-      "dist-electron/worker.js"
+      "dist-electron/worker.js",
+      "dist-electron/services/Kuzu*.js"
     ]
   },
   "dependencies": {

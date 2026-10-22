@@ -57,7 +57,7 @@ Resources provide AI agents with high-level project summaries, full graph export
 
 Download the portable version from the [Releases](https://github.com/Zilk102/CodeMaps/releases) page.
 
-The application requires no complex installation and works right out of the box on **Windows** and **Linux**. macOS builds are not published yet.
+The application requires no complex installation and works right out of the box on **Windows** and **Linux**. macOS builds are not published yet. Node.js 22+ on `PATH` is needed only for the Kuzu-backed tools (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`); everything else works without it.
 
 ### Quick Start
 

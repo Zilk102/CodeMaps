@@ -11,6 +11,7 @@ import { oracleStore } from './store';
 import { getGraphSnapshot, ensureGraphLoaded, getNodeDependencies } from './mcp/utils';
 import { createMcpServerInstance } from './mcp/bootstrap';
 import { buildMcpStatus, McpStatus } from './mcp/descriptors';
+import { rejectUnknownSession } from './mcp/sessionErrors';
 import { closeMcpRuntime, McpTransportRecord } from './mcp/runtimeShutdown';
 
 import log from 'electron-log/main';
@@ -192,14 +193,7 @@ export function setupMcpServer() {
         await transport.handleRequest(req, res, req.body);
         return;
       } else {
-        res.status(400).json({
-          jsonrpc: '2.0',
-          error: {
-            code: -32000,
-            message: 'Bad Request: No valid MCP session id provided',
-          },
-          id: null,
-        });
+        rejectUnknownSession(res, sessionId);
         return;
       }
 
@@ -222,7 +216,7 @@ export function setupMcpServer() {
   const handleMcpGet = async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'];
     if (typeof sessionId !== 'string' || !transports[sessionId]) {
-      res.status(400).send('Invalid or missing session ID');
+      rejectUnknownSession(res, sessionId);
       return;
     }
 
@@ -232,7 +226,7 @@ export function setupMcpServer() {
   const handleMcpDelete = async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'];
     if (typeof sessionId !== 'string' || !transports[sessionId]) {
-      res.status(400).send('Invalid or missing session ID');
+      rejectUnknownSession(res, sessionId);
       return;
     }
 

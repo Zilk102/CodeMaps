@@ -146,8 +146,7 @@ class KuzuProcessManager {
       return this.child;
     }
 
-    const workerScript = path.join(__dirname, 'KuzuNativeProcess.js');
-    const child = fork(workerScript, [], {
+    const child = fork(resolveWorkerScript(__dirname), [], {
       execPath: this.resolveNodeExecutable(),
       env: { ...process.env },
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -245,6 +244,15 @@ class KuzuProcessManager {
     return 'node';
   }
 }
+
+/**
+ * The worker runs under a system Node (Kuzu's native module crashes inside Electron's
+ * runtime), and Node cannot read app.asar, so a packaged build ships the script unpacked.
+ */
+export const resolveWorkerScript = (directory: string): string => {
+  const script = path.join(directory, 'KuzuNativeProcess.js');
+  return script.replace(/app\.asar(?=[\\/])/, 'app.asar.unpacked');
+};
 
 export class KuzuGraphService {
   private static readonly processManager = KuzuProcessManager.getInstance();

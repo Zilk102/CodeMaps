@@ -1,5 +1,16 @@
 # CodeMaps Changelog
 
+## v1.1.39 (2026-10-22)
+
+### Fixed
+
+- **Installed builds could not persist the graph or run Kuzu tools.** The Kuzu worker script lived inside `app.asar`, which the system Node used to start the worker cannot read, so `calculate_blast_radius_v2`, `analyze_activity_heatmap` and `analyze_pr_impact` failed with `Kuzu background worker exited with code 1`. The worker script is now unpacked and launched from `app.asar.unpacked`.
+- **Stale MCP sessions after a restart.** An unknown session id now gets HTTP 404 (as the MCP spec requires) instead of 400, so clients such as `mcp-remote` re-initialize on their own instead of failing until restarted.
+
+### Added
+
+- Tests for the worker script path and the unknown-session response; docs describe the Node.js requirement of the Kuzu-backed tools.
+
 ## v1.1.38 (2026-10-22)
 
 ### Fixed

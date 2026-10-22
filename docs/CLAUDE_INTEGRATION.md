@@ -38,4 +38,6 @@ Copy `.claude/skills/codemaps-agent-autopilot/SKILL.md` to `~/.claude/skills/cod
 - `ECONNREFUSED`: CodeMaps is not running, or port 3005 is taken by another process.
 - Tools list is empty: call `analyze_project` with the project path first.
 - A `prepare_*` response contains `_compaction`: lists were cut to fit the agent's context. Pass a larger `limit` (up to 50) for more detail; the size budget grows with it.
+- `Kuzu background worker exited with code 1` or `spawn node ENOENT`: install Node.js 22+ and make sure `node` is on `PATH` (or set `CODEMAPS_NODE_EXECUTABLE`), then restart CodeMaps.
+- After restarting CodeMaps, a client may report `Session not found`; CodeMaps answers 404 so spec-compliant clients reconnect on their own. If yours does not, restart the client.
 - Check the endpoint: `curl http://127.0.0.1:3005/mcp/status`.
