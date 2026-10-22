@@ -49,7 +49,39 @@
     "hierarchySelectedDescription": "显示相对于选定节点的连接：传入 {{incomingCount}}，传出 {{outgoingCount}}。",
     "hierarchyDefaultDescription": "选择文件、类或函数以查看层级结构内的传入和传出依赖关系。",
     "dependenciesSelectedDescription": "围绕选定节点的聚焦依赖子图：传入 {{incomingCount}}，传出 {{outgoingCount}}。",
-    "dependenciesDefaultDescription": "文件和 ADR 级别的概览。在图形或树中选择节点以聚焦其邻居。"
+    "dependenciesDefaultDescription": "文件和 ADR 级别的概览。在图形或树中选择节点以聚焦其邻居。",
+    "controlsHint": "滚轮缩放 · 拖动平移 · 点击节点查看其关联",
+    "dismissHint": "关闭提示",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fitToView": "显示整个图",
+    "legend": {
+      "title": "图例",
+      "directory": "文件夹",
+      "file": "文件",
+      "class": "类",
+      "function": "函数",
+      "adr": "架构决策 (ADR)",
+      "churn": "频繁改动（热点）"
+    },
+    "nodeTypes": {
+      "directory": "文件夹",
+      "file": "文件",
+      "class": "类",
+      "function": "函数",
+      "adr": "决策",
+      "project": "项目"
+    },
+    "details": {
+      "close": "关闭详情",
+      "exports": "导出",
+      "usedBy": "被谁使用",
+      "dependsOn": "依赖于",
+      "nobody": "无人使用",
+      "nothing": "无依赖",
+      "more": "另有 {{count}} 项",
+      "highChurn": "已修改 {{count}} 次：可能是热点"
+    }
   },
   "fileTree": {
     "explorer": "资源管理器",
@@ -162,8 +194,8 @@
       },
       "validate_architecture_changes": {
         "title": "验证架构变更",
-        "description": "对当前图状态即时执行架构验证。",
-        "recommendedWhen": "在完成代码修改之前，确认没有违反层级边界。"
+        "description": "仅检查你修改的文件（git 工作区或 baseRef），依据 SOLID 与重复代码启发式规则返回其中的问题及修复建议；没有改动时检查整个项目。",
+        "recommendedWhen": "在完成代码修改之前，确认你的改动没有引入 god 文件、代码克隆或多余的复杂度。"
       },
       "analyze_decomposition": {
         "title": "分析拆分方案",

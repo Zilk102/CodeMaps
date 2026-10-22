@@ -11,14 +11,36 @@ export const okToolResult = (payload: unknown) => ({
   ],
 });
 
-export const okStatusToolResult = (payload: unknown) =>
-  okToolResult({
-    status: 'ok',
-    ...((typeof payload === 'object' && payload !== null ? payload : { value: payload }) as Record<
-      string,
-      unknown
-    >),
+export interface ToolResultOptions {
+  /** Longest list kept in the response. */
+  limit?: number;
+  /** Skip all size bounding; for payloads that are already capped or deliberately complete. */
+  unbounded?: boolean;
+}
+
+const DEFAULT_RESULT_ITEMS = 100;
+const DEFAULT_RESULT_CHARS = 40_000;
+const DEFAULT_RESULT_STRING = 2_000;
+
+/**
+ * Standard successful tool response. Every list is cut to `limit` items and the whole
+ * payload stays under a size budget, so no single call can flood an agent's context;
+ * whatever was cut is described under `_compaction`.
+ */
+export const okStatusToolResult = (payload: unknown, options: ToolResultOptions = {}) => {
+  const body = (
+    typeof payload === 'object' && payload !== null ? payload : { value: payload }
+  ) as Record<string, unknown>;
+
+  if (options.unbounded) {
+    return okToolResult({ status: 'ok', ...body });
+  }
+
+  return okCompactStatusToolResult(body, options.limit ?? DEFAULT_RESULT_ITEMS, {
+    maxChars: DEFAULT_RESULT_CHARS,
+    maxStringLength: DEFAULT_RESULT_STRING,
   });
+};
 
 /**
  * Result for composite `prepare_*` tools: bounded to `limit` items per list, to a size budget and

@@ -141,6 +141,19 @@ class TypeScriptASTVisitor {
     private baseDir?: string
   ) {}
 
+  reExportsMap = new Map<string, { entities: Set<string>; resolvedPath?: string }>();
+
+  addReExport(moduleSpecifier: string, entities: Set<string>) {
+    const specifier = moduleSpecifier.trim();
+    if (!specifier) return;
+    const current = this.reExportsMap.get(specifier) || {
+      entities: new Set<string>(),
+      resolvedPath: resolveTypeScriptModule(specifier, this.filePath, this.baseDir),
+    };
+    entities.forEach((entity) => current.entities.add(entity));
+    this.reExportsMap.set(specifier, current);
+  }
+
   addImport(moduleSpecifier: string, importedEntities: Set<string>) {
     const normalizedSpecifier = moduleSpecifier.trim();
     if (!normalizedSpecifier) return;
@@ -211,6 +224,7 @@ class TypeScriptASTVisitor {
         exportedEntities.add('*');
       }
       this.addImport(node.moduleSpecifier.text, exportedEntities);
+      this.addReExport(node.moduleSpecifier.text, exportedEntities);
       return true;
     }
     if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
@@ -386,11 +400,18 @@ export const extractWithTypeScriptSemantic = (
     resolvedPath: value.resolvedPath ? normalizePath(value.resolvedPath) : undefined,
   }));
 
+  const reExports = Array.from(visitor.reExportsMap.entries()).map(([specifier, value]) => ({
+    path: specifier,
+    entities: Array.from(value.entities),
+    resolvedPath: value.resolvedPath ? normalizePath(value.resolvedPath) : undefined,
+  }));
+
   return {
     sizeExceeded: false,
     imports,
     entities: visitor.entities,
     exports: visitor.exports,
+    reExports,
     adr,
     variables: Array.from(visitor.variables),
     calls: Array.from(visitor.calls),

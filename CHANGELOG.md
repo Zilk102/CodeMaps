@@ -1,5 +1,23 @@
 # CodeMaps Changelog
 
+## v1.1.40 (2026-10-22)
+
+### Fixed
+
+- **The graph lost dependents behind barrel files.** `import { X } from '../store'` where `store.ts` re-exports `./store/types` was linked to the barrel instead of the real declaration, so `get_node_dependencies` / blast radius found 34 of 46 dependents of `GraphData`. Re-exports (`export *`, `export { a as b } from`, chained barrels, cycles) are now followed. The project cache version was bumped so existing caches are rebuilt.
+- **No tool can flood an agent's context any more.** Every MCP tool result is now cut to a size budget (lists, long strings) and serialized without indentation; anything omitted is described under `_compaction`. `get_blast_radius` for a hub type went from 142,000 to ~37,000 characters.
+- **A mistyped `projectPath` indexed nothing and looked like success.** It now fails with a clear message.
+- The persisted UI state no longer throws unhandled errors when IndexedDB is unavailable.
+- Recent projects listed the same folder several times (`D:/` vs `d:/`); entries are de-duplicated.
+- The MCP port can be overridden with `CODEMAPS_MCP_PORT`, and a busy port is reported instead of crashing the instance.
+
+### Added
+
+- **`validate_architecture_changes` checks only what you changed.** By default it takes the files changed in the git working tree (or against `baseRef`, or an explicit `changedFiles` list) and returns only the problems in them (god files, clones, long/complex methods, hubs, mixed responsibilities), each with a fix hint. Legacy debt elsewhere no longer blocks an edit; `scope: "project"` keeps the old whole-project check.
+- `get_semantic_skeleton` also returns an `outline` with the original line number of every declaration; `search_signatures` accepts `filePath` and reports the declaration `kind`.
+- **GUI for newcomers:** the graph is framed automatically on open and follows the window size, selecting a node centres it, a details panel explains the selected node (path, exports, who uses it, what it depends on, hot spot warning), a legend explains colours and the red dashed border, zoom/fit buttons and a one-time controls hint were added, and the info card no longer covers the graph.
+- Tests for barrel re-exports, change-scoped validation, result bounding, the viewport maths, node summaries and storage failure.
+
 ## v1.1.39 (2026-10-22)
 
 ### Fixed

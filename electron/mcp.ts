@@ -17,7 +17,9 @@ import { closeMcpRuntime, McpTransportRecord } from './mcp/runtimeShutdown';
 import log from 'electron-log/main';
 
 const MCP_HOST = '127.0.0.1';
-const MCP_PORT = 3005;
+const DEFAULT_MCP_PORT = 3005;
+// Overridable so a second instance (or a dev build next to an installed one) can coexist.
+const MCP_PORT = Number.parseInt(process.env.CODEMAPS_MCP_PORT ?? '', 10) || DEFAULT_MCP_PORT;
 const MCP_PATH = '/mcp';
 const MCP_HTTP_URL = `http://${MCP_HOST}:${MCP_PORT}${MCP_PATH}`;
 const MCP_WS_URL = `ws://localhost:${MCP_PORT}`;
@@ -283,6 +285,17 @@ export function setupMcpServer() {
 
   oracle.on('graph-updated', onGraphUpdated);
   oracle.on('parsing-progress', onParsingProgress);
+
+  server.on('error', (error: Error & { code?: string }) => {
+    if (error.code === 'EADDRINUSE') {
+      log.error(
+        `[MCP] Port ${MCP_PORT} is already in use; MCP is unavailable in this instance. ` +
+          'Set CODEMAPS_MCP_PORT to use another port.'
+      );
+      return;
+    }
+    log.error('[MCP] Server error:', error);
+  });
 
   server.listen(MCP_PORT, MCP_HOST, () => {
     log.info(`[MCP] Streamable HTTP endpoint: ${MCP_HTTP_URL}`);

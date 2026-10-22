@@ -57,7 +57,7 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
           }
         : createGraphSummary(graph);
 
-      return okStatusToolResult(payload);
+      return okStatusToolResult(payload, { unbounded: true });
     }
   );
 

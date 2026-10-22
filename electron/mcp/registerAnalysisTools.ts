@@ -1,5 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import * as path from 'path';
 import * as z from 'zod/v4';
+import { validateChanges } from '../analysis/ChangeValidationService';
+import { GitService } from '../services/GitService';
 import { ensureGraphLoaded } from './utils';
 import { McpToolContext } from './toolContext';
 import { okStatusToolResult } from './toolSupport';
@@ -118,6 +121,10 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
           .describe('Maximum number of matches to return'),
         caseSensitive: z.boolean().optional().describe('Enable case-sensitive matching'),
         regex: z.boolean().optional().describe('Treat query as a regular expression'),
+        filePath: z
+          .string()
+          .optional()
+          .describe('Only search files whose path contains this text, e.g. "moduleQualityMetrics"'),
       },
     },
     async ({
@@ -126,12 +133,14 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       limit = 20,
       caseSensitive = false,
       regex = false,
+      filePath,
     }: {
       query: string;
       type?: string;
       limit?: number;
       caseSensitive?: boolean;
       regex?: boolean;
+      filePath?: string;
     }) => {
       const graph = await ensureGraphLoaded();
       const result = await context.signatureSearchService.search(graph, query, {
@@ -139,6 +148,7 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
         limit,
         caseSensitive,
         regex,
+        filePath,
       });
       return okStatusToolResult(result);
     }
@@ -189,7 +199,8 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
         const { SemanticSkeletonService } = await import('../analysis/SemanticSkeletonService.js');
         const service = new SemanticSkeletonService();
         const skeleton = await service.generateSkeleton(filePath);
-        return okStatusToolResult({ skeleton });
+        const outline = await service.generateOutline(filePath);
+        return okStatusToolResult({ skeleton, outline }, { unbounded: true });
       } catch (err: any) {
         return {
           content: [{ type: 'text', text: `Failed to generate skeleton: ${err.message}` }],
@@ -204,26 +215,70 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
     {
       title: 'Validate Architecture Changes',
       description:
-        'Runs an on-the-fly architectural validation of the current graph state. Use this before finalizing code changes to ensure no SOLID principles or boundaries were violated.',
-      inputSchema: {},
+        'Validates your edits against SOLID and duplication heuristics. By default it checks only the files changed in the git working tree (or against baseRef) and returns just the problems in them, each with a fix hint; with no detectable changes it checks the whole project. Run it before finalizing code changes.',
+      inputSchema: {
+        changedFiles: z
+          .array(z.string())
+          .optional()
+          .describe('Files to validate (absolute or project-relative). Overrides git detection.'),
+        baseRef: z
+          .string()
+          .optional()
+          .describe('Git revision to diff against (default HEAD, i.e. uncommitted changes).'),
+        scope: z
+          .enum(['auto', 'changed', 'project'])
+          .optional()
+          .describe('auto (default): changed files when any, otherwise the whole project.'),
+      },
     },
-    async () => {
+    async ({
+      changedFiles,
+      baseRef,
+      scope = 'auto',
+    }: {
+      changedFiles?: string[];
+      baseRef?: string;
+      scope?: 'auto' | 'changed' | 'project';
+    }) => {
       const graph = await ensureGraphLoaded();
       const health = context.healthScoreAnalyzer.analyze(graph);
       const patterns = context.patternDetectionAnalyzer.analyze(graph);
 
-      const highSeverityPatterns = patterns.patterns.filter((p) => p.severity === 'high');
-      const isValid = highSeverityPatterns.length === 0 && health.score > 60;
+      const root = graph.projectRoot ?? '';
+      let resolved: string[] = [];
+      if (scope !== 'project') {
+        resolved = changedFiles?.length
+          ? changedFiles.map((file) => resolveProjectFile(root, file))
+          : detectChangedFiles(root, baseRef);
+      }
+
+      const result = validateChanges({
+        patterns: patterns.patterns,
+        changedFiles: resolved,
+        healthScore: health.score,
+      });
 
       return okStatusToolResult({
-        isValid,
-        score: health.score,
-        grade: health.grade,
-        criticalViolations: highSeverityPatterns,
-        recommendation: isValid
-          ? 'Architecture is stable. Safe to proceed.'
-          : 'Critical architectural violations detected. Please refactor before proceeding.',
+        ...result,
+        projectHealth: { score: health.score, grade: health.grade },
       });
     }
   );
 }
+
+const resolveProjectFile = (root: string, file: string) => {
+  const normalized = file.replace(/\\/g, '/');
+  return path.isAbsolute(file) ? normalized : path.posix.join(root.replace(/\\/g, '/'), normalized);
+};
+
+const detectChangedFiles = (root: string, baseRef?: string): string[] => {
+  if (!root) return [];
+  const git = new GitService(root);
+  if (baseRef && !git.isSafeGitRevision(baseRef)) return [];
+
+  const tracked = git.execGit(['diff', '--name-only', '--relative', baseRef ?? 'HEAD']) ?? '';
+  const untracked = git.execGit(['ls-files', '--others', '--exclude-standard']) ?? '';
+  return Array.from(new Set([...tracked.split(/\r?\n/), ...untracked.split(/\r?\n/)]))
+    .filter(Boolean)
+    .map((file) => resolveProjectFile(root, file));
+};

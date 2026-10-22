@@ -7,6 +7,8 @@ export interface SignatureSearchMatch {
   nodeId: string;
   symbolId?: string;
   symbolType?: string;
+  /** Declaration keyword found on the line (class, interface, function, ...). */
+  kind?: string;
   line: number;
   preview: string;
 }
@@ -23,6 +25,9 @@ const DECLARATION_PATTERNS = [
   /^\s*(public|private|protected|static|readonly|abstract|\s)*\s*\w+\s*\([^;=]*\)\s*(?::\s*[^=]+)?\s*\{/,
 ];
 
+const KIND_PATTERN =
+  /\b(class|interface|type|enum|struct|trait|impl|function|def|func|fn|module|namespace)\b/;
+
 export class SignatureSearchService {
   async search(
     graph: GraphData,
@@ -32,6 +37,8 @@ export class SignatureSearchService {
       limit?: number;
       caseSensitive?: boolean;
       regex?: boolean;
+      /** Only search files whose path contains this text (case-insensitive). */
+      filePath?: string;
     }
   ): Promise<SignatureSearchResult> {
     const trimmedQuery = query.trim();
@@ -52,7 +59,10 @@ export class SignatureSearchService {
     }
 
     const matches: SignatureSearchMatch[] = [];
-    const fileNodes = graph.nodes.filter((node) => node.type === 'file');
+    const fileFilter = options?.filePath?.trim().toLowerCase().replace(/\\/g, '/');
+    const fileNodes = graph.nodes.filter(
+      (node) => node.type === 'file' && (!fileFilter || node.id.toLowerCase().includes(fileFilter))
+    );
 
     for (const fileNode of fileNodes) {
       if (matches.length >= limit) break;
@@ -78,6 +88,7 @@ export class SignatureSearchService {
             nodeId: fileNode.id,
             symbolId: symbol?.id,
             symbolType: symbol?.type,
+            kind: KIND_PATTERN.exec(line)?.[1],
             line: index + 1,
             preview: line.trim(),
           });

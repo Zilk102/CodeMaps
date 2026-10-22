@@ -5,6 +5,14 @@ import { getLanguageByExtension } from '../parsing/languageRegistry';
 import { loadTreeSitterLanguage, getParserInstance } from '../parsing/treeSitterRuntime';
 import { Query } from 'web-tree-sitter';
 
+export interface SkeletonOutlineEntry {
+  name: string;
+  kind: string;
+  line: number;
+  exported: boolean;
+  parent?: string;
+}
+
 export class SemanticSkeletonService {
   /**
    * Generates a structural skeleton of a file.
@@ -186,6 +194,76 @@ export class SemanticSkeletonService {
       default:
         return null;
     }
+  }
+
+  /**
+   * Lists declarations with their original line numbers, since the skeleton text no longer
+   * lines up with the file. TS/JS only; other languages return an empty outline.
+   */
+  public async generateOutline(filePath: string): Promise<SkeletonOutlineEntry[]> {
+    const ext = path.extname(filePath).toLowerCase();
+    if (!['.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs'].includes(ext)) return [];
+    const code = await fs.readFile(filePath, 'utf-8');
+    return this.generateOutlineFromCode(code, filePath);
+  }
+
+  public generateOutlineFromCode(
+    code: string,
+    fileName: string = 'file.ts'
+  ): SkeletonOutlineEntry[] {
+    const sourceFile = ts.createSourceFile(
+      path.basename(fileName),
+      code,
+      ts.ScriptTarget.Latest,
+      true
+    );
+    const entries: SkeletonOutlineEntry[] = [];
+    const lineOf = (node: ts.Node) =>
+      sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+    const isExported = (node: ts.Node) =>
+      (ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined)?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+      ) ?? false;
+
+    const add = (name: string, kind: string, node: ts.Node, exported: boolean, parent?: string) =>
+      entries.push({ name, kind, line: lineOf(node), exported, ...(parent ? { parent } : {}) });
+
+    for (const statement of sourceFile.statements) {
+      const exported = isExported(statement);
+      if (ts.isFunctionDeclaration(statement) && statement.name) {
+        add(statement.name.text, 'function', statement, exported);
+      } else if (ts.isClassDeclaration(statement) && statement.name) {
+        const className = statement.name.text;
+        add(className, 'class', statement, exported);
+        for (const member of statement.members) {
+          if (
+            (ts.isMethodDeclaration(member) || ts.isPropertyDeclaration(member)) &&
+            ts.isIdentifier(member.name)
+          ) {
+            add(
+              member.name.text,
+              ts.isMethodDeclaration(member) ? 'method' : 'property',
+              member,
+              false,
+              className
+            );
+          }
+        }
+      } else if (ts.isInterfaceDeclaration(statement)) {
+        add(statement.name.text, 'interface', statement, exported);
+      } else if (ts.isTypeAliasDeclaration(statement)) {
+        add(statement.name.text, 'type', statement, exported);
+      } else if (ts.isEnumDeclaration(statement)) {
+        add(statement.name.text, 'enum', statement, exported);
+      } else if (ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name)) {
+            add(declaration.name.text, 'variable', declaration, exported);
+          }
+        }
+      }
+    }
+    return entries;
   }
 
   public generateSkeletonFromCode(code: string, fileName: string = 'file.ts'): string {

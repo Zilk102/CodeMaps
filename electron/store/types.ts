@@ -25,6 +25,11 @@ export interface GraphNode {
     localName?: string;
     isDefault?: boolean;
   }>;
+  /** Barrel forwarding: resolved target file and the original names it re-exports ('*' = all). */
+  reExports?: Array<{
+    target: string;
+    entities: string[];
+  }>;
 }
 
 export interface GraphLink {

@@ -10,6 +10,14 @@ export interface ImportRecord {
   resolvedPath?: string;
 }
 
+/** `export * from './x'` / `export { a } from './x'`: names that a barrel file forwards. */
+export interface ReExportRecord {
+  path: string;
+  resolvedPath?: string;
+  /** Original names in the target module, or '*' for every export. */
+  entities: string[];
+}
+
 export interface EntityRecord {
   type: EntityType;
   name: string;
@@ -34,6 +42,7 @@ export interface ParseResult {
   imports: ImportRecord[];
   entities: EntityRecord[];
   exports: ExportRecord[];
+  reExports?: ReExportRecord[];
   adr?: string;
   isMarkdownADR?: boolean;
   variables: string[];

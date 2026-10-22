@@ -3,6 +3,7 @@ import { buildValidGraphSnapshot, normalizeCachedNodes } from './store/graphSnap
 import {
   loadRecentProjects,
   normalizeProjectPath,
+  projectPathKey,
   saveRecentProjects,
 } from './store/recentProjects';
 import {
@@ -185,8 +186,12 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
   addRecentProject: (projectPath, projectName, refreshTelemetry) => {
     set((state) => {
       const normalizedPath = normalizeProjectPath(projectPath);
-      const existing = state.recentProjects.find((project) => project.path === normalizedPath);
-      const filtered = state.recentProjects.filter((project) => project.path !== normalizedPath);
+      const existing = state.recentProjects.find(
+        (project) => projectPathKey(project.path) === projectPathKey(normalizedPath)
+      );
+      const filtered = state.recentProjects.filter(
+        (project) => projectPathKey(project.path) !== projectPathKey(normalizedPath)
+      );
       const next = [
         {
           path: normalizedPath,
@@ -205,14 +210,16 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
   updateRecentProjectTelemetry: (projectPath, refreshTelemetry) => {
     set((state) => {
       const normalizedPath = normalizeProjectPath(projectPath);
-      const hasProject = state.recentProjects.some((project) => project.path === normalizedPath);
+      const hasProject = state.recentProjects.some(
+        (project) => projectPathKey(project.path) === projectPathKey(normalizedPath)
+      );
 
       if (!hasProject) {
         return {};
       }
 
       const next = state.recentProjects.map((project) =>
-        project.path === normalizedPath
+        projectPathKey(project.path) === projectPathKey(normalizedPath)
           ? {
               ...project,
               telemetry: buildRecentProjectTelemetrySnapshot(refreshTelemetry),

@@ -118,6 +118,18 @@ export class GraphBuilder {
     }
   }
 
+  private resolveReExports(normalizedPath: string, reExports: ParseResult['reExports']) {
+    const resolved = (reExports ?? []).flatMap((record) => {
+      const target = record.resolvedPath
+        ? normalizePath(record.resolvedPath)
+        : isLocalSpecifier(record.path)
+          ? normalizePath(path.resolve(path.dirname(normalizedPath), record.path))
+          : undefined;
+      return target ? [{ target, entities: record.entities }] : [];
+    });
+    return resolved.length > 0 ? resolved : undefined;
+  }
+
   private processImports(normalizedPath: string, imports: ParseResult['imports']) {
     const store = oracleStore.getState();
     for (const imp of imports) {
@@ -191,7 +203,7 @@ export class GraphBuilder {
       return;
     }
 
-    const { imports, entities, exports, adr, isMarkdownADR } = result;
+    const { imports, entities, exports, reExports, adr, isMarkdownADR } = result;
 
     if (isMarkdownADR && adr) {
       this.handleMarkdownADR(normalizedPath, adr, churn, result.detectedLanguage, parentId);
@@ -208,6 +220,7 @@ export class GraphBuilder {
       language: result.detectedLanguage,
       adr,
       exports,
+      reExports: this.resolveReExports(normalizedPath, reExports),
       parentId,
     });
 

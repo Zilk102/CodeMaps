@@ -49,7 +49,39 @@
     "hierarchySelectedDescription": "Showing connections relative to selected node: incoming {{incomingCount}}, outgoing {{outgoingCount}}.",
     "hierarchyDefaultDescription": "Select a file, class, or function to see clear incoming and outgoing dependencies within the hierarchy.",
     "dependenciesSelectedDescription": "Focused dependency subgraph around selected node: incoming {{incomingCount}}, outgoing {{outgoingCount}}.",
-    "dependenciesDefaultDescription": "Overview at file and ADR level. Select a node on the graph or in the tree to focus on its neighbors."
+    "dependenciesDefaultDescription": "Overview at file and ADR level. Select a node on the graph or in the tree to focus on its neighbors.",
+    "controlsHint": "Scroll to zoom · drag to pan · click a node to see what it connects to",
+    "dismissHint": "Dismiss hint",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitToView": "Fit whole graph",
+    "legend": {
+      "title": "Legend",
+      "directory": "Folder",
+      "file": "File",
+      "class": "Class",
+      "function": "Function",
+      "adr": "Architecture decision (ADR)",
+      "churn": "Changed often (hot spot)"
+    },
+    "nodeTypes": {
+      "directory": "Folder",
+      "file": "File",
+      "class": "Class",
+      "function": "Function",
+      "adr": "Decision",
+      "project": "Project"
+    },
+    "details": {
+      "close": "Close details",
+      "exports": "Exports",
+      "usedBy": "Used by",
+      "dependsOn": "Depends on",
+      "nobody": "Nothing uses it",
+      "nothing": "No dependencies",
+      "more": "+{{count}} more",
+      "highChurn": "Changed {{count}} times: a likely hot spot"
+    }
   },
   "fileTree": {
     "explorer": "Explorer",
@@ -162,8 +194,8 @@
       },
       "validate_architecture_changes": {
         "title": "Validate Architecture Changes",
-        "description": "Runs an on-the-fly architectural validation of the current graph state.",
-        "recommendedWhen": "Before finalizing code changes, to make sure no layer boundaries were violated."
+        "description": "Checks only the files you changed (git working tree or baseRef) against SOLID and duplication heuristics and returns the problems in them, each with a fix hint; falls back to the whole project.",
+        "recommendedWhen": "Before finalizing code changes, to be sure your edits add no god files, clones or complexity."
       },
       "analyze_decomposition": {
         "title": "Analyze Decomposition",

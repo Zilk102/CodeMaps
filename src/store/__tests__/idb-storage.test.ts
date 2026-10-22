@@ -51,3 +51,23 @@ describe('getIDBStorage', () => {
     expect(value).toBeNull();
   });
 });
+
+describe('getIDBStorage when IndexedDB fails', () => {
+  it('degrades to no-ops instead of rejecting', async () => {
+    const original = global.indexedDB;
+    global.indexedDB = {
+      open: () => {
+        throw new Error('Internal error');
+      },
+    } as unknown as IDBFactory;
+
+    try {
+      const storage = getIDBStorage('brokenDB', 'brokenStore');
+      await expect(storage.getItem('key')).resolves.toBeNull();
+      await expect(storage.setItem('key', 'value')).resolves.toBeUndefined();
+      await expect(storage.removeItem('key')).resolves.toBeUndefined();
+    } finally {
+      global.indexedDB = original;
+    }
+  });
+});

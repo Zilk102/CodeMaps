@@ -172,9 +172,10 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
   {
     name: 'validate_architecture_changes',
     title: 'Validate Architecture Changes',
-    description: 'Runs an on-the-fly architectural validation of the current graph state.',
+    description:
+      'Checks only the files you changed (git working tree or baseRef) against SOLID and duplication heuristics and returns the problems in them, each with a fix hint; falls back to the whole project.',
     recommendedWhen:
-      'Before finalizing code changes to ensure no SOLID principles or boundaries were violated.',
+      'Before finalizing code changes, to be sure your edits add no god files, clones or complexity.',
   },
   {
     name: 'prepare_task_context',

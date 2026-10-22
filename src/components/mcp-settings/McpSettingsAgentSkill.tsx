@@ -74,7 +74,7 @@ Use these only if the selected composite context is insufficient:
 - \`run_security_scan\`
 - \`search_signatures\`
 - \`get_semantic_skeleton\` (read a file's structure without bodies, to save tokens)
-- \`validate_architecture_changes\` (run before finishing edits to catch boundary violations)
+- \`validate_architecture_changes\` (checks only the files you changed in git, returns problems with fix hints; run before finishing edits)
 
 ## Expected Outcome
 

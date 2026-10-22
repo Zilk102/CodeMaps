@@ -152,3 +152,43 @@ public class Service {
     });
   });
 });
+
+describe('SemanticSkeletonService outline', () => {
+  const service = new SemanticSkeletonService();
+
+  it('reports original line numbers for declarations and members', () => {
+    const code = [
+      "import x from 'x';",
+      '',
+      'export interface User {',
+      '  id: string;',
+      '}',
+      '',
+      'export class Repo {',
+      '  find(id: string) {',
+      '    return id;',
+      '  }',
+      '}',
+      '',
+      'function internal() {}',
+    ].join('\n');
+
+    const outline = service.generateOutlineFromCode(code);
+
+    expect(outline).toContainEqual({ name: 'User', kind: 'interface', line: 3, exported: true });
+    expect(outline).toContainEqual({ name: 'Repo', kind: 'class', line: 7, exported: true });
+    expect(outline).toContainEqual({
+      name: 'find',
+      kind: 'method',
+      line: 8,
+      exported: false,
+      parent: 'Repo',
+    });
+    expect(outline).toContainEqual({
+      name: 'internal',
+      kind: 'function',
+      line: 13,
+      exported: false,
+    });
+  });
+});

@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { GraphData, oracleStore } from '../store';
 import { oracle } from '../oracle';
+import * as fs from 'fs';
 import * as path from 'path';
 
 // Simple concurrency limit of 1 (Mutex) to replace p-limit and avoid ESM issues
@@ -63,6 +64,21 @@ export const createGraphSummary = (graph: GraphData) => {
   };
 };
 
+/** A mistyped path would otherwise index nothing and look like a successful, empty analysis. */
+export const assertProjectDirectory = (resolvedPath: string, requestedPath: string) => {
+  let isDirectory = false;
+  try {
+    isDirectory = fs.statSync(resolvedPath).isDirectory();
+  } catch {
+    isDirectory = false;
+  }
+  if (!isDirectory) {
+    throw new Error(
+      `Project path does not exist or is not a directory: ${requestedPath} (resolved to ${resolvedPath}). Pass an absolute path.`
+    );
+  }
+};
+
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
   const state = oracleStore.getState();
 
@@ -74,6 +90,7 @@ export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData
     targetPath = normalizePath(
       path.isAbsolute(projectPath) ? projectPath : path.resolve(process.cwd(), projectPath)
     )!;
+    assertProjectDirectory(targetPath, projectPath);
   } else {
     targetPath = state.baseDir || normalizePath(process.env.CODEMAPS_ROOT || process.cwd())!;
   }

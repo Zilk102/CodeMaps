@@ -6,6 +6,10 @@ import { useGraphStore, useUIStore } from '../store/useStore';
 import { FilterPanel } from './FilterPanel';
 import { useGraphLayout } from '../hooks/useGraphLayout';
 import { GraphNodeComponent } from './GraphNodeComponent';
+import { GraphControls, GraphHint } from './graph/GraphControls';
+import { GraphLegend } from './graph/GraphLegend';
+import { NodeDetailsPanel } from './graph/NodeDetailsPanel';
+import { useGraphViewport } from '../hooks/useGraphViewport';
 
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
@@ -22,7 +26,14 @@ export const GraphView: React.FC = () => {
     layoutData
   );
 
-  const graphInfoWidth = 'min(420px, calc(100% - 320px))';
+  const graphInfoWidth = 'min(380px, calc(100% - 420px))';
+
+  const { transformRef, containerRef, fit, zoomBy, markUserMoved } = useGraphViewport({
+    layoutData,
+    frameKey: `${graphData?.projectRoot ?? ''}|${layoutMode}`,
+    focusNodeId: graphInsights?.selectedVisibleId ?? null,
+    frameWholeLayout: layoutMode === 'dependencies',
+  });
 
   const edgeElements = useMemo(() => {
     if (!layoutData?.edges) return null;
@@ -146,41 +157,61 @@ export const GraphView: React.FC = () => {
         </div>
       )}
       <div
-        className="absolute top-4 left-4 text-(--t1) z-10 surface-card p-4 text-[12px] shadow-sm backdrop-blur-md bg-(--bg1)/90 pointer-events-auto"
+        className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-col gap-2"
         style={{ width: graphInfoWidth }}
       >
-        <div className="font-semibold mb-1 text-(--t0)">
-          {t('graphView.mode')}:{' '}
-          {layoutMode === 'hierarchy' ? t('graphView.hierarchy') : t('graphView.dependencies')}
-        </div>
-        <div className="text-(--t2) leading-relaxed">
-          {layoutMode === 'hierarchy'
-            ? graphInsights?.selectedVisibleId
-              ? t('graphView.hierarchySelectedDescription', {
-                  incomingCount: graphInsights.incomingCount,
-                  outgoingCount: graphInsights.outgoingCount,
-                })
-              : t('graphView.hierarchyDefaultDescription')
-            : graphInsights?.selectedVisibleId
-              ? t('graphView.dependenciesSelectedDescription', {
-                  incomingCount: graphInsights.incomingCount,
-                  outgoingCount: graphInsights.outgoingCount,
-                })
-              : t('graphView.dependenciesDefaultDescription')}
+        <GraphHint />
+        <GraphLegend />
+        <div className="text-(--t1) surface-card p-3 text-[12px] shadow-sm backdrop-blur-md bg-(--bg1)/90 pointer-events-auto">
+          <div className="font-semibold mb-1 text-(--t0)">
+            {t('graphView.mode')}:{' '}
+            {layoutMode === 'hierarchy' ? t('graphView.hierarchy') : t('graphView.dependencies')}
+          </div>
+          <div className="text-(--t2) leading-relaxed">
+            {layoutMode === 'hierarchy'
+              ? graphInsights?.selectedVisibleId
+                ? t('graphView.hierarchySelectedDescription', {
+                    incomingCount: graphInsights.incomingCount,
+                    outgoingCount: graphInsights.outgoingCount,
+                  })
+                : t('graphView.hierarchyDefaultDescription')
+              : graphInsights?.selectedVisibleId
+                ? t('graphView.dependenciesSelectedDescription', {
+                    incomingCount: graphInsights.incomingCount,
+                    outgoingCount: graphInsights.outgoingCount,
+                  })
+                : t('graphView.dependenciesDefaultDescription')}
+          </div>
         </div>
       </div>
-      <div className="pointer-events-none absolute right-4 top-4 z-10 flex w-[min(320px,calc(100%-1.25rem))] flex-col gap-4">
-        <div className="pointer-events-auto">
+      <div className="pointer-events-none absolute bottom-4 right-4 top-4 z-10 flex w-[min(320px,calc(100%-1.25rem))] flex-col gap-4">
+        <div className="pointer-events-auto shrink-0">
           <FilterPanel />
         </div>
+        {selectedNode && (
+          <NodeDetailsPanel
+            graph={graphData}
+            node={selectedNode}
+            onSelect={setSelectedNode}
+            onClose={() => setSelectedNode(null)}
+          />
+        )}
       </div>
+      <GraphControls
+        onFit={() => fit()}
+        onZoomIn={() => zoomBy(1.4)}
+        onZoomOut={() => zoomBy(1 / 1.4)}
+      />
 
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" ref={containerRef}>
         <TransformWrapper
+          ref={transformRef}
+          onPanningStart={markUserMoved}
+          onZoomStart={markUserMoved}
+          onPinchStart={markUserMoved}
           initialScale={1}
           minScale={0.05}
           maxScale={5}
-          centerOnInit={true}
           limitToBounds={false}
           smooth={false}
           wheel={{ step: 0.045 }}

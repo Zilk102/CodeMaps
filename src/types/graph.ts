@@ -4,6 +4,8 @@ export interface GraphNode {
   group: number;
   type: string;
   churn?: number;
+  filePath?: string;
+  language?: string;
   adr?: string;
   parentId?: string;
   exports?: Array<{

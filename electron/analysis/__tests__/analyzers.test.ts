@@ -335,6 +335,18 @@ ${longMethodBody}
     expect(result.matches[0].preview).toContain('util1');
   });
 
+  it('SignatureSearchService narrows by file path and reports the declaration kind', async () => {
+    const service = new SignatureSearchService();
+    const result = await service.search(graphData, 'util', {
+      limit: 20,
+      filePath: 'utils1',
+    });
+
+    expect(result.matches.length).toBeGreaterThan(0);
+    expect(result.matches.every((match) => match.nodeId.includes('utils1'))).toBe(true);
+    expect(result.matches.some((match) => match.kind === 'function')).toBe(true);
+  });
+
   it('ChangeContextService prepares change context', async () => {
     const service = new ChangeContextService();
     const result = await service.prepareChangeContext(graphData, {

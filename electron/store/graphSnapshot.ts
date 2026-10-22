@@ -67,18 +67,33 @@ export const normalizeCachedNodes = (baseDir: string, nodes: GraphNode[]) =>
 export const buildValidGraphSnapshot = (state: GraphSnapshotState): GraphData => {
   const validLinks: GraphLink[] = [];
 
-  const resolveSymbolTarget = (filePath: string, symbolName: string) => {
+  const MAX_REEXPORT_DEPTH = 6;
+
+  // Looks up the node a name really refers to, following barrel re-exports
+  // (`export * from`, `export { a as b } from`) so dependents link to the declaration
+  // instead of the barrel file.
+  const resolveSymbolTarget = (
+    filePath: string,
+    symbolName: string,
+    visited: Set<string> = new Set()
+  ): string | undefined => {
+    const visitKey = `${filePath}#${symbolName}`;
+    if (visited.has(visitKey) || visited.size > MAX_REEXPORT_DEPTH) {
+      return undefined;
+    }
+    visited.add(visitKey);
+
     const fileNode = state.nodes.get(filePath);
 
     if (state.nodes.has(`${filePath}#${symbolName}`)) {
       return `${filePath}#${symbolName}`;
     }
 
-    if (!fileNode?.exports?.length) {
+    if (!fileNode) {
       return undefined;
     }
 
-    const directExport = fileNode.exports.find(
+    const directExport = fileNode.exports?.find(
       (record) =>
         record.exportedName === symbolName || (symbolName === 'default' && record.isDefault)
     );
@@ -89,6 +104,22 @@ export const buildValidGraphSnapshot = (state: GraphSnapshotState): GraphData =>
 
     if (directExport && state.nodes.has(`${filePath}#${directExport.exportedName}`)) {
       return `${filePath}#${directExport.exportedName}`;
+    }
+
+    const originalName = directExport?.localName ?? symbolName;
+    for (const reExport of fileNode.reExports ?? []) {
+      if (!reExport.entities.includes('*') && !reExport.entities.includes(originalName)) {
+        continue;
+      }
+      for (const targetFile of [
+        reExport.target,
+        ...POSSIBLE_EXTS.map((ext) => reExport.target + ext),
+      ]) {
+        if (!state.nodes.has(targetFile)) continue;
+        const forwarded = resolveSymbolTarget(targetFile, originalName, visited);
+        if (forwarded) return forwarded;
+        break;
+      }
     }
 
     return undefined;

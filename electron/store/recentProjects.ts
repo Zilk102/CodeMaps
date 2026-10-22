@@ -52,6 +52,23 @@ function getRecentProjectsFile(): string {
 
 export const normalizeProjectPath = (projectPath: string) => projectPath.replace(/\\/g, '/');
 
+/** Identity of a project: Windows paths differ only by drive-letter or folder case. */
+export const projectPathKey = (projectPath: string) =>
+  normalizeProjectPath(projectPath).toLowerCase();
+
+/** Collapses entries that point at the same folder, keeping the most recently opened one. */
+export const dedupeRecentProjects = (projects: RecentProject[]): RecentProject[] => {
+  const seen = new Set<string>();
+  return [...projects]
+    .sort((a, b) => b.lastOpened.localeCompare(a.lastOpened))
+    .filter((project) => {
+      const key = projectPathKey(project.path);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
 const normalizeRecentProjectTelemetry = (
   value: unknown
 ): RecentProjectTelemetrySnapshot | undefined => {
@@ -101,10 +118,11 @@ export function loadRecentProjects(): RecentProject[] {
     const data = fs.readFileSync(getRecentProjectsFile(), 'utf-8');
     const parsed = JSON.parse(data) as unknown;
     if (Array.isArray(parsed)) {
-      return parsed
-        .map((project) => normalizeRecentProject(project))
-        .filter((project): project is RecentProject => project !== null)
-        .slice(0, 10);
+      return dedupeRecentProjects(
+        parsed
+          .map((project) => normalizeRecentProject(project))
+          .filter((project): project is RecentProject => project !== null)
+      ).slice(0, 10);
     }
   } catch {
     // File doesn't exist or is corrupt.

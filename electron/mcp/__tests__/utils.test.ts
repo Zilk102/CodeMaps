@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { GraphData } from '../../store';
-import { createAgentPlaybook, createGraphSummary } from '../utils';
+import { assertProjectDirectory, createAgentPlaybook, createGraphSummary } from '../utils';
 
 describe('mcp utils', () => {
   it('includes refresh telemetry in graph summary', () => {
@@ -68,5 +68,21 @@ describe('mcp utils', () => {
     const playbook = createAgentPlaybook();
 
     expect(playbook.rules.some((rule) => rule.includes('refresh latency'))).toBe(true);
+  });
+});
+
+describe('assertProjectDirectory', () => {
+  it('accepts an existing directory', () => {
+    expect(() => assertProjectDirectory(process.cwd(), process.cwd())).not.toThrow();
+  });
+
+  it('rejects a path that does not exist instead of indexing nothing', () => {
+    expect(() => assertProjectDirectory('/definitely/not/here', 'not-here')).toThrow(
+      /does not exist or is not a directory/
+    );
+  });
+
+  it('rejects a file path', () => {
+    expect(() => assertProjectDirectory(__filename, __filename)).toThrow(/not a directory/);
   });
 });

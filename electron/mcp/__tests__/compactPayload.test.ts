@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compactPayload } from '../compactPayload';
-import { okCompactStatusToolResult } from '../toolSupport';
+import { okCompactStatusToolResult, okStatusToolResult } from '../toolSupport';
 
 const bigPayload = () => ({
   taskResult: {
@@ -78,5 +78,30 @@ describe('okCompactStatusToolResult', () => {
     expect(parsed._compaction.omittedItems).toBeGreaterThan(0);
     expect(text.length).toBeLessThanOrEqual(8_000 + 2_000 * 5);
     expect(text).not.toContain('\n  ');
+  });
+});
+
+describe('okStatusToolResult default bounding', () => {
+  const hugeList = () => ({
+    impact: Array.from({ length: 5000 }, (_, i) => ({
+      id: `node-${i}`,
+      path: `D:/project/src/deep/module-${i}/file-${i}.ts`,
+      note: 'x'.repeat(300),
+    })),
+  });
+
+  it('keeps an unbounded-looking tool response inside the size budget', () => {
+    const text = okStatusToolResult(hugeList()).content[0].text;
+    expect(text.length).toBeLessThanOrEqual(45_000);
+    expect(JSON.parse(text)._compaction.omittedItems).toBeGreaterThan(0);
+  });
+
+  it('passes a deliberately complete payload through untouched', () => {
+    const skeleton = 'declare function a(): void;\n'.repeat(500);
+    const parsed = JSON.parse(
+      okStatusToolResult({ skeleton }, { unbounded: true }).content[0].text
+    );
+    expect(parsed.skeleton).toBe(skeleton);
+    expect(parsed._compaction).toBeUndefined();
   });
 });
