@@ -1,5 +1,11 @@
 # CodeMaps Changelog
 
+## v1.1.44 (2026-10-22)
+
+### Fixed
+
+- **The Kuzu tools kept failing after v1.1.43 on machines where the database was already damaged.** The overlapping saves fixed in v1.1.43 had left duplicate rows in the database's write-ahead log, so the database could not even be opened ("Found duplicated primary key") and `calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact` and the graph persistence all failed. Because the database is only a cache of the analysed graph, CodeMaps now replaces a database that cannot be opened because it is damaged: the files are moved aside (only the latest set is kept) and a fresh database is created. A lock held by another process is never treated as damage. Verified against a copy of a real damaged database.
+
 ## v1.1.43 (2026-10-22)
 
 ### Fixed

@@ -2,21 +2,12 @@
 
 ### 🇷🇺 Изменения (RU)
 
-- **Переключение на «Зависимости» больше не замораживает приложение**: раскладка обзора всего проекта (200+ файлов, 500+ связей) занимала около 9 секунд из-за размещения узлов методом network-simplex. Теперь используется размещение Brandes-Köpf и сниженная тщательность для больших графов, расчёт занимает около 0,3 с. Регрессионный тест упадёт, если раскладка снова замедлится.
-- **Переключатели фильтров заработали**: «Папки / Файлы / Функции / Классы / ADR / Связи» раньше не были подключены к хранилищу и ничего не делали.
-- **Инструменты Kuzu (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`) больше не падают с «Found duplicated primary key»**: каждое обновление графа запускало новое сохранение, которое очищает базу и вставляет граф заново, и перекрывающиеся сохранения конфликтовали. Теперь сохранения идут по одному, записывается только последний граф.
-- **Аккуратнее экран графа**: высокая колонка фильтров заменена компактной панелью над графом (режим и фильтры-«чипы») и подсказкой «Как читать граф» с легендой и управлением; информационная карточка убрана, граф занимает всю область, кнопки масштаба в левом нижнем углу, панель сведений об узле открывается только при выборе узла, а разовая подсказка стала небольшим уведомлением.
+- **Инструменты Kuzu продолжали падать после v1.1.43 там, где база уже была повреждена.** Перекрывающиеся сохранения, исправленные в v1.1.43, оставили в журнале записи базы (WAL) дубликаты строк, поэтому базу нельзя было даже открыть («Found duplicated primary key»), и падали `calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact` и сохранение графа. Поскольку база — лишь кэш проанализированного графа, CodeMaps теперь заменяет базу, которую невозможно открыть из-за повреждения: файлы откладываются в сторону (хранится только последний комплект) и создаётся новая база. Блокировка другим процессом повреждением не считается. Проверено на копии реальной повреждённой базы.
 
 ### 🇬🇧 Changes (EN)
 
-- **Switching to "Dependencies" no longer freezes the app**: laying out the whole-project overview (200+ files, 500+ links) took about 9 seconds because of network-simplex node placement. It now uses Brandes-Köpf placement with lower thoroughness for large graphs and takes about 0.3 s. A regression test fails if the layout becomes slow again.
-- **The filter switches now work**: Directories / Files / Functions / Classes / ADR / Edges were never connected to the store and did nothing.
-- **The Kuzu tools (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`) no longer fail with "Found duplicated primary key"**: every graph update started a new save that clears the database and re-inserts the graph, and overlapping saves collided. Saves now run one at a time and only the latest graph is written.
-- **A cleaner graph screen**: the tall filter column is replaced by a compact toolbar over the graph (mode switch and filter chips) and a "How to read the graph" popover with the legend and controls; the info card is gone, the graph uses the whole area, zoom buttons moved to the bottom-left, the node details panel opens only when a node is selected, and the one-time hint is now a small toast.
+- **The Kuzu tools kept failing after v1.1.43 on machines where the database was already damaged.** The overlapping saves fixed in v1.1.43 had left duplicate rows in the database's write-ahead log (WAL), so the database could not even be opened ("Found duplicated primary key") and `calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact` and graph persistence all failed. Because the database is only a cache of the analysed graph, CodeMaps now replaces a database that cannot be opened because it is damaged: the files are moved aside (only the latest set is kept) and a fresh database is created. A lock held by another process is never treated as damage. Verified against a copy of a real damaged database.
 
 ### 🇨🇳 变更 (ZH)
 
-- **切换到“依赖”不再冻结应用**：整个项目概览（200+ 个文件、500+ 条关联）的布局曾因 network-simplex 节点放置而耗时约 9 秒。现在对大型图使用 Brandes-Köpf 放置并降低精细度，耗时约 0.3 秒。如果布局再次变慢，回归测试会失败。
-- **过滤开关现在有效**：目录 / 文件 / 函数 / 类 / ADR / 连线 开关此前从未连接到状态存储，点击没有任何效果。
-- **Kuzu 工具（`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact`）不再报 “Found duplicated primary key”**：每次图更新都会启动新的保存，先清空数据库再重新写入图，重叠的保存会互相冲突。现在保存依次进行，只写入最新的图。
-- **更整洁的图界面**：高大的过滤列被图上方紧凑的工具栏（模式切换和过滤标签）以及带图例和操作说明的“如何阅读图”弹窗取代；信息卡片已移除，图占满整个区域，缩放按钮移到左下角，节点详情面板仅在选中节点时打开，一次性提示变成了小型通知。
+- **在数据库已损坏的机器上，v1.1.43 之后 Kuzu 工具仍然失败。** v1.1.43 中修复的重叠保存已在数据库的预写日志（WAL）中留下重复行，导致数据库甚至无法打开（“Found duplicated primary key”），`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact` 和图持久化全部失败。由于数据库只是已分析图的缓存，CodeMaps 现在会替换因损坏而无法打开的数据库：把文件移到一旁（只保留最新一组）并创建新的数据库。被其他进程占用的锁不会被视为损坏。已在真实损坏数据库的副本上验证。

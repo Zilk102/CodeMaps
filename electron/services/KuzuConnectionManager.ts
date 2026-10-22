@@ -1,4 +1,5 @@
 import { Connection, Database } from 'kuzu';
+import { isRecoverableCorruption, quarantineDatabaseFiles } from './kuzuRecovery';
 
 export interface SharedKuzuState {
   db: Database;
@@ -16,18 +17,34 @@ export class KuzuConnectionManager {
       return { db: sharedState.db, conn: sharedState.conn };
     }
 
+    try {
+      return await this.open(dbPath);
+    } catch (error: unknown) {
+      if (!isRecoverableCorruption(error)) throw error;
+
+      // The database is only a cache of the analysed graph, so a damaged one is replaced.
+      const moved = quarantineDatabaseFiles(dbPath);
+      console.warn(
+        `[KuzuDB] Database at ${dbPath} was damaged (${error instanceof Error ? error.message : String(error)}); ` +
+          `moved ${moved.length} file(s) aside and starting fresh`
+      );
+      return await this.open(dbPath);
+    }
+  }
+
+  private static async open(dbPath: string): Promise<{ db: Database; conn: Connection }> {
     const db = new Database(dbPath);
-    await db.init();
-    const conn = new Connection(db);
-    await conn.init();
+    try {
+      await db.init();
+      const conn = new Connection(db);
+      await conn.init();
 
-    this.sharedConnections.set(dbPath, {
-      db,
-      conn,
-      refCount: 1,
-    });
-
-    return { db, conn };
+      this.sharedConnections.set(dbPath, { db, conn, refCount: 1 });
+      return { db, conn };
+    } catch (error: unknown) {
+      await db.close().catch(() => undefined);
+      throw error;
+    }
   }
 
   static async releaseConnection(dbPath: string): Promise<void> {
