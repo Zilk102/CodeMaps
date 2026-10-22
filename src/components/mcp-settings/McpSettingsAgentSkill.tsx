@@ -58,6 +58,7 @@ Do not wait until after file inspection to use it.
 - Do not guess target files when CodeMaps cannot resolve them confidently.
 - For large changes, work in waves from \`prepare_change_campaign\` instead of editing many files ad hoc.
 - Re-check CodeMaps after meaningful edits if the architectural context may have changed.
+- Run \`validate_architecture_changes\` before declaring a non-trivial change finished.
 
 ## Low-Level Fallback Tools
 
@@ -71,6 +72,8 @@ Use these only if the selected composite context is insufficient:
 - \`detect_patterns\`
 - \`run_security_scan\`
 - \`search_signatures\`
+- \`get_semantic_skeleton\` (read a file's structure without bodies, to save tokens)
+- \`validate_architecture_changes\` (run before finishing edits to catch boundary violations)
 
 ## Expected Outcome
 

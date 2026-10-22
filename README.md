@@ -41,7 +41,7 @@ CodeMaps runs an MCP server with HTTP and WebSocket endpoints, providing AI agen
 
 ### MCP Tools
 
-10+ built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
+20 built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
 
 ![MCP Tools](screenshots/mcp-tools.jpg)
 
@@ -68,6 +68,19 @@ The application requires no complex installation and works right out of the box 
 
 # Run it — no installation needed!
 ```
+
+---
+
+## 🤖 Claude Code & Claude Desktop
+
+Start CodeMaps, then connect it:
+
+```bash
+# Claude Code (all projects)
+claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
+```
+
+For Claude Desktop, add an `mcp-remote` bridge to `claude_desktop_config.json`. This repository also ships a project `.mcp.json` and a ready-made `codemaps-agent-autopilot` skill in `.claude/skills/`. Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
 
 ---
 

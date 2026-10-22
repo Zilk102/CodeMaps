@@ -154,6 +154,16 @@
         "title": "Подготовка контекста ревью",
         "description": "Готовит исчерпывающий контекст для ревью кода, включая архитектуру, паттерны и безопасность.",
         "recommendedWhen": "При ревью кода, оценке архитектуры или валидации последствий изменения."
+      },
+      "get_semantic_skeleton": {
+        "title": "Семантический скелет",
+        "description": "Убирает тела функций и методов из файла и возвращает только структурный скелет.",
+        "recommendedWhen": "При изучении больших файлов, чтобы сэкономить токены и быстро понять контракты."
+      },
+      "validate_architecture_changes": {
+        "title": "Проверка архитектурных изменений",
+        "description": "Выполняет проверку архитектуры текущего состояния графа на лету.",
+        "recommendedWhen": "Перед завершением изменений, чтобы убедиться, что границы слоёв не нарушены."
       }
     },
     "resources": {
@@ -202,7 +212,7 @@
     "readyTemplateSkill": "Готовый шаблон SKILL.md",
     "streamableHttpServerDescription": "Потоковый HTTP MCP-сервер для агентов и отдельный WebSocket-канал для интерфейса.",
     "agentBehaviorDescription": "Архитектура CodeMaps абстрагирует низкоуровневые MCP-вызовы. Агенты автономно управляют контекстом: запрашивают `prepare_change_context` перед изменениями и `prepare_review_context` для ревью. Прямой доступ к базовым инструментам требуется исключительно в нестандартных сценариях.",
-    "skillSetupStep1": "1. Создай у агента новый навык, например в `.trae/skills/codemaps-agent-autopilot/SKILL.md`.",
+    "skillSetupStep1": "1. Создай навык для агента: `.claude/skills/codemaps-agent-autopilot/SKILL.md` (Claude Code / Claude Desktop) или `.trae/skills/...` для Trae.",
     "skillSetupStep2": "2. Скопируй шаблон ниже без изменений.",
     "skillSetupStep3": "3. После этого любой агент сможет постоянно работать через `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context` и `prepare_review_context`, а не только вручную вызывать низкоуровневые инструменты.",
     "trae": "Trae",
@@ -210,8 +220,12 @@
     "cursor": "Cursor",
     "cursorDescription": "Для Cursor укажи транспорт как потоковый HTTP и тот же локальный эндпоинт.",
     "claudeCode": "Claude Code",
-    "claudeCodeDescription": "Claude Code удобнее всего подключать CLI-командой, чтобы сразу зарегистрировать сервер в клиенте.",
-    "skillTemplateDescription": "Если агент подключён к `codemaps`, но не имеет постоянной инструкции работать через него как через архитектурный мозг, он может использовать MCP слишком слабо или слишком поздно. Этот шаблон `SKILL.md` фиксирует правильное поведение: сначала `CodeMaps`, потом локальное чтение и правки."
+    "claudeCodeDescription": "Зарегистрируй сервер один раз для всех проектов CLI-командой. С `--scope project` он попадёт в `.mcp.json` и будет общим для команды.",
+    "skillTemplateDescription": "Если агент подключён к `codemaps`, но не имеет постоянной инструкции работать через него как через архитектурный мозг, он может использовать MCP слишком слабо или слишком поздно. Этот шаблон `SKILL.md` фиксирует правильное поведение: сначала `CodeMaps`, потом локальное чтение и правки.",
+    "claudeCodeProject": "Claude Code (проектный .mcp.json)",
+    "claudeCodeProjectDescription": "Закоммить этот файл в корень репозитория, и вся команда получит сервер CodeMaps автоматически.",
+    "claudeDesktop": "Claude Desktop",
+    "claudeDesktopDescription": "Добавь в `claude_desktop_config.json` (Настройки → Разработчик → Изменить конфиг) и перезапусти Claude Desktop. Локальный HTTP-эндпоинт подключается через мост `mcp-remote`, нужен Node.js. CodeMaps должен быть запущен."
   },
   "filterPanel": {
     "filters": "Фильтры",

@@ -29,7 +29,33 @@ export const McpSettingsClients: React.FC<Props> = ({ endpoint, copiedKey, copyT
         id: 'claude-code',
         title: t('mcpSettings.claudeCode'),
         description: t('mcpSettings.claudeCodeDescription'),
-        snippet: `claude mcp add codemaps ${endpoint} --transport http`,
+        snippet: `claude mcp add --transport http --scope user codemaps ${endpoint}`,
+      },
+      {
+        id: 'claude-code-project',
+        title: t('mcpSettings.claudeCodeProject'),
+        description: t('mcpSettings.claudeCodeProjectDescription'),
+        snippet: `{
+  "mcpServers": {
+    "codemaps": {
+      "type": "http",
+      "url": "${endpoint}"
+    }
+  }
+}`,
+      },
+      {
+        id: 'claude-desktop',
+        title: t('mcpSettings.claudeDesktop'),
+        description: t('mcpSettings.claudeDesktopDescription'),
+        snippet: `{
+  "mcpServers": {
+    "codemaps": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "${endpoint}", "--allow-http"]
+    }
+  }
+}`,
       },
     ],
     [endpoint, t]

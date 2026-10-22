@@ -154,6 +154,16 @@
         "title": "Prepare Review Context",
         "description": "Prepares a comprehensive context for code review, including architecture, patterns, and security.",
         "recommendedWhen": "When reviewing code, assessing architecture, or validating post-change impact."
+      },
+      "get_semantic_skeleton": {
+        "title": "Get Semantic Skeleton",
+        "description": "Strips function/method bodies from a file and returns only its structural skeleton.",
+        "recommendedWhen": "When exploring large files to save tokens and understand contracts quickly."
+      },
+      "validate_architecture_changes": {
+        "title": "Validate Architecture Changes",
+        "description": "Runs an on-the-fly architectural validation of the current graph state.",
+        "recommendedWhen": "Before finalizing code changes, to make sure no layer boundaries were violated."
       }
     },
     "resources": {
@@ -202,7 +212,7 @@
     "readyTemplateSkill": "Ready SKILL.md template",
     "streamableHttpServerDescription": "Streamable HTTP MCP server for agents and a separate WebSocket channel for UI.",
     "agentBehaviorDescription": "CodeMaps architecture encapsulates low-level MCP calls. Agents autonomously manage context by requesting `prepare_change_context` before modifications and `prepare_review_context` for code reviews. Direct access to basic tools is reserved strictly for edge cases.",
-    "skillSetupStep1": "1. Create a new skill for the agent, e.g. in `.trae/skills/codemaps-agent-autopilot/SKILL.md`.",
+    "skillSetupStep1": "1. Create a skill for the agent: `.claude/skills/codemaps-agent-autopilot/SKILL.md` (Claude Code / Claude Desktop), or `.trae/skills/...` for Trae.",
     "skillSetupStep2": "2. Copy the template below without changes.",
     "skillSetupStep3": "3. After this, any agent will be able to work continuously through `prepare_task_context`, `prepare_change_campaign`, `prepare_change_context`, and `prepare_review_context`, rather than manually calling low-level tools.",
     "trae": "Trae",
@@ -210,8 +220,12 @@
     "cursor": "Cursor",
     "cursorDescription": "For Cursor set transport to streamable HTTP and use the same local endpoint.",
     "claudeCode": "Claude Code",
-    "claudeCodeDescription": "Claude Code is easiest to connect via CLI command to immediately register the server in the client.",
-    "skillTemplateDescription": "If an agent is connected to `codemaps` but lacks a permanent instruction to work through it as an architectural brain, it may use MCP too weakly or too late. This `SKILL.md` template fixes proper behavior: `CodeMaps` first, then local reading and edits."
+    "claudeCodeDescription": "Register the server once for all your projects with the CLI command. Use `--scope project` to share it with your team via `.mcp.json`.",
+    "skillTemplateDescription": "If an agent is connected to `codemaps` but lacks a permanent instruction to work through it as an architectural brain, it may use MCP too weakly or too late. This `SKILL.md` template fixes proper behavior: `CodeMaps` first, then local reading and edits.",
+    "claudeCodeProject": "Claude Code (project .mcp.json)",
+    "claudeCodeProjectDescription": "Commit this file to the repository root so everyone on the team gets the CodeMaps server automatically.",
+    "claudeDesktop": "Claude Desktop",
+    "claudeDesktopDescription": "Add this to `claude_desktop_config.json` (Settings → Developer → Edit Config) and restart Claude Desktop. It bridges the local HTTP endpoint through `mcp-remote` and requires Node.js. CodeMaps must be running."
   },
   "filterPanel": {
     "filters": "Filters",

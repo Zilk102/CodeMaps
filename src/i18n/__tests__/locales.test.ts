@@ -22,6 +22,7 @@ const UNTRANSLATED_BY_DESIGN = new Set([
   'mcpSettings.trae',
   'mcpSettings.cursor',
   'mcpSettings.claudeCode',
+  'mcpSettings.claudeDesktop',
 ]);
 
 const INTERPOLATION = /\{\{\s*([\w.]+)\s*\}\}/g;

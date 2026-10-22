@@ -154,6 +154,16 @@
         "title": "准备审查上下文",
         "description": "准备全面的代码审查上下文，包括架构、模式和安全性。",
         "recommendedWhen": "在审查代码、评估架构或验证更改后的影响时。"
+      },
+      "get_semantic_skeleton": {
+        "title": "获取语义骨架",
+        "description": "移除文件中函数/方法的主体，仅返回结构骨架。",
+        "recommendedWhen": "浏览大文件时，用于节省 token 并快速理解接口契约。"
+      },
+      "validate_architecture_changes": {
+        "title": "验证架构变更",
+        "description": "对当前图状态即时执行架构验证。",
+        "recommendedWhen": "在完成代码修改之前，确认没有违反层级边界。"
       }
     },
     "resources": {
@@ -202,7 +212,7 @@
     "readyTemplateSkill": "现成的 SKILL.md 模板",
     "streamableHttpServerDescription": "用于代理的可流式 HTTP MCP 服务器和用于 UI 的单独 WebSocket 通道。",
     "agentBehaviorDescription": "CodeMaps 架构完全封装了低级 MCP 调用。代理可自主管理上下文：在进行更改前请求 `prepare_change_context`，在代码审查前请求 `prepare_review_context`。直接调用基础工具仅限于特殊场景。",
-    "skillSetupStep1": "1. 为代理创建一个新技能，例如在 `.trae/skills/codemaps-agent-autopilot/SKILL.md` 中。",
+    "skillSetupStep1": "1. 为代理创建技能：`.claude/skills/codemaps-agent-autopilot/SKILL.md`（Claude Code / Claude Desktop），Trae 则使用 `.trae/skills/...`。",
     "skillSetupStep2": "2. 复制下面的模板，无需更改。",
     "skillSetupStep3": "3. 此后，任何代理都将能够通过 `prepare_task_context`、`prepare_change_campaign`、`prepare_change_context` 和 `prepare_review_context` 持续工作，而不是手动调用底层工具。",
     "trae": "Trae",
@@ -210,8 +220,12 @@
     "cursor": "Cursor",
     "cursorDescription": "对于 Cursor，将传输设置为可流式 HTTP 并使用相同的本地端点。",
     "claudeCode": "Claude Code",
-    "claudeCodeDescription": "Claude Code 最容易通过 CLI 命令连接，以立即在客户端中注册服务器。",
-    "skillTemplateDescription": "如果代理已连接到 `codemaps` 但缺乏通过它作为架构大脑工作的永久指令，它可能会太弱或太晚地使用 MCP。这个 `SKILL.md` 模板修复了正确的行为：先使用 `CodeMaps`，然后进行本地读取和编辑。"
+    "claudeCodeDescription": "使用 CLI 命令为所有项目注册一次服务器。使用 `--scope project` 可通过 `.mcp.json` 与团队共享。",
+    "skillTemplateDescription": "如果代理已连接到 `codemaps` 但缺乏通过它作为架构大脑工作的永久指令，它可能会太弱或太晚地使用 MCP。这个 `SKILL.md` 模板修复了正确的行为：先使用 `CodeMaps`，然后进行本地读取和编辑。",
+    "claudeCodeProject": "Claude Code（项目 .mcp.json）",
+    "claudeCodeProjectDescription": "将此文件提交到仓库根目录，团队所有成员即可自动获得 CodeMaps 服务器。",
+    "claudeDesktop": "Claude Desktop",
+    "claudeDesktopDescription": "添加到 `claude_desktop_config.json`（设置 → 开发者 → 编辑配置）并重启 Claude Desktop。通过 `mcp-remote` 桥接本地 HTTP 端点，需要 Node.js，且 CodeMaps 必须处于运行状态。"
   },
   "filterPanel": {
     "filters": "筛选器",

@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## Unreleased
+
+### Added
+
+- **Claude integration**: MCP Settings → Clients now provides ready snippets for Claude Code (user scope and project `.mcp.json`) and Claude Desktop (`mcp-remote` bridge). The repository ships `.mcp.json`, `CLAUDE.md`, a `.claude/skills/codemaps-agent-autopilot` skill and `docs/CLAUDE_INTEGRATION.md`.
+- Localized (EN/RU/ZH) descriptions for `get_semantic_skeleton` and `validate_architecture_changes`; the agent skill now covers both tools.
+
 ## v1.1.29 (2026-09-16)
 
 ### Changed
