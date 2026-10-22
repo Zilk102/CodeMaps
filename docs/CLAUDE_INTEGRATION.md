@@ -37,4 +37,5 @@ Copy `.claude/skills/codemaps-agent-autopilot/SKILL.md` to `~/.claude/skills/cod
 
 - `ECONNREFUSED`: CodeMaps is not running, or port 3005 is taken by another process.
 - Tools list is empty: call `analyze_project` with the project path first.
+- A `prepare_*` response contains `_compaction`: lists were cut to fit the agent's context. Pass a larger `limit` (up to 50) for more detail; the size budget grows with it.
 - Check the endpoint: `curl http://127.0.0.1:3005/mcp/status`.

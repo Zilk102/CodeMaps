@@ -3,7 +3,7 @@ import * as z from 'zod/v4';
 import { ChangeTaskMode } from '../analysis/ChangeContextService';
 import { ensureGraphLoaded } from './utils';
 import { McpToolContext } from './toolContext';
-import { okStatusToolResult } from './toolSupport';
+import { okCompactStatusToolResult } from './toolSupport';
 
 export function registerContextTools(server: McpServer, context: McpToolContext) {
   server.registerTool(
@@ -53,7 +53,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         includeSecurityFindings,
         limit,
       });
-      return okStatusToolResult({ context: preparedContext });
+      return okCompactStatusToolResult({ context: preparedContext }, limit);
     }
   );
 
@@ -122,7 +122,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         includeSecurityFindings,
         limit,
       });
-      return okStatusToolResult({ taskResult });
+      return okCompactStatusToolResult({ taskResult }, limit);
     }
   );
 
@@ -213,7 +213,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         seedNodeIds,
         candidateQueries: candidateQueries || [],
       });
-      return okStatusToolResult({ campaign });
+      return okCompactStatusToolResult({ campaign }, Math.max(maxFiles, maxSeeds));
     }
   );
 
@@ -256,6 +256,13 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
           .boolean()
           .optional()
           .describe('When true, include security findings related to the target area'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('Maximum number of items kept in each list of the returned context'),
       },
     },
     async ({
@@ -266,6 +273,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       projectPath,
       depth,
       includeSecurityFindings = false,
+      limit = 15,
     }: {
       target: string;
       taskMode?: ChangeTaskMode;
@@ -274,6 +282,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       projectPath?: string;
       depth?: number;
       includeSecurityFindings?: boolean;
+      limit?: number;
     }) => {
       const graph = await ensureGraphLoaded(projectPath);
       const preparedContext = await context.changeContextService.prepareChangeContext(graph, {
@@ -284,7 +293,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         depth,
         includeSecurityFindings,
       });
-      return okStatusToolResult({ changeContext: preparedContext });
+      return okCompactStatusToolResult({ changeContext: preparedContext }, limit);
     }
   );
 
@@ -351,7 +360,7 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         includeSecurityFindings,
         limit,
       });
-      return okStatusToolResult({ reviewContext: preparedContext });
+      return okCompactStatusToolResult({ reviewContext: preparedContext }, limit);
     }
   );
 }

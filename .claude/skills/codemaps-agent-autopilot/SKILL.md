@@ -52,6 +52,7 @@ Do not wait until after file inspection to use it.
 - For large changes, work in waves from `prepare_change_campaign` instead of editing many files ad hoc.
 - Re-check CodeMaps after meaningful edits if the architectural context may have changed.
 - Run `validate_architecture_changes` before declaring a non-trivial change finished.
+- `prepare_*` responses are size-bounded. If `_compaction` is present, some lists were cut; raise `limit` (up to 50) or use a low-level tool for the omitted part.
 
 ## Low-Level Fallback Tools
 

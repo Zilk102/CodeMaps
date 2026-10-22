@@ -1,5 +1,16 @@
 # CodeMaps Changelog
 
+## v1.1.38 (2026-10-22)
+
+### Fixed
+
+- `prepare_task_context`, `prepare_project_context`, `prepare_change_context`, `prepare_change_campaign` and `prepare_review_context` returned up to ~100,000 characters even with `limit: 5`, which overflowed agent context windows. Responses are now compact JSON, honour `limit` as a per-list ceiling, stay within a size budget that grows with `limit`, drop redundant graph-node fields, and replace repeated sub-trees with `$sameAs` pointers. Anything cut is described under `_compaction`. The same request now returns about 22,000 characters (-77%).
+
+### Added
+
+- `prepare_change_context` accepts an optional `limit`.
+- Unit tests for the size budget, `limit`, de-duplication and string truncation.
+
 ## v1.1.37 (2026-10-22)
 
 ### Added
