@@ -11,6 +11,11 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     reason: 'config_or_doc_file',
   },
   {
+    pattern: /(^|[\\/])(config|configs|settings|migrations|deploy|deployments|nginx|k8s)([\\/]|$)/i,
+    layer: 'configuration',
+    reason: 'configuration_path',
+  },
+  {
     pattern: /(^|[\\/])(scripts|\.github|\.husky)([\\/]|$)/i,
     layer: 'configuration',
     reason: 'automation_scripts',
@@ -21,7 +26,8 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     reason: 'test_or_support_path',
   },
   {
-    pattern: /(^|[\\/])(components|views|pages|ui|screens|layouts|hooks|i18n|locales)([\\/]|$)/i,
+    pattern:
+      /(^|[\\/])(components|views|pages|ui|screens|layouts|hooks|i18n|locales|handlers?|routers?|routes|endpoints|transport|rest|grpc|graphql|resolvers|middleware|templates)([\\/]|$)/i,
     layer: 'presentation',
     reason: 'ui_layer',
   },
@@ -37,18 +43,19 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     reason: 'state_management',
   },
   {
-    pattern: /(^|[\\/])(services|usecases|application|features|controllers)([\\/]|$)/i,
+    pattern:
+      /(^|[\\/])(services?|usecases?|use_cases|interactors|application|features|controllers?)([\\/]|$)/i,
     layer: 'application',
     reason: 'application_logic',
   },
   {
-    pattern: /(^|[\\/])(domain|models|entities|core)([\\/]|$)/i,
+    pattern: /(^|[\\/])(domain|models?|entit(?:y|ies)|dtos?|schemas?|core)([\\/]|$)/i,
     layer: 'domain',
     reason: 'domain_logic',
   },
   {
     pattern:
-      /(^|[\\/])(infrastructure|db|database|api|clients|repositories|integration|bin|mcp)([\\/]|$)/i,
+      /(^|[\\/])(infrastructure|db|database|api|clients?|repositor(?:y|ies)|repos?|dao|persistence|gateways?|storage|postgres|redis|mysql|mongo|cache|queues?|messaging|integration|bin|cmd|mcp)([\\/]|$)/i,
     layer: 'integration',
     reason: 'infrastructure_integration',
   },
@@ -63,7 +70,8 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     reason: 'entrypoint_or_adapter_path',
   },
   {
-    pattern: /(^|[\\/])(utils|shared|helpers|common|types|interfaces)([\\/]|$)/i,
+    pattern:
+      /(^|[\\/])(utils?|shared|helpers?|common|types|interfaces|pkg|lib|libs|support)([\\/]|$)/i,
     layer: 'shared',
     reason: 'shared_utilities',
   },

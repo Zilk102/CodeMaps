@@ -152,6 +152,19 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
         },
       };
     }),
+  replaceLinks: (isOwned, links) =>
+    set((state) => {
+      const toRemove = state.links.filter(isOwned);
+      return {
+        links: [...state.links.filter((l) => !isOwned(l)), ...links],
+        linkRevision: state.linkRevision + 1,
+        pendingDiff: {
+          ...state.pendingDiff,
+          linksRemoved: [...state.pendingDiff.linksRemoved, ...toRemove],
+          linksAdded: [...state.pendingDiff.linksAdded, ...links],
+        },
+      };
+    }),
   restoreCache: (nodes, links) =>
     set((state) => {
       const baseDir = state.baseDir.replace(/\\/g, '/');

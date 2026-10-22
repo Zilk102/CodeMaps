@@ -87,9 +87,10 @@ const isGraphNode = (value: Record<string, unknown>) =>
 // the node id; export lists shrink to their names.
 const slimGraphNode = (value: Record<string, unknown>): Record<string, unknown> => {
   if (!isGraphNode(value)) return value;
-  const { group: _group, parentId: _parentId, ...rest } = value;
+  const { group: _group, parentId: _parentId, resolution: _resolution, ...rest } = value;
   void _group;
   void _parentId;
+  void _resolution;
   const slim: Record<string, unknown> = { ...rest };
   if (slim.filePath === slim.id) delete slim.filePath;
   if (Array.isArray(slim.exports)) {

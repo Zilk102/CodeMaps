@@ -12,6 +12,7 @@ import { getOraclePerformanceConfig } from './oracle/performanceConfig';
 import { GraphRepository } from './oracle/GraphRepository';
 import { ProjectIndexer } from './oracle/ProjectIndexer';
 import { StackGraphEnrichmentService } from './oracle/StackGraphEnrichmentService';
+import { ImportResolutionService } from './resolution/ImportResolutionService';
 import { normalizePath } from './oracle/shared';
 
 export class OracleService extends EventEmitter {
@@ -23,6 +24,7 @@ export class OracleService extends EventEmitter {
   private projectIndexer: ProjectIndexer;
   private fileWatcher: FileWatcher;
   private stackGraphEnrichmentService: StackGraphEnrichmentService;
+  private importResolutionService = new ImportResolutionService();
   private readonly performanceConfig = getOraclePerformanceConfig();
   private parsingProgressResetTimeout: ReturnType<typeof setTimeout> | null = null;
   private shutdownPromise: Promise<void> | null = null;
@@ -118,6 +120,7 @@ export class OracleService extends EventEmitter {
     );
 
     this.projectLanguageProfile = indexResult.languageProfile;
+    await this.importResolutionService.resolveAll();
     await this.stackGraphEnrichmentService.rebuild(this.graphRepository.getGraph());
     this.cacheManager.saveDebounced(normalizedBaseDir);
 
@@ -127,6 +130,7 @@ export class OracleService extends EventEmitter {
       (filePath, delta) => this.updateLanguageCount(filePath, delta),
       {
         refreshStackGraphEnrichment: async (changedPaths, event) => {
+          await this.importResolutionService.resolveAll();
           await this.stackGraphEnrichmentService.rebuildForChangedPaths(
             this.graphRepository.getGraph(),
             changedPaths,

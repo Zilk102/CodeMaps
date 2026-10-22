@@ -190,7 +190,7 @@ describe('structural extraction', () => {
     expect(python.entities).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: 'class', name: 'UserService' }),
-        expect.objectContaining({ type: 'function', name: 'register' }),
+        expect.objectContaining({ type: 'function', name: 'UserService.register' }),
       ])
     );
     expect(python.calls).toContain('validate');
@@ -203,6 +203,6 @@ describe('structural extraction', () => {
     expect(go.entities).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: 'function', name: 'Register' })])
     );
-    expect(go.imports.map((entry) => entry.path)).toContain('fmt');
+    expect(go.resolution?.imports.map((entry) => entry.path)).toContain('fmt');
   });
 });

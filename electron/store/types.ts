@@ -1,3 +1,5 @@
+import type { FileResolutionFacts } from '../parsing/types';
+
 export type TrendState = 'stable' | 'improving' | 'degrading';
 export type RefreshEvent = 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
 export type RefreshMode = 'skipped' | 'rebuilt';
@@ -30,6 +32,8 @@ export interface GraphNode {
     target: string;
     entities: string[];
   }>;
+  /** Raw import facts of Go/Python/Java/Rust files, resolved against the project after indexing. */
+  resolution?: FileResolutionFacts;
 }
 
 export interface GraphLink {
@@ -141,6 +145,8 @@ export interface OracleState {
   removeLinksBySource: (source: string) => void;
   removeLinksBySourceOrTarget: (id: string) => void;
   removeLinksByTypes: (types: string[]) => void;
+  /** Swaps every link matching `isOwned` for `links` in one update (bulk, unlike addLink). */
+  replaceLinks: (isOwned: (link: GraphLink) => boolean, links: GraphLink[]) => void;
 
   restoreCache: (nodes: GraphNode[], links: GraphLink[]) => void;
   clear: () => void;

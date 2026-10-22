@@ -1,5 +1,17 @@
 # CodeMaps Changelog
 
+## v1.1.48 (2026-10-23)
+
+### Added
+
+- **Real dependency graphs for Go, Python, Java and Rust.** Before, only relative imports were linked, so a Go project of 54 files had a single link and every graph tool (`get_blast_radius`, `get_node_dependencies`, `analyze_decomposition`, validation) came back empty. Imports are now resolved against the whole project after indexing: `go.mod` module paths (nested modules, local `replace`) and same-package references for Go; absolute, relative, `src/`-layout and `__init__` re-exported imports for Python; packages, wildcard and static imports and same-package classes for Java; Cargo crates, `mod` trees, `use` paths and `pub use` re-exports for Rust. Links point at the declaring file and symbol, and the standard library and external packages are ignored. On four real projects, files with imports got links in 83% (Go), 95% (Java), 83% (Rust) and 53% (Python, many of them tests importing only pytest or Django) of the cases; in the samples I checked, the remaining files import only the standard library or external packages.
+- **Richer declarations.** Go interfaces and named types, methods named after their receiver (`Handler.Get`), Java interfaces, enums, records and methods named after their class, Python methods named after their class, Rust traits, type aliases and impl functions named after their type.
+
+### Fixed
+
+- **`get_blast_radius` for a file reported no dependents** whenever the importers named symbols (`import { a } from './x'`), which is the usual case: nothing points at the file node itself. A file is now analysed together with the symbols it declares, in both the raw analysis and the summary.
+- **Architecture layers were guessed only from front-end folder names.** Handlers, routers, transport, middleware, services, repositories (`repo`, `dao`, `persistence`), models/DTOs, `cmd`, `pkg` and config folders now map to layers, so far fewer nodes are "unknown" in backend projects.
+
 ## v1.1.47 (2026-10-22)
 
 ### Fixed

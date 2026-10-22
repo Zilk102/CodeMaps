@@ -1,4 +1,5 @@
 import { Query, Tree, Language } from 'web-tree-sitter';
+import { extractLanguageFacts } from '../facts';
 import { LanguageDefinition, ParseResult, SourceLocation } from '../types';
 
 const normalizeImportPath = (value: string) => value.replace(/['"`]/g, '').trim();
@@ -114,6 +115,25 @@ export const extractWithTreeSitterQuery = (
   variables.push(...variableSet);
   calls.push(...callSet);
   comments.push(...commentSet);
+
+  // Go, Python, Java and Rust name packages and modules instead of relative paths, so their
+  // imports are kept raw and resolved against the whole project once indexing is done.
+  const facts = extractLanguageFacts(definition.id, tree.rootNode);
+  if (facts) {
+    const { entities: factEntities, ...resolution } = facts;
+    return {
+      sizeExceeded: false,
+      imports: [],
+      entities: factEntities,
+      exports,
+      resolution,
+      adr,
+      variables,
+      calls,
+      comments,
+      detectedLanguage: definition.id,
+    };
+  }
 
   return {
     sizeExceeded: false,

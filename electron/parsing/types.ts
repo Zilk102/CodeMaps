@@ -8,6 +8,30 @@ export interface ImportRecord {
   path: string;
   importedEntities: string[];
   resolvedPath?: string;
+  /** `import x as y` / Go package alias; '.' and '_' are kept verbatim for Go. */
+  alias?: string;
+}
+
+/** `pkg.Name` / `module::name`: a name used through a qualifier that an import may have introduced. */
+export interface QualifiedUse {
+  qualifier: string;
+  name: string;
+}
+
+/**
+ * Per-file facts that only make sense once the whole project is known: the language's import
+ * statements, which names the file uses and which package it declares. The graph resolves
+ * them to files after indexing, because a Go, Python, Java or Rust import names a package or
+ * module, not a relative path.
+ */
+export interface FileResolutionFacts {
+  imports: ImportRecord[];
+  qualifiedUses: QualifiedUse[];
+  /** Unqualified identifiers that may refer to a symbol declared in another file. */
+  usedNames: string[];
+  packageName?: string;
+  /** Rust `mod name;` declarations: child module files owned by this file. */
+  moduleDeclarations?: string[];
 }
 
 /** `export * from './x'` / `export { a } from './x'`: names that a barrel file forwards. */
@@ -43,6 +67,7 @@ export interface ParseResult {
   entities: EntityRecord[];
   exports: ExportRecord[];
   reExports?: ReExportRecord[];
+  resolution?: FileResolutionFacts;
   adr?: string;
   isMarkdownADR?: boolean;
   variables: string[];

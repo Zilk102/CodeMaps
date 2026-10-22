@@ -66,8 +66,9 @@ const computeDepths = (result: BlastRadiusResult) => {
     dependentsOf.set(link.target, bucket);
   }
 
-  const depths = new Map<string, number>([[result.rootNodeId, 0]]);
-  const queue = [result.rootNodeId];
+  const seeds = result.seedNodeIds ?? [result.rootNodeId];
+  const depths = new Map<string, number>(seeds.map((id) => [id, 0]));
+  const queue = [...seeds];
   while (queue.length > 0) {
     const current = queue.shift()!;
     const depth = depths.get(current) ?? 0;
@@ -93,9 +94,10 @@ export const summarizeBlastRadius = (
   const root = graph.projectRoot ?? '';
   const depths = computeDepths(result);
 
+  const seedIds = new Set(result.seedNodeIds ?? [result.rootNodeId]);
   const directLinks = new Map<string, number>();
   for (const link of result.affectedLinks) {
-    if (link.target !== result.rootNodeId) continue;
+    if (!seedIds.has(link.target)) continue;
     const file = fileOf(link.source);
     if (file !== rootFile) directLinks.set(file, (directLinks.get(file) ?? 0) + 1);
   }

@@ -64,6 +64,15 @@ export const normalizeCachedNodes = (baseDir: string, nodes: GraphNode[]) =>
     };
   });
 
+// Raw import facts only feed link resolution in the main process; consumers of the snapshot
+// (renderer, MCP tools, Kuzu) never read them and they can be large.
+const withoutResolutionFacts = (node: GraphNode): GraphNode => {
+  if (!node.resolution) return node;
+  const { resolution: _resolution, ...rest } = node;
+  void _resolution;
+  return rest;
+};
+
 export const buildValidGraphSnapshot = (state: GraphSnapshotState): GraphData => {
   const validLinks: GraphLink[] = [];
 
@@ -195,7 +204,7 @@ export const buildValidGraphSnapshot = (state: GraphSnapshotState): GraphData =>
 
   return {
     projectRoot: state.baseDir,
-    nodes: Array.from(state.nodes.values()),
+    nodes: Array.from(state.nodes.values(), withoutResolutionFacts),
     links: validLinks,
     refreshTelemetry: state.refreshTelemetry,
   };

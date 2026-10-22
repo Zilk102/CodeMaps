@@ -221,6 +221,7 @@ export class GraphBuilder {
       adr,
       exports,
       reExports: this.resolveReExports(normalizedPath, reExports),
+      resolution: result.resolution,
       parentId,
     });
 

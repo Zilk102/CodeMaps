@@ -7,6 +7,8 @@ import {
 
 export interface BlastRadiusResult {
   rootNodeId: string;
+  /** The root plus, for a file, the symbols it declares: imports usually point at those. */
+  seedNodeIds?: string[];
   depthLimit: number | null;
   directDependents: GraphNode[];
   affectedNodes: GraphNode[];
@@ -19,9 +21,18 @@ export class BlastRadiusAnalyzer {
   analyze(graph: GraphData, rootNodeId: string, depthLimit?: number): BlastRadiusResult {
     const { nodeById, incomingByTarget } = buildGraphAdjacency(graph);
 
-    const visited = new Set<string>([rootNodeId]);
-    const depths = new Map<string, number>([[rootNodeId, 0]]);
-    const queue: string[] = [rootNodeId];
+    // Imports usually name symbols (`file#Name`), so a file is reached through its symbols too.
+    const seeds = [rootNodeId];
+    if (nodeById.get(rootNodeId)?.type === 'file') {
+      for (const node of graph.nodes) {
+        if (node.parentId === rootNodeId) seeds.push(node.id);
+      }
+    }
+    const ownIds = new Set(seeds);
+
+    const visited = new Set<string>(seeds);
+    const depths = new Map<string, number>(seeds.map((id) => [id, 0]));
+    const queue: string[] = [...seeds];
     const affectedLinks: GraphLink[] = [];
 
     while (queue.length > 0) {
@@ -35,6 +46,8 @@ export class BlastRadiusAnalyzer {
         if (!isArchitecturalDependencyLink(dependentLink) && dependentLink.type !== 'adr') {
           continue;
         }
+        // A file's own symbols referring to each other are not dependents.
+        if (ownIds.has(dependentLink.source)) continue;
         affectedLinks.push(dependentLink);
         const nextId = dependentLink.source;
         if (visited.has(nextId)) continue;
@@ -45,11 +58,13 @@ export class BlastRadiusAnalyzer {
     }
 
     const affectedNodes = Array.from(visited)
-      .filter((nodeId) => nodeId !== rootNodeId)
+      .filter((nodeId) => !ownIds.has(nodeId))
       .map((nodeId) => nodeById.get(nodeId))
       .filter((node): node is GraphNode => Boolean(node));
 
-    const directDependents = (incomingByTarget.get(rootNodeId) || [])
+    const directDependents = seeds
+      .flatMap((seed) => incomingByTarget.get(seed) || [])
+      .filter((link) => !ownIds.has(link.source))
       .map((link) => nodeById.get(link.source))
       .filter((node): node is GraphNode => Boolean(node));
 
@@ -58,6 +73,7 @@ export class BlastRadiusAnalyzer {
 
     return {
       rootNodeId,
+      seedNodeIds: seeds,
       depthLimit: typeof depthLimit === 'number' ? depthLimit : null,
       directDependents,
       affectedNodes,
