@@ -130,11 +130,10 @@ lint_results.json
 # Per-project Kuzu graph database written when CodeMaps analyses itself
 .codemaps/
 
-# Accidental tsc emit next to the TypeScript sources
+# Accidental tsc emit of src/types/graph.ts. Hand-written declaration files in src/types
+# (css.d.ts, electron.d.ts, ...) are tracked.
 src/types/*.js
-src/types/*.d.ts
-!src/types/css.d.ts
-!src/types/electron.d.ts
+src/types/graph.d.ts
 
 # This project builds with yarn; a second lockfile only causes drift
 package-lock.json

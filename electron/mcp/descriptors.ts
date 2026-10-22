@@ -29,6 +29,8 @@ export interface McpStatus {
   projectRoot: string | null;
   nodesCount: number;
   linksCount: number;
+  /** Why the server could not start; `enabled` is false when this is set. */
+  error?: 'port_in_use' | 'listen_failed' | null;
 }
 
 export const MCP_RESOURCES: McpStatusResourceDescriptor[] = [
@@ -230,9 +232,11 @@ export const buildMcpStatus = (
     path: string;
     endpoint: string;
     websocketUrl: string;
+    listenError?: 'port_in_use' | 'listen_failed' | null;
   }
 ): McpStatus => ({
-  enabled: true,
+  enabled: !config.listenError,
+  error: config.listenError ?? null,
   host: config.host,
   port: config.port,
   path: config.path,

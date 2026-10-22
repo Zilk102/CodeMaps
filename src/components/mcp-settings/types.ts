@@ -27,6 +27,7 @@ export interface McpStatus {
   projectRoot: string | null;
   nodesCount: number;
   linksCount: number;
+  error?: 'port_in_use' | 'listen_failed' | null;
 }
 
 export type SettingsTab = 'overview' | 'tools' | 'resources' | 'clients' | 'agent-skill';

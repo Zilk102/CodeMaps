@@ -1,130 +1,110 @@
 <div align="center">
-  <p>
-    <a href="README.md">🇺🇸 English</a> | 
-    <a href="README.ru.md">🇷🇺 Русский</a> | 
-    <a href="README.zh-CN.md">🇨🇳 简体中文</a> | 
-    <a href="README.es.md">🇪🇸 Español</a> | 
-    <a href="README.ja.md">🇯🇵 日本語</a> | 
-    <a href="README.ko.md">🇰🇷 한국어</a>
-  </p>
-</div>
+  <img src="assets/icon.png" alt="CodeMaps" width="96" height="96" />
 
 # CodeMaps
 
-**CodeMaps** is a powerful tool for visualizing codebase architecture and providing architectural context to AI assistants. The application builds a "living" dependency graph of your project, helping developers and neural networks better understand structure, relationships, and technical debt.
+**A living blueprint of your code: an interactive dependency map for people and an MCP server that gives AI agents the architectural context to write clean code.**
 
-## 🚀 Key Features
+[![Release](https://img.shields.io/github/v/release/Zilk102/CodeMaps?style=flat-square&color=00ff9d)](https://github.com/Zilk102/CodeMaps/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/Zilk102/CodeMaps/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Zilk102/CodeMaps/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/Zilk102/CodeMaps?style=flat-square)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-informational?style=flat-square)
 
-- **Automated Graph Building**: Deep semantic code analysis (via AST and tree-sitter) to identify relationships between files, classes, and functions.
-- **Model Context Protocol (MCP) Integration**: CodeMaps acts as an MCP server, allowing your AI assistants (e.g., Trae, Claude, or Cursor) to "see" the project's architecture, analyze dependencies, and predict the consequences of changes.
-- **Architectural Analytics**:
-  - **Blast Radius**: Evaluate what will be affected by changing a specific module.
-  - **Health Score**: Identify cyclic dependencies and architectural anti-patterns.
-  - **Security Scanner**: Basic search for potential vulnerabilities in the code structure.
-- **Local Execution**: All analysis happens locally on your machine; source code is never sent anywhere.
+[🇺🇸 English](README.md) · [🇷🇺 Русский](README.ru.md) · [🇨🇳 简体中文](README.zh-CN.md) · [🇪🇸 Español](README.es.md) · [🇯🇵 日本語](README.ja.md) · [🇰🇷 한국어](README.ko.md)
 
----
+</div>
 
-## 🖼️ Screenshots
+CodeMaps indexes a project into a graph of directories, files, classes and functions and the links between them. It then serves that graph two ways:
 
-### Interactive Code Graph
+- **To people**, as an interactive map: a new developer sees what is connected to what, and what depends on a file before touching it.
+- **To AI agents** (Claude Code, Claude Desktop, Cursor, Trae and any other MCP client), as 21 bounded tools that answer questions like _what breaks if I change this?_, _is there already a helper for this?_ and _did my edit add a god file or a clone?_ without reading the whole repository.
 
-Visualize your entire codebase as an interactive graph with files, classes, functions, and their relationships.
+Everything runs locally. Source code never leaves your machine.
 
-![Main Graph](screenshots/main-graph.jpg)
+![The project as a map](screenshots/graph-hierarchy.png)
 
-### MCP Server Settings — Overview
+## Why
 
-CodeMaps runs an MCP server with HTTP and WebSocket endpoints, providing AI agents with structured access to your project's architecture.
+An agent that only has grep and file reads wanders. CodeMaps gives it a project map, the impact of a change, and a check for its own edits, in small answers that fit a context window.
 
-![MCP Overview](screenshots/mcp-overview.jpg)
+|                      | What you get                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Orientation**      | Entry points, layers and boundaries of an unfamiliar project in one call (`prepare_project_context`).                    |
+| **Safe changes**     | Direct and indirect dependents grouped by area before an edit (`get_blast_radius`), including barrel re-exports.         |
+| **Clean code**       | `validate_architecture_changes` checks only the files you changed for god files, clones, long and complex methods, hubs. |
+| **Cheap reading**    | A file's skeleton without function bodies, with line numbers (`get_semantic_skeleton`).                                  |
+| **Legacy refactors** | Decomposition guidance for oversized modules and God classes (`analyze_decomposition`).                                  |
+| **Bounded output**   | Every response is capped; anything cut is reported under `_compaction`, so one call cannot flood an agent's context.     |
 
-### MCP Tools
+## Screenshots
 
-21 built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
+Select a file and see its functions and what it depends on:
 
-![MCP Tools](screenshots/mcp-tools.jpg)
+![A selected file](screenshots/graph-selection.png)
 
-### MCP Resources
+The MCP server and its tools, ready for any agent:
 
-Resources provide AI agents with high-level project summaries, full graph exports, and autonomous execution playbooks.
+![MCP tools](screenshots/mcp-tools.png)
 
-![MCP Resources](screenshots/mcp-resources.jpg)
+## Install
 
----
+Download the latest build from [Releases](https://github.com/Zilk102/CodeMaps/releases/latest):
 
-## 📦 Installation
+- **Windows**: installer (`-setup-x64.exe`), portable (`-win-x64.exe`) or `.zip`
+- **Linux**: `.AppImage`, `.deb`, `.rpm` or `.tar.gz`
 
-Download the portable version from the [Releases](https://github.com/Zilk102/CodeMaps/releases) page.
+macOS builds are not published yet. Node.js 22+ on `PATH` is needed only for the three tools backed by the Kuzu graph database (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`); everything else works without it.
 
-The application requires no complex installation and works right out of the box on **Windows** and **Linux**. macOS builds are not published yet. Node.js 22+ on `PATH` is needed only for the Kuzu-backed tools (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`); everything else works without it.
+CodeMaps stores a derived cache in a `.codemaps/` folder inside each analysed project; add it to that project's `.gitignore`.
 
-### Quick Start
+## Connect an AI agent
 
-```bash
-# Download the latest release for your platform
-# Windows: CodeMaps-x.x.x-win-x64.exe
-# Linux: CodeMaps-x.x.x-linux-x86_64.AppImage (or .deb, .rpm)
-
-# Run it — no installation needed!
-```
-
----
-
-## 🤖 Claude Code & Claude Desktop
-
-Start CodeMaps, then connect it:
+Start CodeMaps, then:
 
 ```bash
-# Claude Code (all projects)
+# Claude Code, for every project
 claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
-For Claude Desktop, add an `mcp-remote` bridge to `claude_desktop_config.json`. This repository also ships a project `.mcp.json` and a ready-made `codemaps-agent-autopilot` skill in `.claude/skills/`. An optional Claude Code hook validates every edit through CodeMaps automatically. Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
+- **Claude Desktop** connects through the `mcp-remote` bridge, **Cursor** and **Trae** by URL. Ready snippets with a Copy button are in the app under **MCP Settings → Connection**.
+- Add the `codemaps-agent-autopilot` skill (`.claude/skills/`) so the agent starts from `prepare_task_context`, and the optional **hook** that validates every edit automatically.
 
----
+Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
 
-## 🛠️ Development
+## Supported languages
 
-The project is built on the following stack: **Electron + React + TypeScript + Vite**. The graph is rendered as SVG with layouts computed by elkjs.
+| Support        | Languages                                                                            | What you get                                                   |
+| -------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| **Semantic**   | TypeScript, TSX, JavaScript                                                          | Imports resolved by the TypeScript compiler, barrel re-exports |
+| **Structural** | Python, Go, Rust, Java, C/C++, C#, PHP, Ruby, Zig, Swift, Kotlin, Bash (tree-sitter) | Declarations and imports; no type-aware resolution             |
+| **Limited**    | HTML, CSS, Vue                                                                       | Files and basic structure                                      |
+| **Metadata**   | Markdown (ADR), YAML                                                                 | Architecture decision records linked to the code               |
 
-### Prerequisites
+Cross-file dependency accuracy is highest for the semantic tier; for the others treat links as a strong hint and confirm with a search.
 
-- Node.js 22+
-- yarn (the project ships a `yarn.lock`; npm lockfiles are not supported)
+## Documentation
 
-### Run Locally
+| Document                                                 | About                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------ |
+| [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code and Desktop setup, skill, validation hook  |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Reference for all 21 tools and 4 resources (generated) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | How CodeMaps is built and why                          |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                       | Development setup, checks, release process             |
+| [CHANGELOG.md](CHANGELOG.md)                             | What changed in each version                           |
+
+## Development
 
 ```bash
-# Clone the repository
 git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
-
-# Install dependencies
-yarn install
-
-# Start the application in development mode
-npm run dev
+yarn install        # yarn is the supported package manager
+npm run dev         # Vite + Electron
+npm run verify      # everything CI runs: lint, format, typecheck, tests, builds
+npm run mcp:smoke   # exercise every MCP tool against a running instance
 ```
 
-### Build
+The stack is Electron, React, TypeScript and Vite; the graph layout is computed with elkjs and parsing uses tree-sitter and the TypeScript compiler. Requires Node.js 22+.
 
-```bash
-# Create a production build (Portable)
-npm run build:portable
+## Contributing, security, license
 
-# Or build all formats
-npm run build
-```
-
----
-
-## 🤝 Contributing
-
-We welcome any help in developing the project! Please read the [Contributing Guide](CONTRIBUTING.md) before creating a Pull Request.
-
----
-
-## 📄 License
-
-The project is distributed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [SECURITY.md](SECURITY.md) to report a vulnerability. Released under the [MIT License](LICENSE).

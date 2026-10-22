@@ -1,7 +1,7 @@
 {
   "name": "codemaps",
   "productName": "CodeMaps",
-  "version": "1.1.45",
+  "version": "1.1.46",
   "author": {
     "name": "Zilk102",
     "email": "moskvi-ivan@yandex.ru"
@@ -45,7 +45,25 @@
     "undici": "7.29.0"
   },
   "license": "MIT",
-  "description": "Living Blueprint for Code",
+  "description": "Living blueprint for code: a dependency-graph viewer and MCP server that gives AI agents architectural context",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "ai-agents",
+    "code-visualization",
+    "dependency-graph",
+    "architecture",
+    "static-analysis",
+    "tree-sitter",
+    "electron",
+    "refactoring",
+    "solid"
+  ],
+  "homepage": "https://github.com/Zilk102/CodeMaps#readme",
+  "bugs": {
+    "url": "https://github.com/Zilk102/CodeMaps/issues"
+  },
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
@@ -65,7 +83,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build:renderer && npm run build:electron"
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build:renderer && npm run build:electron",
+    "docs:mcp": "npm run build:electron && node scripts/generate-mcp-docs.mjs"
   },
   "build": {
     "productName": "CodeMaps",
@@ -225,5 +244,8 @@
     "vite": "8.0.16",
     "vitest": "4.1.11",
     "wait-on": "9.1.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

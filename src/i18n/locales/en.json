@@ -269,7 +269,11 @@
     "claudeHook": "Claude Code hook (auto-validate edits)",
     "claudeHookDescription": "Add to `.claude/settings.json`. After every edit Claude Code asks CodeMaps to validate the changed file and gets the problems (god files, clones, complex methods) back immediately. Silent when all is fine or CodeMaps is not running.",
     "claudeHookScript": "Hook script",
-    "claudeHookScriptDescription": "Save as `.claude/hooks/codemaps-validate-hook.mjs` in your project. Needs only Node.js, no dependencies; it never switches the project open in CodeMaps."
+    "claudeHookScriptDescription": "Save as `.claude/hooks/codemaps-validate-hook.mjs` in your project. Needs only Node.js, no dependencies; it never switches the project open in CodeMaps.",
+    "error": {
+      "port_in_use": "Port {{port}} is already in use (another CodeMaps window or program). MCP is unavailable here; start with CODEMAPS_MCP_PORT set to another port.",
+      "listen_failed": "The MCP server could not start. See the application log for details."
+    }
   },
   "filterPanel": {
     "filters": "Filters",

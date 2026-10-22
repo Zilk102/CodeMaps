@@ -57,7 +57,9 @@ export const McpSettingsOverview: React.FC<Props> = ({
               lineHeight: 1.4,
             }}
           >
-            {t('mcpSettings.streamableHttpServerDescription')}
+            {status?.error
+              ? t(`mcpSettings.error.${status.error}`, { port: status.port })
+              : t('mcpSettings.streamableHttpServerDescription')}
           </div>
         </div>
         <MetricCard

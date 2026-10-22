@@ -1,118 +1,110 @@
 <div align="center">
-  <p>
-    <a href="README.md">🇺🇸 English</a> | 
-    <a href="README.ru.md">🇷🇺 Русский</a> | 
-    <a href="README.zh-CN.md">🇨🇳 简体中文</a> | 
-    <a href="README.es.md">🇪🇸 Español</a> | 
-    <a href="README.ja.md">🇯🇵 日本語</a> | 
-    <a href="README.ko.md">🇰🇷 한국어</a>
-  </p>
-</div>
+  <img src="assets/icon.png" alt="CodeMaps" width="96" height="96" />
 
 # CodeMaps
 
-**CodeMaps** 是一款强大的代码库架构可视化工具，并能为 AI 助手提供架构上下文。该应用程序构建项目的"实时"依赖关系图，帮助开发者和神经网络更好地理解结构、关系和技术债务。
+**代码的“活蓝图”：为人提供交互式依赖地图，并通过 MCP 服务器为 AI 智能体提供架构上下文，帮助它们写出整洁的代码。**
 
-## 🚀 主要功能
+[![Release](https://img.shields.io/github/v/release/Zilk102/CodeMaps?style=flat-square&color=00ff9d)](https://github.com/Zilk102/CodeMaps/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/Zilk102/CodeMaps/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Zilk102/CodeMaps/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/Zilk102/CodeMaps?style=flat-square)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-informational?style=flat-square)
 
-- **自动化图表构建**：深度语义代码分析（通过 AST 和 tree-sitter）以识别文件、类和函数之间的关系。
-- **Model Context Protocol (MCP) 集成**：CodeMaps 充当 MCP 服务器，允许您的 AI 助手（如 Trae、Claude 或 Cursor）"查看"项目架构，分析依赖关系并预测更改的后果。
-- **架构分析**：
-  - **爆炸半径 (Blast Radius)**：评估更改特定模块将产生的影响。
-  - **健康评分 (Health Score)**：识别循环依赖和架构反模式。
-  - **安全扫描器 (Security Scanner)**：基本搜索代码结构中的潜在漏洞。
-- **本地执行**：所有分析都在您的机器上本地进行；源代码绝不会发送到任何地方。
+[🇺🇸 English](README.md) · [🇷🇺 Русский](README.ru.md) · [🇨🇳 简体中文](README.zh-CN.md) · [🇪🇸 Español](README.es.md) · [🇯🇵 日本語](README.ja.md) · [🇰🇷 한국어](README.ko.md)
 
----
+</div>
 
-## 🖼️ 截图
+CodeMaps 会把项目索引成由目录、文件、类和函数及其关联组成的图，并以两种方式提供这张图：
 
-### 交互式代码图表
+- **给人**：交互式地图。新成员能看清什么与什么相连，以及修改某个文件之前有哪些依赖它。
+- **给 AI 智能体**（Claude Code、Claude Desktop、Cursor、Trae 以及任何 MCP 客户端）：21 个有大小限制的工具，可回答_改这里会破坏什么？_、_是否已经有现成的辅助函数？_、_我的改动是否引入了 god 文件或代码克隆？_，而无需通读整个仓库。
 
-将整个代码库可视化为交互式图表，包含文件、类、函数及其关系。
+一切都在本地运行，源代码不会离开你的机器。
 
-![主图表](screenshots/main-graph.jpg)
+![作为地图的项目](screenshots/graph-hierarchy.png)
 
-### MCP 服务器设置 — 概览
+## 为什么需要它
 
-CodeMaps 运行带有 HTTP 和 WebSocket 端点的 MCP 服务器，为 AI 代理提供对项目架构的结构化访问。
+只有 grep 和读文件的智能体会迷路。CodeMaps 给它项目地图、改动的影响范围，以及对自己改动的检查，并且答案足够短，能放进上下文窗口。
 
-![MCP 概览](screenshots/mcp-overview.jpg)
+|                  | 你能得到什么                                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| **快速了解**     | 一次调用就能看到陌生项目的入口、分层和边界（`prepare_project_context`）。                          |
+| **安全改动**     | 修改前按区域分组的直接与间接依赖方（`get_blast_radius`），包含 barrel 重新导出。                   |
+| **整洁代码**     | `validate_architecture_changes` 只检查你改动的文件：god 文件、克隆、过长或过复杂的方法、枢纽节点。 |
+| **低成本阅读**   | 去掉函数体的文件骨架，并带行号（`get_semantic_skeleton`）。                                        |
+| **重构遗留代码** | 针对超大模块和 God 类的拆分建议（`analyze_decomposition`）。                                       |
+| **输出有上限**   | 每个响应都有大小上限，被截断的内容会在 `_compaction` 中说明，单次调用不会撑爆智能体的上下文。      |
 
-### MCP 工具
+## 截图
 
-为 AI 代理提供 10 多种内置工具：分析项目、获取图表上下文、搜索节点、检测模式、运行安全扫描等。
+选中一个文件，就能看到它的函数以及它依赖什么：
 
-![MCP 工具](screenshots/mcp-tools.jpg)
+![选中的文件](screenshots/graph-selection.png)
 
-### MCP 资源
+MCP 服务器及其工具，随时可供任何智能体使用：
 
-资源为 AI 代理提供高级项目摘要、完整的图表导出和自主执行手册。
+![MCP 工具](screenshots/mcp-tools.png)
 
-![MCP 资源](screenshots/mcp-resources.jpg)
+## 安装
 
----
+从 [Releases](https://github.com/Zilk102/CodeMaps/releases/latest) 下载最新版本：
 
-## 📦 安装
+- **Windows**：安装程序（`-setup-x64.exe`）、便携版（`-win-x64.exe`）或 `.zip`
+- **Linux**：`.AppImage`、`.deb`、`.rpm` 或 `.tar.gz`
 
-从 [Releases](https://github.com/Zilk102/CodeMaps/releases) 页面下载适合您平台的最新版本。
+暂未发布 macOS 版本。只有基于 Kuzu 图数据库的三个工具（`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact`）需要 `PATH` 中有 Node.js 22+；其余功能无需它。
 
-该应用程序无需复杂的安装，可在 **Windows** 和 **Linux** 上直接使用。目前尚未发布 macOS 版本。
+CodeMaps 会在每个被分析的项目内的 `.codemaps/` 文件夹中保存派生缓存，请把它加入该项目的 `.gitignore`。
 
-### 快速开始
+## 连接 AI 智能体
+
+先启动 CodeMaps，然后：
 
 ```bash
-# 下载适合您平台的最新版本
-# Windows: CodeMaps-x.x.x-win-x64.exe
-# Linux: CodeMaps-x.x.x-linux-x86_64.AppImage (或 .deb, .rpm)
-
-# 运行它 — 无需安装！
+# Claude Code，对所有项目生效
+claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
----
+- **Claude Desktop** 通过 `mcp-remote` 桥接连接，**Cursor** 和 **Trae** 通过 URL 连接。应用内 **MCP 设置 → 连接** 提供带“复制”按钮的现成配置。
+- 添加 `codemaps-agent-autopilot` 技能（`.claude/skills/`），让智能体从 `prepare_task_context` 开始；还可选用**钩子**，自动校验每一次编辑。
 
-## 🛠️ 开发
+完整指南：[docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)。
 
-项目基于以下技术栈构建：**Electron + React + TypeScript + Vite**。图表以 SVG 渲染，布局由 elkjs 计算。
+## 支持的语言
 
-### 前提条件
+| 支持程度   | 语言                                                                                  | 能得到什么                                         |
+| ---------- | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **语义级** | TypeScript、TSX、JavaScript                                                           | 由 TypeScript 编译器解析导入，支持 barrel 重新导出 |
+| **结构级** | Python、Go、Rust、Java、C/C++、C#、PHP、Ruby、Zig、Swift、Kotlin、Bash（tree-sitter） | 声明和导入；不做类型感知的解析                     |
+| **有限**   | HTML、CSS、Vue                                                                        | 文件和基本结构                                     |
+| **元数据** | Markdown（ADR）、YAML                                                                 | 与代码关联的架构决策记录                           |
 
-- Node.js 22+
-- yarn（项目使用 `yarn.lock`，不支持 npm 锁文件）
-- npm 或 yarn
+跨文件依赖的准确度以语义级最高；其他级别请把关联当作有力线索，并用搜索确认。
 
-### 本地运行
+## 文档
+
+| 文档                                                     | 内容                                        |
+| -------------------------------------------------------- | ------------------------------------------- |
+| [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code 与 Desktop 配置、技能、校验钩子 |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 21 个工具和 4 个资源的参考（自动生成）      |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps 的构成及原因                       |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                       | 开发环境、检查、发布流程                    |
+| [CHANGELOG.md](CHANGELOG.md)                             | 各版本的变更                                |
+
+## 开发
 
 ```bash
-# 克隆仓库
 git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
-
-# 安装依赖
-yarn install
-
-# 在开发模式下启动应用程序
-npm run dev
+yarn install        # 仅支持 yarn
+npm run dev         # Vite + Electron
+npm run verify      # CI 会运行的全部内容：lint、格式、类型、测试、构建
+npm run mcp:smoke   # 对运行中的实例调用每个 MCP 工具
 ```
 
-### 构建
+技术栈为 Electron、React、TypeScript 和 Vite；图布局由 elkjs 计算，解析使用 tree-sitter 和 TypeScript 编译器。需要 Node.js 22+。
 
-```bash
-# 创建生产版本 (便携版)
-npm run build:portable
+## 参与贡献、安全、许可证
 
-# 或构建所有格式
-npm run build
-```
-
----
-
-## 🤝 贡献
-
-我们欢迎任何对项目开发的帮助！在创建 Pull Request 之前，请阅读 [贡献指南](CONTRIBUTING.md)。
-
----
-
-## 📄 许可证
-
-本项目根据 MIT 许可证分发。详情请参阅 [LICENSE](LICENSE) 文件。
+提交 pull request 前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，报告漏洞请见 [SECURITY.md](SECURITY.md)。基于 [MIT 许可证](LICENSE) 发布。

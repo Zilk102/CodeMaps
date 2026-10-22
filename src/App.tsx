@@ -22,7 +22,6 @@ const ToolsPanel = React.lazy(() =>
 );
 
 import TitleBar from './components/TitleBar';
-import LanguageSwitcher from './components/LanguageSwitcher';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useUIStore, useGraphStore, useConnectionStore } from './store/useStore';
 import { useProjectDrop } from './hooks/useProjectDrop';
@@ -148,8 +147,6 @@ const App: React.FC = () => {
         <Suspense fallback={<LazyFallback />}>
           <McpSettingsModal />
         </Suspense>
-
-        <LanguageSwitcher />
       </div>
     </ErrorBoundary>
   );

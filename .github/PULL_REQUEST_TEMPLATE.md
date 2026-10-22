@@ -1,24 +1,22 @@
-## Description
+## What and why
 
-<!-- Please include a summary of the change and which issue is fixed. -->
-<!-- Please also include relevant motivation and context. -->
+<!-- What does this change, and what problem does it solve? Link the issue: Fixes # -->
 
-Fixes # (issue)
+## How to check it
+
+<!-- Steps, or the test that covers it. Add a screenshot for UI changes. -->
 
 ## Type of change
 
-<!-- Please delete options that are not relevant. -->
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation only
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] This change requires a documentation update
+## Checklist
 
-## Checklist:
-
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have verified that the project builds (`npm run build`) and passes type checks (`npm run typecheck`)
+- [ ] I ran `npm run verify` (ideally in a fresh clone) and it passes
+- [ ] I added or updated tests; a bug fix has a test that fails without the fix
+- [ ] New or changed MCP tools are described in `descriptors.ts`, translated in the three locale files, and `npm run docs:mcp` was run
+- [ ] Files loaded by the Kuzu worker match `build.asarUnpack` (patterns are case-sensitive)
+- [ ] I updated `CHANGELOG.md` and the documentation where behaviour changed

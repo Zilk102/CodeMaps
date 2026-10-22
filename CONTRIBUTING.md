@@ -1,36 +1,65 @@
-# Руководство для контрибьюторов CodeMaps
+# Contributing to CodeMaps
 
-Во-первых, спасибо за ваш интерес к развитию CodeMaps! Мы ценим любой вклад: от исправления опечаток до добавления новых архитектурных анализаторов.
+[English](CONTRIBUTING.md) · [Русский](CONTRIBUTING.ru.md)
 
-## С чего начать
+Thank you for helping! Fixing a typo, adding a language, a new analyzer or an MCP tool: all of it is welcome.
 
-1. Сделайте форк (Fork) репозитория на GitHub.
-2. Склонируйте форк на свой локальный компьютер.
-3. Установите зависимости проекта с помощью `yarn install`. Проект использует yarn, поэтому `package-lock.json` не поддерживается.
-4. Создайте новую ветку для вашей задачи: `git checkout -b feature/название-вашей-фичи` (или `bugfix/...`).
+## Getting started
 
-## Правила разработки
+1. Fork the repository and clone your fork.
+2. Install dependencies with `yarn install`. The project uses **yarn**; `package-lock.json` is not supported. Node.js 22+ is required.
+3. Create a branch: `git checkout -b feature/short-name` (or `fix/...`).
+4. Run the app with `npm run dev` (Vite + Electron).
 
-- **Стиль кода**: Форматирование выполняет Prettier (`npm run format`), правила — ESLint (`npm run lint`). Проект строго использует TypeScript и React.
-- **Тестирование**: Перед отправкой изменений прогоните полный набор проверок, которые запускает CI:
+A map of the code base is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Before you push
+
+Run everything CI runs, **in a fresh clone** if you can:
 
 ```bash
-npm run lint
-npm run format:check
-npm run typecheck
-npm test
+npm run verify   # lint, format check, typecheck, tests, renderer and electron builds
 ```
 
-- **Коммиты**: Пишите понятные сообщения к коммитам. Описывайте _что_ было сделано и _зачем_.
+Why a fresh clone: files that are untracked or git-ignored (for example a new `src/types/*.d.ts`) and Windows-only path assumptions pass on your machine and fail on CI, which runs on Linux and Windows.
 
-## Оформление Pull Request (PR)
+Useful individual commands:
 
-1. Отправьте изменения (push) в вашу ветку в форке на GitHub.
-2. Откройте Pull Request в ветку `main` оригинального репозитория.
-3. В описании PR подробно расскажите, какую проблему решает ваш код и как его можно проверить.
-4. Ожидайте ревью от мейнтейнеров. Мы постараемся дать обратную связь как можно быстрее.
+| Command             | What it does                                              |
+| ------------------- | --------------------------------------------------------- |
+| `npm run format`    | Prettier, write                                           |
+| `npm run lint:fix`  | ESLint, fix                                               |
+| `npm test`          | Vitest                                                    |
+| `npm run mcp:smoke` | Calls every MCP tool against a running CodeMaps           |
+| `npm run docs:mcp`  | Regenerates `docs/MCP_TOOLS.md` from the tool descriptors |
 
-## Сообщения об ошибках (Issues)
+## Adding an MCP tool
 
-Если вы нашли баг или у вас есть идея для новой функции, создайте Issue на GitHub.
-Пожалуйста, описывайте шаги для воспроизведения бага, ожидаемое поведение и информацию о вашей среде (версия ОС, версия Node.js).
+1. Register it in `electron/mcp/register*.ts`.
+2. Describe it in `electron/mcp/descriptors.ts` and classify it in `electron/mcp/docsGenerator.ts`.
+3. Add `mcpSettings.tools.<name>` to `src/i18n/locales/{en,ru,zh}.json`.
+4. Run `npm run docs:mcp`.
+5. Keep the response bounded: use `okStatusToolResult` (it caps lists and size) and add a `limit` if the tool returns a list.
+
+Tests enforce each step, so a missing one fails CI.
+
+## Conventions
+
+- **Style**: Prettier and ESLint are enforced. TypeScript is strict.
+- **Tests**: add one for the behaviour you change; for a bug, write a test that fails without your fix.
+- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`), describing _what_ and _why_.
+- **Packaging**: the Kuzu worker runs under the system Node, so any file it loads must match `build.asarUnpack` in `package.json` (the patterns are case-sensitive); a test checks it.
+
+## Pull requests
+
+1. Push to your fork and open a pull request against `main`.
+2. Explain what problem it solves and how to check it; screenshots help for UI changes.
+3. Wait for review. CI must be green.
+
+## Releases (maintainers)
+
+Releases are driven by git tags. Update `CHANGELOG.md` and `.github/release-body.md` (it must have Russian, English and Chinese sections), run `npm run verify` in a fresh clone, push `main`, then tag and push: `git tag -a vX.Y.Z -m "release: vX.Y.Z" && git push origin vX.Y.Z`. The Release workflow takes the version from the tag, builds Windows and Linux artifacts and publishes them.
+
+## Reporting issues
+
+Open an issue with steps to reproduce, the expected behaviour, your OS and Node.js version, and the CodeMaps version (shown by the MCP server and in the release file name). For security problems see [SECURITY.md](SECURITY.md).

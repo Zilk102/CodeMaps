@@ -1,5 +1,16 @@
 # CodeMaps Changelog
 
+## v1.1.46 (2026-10-22)
+
+### Fixed
+
+- **"Critical Application Error: listen EADDRINUSE" when port 3005 is already taken** (for example a second CodeMaps instance, such as a dev build next to the installed app). The error was re-emitted by the WebSocket server and escaped as an uncaught exception. It is now handled: the MCP status shows "Unavailable" with the reason (port in use / cannot listen) in the MCP Settings window, and the app keeps running. `CODEMAPS_MCP_PORT` selects another port.
+
+### Changed
+
+- **Language switcher moved into the title bar**, so it no longer overlaps the graph.
+- **Repository presentation.** New README structure in six languages (English, Russian, Chinese, Spanish, Japanese, Korean) with fresh screenshots, `docs/ARCHITECTURE.md`, a generated `docs/MCP_TOOLS.md` reference of all 21 tools and 4 resources (kept in sync by a test; `npm run docs:mcp`), `CONTRIBUTING.md` (English) and `CONTRIBUTING.ru.md`, a pull-request template, package metadata (description, keywords, homepage, bugs, engines) and a `.gitignore` that no longer hides tracked files.
+
 ## v1.1.45 (2026-10-22)
 
 ### Fixed

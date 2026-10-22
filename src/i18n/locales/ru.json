@@ -269,7 +269,11 @@
     "claudeHook": "Хук Claude Code (автопроверка правок)",
     "claudeHookDescription": "Добавь в `.claude/settings.json`. После каждой правки Claude Code просит CodeMaps проверить изменённый файл и сразу получает проблемы (god-файлы, клоны, сложные методы). Молчит, если всё хорошо или CodeMaps не запущен.",
     "claudeHookScript": "Скрипт хука",
-    "claudeHookScriptDescription": "Сохрани как `.claude/hooks/codemaps-validate-hook.mjs` в проекте. Нужен только Node.js, без зависимостей; скрипт никогда не переключает проект, открытый в CodeMaps."
+    "claudeHookScriptDescription": "Сохрани как `.claude/hooks/codemaps-validate-hook.mjs` в проекте. Нужен только Node.js, без зависимостей; скрипт никогда не переключает проект, открытый в CodeMaps.",
+    "error": {
+      "port_in_use": "Порт {{port}} уже занят (другое окно CodeMaps или другая программа). MCP здесь недоступен; запусти с CODEMAPS_MCP_PORT на другой порт.",
+      "listen_failed": "MCP-сервер не смог запуститься. Подробности в журнале приложения."
+    }
   },
   "filterPanel": {
     "filters": "Фильтры",

@@ -269,7 +269,11 @@
     "claudeHook": "Claude Code 钩子（自动校验改动）",
     "claudeHookDescription": "添加到 `.claude/settings.json`。每次编辑后，Claude Code 会请 CodeMaps 校验改动的文件，并立即收到问题（god 文件、代码克隆、复杂方法）。一切正常或 CodeMaps 未运行时保持静默。",
     "claudeHookScript": "钩子脚本",
-    "claudeHookScriptDescription": "保存为项目中的 `.claude/hooks/codemaps-validate-hook.mjs`。只需 Node.js，无依赖；它不会切换 CodeMaps 中打开的项目。"
+    "claudeHookScriptDescription": "保存为项目中的 `.claude/hooks/codemaps-validate-hook.mjs`。只需 Node.js，无依赖；它不会切换 CodeMaps 中打开的项目。",
+    "error": {
+      "port_in_use": "端口 {{port}} 已被占用（另一个 CodeMaps 窗口或其他程序）。此处 MCP 不可用；请通过 CODEMAPS_MCP_PORT 设置其他端口后启动。",
+      "listen_failed": "MCP 服务器无法启动。详见应用日志。"
+    }
   },
   "filterPanel": {
     "filters": "筛选器",

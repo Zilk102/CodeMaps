@@ -12,6 +12,7 @@ import { getGraphSnapshot, ensureGraphLoaded, getNodeDependencies } from './mcp/
 import { createMcpServerInstance } from './mcp/bootstrap';
 import { buildMcpStatus, McpStatus } from './mcp/descriptors';
 import { rejectUnknownSession } from './mcp/sessionErrors';
+import { McpListenError, watchListenErrors } from './mcp/listenErrors';
 import { closeMcpRuntime, McpTransportRecord } from './mcp/runtimeShutdown';
 
 import log from 'electron-log/main';
@@ -37,6 +38,7 @@ type McpServiceHandle = {
 };
 
 let mcpService: McpServiceHandle | null = null;
+let listenError: McpListenError | null = null;
 
 const getMcpStatusInternal = (): McpStatus => {
   return buildMcpStatus(getGraphSnapshot(), {
@@ -45,6 +47,7 @@ const getMcpStatusInternal = (): McpStatus => {
     path: MCP_PATH,
     endpoint: MCP_HTTP_URL,
     websocketUrl: MCP_WS_URL,
+    listenError,
   });
 };
 
@@ -286,15 +289,15 @@ export function setupMcpServer() {
   oracle.on('graph-updated', onGraphUpdated);
   oracle.on('parsing-progress', onParsingProgress);
 
-  server.on('error', (error: Error & { code?: string }) => {
-    if (error.code === 'EADDRINUSE') {
-      log.error(
-        `[MCP] Port ${MCP_PORT} is already in use; MCP is unavailable in this instance. ` +
-          'Set CODEMAPS_MCP_PORT to use another port.'
-      );
-      return;
-    }
-    log.error('[MCP] Server error:', error);
+  watchListenErrors([server, wss], (kind, error) => {
+    // The HTTP server and the ws server both report the same failure.
+    if (listenError === kind) return;
+    listenError = kind;
+    log.error(
+      kind === 'port_in_use'
+        ? `[MCP] Port ${MCP_PORT} is already in use; MCP is unavailable in this instance. Set CODEMAPS_MCP_PORT to use another port.`
+        : `[MCP] Server error: ${error.message}`
+    );
   });
 
   server.listen(MCP_PORT, MCP_HOST, () => {

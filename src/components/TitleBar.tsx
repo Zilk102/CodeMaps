@@ -1,4 +1,5 @@
 import React from 'react';
+import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore, useUIStore, useConnectionStore } from '../store/useStore';
 
@@ -118,9 +119,10 @@ const TitleBar: React.FC = () => {
       </div>
 
       <div
-        className="flex items-center gap-2"
+        className="flex items-center gap-3"
         style={{ height: '100%', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
+        <LanguageSwitcher />
         <div
           className="flex h-full items-center"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}

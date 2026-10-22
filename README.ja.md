@@ -1,118 +1,110 @@
 <div align="center">
-  <p>
-    <a href="README.md">🇺🇸 English</a> | 
-    <a href="README.ru.md">🇷🇺 Русский</a> | 
-    <a href="README.zh-CN.md">🇨🇳 简体中文</a> | 
-    <a href="README.es.md">🇪🇸 Español</a> | 
-    <a href="README.ja.md">🇯🇵 日本語</a> | 
-    <a href="README.ko.md">🇰🇷 한국어</a>
-  </p>
-</div>
+  <img src="assets/icon.png" alt="CodeMaps" width="96" height="96" />
 
 # CodeMaps
 
-**CodeMaps** は、コードベースのアーキテクチャを可視化し、AI アシスタントにアーキテクチャの文脈を提供する強力なツールです。このアプリケーションは、プロジェクトの「ライブ」依存関係グラフを構築し、開発者とニューラルネットワークが構造、関係、技術的負債をよりよく理解できるようにします。
+**コードの「生きた設計図」。人にはインタラクティブな依存関係マップを、AI エージェントにはクリーンなコードを書くためのアーキテクチャ情報を MCP サーバー経由で提供します。**
 
-## 🚀 主な機能
+[![Release](https://img.shields.io/github/v/release/Zilk102/CodeMaps?style=flat-square&color=00ff9d)](https://github.com/Zilk102/CodeMaps/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/Zilk102/CodeMaps/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Zilk102/CodeMaps/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/Zilk102/CodeMaps?style=flat-square)](LICENSE)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-informational?style=flat-square)
 
-- **自動グラフ構築**: AST と tree-sitter を介した深い意味論的コード分析により、ファイル、クラス、関数間の関係を特定します。
-- **Model Context Protocol (MCP) 統合**: CodeMaps は MCP サーバーとして機能し、AI アシスタント（例：Trae、Claude、Cursor）がプロジェクトのアーキテクチャを「見て」、依存関係を分析し、変更の影響を予測できるようにします。
-- **アーキテクチャ分析**:
-  - **Blast Radius**: 特定のモジュールを変更した場合の影響を評価します。
-  - **Health Score**: 循環依存関係とアーキテクチャの反パターンを特定します。
-  - **Security Scanner**: コード構造における潜在的な脆弱性の基本検索を行います。
-- **ローカル実行**: すべての分析はお使いのマシン上でローカルに行われます。ソースコードはどこにも送信されません。
+[🇺🇸 English](README.md) · [🇷🇺 Русский](README.ru.md) · [🇨🇳 简体中文](README.zh-CN.md) · [🇪🇸 Español](README.es.md) · [🇯🇵 日本語](README.ja.md) · [🇰🇷 한국어](README.ko.md)
 
----
+</div>
 
-## 🖼️ スクリーンショット
+CodeMaps はプロジェクトを、ディレクトリ・ファイル・クラス・関数とそれらの関係からなるグラフとしてインデックス化し、次の 2 通りで提供します。
 
-### インタラクティブなコードグラフ
+- **人に対して**はインタラクティブなマップとして。新しいメンバーが、何が何とつながっているか、ファイルを変更する前に何がそれに依存しているかを確認できます。
+- **AI エージェント**（Claude Code、Claude Desktop、Cursor、Trae、その他の MCP クライアント）に対しては、21 個のサイズ制限付きツールとして。リポジトリ全体を読まずに、_これを変えると何が壊れるか_、_すでに使えるヘルパーはあるか_、_自分の変更が巨大ファイルやクローンを増やしていないか_ に答えます。
 
-ファイル、クラス、関数、およびそれらの関係を含む、コードベース全体をインタラクティブなグラフとして視覚化します。
+すべてローカルで動作し、ソースコードがマシンの外に出ることはありません。
 
-![メイングラフ](screenshots/main-graph.jpg)
+![マップとしてのプロジェクト](screenshots/graph-hierarchy.png)
 
-### MCP サーバー設定 — 概要
+## なぜ必要か
 
-CodeMaps は HTTP と WebSocket のエンドポイントを備えた MCP サーバーを実行し、AI エージェントにプロジェクトのアーキテクチャへの構造化されたアクセスを提供します。
+grep とファイル読み込みだけのエージェントは迷子になります。CodeMaps は、プロジェクトのマップ、変更の影響範囲、自分の編集のチェックを、コンテキストに収まる短い回答で提供します。
 
-![MCP 概要](screenshots/mcp-overview.jpg)
+|                      | 得られるもの                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **全体把握**         | 見慣れないプロジェクトのエントリーポイント、レイヤー、境界を 1 回の呼び出しで（`prepare_project_context`）。          |
+| **安全な変更**       | 編集前に、直接・間接の依存元を領域別に（`get_blast_radius`）。バレルの再エクスポートも対象。                          |
+| **クリーンなコード** | `validate_architecture_changes` が変更したファイルだけを検査：巨大ファイル、クローン、長大・複雑なメソッド、ハブ。    |
+| **低コストな読解**   | 関数本体を除いたファイルの骨格を行番号付きで（`get_semantic_skeleton`）。                                             |
+| **レガシーの改修**   | 肥大化したモジュールや God クラスの分解ガイダンス（`analyze_decomposition`）。                                        |
+| **出力の上限**       | すべての応答にサイズ上限があり、省略分は `_compaction` に記載されるため、1 回の呼び出しでコンテキストがあふれません。 |
 
-### MCP ツール
+## スクリーンショット
 
-AI エージェント向けの 10 以上の組み込みツール：プロジェクト分析、グラフコンテキストの取得、ノード検索、パターン検出、セキュリティスキャンの実行など。
+ファイルを選ぶと、その関数と依存先が見えます。
 
-![MCP ツール](screenshots/mcp-tools.jpg)
+![選択したファイル](screenshots/graph-selection.png)
 
-### MCP リソース
+あらゆるエージェントから使える MCP サーバーとツール。
 
-リソースは、AI エージェントに高レベルのプロジェクトサマリー、完全なグラフエクスポート、および自律実行プレイブックを提供します。
+![MCP ツール](screenshots/mcp-tools.png)
 
-![MCP リソース](screenshots/mcp-resources.jpg)
+## インストール
 
----
+[Releases](https://github.com/Zilk102/CodeMaps/releases/latest) から最新ビルドをダウンロードします。
 
-## 📦 インストール
+- **Windows**：インストーラー（`-setup-x64.exe`）、ポータブル版（`-win-x64.exe`）、または `.zip`
+- **Linux**：`.AppImage`、`.deb`、`.rpm`、または `.tar.gz`
 
-[Releases](https://github.com/Zilk102/CodeMaps/releases) ページから、お使いのプラットフォーム用の最新バージョンをダウンロードしてください。
+macOS 向けビルドはまだ公開していません。Node.js 22+ が `PATH` に必要なのは、Kuzu グラフデータベースを使う 3 つのツール（`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact`）だけで、それ以外は不要です。
 
-このアプリケーションは複雑なインストールを必要とせず、**Windows** と **Linux** ですぐに動作します。macOS 向けビルドはまだ配布していません。
+CodeMaps は解析した各プロジェクト内の `.codemaps/` フォルダーに派生キャッシュを保存します。そのプロジェクトの `.gitignore` に追加してください。
 
-### クイックスタート
+## AI エージェントに接続する
+
+CodeMaps を起動してから：
 
 ```bash
-# お使いのプラットフォーム用の最新リリースをダウンロード
-# Windows: CodeMaps-x.x.x-win-x64.exe
-# Linux: CodeMaps-x.x.x-linux-x86_64.AppImage (または .deb、.rpm)
-
-# 実行するだけ — インストール不要！
+# Claude Code、すべてのプロジェクトで利用
+claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
----
+- **Claude Desktop** は `mcp-remote` ブリッジ経由、**Cursor** と **Trae** は URL で接続します。アプリの **MCP 設定 → 接続** に、コピーボタン付きのスニペットがあります。
+- エージェントが `prepare_task_context` から始めるよう `codemaps-agent-autopilot` スキル（`.claude/skills/`）を追加し、すべての編集を自動で検証する任意の**フック**も利用できます。
 
-## 🛠️ 開発
+詳しいガイド：[docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)
 
-プロジェクトは、**Electron + React + TypeScript + Vite** のスタックで構築されています。グラフは SVG で描画し、レイアウトは elkjs が計算します。
+## 対応言語
 
-### 前提条件
+| 対応レベル         | 言語                                                                                  | 得られるもの                                                      |
+| ------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **セマンティック** | TypeScript、TSX、JavaScript                                                           | TypeScript コンパイラによるインポート解決、バレルの再エクスポート |
+| **構造**           | Python、Go、Rust、Java、C/C++、C#、PHP、Ruby、Zig、Swift、Kotlin、Bash（tree-sitter） | 宣言とインポート。型を考慮した解決は行いません                    |
+| **限定**           | HTML、CSS、Vue                                                                        | ファイルと基本的な構造                                            |
+| **メタデータ**     | Markdown（ADR）、YAML                                                                 | コードに紐づくアーキテクチャ決定記録                              |
 
-- Node.js 22+
-- yarn（本プロジェクトは `yarn.lock` を使用します。npm のロックファイルには対応していません）
-- npm または yarn
+ファイル間の依存関係の精度はセマンティックが最も高く、他のレベルでは関係を有力な手がかりとして扱い、検索で確認してください。
 
-### ローカルでの実行
+## ドキュメント
+
+| ドキュメント                                             | 内容                                                     |
+| -------------------------------------------------------- | -------------------------------------------------------- |
+| [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code と Desktop の設定、スキル、検証フック        |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 21 個のツールと 4 個のリソースのリファレンス（自動生成） |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps の構成とその理由                                |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                       | 開発環境、チェック、リリース手順                         |
+| [CHANGELOG.md](CHANGELOG.md)                             | 各バージョンの変更内容                                   |
+
+## 開発
 
 ```bash
-# リポジトリのクローン
 git clone https://github.com/Zilk102/CodeMaps.git
 cd CodeMaps
-
-# 依存関係のインストール
-yarn install
-
-# 開発モードでアプリケーションを起動
-npm run dev
+yarn install        # サポートしているのは yarn のみ
+npm run dev         # Vite + Electron
+npm run verify      # CI が実行するすべて：lint、フォーマット、型、テスト、ビルド
+npm run mcp:smoke   # 実行中のインスタンスですべての MCP ツールを呼び出す
 ```
 
-### ビルド
+技術スタックは Electron、React、TypeScript、Vite です。グラフのレイアウトは elkjs、解析は tree-sitter と TypeScript コンパイラを使います。Node.js 22+ が必要です。
 
-```bash
-# プロダクションビルドの作成（ポータブル）
-npm run build:portable
+## コントリビュート、セキュリティ、ライセンス
 
-# またはすべての形式をビルド
-npm run build
-```
-
----
-
-## 🤝 貢献
-
-プロジェクトの開発にあらゆる支援を歓迎します！Pull Request を作成する前に、[貢献ガイド](CONTRIBUTING.md) をお読みください。
-
----
-
-## 📄 ライセンス
-
-このプロジェクトは MIT ライセンスの下で配布されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+プルリクエストの前に [CONTRIBUTING.md](CONTRIBUTING.md) を、脆弱性の報告は [SECURITY.md](SECURITY.md) をご覧ください。[MIT ライセンス](LICENSE) で公開されています。
