@@ -136,7 +136,7 @@ Finds hotspots, fan-in/fan-out issues, and architectural anti-pattern candidates
 
 ### `analyze_decomposition`
 
-Finds and suggests splits for God classes, duplicate clones, and oversized monoliths.
+Finds and suggests splits for God classes, duplicate clones, and oversized monoliths, with split plans that group the symbols of a file into clusters.
 
 **Use when:** When the user asks to clean up code, remove slop, or refactor oversized modules.
 

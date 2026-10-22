@@ -8,7 +8,7 @@ import {
   walkNamed,
   namedOf,
 } from './astUtils';
-import type { LanguageFacts } from './types';
+import type { LanguageFactsWithDeclarations } from './types';
 
 const ITEM_TYPES = new Set(['struct_item', 'enum_item', 'union_item', 'trait_item', 'type_item']);
 
@@ -52,7 +52,7 @@ const implTypeName = (impl: Node): string | undefined => {
   return inner?.text;
 };
 
-export const extractRustFacts = (root: Node): LanguageFacts => {
+export const extractRustFacts = (root: Node): LanguageFactsWithDeclarations => {
   const imports: ImportRecord[] = [];
   const moduleDeclarations: string[] = [];
   const entities = new EntityCollector();
@@ -116,6 +116,7 @@ export const extractRustFacts = (root: Node): LanguageFacts => {
   return {
     imports,
     entities: entities.entities,
+    declarations: entities.declarations,
     qualifiedUses: qualifiedUses.toArray(),
     usedNames: usedNames.toArray(),
     moduleDeclarations,

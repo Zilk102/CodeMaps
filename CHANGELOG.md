@@ -1,5 +1,15 @@
 # CodeMaps Changelog
 
+## v1.1.49 (2026-10-23)
+
+### Added
+
+- **Split plans for god files.** `analyze_decomposition` used to answer "extract a module" and nothing more, so an agent had to read a 2,400-line file to find where to cut it. It now also returns `splitPlans` for the worst files (or for the file you pass in the new `filePath` argument): the file's declarations grouped into clusters that belong together, each with a suggested file name, its symbols and line count, the shared helpers it needs and the clusters it calls into. Symbols that call each other or share a topic word end up together; helpers used all over the file and "wiring" symbols such as a route table are set aside; large module-level data tables count as symbols, and `heaviest` and `coverage` say when one huge constant is the real problem. Works for TypeScript/JavaScript (compiler API) and for every tree-sitter language, with methods qualified by their class or receiver. The plan is a heuristic: it reports how cleanly the file falls apart (`confidence`, `cohesion`) and says so when it does not.
+
+### Fixed
+
+- **Test files of other languages were not recognised in `get_blast_radius`.** `_test.go`, `test_*.py`, `*_test.py`, `*Test.java` and `*_test.rs` are now counted as tests.
+
 ## v1.1.48 (2026-10-23)
 
 ### Added

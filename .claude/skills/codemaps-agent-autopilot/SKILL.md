@@ -31,7 +31,7 @@ Do not wait until after file inspection to use it.
 - Bug, incident, regression, "not working", "broken":
   Start with `prepare_task_context`. Use `get_semantic_skeleton` on large files to save tokens while exploring.
 - Code cleanup, refactoring monoliths, removing slop, fixing God classes, resolving duplication:
-  Start with `analyze_decomposition` to get actionable refactoring targets, then use `prepare_change_context` on the chosen targets.
+  Start with `analyze_decomposition` (pass `filePath` for a specific file) to get actionable refactoring targets and `splitPlans`: the file's symbols already grouped into clusters with a suggested file each. Follow the clusters instead of reading the whole file, keep `sharedHelpers` and `orchestrators` where they are, then use `prepare_change_context` on the chosen targets.
 - Broad migration, replace SDK/library everywhere, cross-cutting refactor:
   Start with `prepare_task_context` and follow `prepare_change_campaign` if selected.
 

@@ -8,7 +8,7 @@ import {
   namedOf,
   allChildren,
 } from './astUtils';
-import type { LanguageFacts } from './types';
+import type { LanguageFactsWithDeclarations } from './types';
 
 const TYPE_DECLARATIONS = new Set([
   'class_declaration',
@@ -41,7 +41,7 @@ const enclosingTypeName = (node: Node): string | undefined => {
   return owner?.childForFieldName('name')?.text;
 };
 
-export const extractJavaFacts = (root: Node): LanguageFacts => {
+export const extractJavaFacts = (root: Node): LanguageFactsWithDeclarations => {
   const imports: ImportRecord[] = [];
   const entities = new EntityCollector();
   const usedNames = new BoundedSet<string>(MAX_USED_NAMES);
@@ -84,6 +84,7 @@ export const extractJavaFacts = (root: Node): LanguageFacts => {
   return {
     imports,
     entities: entities.entities,
+    declarations: entities.declarations,
     qualifiedUses: [],
     usedNames: usedNames.toArray(),
     packageName,

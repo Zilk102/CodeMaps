@@ -1,5 +1,6 @@
 import type { Node } from 'web-tree-sitter';
 import type { EntityRecord, SourceLocation } from '../types';
+import type { DeclarationNode } from './types';
 
 export const MAX_USED_NAMES = 600;
 export const MAX_QUALIFIED_USES = 400;
@@ -37,6 +38,8 @@ export const unquote = (value: string): string => value.replace(/^["'`]|["'`]$/g
 /** Collects entities once per `type:name`, like the query extractor does. */
 export class EntityCollector {
   readonly entities: EntityRecord[] = [];
+  /** The syntax node that declares each entity (the parent of its name), for split planning. */
+  readonly declarations: DeclarationNode[] = [];
   private readonly seen = new Set<string>();
 
   add(type: EntityRecord['type'], name: string, node: Node): void {
@@ -46,6 +49,7 @@ export class EntityCollector {
     if (this.seen.has(key)) return;
     this.seen.add(key);
     this.entities.push({ type, name: trimmed, location: toLocation(node) });
+    this.declarations.push({ type, name: trimmed, node: node.parent ?? node });
   }
 }
 

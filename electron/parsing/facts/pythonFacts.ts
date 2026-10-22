@@ -8,7 +8,7 @@ import {
   namedOf,
   fieldChildren,
 } from './astUtils';
-import type { LanguageFacts } from './types';
+import type { LanguageFactsWithDeclarations } from './types';
 
 const readPlainImport = (statement: Node): ImportRecord[] =>
   fieldChildren(statement, 'name').flatMap((entry) => {
@@ -55,7 +55,7 @@ const isModuleLevel = (definition: Node): boolean => {
   return container?.type === 'module';
 };
 
-export const extractPythonFacts = (root: Node): LanguageFacts => {
+export const extractPythonFacts = (root: Node): LanguageFactsWithDeclarations => {
   const imports: ImportRecord[] = [];
   const entities = new EntityCollector();
   const qualifiedUses = new BoundedSet<QualifiedUse>(MAX_QUALIFIED_USES);
@@ -99,6 +99,7 @@ export const extractPythonFacts = (root: Node): LanguageFacts => {
   return {
     imports,
     entities: entities.entities,
+    declarations: entities.declarations,
     qualifiedUses: qualifiedUses.toArray(),
     usedNames: [],
   };

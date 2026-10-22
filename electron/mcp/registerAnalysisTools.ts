@@ -160,12 +160,16 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
     {
       title: 'Analyze Decomposition',
       description:
-        'Finds and suggests splits for God classes, duplicate clones, and oversized monoliths.',
+        'Finds and suggests splits for God classes, duplicate clones, and oversized monoliths. For the worst files (or the file you pass) it also returns splitPlans: the declarations grouped into clusters that belong together, each with a suggested file name, its symbols and line count, the shared helpers it needs and the clusters it calls into, so a god file can be split without reading it.',
       inputSchema: {
         focusNodeIds: z
           .array(z.string())
           .optional()
           .describe('Optional array of specific node IDs to focus the decomposition analysis on.'),
+        filePath: z
+          .string()
+          .optional()
+          .describe('Optional absolute path of one file to plan a split for.'),
         limit: z
           .number()
           .int()
@@ -175,13 +179,34 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
           .describe('Maximum number of refactoring candidates to return (default 12).'),
       },
     },
-    async ({ focusNodeIds, limit = 12 }: { focusNodeIds?: string[]; limit?: number }) => {
+    async ({
+      focusNodeIds,
+      filePath,
+      limit = 12,
+    }: {
+      focusNodeIds?: string[];
+      filePath?: string;
+      limit?: number;
+    }) => {
       const graph = await ensureGraphLoaded();
       const { DecompositionGuidanceService } =
         await import('../analysis/DecompositionGuidanceService.js');
-      const service = new DecompositionGuidanceService();
-      const result = service.prepareGuidance(graph, { focusNodeIds, limit });
-      return okStatusToolResult(result);
+      const { SymbolClusterService } =
+        await import('../analysis/symbolClusters/SymbolClusterService.js');
+      const focus = [...(focusNodeIds ?? []), ...(filePath ? [filePath.replace(/\\/g, '/')] : [])];
+      const result = new DecompositionGuidanceService().prepareGuidance(graph, {
+        focusNodeIds: focus.length > 0 ? focus : undefined,
+        limit,
+      });
+      // Plans for what was asked about, otherwise for the files the candidates point at.
+      const planTargets =
+        focus.length > 0
+          ? focus
+          : result.candidates
+              .filter((candidate) => candidate.targetType !== 'method')
+              .map((candidate) => candidate.fileNodeId);
+      const splitPlans = await new SymbolClusterService().planFiles(graph, planTargets, 3);
+      return okStatusToolResult({ ...result, splitPlans });
     }
   );
 

@@ -9,7 +9,7 @@ import {
   walkNamed,
   namedOf,
 } from './astUtils';
-import type { LanguageFacts } from './types';
+import type { LanguageFactsWithDeclarations } from './types';
 
 const receiverTypeName = (method: Node): string | undefined => {
   const receiver = method.childForFieldName('receiver');
@@ -33,7 +33,7 @@ const readImport = (spec: Node): ImportRecord | null => {
   };
 };
 
-export const extractGoFacts = (root: Node): LanguageFacts => {
+export const extractGoFacts = (root: Node): LanguageFactsWithDeclarations => {
   const imports: ImportRecord[] = [];
   const entities = new EntityCollector();
   const usedNames = new BoundedSet<string>(MAX_USED_NAMES);
@@ -97,6 +97,7 @@ export const extractGoFacts = (root: Node): LanguageFacts => {
   return {
     imports,
     entities: entities.entities,
+    declarations: entities.declarations,
     qualifiedUses: qualifiedUses.toArray(),
     usedNames: usedNames.toArray(),
     packageName,

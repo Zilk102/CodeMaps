@@ -202,7 +202,7 @@
       },
       "analyze_decomposition": {
         "title": "分析拆分方案",
-        "description": "发现并建议拆分 God 类、重复代码克隆和过大的单体模块。",
+        "description": "发现并建议拆分 God 类、重复代码克隆和过大的单体模块，并给出把文件中的符号分组为簇的拆分方案。",
         "recommendedWhen": "当需要清理代码、消除重复或重构过大的模块时。"
       }
     },

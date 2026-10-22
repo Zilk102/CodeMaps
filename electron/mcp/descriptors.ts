@@ -160,7 +160,7 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     name: 'analyze_decomposition',
     title: 'Analyze Decomposition',
     description:
-      'Finds and suggests splits for God classes, duplicate clones, and oversized monoliths.',
+      'Finds and suggests splits for God classes, duplicate clones, and oversized monoliths, with split plans that group the symbols of a file into clusters.',
     recommendedWhen:
       'When the user asks to clean up code, remove slop, or refactor oversized modules.',
   },

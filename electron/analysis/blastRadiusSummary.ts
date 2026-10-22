@@ -39,8 +39,11 @@ const AREA_SEGMENTS = 2;
 const MAX_AREAS = 20;
 
 const fileOf = (nodeId: string) => nodeId.split('#')[0];
-const isTestFile = (file: string) =>
-  /(^|\/)(__tests__|tests?)\/|\.(test|spec)\.[a-z]+$/i.test(file);
+// JS/TS (`x.test.ts`, `__tests__/`), Go (`x_test.go`), Python (`test_x.py`, `x_test.py`),
+// Java/Kotlin (`XTest.java`) and Rust (`tests/`).
+const TEST_PATH = /(^|\/)(__tests__|tests?)\/|\.(test|spec)\.[a-z]+$/i;
+const TEST_FILE_NAME = /_test\.(go|py|rs)$|(^|\/)test_[^/]+\.py$|(Test|Tests|IT)\.(java|kt)$/;
+const isTestFile = (file: string) => TEST_PATH.test(file) || TEST_FILE_NAME.test(file);
 
 const relativeTo = (root: string, file: string) => {
   const normalizedRoot = root.replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();

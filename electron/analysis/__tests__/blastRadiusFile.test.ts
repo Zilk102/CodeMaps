@@ -55,4 +55,34 @@ describe('BlastRadiusAnalyzer for file nodes', () => {
     const result = new BlastRadiusAnalyzer().analyze(graph, '/p/util.ts#trim');
     expect(result.affectedNodes.map((entry) => entry.id)).toEqual(['/p/util.ts']);
   });
+
+  it('recognises Go, Python, Java and Rust test files', () => {
+    const testGraph = {
+      projectRoot: '/p',
+      nodes: [
+        node('/p/a.go', 'file'),
+        node('/p/a_test.go', 'file'),
+        node('/p/test_a.py', 'file'),
+        node('/p/ATest.java', 'file'),
+        node('/p/Latest.java', 'file'),
+      ],
+      links: ['a_test.go', 'test_a.py', 'ATest.java', 'Latest.java'].map((name) => ({
+        source: `/p/${name}`,
+        target: '/p/a.go',
+        value: 1,
+        type: 'import',
+      })),
+    } as unknown as GraphData;
+    const summary = summarizeBlastRadius(
+      testGraph,
+      new BlastRadiusAnalyzer().analyze(testGraph, '/p/a.go')
+    );
+    const flags = Object.fromEntries(summary.directFiles.map((entry) => [entry.file, entry.test]));
+    expect(flags).toEqual({
+      'a_test.go': true,
+      'test_a.py': true,
+      'ATest.java': true,
+      'Latest.java': false,
+    });
+  });
 });

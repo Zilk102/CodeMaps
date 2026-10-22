@@ -3,9 +3,9 @@ import { extractGoFacts } from './goFacts';
 import { extractJavaFacts } from './javaFacts';
 import { extractPythonFacts } from './pythonFacts';
 import { extractRustFacts } from './rustFacts';
-import type { LanguageFacts } from './types';
+import type { LanguageFacts, LanguageFactsWithDeclarations } from './types';
 
-const EXTRACTORS: Record<string, (root: Node) => LanguageFacts> = {
+const EXTRACTORS: Record<string, (root: Node) => LanguageFactsWithDeclarations> = {
   go: extractGoFacts,
   python: extractPythonFacts,
   java: extractJavaFacts,
@@ -15,7 +15,19 @@ const EXTRACTORS: Record<string, (root: Node) => LanguageFacts> = {
 /** Languages whose imports are resolved against the whole project after indexing. */
 export const hasLanguageFacts = (languageId: string): boolean => languageId in EXTRACTORS;
 
-export const extractLanguageFacts = (languageId: string, root: Node): LanguageFacts | null =>
-  EXTRACTORS[languageId]?.(root) ?? null;
+/** Plain, serializable facts: safe to return from a parse worker. */
+export const extractLanguageFacts = (languageId: string, root: Node): LanguageFacts | null => {
+  const full = EXTRACTORS[languageId]?.(root);
+  if (!full) return null;
+  const { declarations: _declarations, ...facts } = full;
+  void _declarations;
+  return facts;
+};
 
-export type { LanguageFacts };
+/** Facts together with the declaring syntax nodes, for analyses that stay in one process. */
+export const extractLanguageFactsWithDeclarations = (
+  languageId: string,
+  root: Node
+): LanguageFactsWithDeclarations | null => EXTRACTORS[languageId]?.(root) ?? null;
+
+export type { LanguageFacts, LanguageFactsWithDeclarations };
