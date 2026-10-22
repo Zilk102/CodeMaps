@@ -2,18 +2,12 @@
 
 ### 🇷🇺 Изменения (RU)
 
-- **«Critical Application Error: listen EADDRINUSE», если порт 3005 уже занят** (например, второй экземпляр CodeMaps — dev-сборка рядом с установленным приложением). Ошибку повторно отправлял WebSocket-сервер, и она становилась необработанным исключением. Теперь она обрабатывается: в окне «Настройки MCP» статус «Недоступен» с причиной (порт занят / не удаётся слушать), а приложение продолжает работать. Другой порт задаётся переменной `CODEMAPS_MCP_PORT`.
-- **Переключатель языка перенесён в заголовок окна** и больше не перекрывает граф.
-- **Оформление репозитория.** Новый README на шести языках (английский, русский, китайский, испанский, японский, корейский) с актуальными скриншотами, `docs/ARCHITECTURE.md`, автоматически генерируемый справочник `docs/MCP_TOOLS.md` по всем 21 инструментам и 4 ресурсам (синхронность проверяет тест; `npm run docs:mcp`), `CONTRIBUTING.md` (английский) и `CONTRIBUTING.ru.md`, шаблон pull request, метаданные пакета и `.gitignore`, который больше не скрывает отслеживаемые файлы.
+- **Инструменты Kuzu (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`) падали с «Kuzu background worker exited with code 3221225477».** База графа, повреждённая прежними пересекающимися сохранениями, приводила к аварийному завершению нативной библиотеки (access violation) при воспроизведении журнала, поэтому воркер умирал, не успев сообщить об ошибке, и восстановление из v1.1.44 не запускалось. Теперь воркер, умерший при старте (Windows 0xC0000005/0xC0000409, SIGSEGV/SIGABRT), тоже считается признаком повреждённого кэша: файлы откладываются в сторону и создаётся новая база. Проверено на копии базы, которая роняла воркер на машине автора.
 
 ### 🇬🇧 Changes (EN)
 
-- **"Critical Application Error: listen EADDRINUSE" when port 3005 is already taken** (for example a second CodeMaps instance, such as a dev build next to the installed app). The error was re-emitted by the WebSocket server and escaped as an uncaught exception. It is now handled: the MCP Settings window shows "Unavailable" with the reason (port in use / cannot listen) and the app keeps running. `CODEMAPS_MCP_PORT` selects another port.
-- **Language switcher moved into the title bar**, so it no longer overlaps the graph.
-- **Repository presentation.** New README in six languages (English, Russian, Chinese, Spanish, Japanese, Korean) with fresh screenshots, `docs/ARCHITECTURE.md`, a generated `docs/MCP_TOOLS.md` reference of all 21 tools and 4 resources (kept in sync by a test; `npm run docs:mcp`), `CONTRIBUTING.md` (English) and `CONTRIBUTING.ru.md`, a pull-request template, package metadata and a `.gitignore` that no longer hides tracked files.
+- **The Kuzu tools (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`) failed with "Kuzu background worker exited with code 3221225477".** A graph database left damaged by the earlier overlapping saves made the native library crash (access violation) while replaying its write-ahead log, so the worker died before any error could be reported and the v1.1.44 recovery never ran. A worker that dies at start-up (Windows 0xC0000005/0xC0000409, SIGSEGV/SIGABRT) is now also treated as a damaged cache: the files are moved aside and a fresh database is created. Verified against a copy of the database that crashed on the maintainer's machine.
 
 ### 🇨🇳 变更 (ZH)
 
-- **端口 3005 被占用时出现“Critical Application Error: listen EADDRINUSE”**（例如同时运行第二个 CodeMaps 实例，如开发版与已安装版并存）。该错误被 WebSocket 服务器重复抛出，成为未捕获异常。现已处理：MCP 设置窗口显示“不可用”及原因（端口被占用 / 无法监听），应用继续运行。可用 `CODEMAPS_MCP_PORT` 指定其他端口。
-- **语言切换器移到标题栏**，不再遮挡图。
-- **仓库展示。** 新的六语言 README（英、俄、中、西、日、韩）及最新截图，新增 `docs/ARCHITECTURE.md`、自动生成的 `docs/MCP_TOOLS.md`（涵盖全部 21 个工具和 4 个资源，由测试保证同步；`npm run docs:mcp`）、`CONTRIBUTING.md`（英文）和 `CONTRIBUTING.ru.md`、pull request 模板、包元数据，以及不再隐藏已跟踪文件的 `.gitignore`。
+- **Kuzu 工具（`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact`）报错“Kuzu background worker exited with code 3221225477”。** 先前重叠保存留下的损坏图数据库会让原生库在重放预写日志时崩溃（访问冲突），worker 在报告错误之前就已退出，因此 v1.1.44 的恢复逻辑从未运行。现在，启动时退出的 worker（Windows 0xC0000005/0xC0000409、SIGSEGV/SIGABRT）也会被视为缓存损坏：相关文件会被移到一旁并创建新数据库。已用在维护者机器上导致崩溃的数据库副本验证。

@@ -2,6 +2,7 @@ import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import { isRecoverableCorruption, isWorkerCrash, quarantineDatabaseFiles } from './KuzuRecovery';
 
 export interface GraphNode {
   id: string;
@@ -277,7 +278,20 @@ export class KuzuGraphService {
 
   async init(): Promise<void> {
     if (this.initialized) return;
-    await this.invoke<void>('init');
+    try {
+      await this.invoke<void>('init');
+    } catch (error) {
+      if (!isWorkerCrash(error) && !isRecoverableCorruption(error)) throw error;
+      // The database is only a cache of the analysed graph, and a copy that crashes or breaks the
+      // worker on open is replaced instead of failing every Kuzu tool until someone deletes it.
+      const moved = quarantineDatabaseFiles(this.dbPath);
+      if (moved.length === 0) throw error;
+      console.warn(
+        `[KuzuDB] Opening ${this.dbPath} failed (${error instanceof Error ? error.message : String(error)}); ` +
+          `moved ${moved.length} file(s) aside and starting fresh`
+      );
+      await this.invoke<void>('init');
+    }
     this.initialized = true;
   }
 

@@ -24,6 +24,17 @@ export const isRecoverableCorruption = (error: unknown): boolean => {
   return CORRUPTION_PATTERNS.some((pattern) => pattern.test(message));
 };
 
+/**
+ * Replaying a damaged write-ahead log can take the native library down instead of throwing, so
+ * the worker process dies at start-up. Windows reports 0xC0000005 (access violation) or
+ * 0xC0000409 (stack buffer overrun), POSIX reports SIGSEGV or SIGABRT.
+ */
+const NATIVE_CRASH_EXIT =
+  /exited with code (3221225477|3221226505|139|134)|exited with signal (SIGSEGV|SIGABRT|SIGBUS)/;
+
+export const isWorkerCrash = (error: unknown): boolean =>
+  NATIVE_CRASH_EXIT.test(error instanceof Error ? error.message : String(error));
+
 const SIDECAR_SUFFIXES = ['', '.wal', '.shadow', '.lock'];
 const QUARANTINE_MARKER = '.corrupt-';
 

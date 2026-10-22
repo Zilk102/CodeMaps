@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isRecoverableCorruption, quarantineDatabaseFiles } from '../KuzuRecovery';
+import { isRecoverableCorruption, isWorkerCrash, quarantineDatabaseFiles } from '../KuzuRecovery';
 
 describe('isRecoverableCorruption', () => {
   it('recognises damage that makes the cache unusable', () => {
@@ -30,6 +30,22 @@ describe('isRecoverableCorruption', () => {
   it('leaves unrelated errors alone', () => {
     expect(isRecoverableCorruption(new Error('Kuzu background worker timeout'))).toBe(false);
     expect(isRecoverableCorruption(new Error('out of memory'))).toBe(false);
+  });
+});
+
+describe('isWorkerCrash', () => {
+  it('recognises a worker killed by the native library', () => {
+    expect(isWorkerCrash(new Error('Kuzu background worker exited with code 3221225477'))).toBe(
+      true
+    );
+    expect(isWorkerCrash(new Error('Kuzu background worker exited with signal SIGSEGV'))).toBe(
+      true
+    );
+  });
+
+  it('ignores ordinary exits and timeouts', () => {
+    expect(isWorkerCrash(new Error('Kuzu background worker exited with code 1'))).toBe(false);
+    expect(isWorkerCrash(new Error('Kuzu background worker timeout'))).toBe(false);
   });
 });
 

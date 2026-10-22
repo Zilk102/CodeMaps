@@ -1,5 +1,11 @@
 # CodeMaps Changelog
 
+## v1.1.47 (2026-10-22)
+
+### Fixed
+
+- **The Kuzu tools (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`) failed with "Kuzu background worker exited with code 3221225477".** A graph database left damaged by the earlier overlapping saves made the native library crash (access violation) while replaying its write-ahead log, so the worker died before any error could be reported and the v1.1.44 recovery never ran. CodeMaps now also treats a worker that dies at start-up (Windows 0xC0000005/0xC0000409, SIGSEGV/SIGABRT) as a damaged cache: the files are moved aside and a fresh database is created. Verified against a copy of the database that crashed on the maintainer's machine.
+
 ## v1.1.46 (2026-10-22)
 
 ### Fixed
