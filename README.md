@@ -41,7 +41,7 @@ CodeMaps runs an MCP server with HTTP and WebSocket endpoints, providing AI agen
 
 ### MCP Tools
 
-20 built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
+21 built-in tools for AI agents: analyze project, get graph context, search nodes, detect patterns, run security scans, and more.
 
 ![MCP Tools](screenshots/mcp-tools.jpg)
 

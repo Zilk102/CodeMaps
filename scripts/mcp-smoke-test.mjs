@@ -106,6 +106,7 @@ try {
 
   const expectedTools = [
     'analyze_activity_heatmap',
+    'analyze_decomposition',
     'analyze_pr_impact',
     'analyze_project',
     'calculate_blast_radius_v2',
@@ -118,6 +119,8 @@ try {
     'detect_patterns',
     'run_security_scan',
     'search_signatures',
+    'get_semantic_skeleton',
+    'validate_architecture_changes',
     'prepare_task_context',
     'prepare_change_campaign',
     'prepare_project_context',
@@ -211,6 +214,18 @@ try {
     sigs?.results !== undefined || sigs?.count !== undefined,
     'search_signatures: expected results'
   );
+
+  // ─── 11b. get_semantic_skeleton ───────────────────────────
+  const skeletonTarget = (fullGraph?.nodes || []).find(
+    (node) => node.type === 'file' && /\.tsx?$/.test(node.id)
+  );
+  if (skeletonTarget) {
+    const skeleton = await runTool('get_semantic_skeleton', { filePath: skeletonTarget.id });
+    assert(skeleton?.skeleton !== undefined, 'get_semantic_skeleton: expected skeleton');
+  }
+
+  // ─── 11c. validate_architecture_changes ───────────────────────
+  await runTool('validate_architecture_changes');
 
   // ─── 12. prepare_project_context ──────────────────────────
   const projCtx = await runTool('prepare_project_context', {
@@ -312,4 +327,7 @@ try {
 } catch (error) {
   console.error('[MCP] smoke test runner error:', error);
   process.exitCode = 1;
+  // Close the session so the open HTTP connection does not keep the process alive.
+  await transport.terminateSession().catch(() => undefined);
+  await client.close().catch(() => undefined);
 }
