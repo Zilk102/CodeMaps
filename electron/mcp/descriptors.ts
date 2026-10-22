@@ -80,21 +80,21 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     name: 'get_node_dependencies',
     title: 'Get Node Dependencies',
     description:
-      'Shows incoming and outgoing links of a specific node. Usually needed as a fallback after prepare_change_context.',
+      'Shows incoming and outgoing links of a node. For a file it covers the symbols inside it and lists every neighbouring file once with a link count.',
     recommendedWhen: 'When you need to manually expand the local dependency context.',
   },
   {
     name: 'search_graph',
     title: 'Search Graph',
     description:
-      'Searches nodes by label or id, optionally filtered by type. Low-level search for ambiguous targets.',
+      'Searches nodes by name or path, best matches first (exact name, prefix, substring), optionally filtered by type.',
     recommendedWhen: 'When target resolution in a composite context requires manual refinement.',
   },
   {
     name: 'get_blast_radius',
     title: 'Get Blast Radius',
     description:
-      'Calculates the direct and transitive impact of changes for a selected node. Usually already included in prepare_change_context.',
+      'Shows what changing a node affects: files grouped by area, the direct dependents, and only the nearest indirect ones. Use detail "full" for the raw node-level result.',
     recommendedWhen: 'When you need to separately deepen the impact analysis for a specific node.',
   },
   {

@@ -1,5 +1,17 @@
 # CodeMaps Changelog
 
+## v1.1.41 (2026-10-22)
+
+### Changed
+
+- **`get_blast_radius` is now a readable summary.** Instead of a raw node-level dump it returns counts, the affected files grouped by area (with how many are tests), the direct dependents first and only the nearest indirect ones, with `limit` and `detail: "full"` for the raw result. For `GraphData` the response shrank from ~37,000 to ~2,500 characters.
+- **`get_node_dependencies` works for file nodes.** A file node used to report nothing because imports point at `file#symbol`. It now covers the symbols inside the file and lists every neighbouring file once with a link count (`dependentFiles`, `dependencyFiles`); raw links are limited by `limit` and report their totals.
+- **`search_graph` ranks results.** Exact name, then prefix, then substring, then path; symbols that merely share their file's path no longer flood the list.
+
+### Added
+
+- Tests for the blast-radius summary (areas, test files, depth, caps), file-node dependencies and search ranking; `mcp:smoke` checks the new response fields.
+
 ## v1.1.40 (2026-10-22)
 
 ### Fixed

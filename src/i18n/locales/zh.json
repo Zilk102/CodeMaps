@@ -109,17 +109,17 @@
       },
       "get_node_dependencies": {
         "title": "获取节点依赖",
-        "description": "显示特定节点的传入和传出链接。通常在 prepare_change_context 之后作为后备需要。",
+        "description": "显示节点的入向和出向关联。对于文件，会涵盖其内部符号，并将每个相邻文件只列出一次并附带关联数量。",
         "recommendedWhen": "当需要手动扩展局部依赖上下文时。"
       },
       "search_graph": {
         "title": "搜索图",
-        "description": "按标签或 ID 搜索节点，可按类型过滤。针对模糊目标的低级搜索。",
+        "description": "按名称或路径搜索节点，最佳匹配优先（完全匹配、前缀、子串），可按类型过滤。",
         "recommendedWhen": "当复合上下文中的目标解析需要手动细化时。"
       },
       "get_blast_radius": {
         "title": "获取爆炸半径",
-        "description": "计算更改节点的直接和传递影响。",
+        "description": "显示修改节点会影响什么：按区域分组的文件、直接依赖方，以及仅最近的间接依赖方。使用 detail \"full\" 可获得原始的节点级结果。",
         "recommendedWhen": "在计划有风险的更改并需要评估影响时。"
       },
       "get_architecture_overview": {

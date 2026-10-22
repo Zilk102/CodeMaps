@@ -128,24 +128,104 @@ export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData
   return oracle.getGraph();
 };
 
-export const getNodeDependencies = (graph: GraphData, nodeId: string) => {
-  const dependencies = graph.links.filter((link) => link.source === nodeId);
-  const dependents = graph.links.filter((link) => link.target === nodeId);
-  return { dependencies, dependents };
+export interface NeighbourFile {
+  file: string;
+  links: number;
+}
+
+const DEFAULT_DEPENDENCY_LIMIT = 25;
+
+const relativeToRoot = (root: string | undefined, id: string) => {
+  const normalizedRoot = (root ?? '').replace(/\\/g, '/').replace(/\/$/, '');
+  const normalized = id.replace(/\\/g, '/');
+  return normalizedRoot && normalized.toLowerCase().startsWith(`${normalizedRoot.toLowerCase()}/`)
+    ? normalized.slice(normalizedRoot.length + 1)
+    : normalized;
 };
 
+/**
+ * Links around a node. A file node also covers its own symbols, because imports point at
+ * `file#symbol`; without that a file would wrongly look unused. The per-file summaries list
+ * every neighbouring file once with how many links tie it to the node.
+ */
+export const getNodeDependencies = (
+  graph: GraphData,
+  nodeId: string,
+  limit = DEFAULT_DEPENDENCY_LIMIT
+) => {
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  const memberPrefix = node?.type === 'file' ? `${nodeId}#` : null;
+  const isOwn = (id: string) =>
+    id === nodeId || (memberPrefix !== null && id.startsWith(memberPrefix));
+
+  const allDependencies = graph.links.filter(
+    (link) => isOwn(link.source) && (memberPrefix === null || !isOwn(link.target))
+  );
+  const allDependents = graph.links.filter(
+    (link) => isOwn(link.target) && (memberPrefix === null || !isOwn(link.source))
+  );
+
+  const summarize = (
+    links: typeof allDependencies,
+    pick: (link: (typeof allDependencies)[number]) => string
+  ) => {
+    const counts = new Map<string, number>();
+    for (const link of links) {
+      if (link.type === 'structure') continue;
+      const file = pick(link).split('#')[0];
+      if (file === nodeId.split('#')[0]) continue;
+      counts.set(file, (counts.get(file) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([file, linkCount]): NeighbourFile => ({
+        file: relativeToRoot(graph.projectRoot, file),
+        links: linkCount,
+      }))
+      .sort((a, b) => b.links - a.links || a.file.localeCompare(b.file));
+  };
+
+  return {
+    dependencyFiles: summarize(allDependencies, (link) => link.target),
+    dependentFiles: summarize(allDependents, (link) => link.source),
+    dependenciesTotal: allDependencies.length,
+    dependentsTotal: allDependents.length,
+    dependencies: allDependencies.slice(0, limit),
+    dependents: allDependents.slice(0, limit),
+  };
+};
+
+const matchRank = (node: GraphData['nodes'][number], query: string) => {
+  const label = node.label.toLowerCase();
+  if (label === query) return 0;
+  if (label.startsWith(query)) return 1;
+  if (label.includes(query)) return 2;
+  // The path of a file matches every symbol inside it, which is noise; only files and
+  // folders are worth finding by path.
+  return node.id.includes('#') ? null : node.id.toLowerCase().includes(query) ? 3 : null;
+};
+
+/** Best matches first: exact name, then prefix, then substring, then path-only. */
 export const searchGraph = (graph: GraphData, query: string, type?: string, limit = 20) => {
   const normalizedQuery = query.trim().toLowerCase();
-  return graph.nodes
-    .filter((node) => {
-      if (type && node.type !== type) return false;
-      if (!normalizedQuery) return true;
-      return (
-        node.label.toLowerCase().includes(normalizedQuery) ||
-        node.id.toLowerCase().includes(normalizedQuery)
-      );
+  const candidates = graph.nodes.filter((node) => !type || node.type === type);
+
+  if (!normalizedQuery) {
+    return candidates.slice(0, limit);
+  }
+
+  return candidates
+    .flatMap((node) => {
+      const rank = matchRank(node, normalizedQuery);
+      return rank === null ? [] : [{ node, rank }];
     })
-    .slice(0, limit);
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        a.node.label.length - b.node.label.length ||
+        a.node.id.localeCompare(b.node.id)
+    )
+    .slice(0, limit)
+    .map((entry) => entry.node);
 };
 
 export const createTextContent = (payload: unknown) => {

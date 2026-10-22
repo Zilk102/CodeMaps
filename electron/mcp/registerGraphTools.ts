@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as path from 'path';
 import * as z from 'zod/v4';
+import { summarizeBlastRadius } from '../analysis/blastRadiusSummary';
 import { oracleStore } from '../store';
 import { createGraphSummary, ensureGraphLoaded, getNodeDependencies, searchGraph } from './utils';
 import { McpToolContext } from './toolContext';
@@ -65,12 +66,22 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
     'get_node_dependencies',
     {
       title: 'Get Node Dependencies',
-      description: 'Return outgoing and incoming links for a specific graph node',
+      description:
+        'Return incoming and outgoing links for a graph node. For a file node it covers the symbols inside it and lists every neighbouring file once (dependentFiles, dependencyFiles).',
       inputSchema: {
         nodeId: z.string().describe('Exact node id from the graph'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe(
+            'Maximum raw links per direction (default 25); the per-file lists are complete'
+          ),
       },
     },
-    async ({ nodeId }: { nodeId: string }) => {
+    async ({ nodeId, limit }: { nodeId: string; limit?: number }) => {
       const graph = await ensureGraphLoaded();
       const node = graph.nodes.find((candidate) => candidate.id === nodeId);
 
@@ -80,7 +91,7 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
 
       return okStatusToolResult({
         node,
-        ...getNodeDependencies(graph, nodeId),
+        ...getNodeDependencies(graph, nodeId, limit),
       });
     }
   );
@@ -116,7 +127,8 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
     'get_blast_radius',
     {
       title: 'Get Blast Radius',
-      description: 'Return direct and transitive impact for changing a node',
+      description:
+        'Return the impact of changing a node: files grouped by area, the direct dependents, and only the nearest indirect ones. Use detail "full" for the raw node-level result.',
       inputSchema: {
         nodeId: z.string().describe('Exact node id from the graph'),
         depth: z
@@ -126,9 +138,30 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
           .max(20)
           .optional()
           .describe('Optional traversal depth limit'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('Maximum files listed per section (default 15); counts are always complete'),
+        detail: z
+          .enum(['summary', 'full'])
+          .optional()
+          .describe('summary (default) or the raw node-level result'),
       },
     },
-    async ({ nodeId, depth = 3 }: { nodeId: string; depth?: number }) => {
+    async ({
+      nodeId,
+      depth = 3,
+      limit = 15,
+      detail = 'summary',
+    }: {
+      nodeId: string;
+      depth?: number;
+      limit?: number;
+      detail?: 'summary' | 'full';
+    }) => {
       const graph = await ensureGraphLoaded();
       const node = graph.nodes.find((candidate) => candidate.id === nodeId);
 
@@ -137,7 +170,10 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
       }
 
       const impact = context.blastRadiusAnalyzer.analyze(graph, nodeId, depth);
-      return okStatusToolResult({ nodeId, impact });
+      if (detail === 'full') {
+        return okStatusToolResult({ nodeId, impact });
+      }
+      return okStatusToolResult({ nodeId, impact: summarizeBlastRadius(graph, impact, limit) });
     }
   );
 }

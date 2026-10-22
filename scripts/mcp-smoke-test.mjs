@@ -175,6 +175,10 @@ try {
   assert(deps?.node?.id === blastTarget.id, 'get_node_dependencies: node mismatch');
   assert(Array.isArray(deps?.dependencies), 'get_node_dependencies: expected dependencies array');
   assert(Array.isArray(deps?.dependents), 'get_node_dependencies: expected dependents array');
+  assert(
+    Array.isArray(deps?.dependentFiles),
+    'get_node_dependencies: expected dependentFiles array'
+  );
 
   // ─── 5. search_graph ───────────────────────────────────────
   const search = await runTool('search_graph', {
@@ -189,6 +193,8 @@ try {
   const blast = await runTool('get_blast_radius', { nodeId: blastTarget.id, depth: 3 });
   assert(blast?.nodeId === blastTarget.id, 'get_blast_radius: node mismatch');
   assert(blast?.impact !== undefined, 'get_blast_radius: expected impact');
+  assert(blast?.impact?.counts !== undefined, 'get_blast_radius: expected summary counts');
+  assert(Array.isArray(blast?.impact?.byArea), 'get_blast_radius: expected byArea');
 
   // ─── 7. get_health_score ──────────────────────────────────
   const health = await runTool('get_health_score');

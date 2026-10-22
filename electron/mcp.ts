@@ -133,7 +133,7 @@ export function setupMcpServer() {
     return res.json({
       status: 'ok',
       target: targetId,
-      ...getNodeDependencies(graph, targetId),
+      ...getNodeDependencies(graph, targetId, Number.MAX_SAFE_INTEGER),
     });
   });
 
