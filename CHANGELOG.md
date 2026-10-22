@@ -1,5 +1,17 @@
 # CodeMaps Changelog
 
+## v1.1.43 (2026-10-22)
+
+### Fixed
+
+- **Switching to "Dependencies" froze the app for ~9 seconds.** The whole-project overview (200+ files, 500+ links) was laid out with network-simplex node placement; it now uses Brandes-Koepf placement with lower thoroughness for large graphs and takes about 0.3 s. A regression test fails if the layout becomes slow again.
+- **The filter switches did nothing.** The Directories / Files / Functions / Classes / ADR / Edges toggles were never connected to the store. They work now.
+- **The Kuzu tools (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`) failed with "Found duplicated primary key".** Every graph update started a new save that clears the database and re-inserts the graph, and overlapping saves collided. Saves now run one at a time and only the latest graph is written.
+
+### Changed
+
+- **Cleaner graph screen.** The tall filter column is replaced by a compact toolbar over the graph (mode switch + filter chips) and a "How to read the graph" popover with the legend and controls; the info card is gone, the graph uses the whole area, zoom buttons moved to the bottom-left, the node details panel opens only when a node is selected, and the one-time hint is a small toast.
+
 ## v1.1.42 (2026-10-22)
 
 ### Added

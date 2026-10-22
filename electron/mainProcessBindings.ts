@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, IpcMain } from 'electron';
 import * as fs from 'fs';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
-import { persistGraphToKuzu } from './graphPersistence';
+import { createSerializedPersister, persistGraphToKuzu } from './graphPersistence';
 
 // Renderer arguments arrive unvalidated over IPC, and every analytics handler feeds
 // its project path straight into git and the filesystem.
@@ -212,8 +212,12 @@ function registerOracleBridges(
     getMainWindow()?.webContents.send('parsing-progress', progress);
   });
 
+  const persist = createSerializedPersister((graphData) =>
+    persistGraphToKuzu(graphData, loadKuzuIntegrationCtor, logger, getErrorMessage)
+  );
+
   oracle.on('graph-updated', async (graphData) => {
     getMainWindow()?.webContents.send('graph-updated', graphData);
-    await persistGraphToKuzu(graphData, loadKuzuIntegrationCtor, logger, getErrorMessage);
+    await persist(graphData);
   });
 }

@@ -20,7 +20,7 @@ interface GraphControlsProps {
 export const GraphControls: React.FC<GraphControlsProps> = ({ onFit, onZoomIn, onZoomOut }) => {
   const { t } = useTranslation();
   return (
-    <div className="absolute bottom-4 right-[356px] z-10 flex flex-col overflow-hidden rounded-lg border border-(--border) bg-(--bg1)/95 shadow-lg backdrop-blur-md">
+    <div className="absolute bottom-3 left-3 z-10 flex flex-col overflow-hidden rounded-lg border border-(--border) bg-(--bg1)/95 shadow-lg backdrop-blur-md">
       {[
         { key: 'in', label: '+', title: t('graphView.zoomIn'), onClick: onZoomIn },
         { key: 'out', label: '−', title: t('graphView.zoomOut'), onClick: onZoomOut },

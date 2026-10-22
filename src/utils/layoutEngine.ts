@@ -494,6 +494,9 @@ const buildDependencyLayoutEdges = (
   };
 };
 
+// Above this many nodes the layered layout trades a little polish for speed.
+const LARGE_DEPENDENCY_GRAPH = 80;
+
 const runDependencyLayout = async (
   graphData: GraphData,
   filters: GraphFilters,
@@ -533,8 +536,11 @@ const runDependencyLayout = async (
       'elk.algorithm': dependencyEdges.length > 0 ? 'layered' : 'box',
       'elk.direction': 'RIGHT',
       'elk.edgeRouting': 'POLYLINE',
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      // NETWORK_SIMPLEX placement made the whole-project overview (200+ files) block the UI for
+      // ~9 s; Brandes-Koepf is near-instant and visually equivalent for these graphs.
+      'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
       'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+      'elk.layered.thoroughness': dependencyNodes.length > LARGE_DEPENDENCY_GRAPH ? '1' : '5',
       'elk.layered.spacing.nodeNodeBetweenLayers': hasFocusedSelection ? '140' : '110',
       'elk.layered.spacing.edgeNodeBetweenLayers': '70',
       'elk.spacing.nodeNode': hasFocusedSelection ? '80' : '56',

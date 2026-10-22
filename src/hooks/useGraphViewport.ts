@@ -25,7 +25,6 @@ const MIN_SCALE = 0.05;
 const MAX_SCALE = 5;
 const FOCUS_MIN_SCALE = 0.85;
 const ANIMATION_MS = 220;
-const RIGHT_PANEL_WIDTH = 360;
 const FIT_PADDING = 0.06;
 const MAX_FIT_ATTEMPTS = 60;
 
@@ -81,6 +80,8 @@ interface UseGraphViewportOptions {
   focusNodeId: string | null;
   /** Dependency view re-lays out around the selection, so the whole result is framed. */
   frameWholeLayout: boolean;
+  /** Width of the panel floating over the right edge (0 when nothing is open). */
+  reserveRight: number;
 }
 
 export const useGraphViewport = ({
@@ -88,6 +89,7 @@ export const useGraphViewport = ({
   frameKey,
   focusNodeId,
   frameWholeLayout,
+  reserveRight,
 }: UseGraphViewportOptions) => {
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -119,12 +121,12 @@ export const useGraphViewport = ({
         computeFitTransform(
           container,
           { width: layoutData.width, height: layoutData.height },
-          { reserveRight: RIGHT_PANEL_WIDTH, ...options }
+          { reserveRight, ...options }
         ),
         animate
       );
     },
-    [layoutData, measure, apply]
+    [layoutData, measure, apply, reserveRight]
   );
 
   const focusNode = useCallback(
@@ -134,11 +136,11 @@ export const useGraphViewport = ({
       const api = transformRef.current;
       if (!target || !container || !api) return false;
       return apply(
-        computeFocusTransform(container, target, api.instance.state.scale, RIGHT_PANEL_WIDTH),
+        computeFocusTransform(container, target, api.instance.state.scale, reserveRight),
         animate
       );
     },
-    [layoutData, measure, apply]
+    [layoutData, measure, apply, reserveRight]
   );
 
   const zoomBy = useCallback(
@@ -150,7 +152,7 @@ export const useGraphViewport = ({
       userMoved.current = true;
       const { scale, positionX, positionY } = api.instance.state;
       const next = clamp(scale * factor, MIN_SCALE, MAX_SCALE);
-      const centreX = (container.width - RIGHT_PANEL_WIDTH) / 2;
+      const centreX = (container.width - reserveRight) / 2;
       const centreY = container.height / 2;
       const ratio = next / scale;
       apply(
@@ -162,7 +164,7 @@ export const useGraphViewport = ({
         true
       );
     },
-    [measure, apply]
+    [measure, apply, reserveRight]
   );
 
   const fitByUser = useCallback(() => {

@@ -3,13 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ElkPoint } from 'elkjs/lib/elk.bundled';
 import { useGraphStore, useUIStore } from '../store/useStore';
-import { FilterPanel } from './FilterPanel';
 import { useGraphLayout } from '../hooks/useGraphLayout';
 import { GraphNodeComponent } from './GraphNodeComponent';
 import { GraphControls, GraphHint } from './graph/GraphControls';
+import { GraphToolbar } from './graph/GraphToolbar';
 import { GraphLegend } from './graph/GraphLegend';
 import { NodeDetailsPanel } from './graph/NodeDetailsPanel';
 import { useGraphViewport } from '../hooks/useGraphViewport';
+
+// Width taken by the node details panel (320px + margins) when a node is selected.
+const DETAILS_PANEL_RESERVE = 344;
 
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
@@ -26,14 +29,28 @@ export const GraphView: React.FC = () => {
     layoutData
   );
 
-  const graphInfoWidth = 'min(380px, calc(100% - 420px))';
-
   const { transformRef, containerRef, fit, zoomBy, markUserMoved } = useGraphViewport({
     layoutData,
     frameKey: `${graphData?.projectRoot ?? ''}|${layoutMode}`,
     focusNodeId: graphInsights?.selectedVisibleId ?? null,
     frameWholeLayout: layoutMode === 'dependencies',
+    reserveRight: selectedNode ? DETAILS_PANEL_RESERVE : 0,
   });
+
+  const modeDescription =
+    layoutMode === 'hierarchy'
+      ? graphInsights?.selectedVisibleId
+        ? t('graphView.hierarchySelectedDescription', {
+            incomingCount: graphInsights.incomingCount,
+            outgoingCount: graphInsights.outgoingCount,
+          })
+        : t('graphView.hierarchyDefaultDescription')
+      : graphInsights?.selectedVisibleId
+        ? t('graphView.dependenciesSelectedDescription', {
+            incomingCount: graphInsights.incomingCount,
+            outgoingCount: graphInsights.outgoingCount,
+          })
+        : t('graphView.dependenciesDefaultDescription');
 
   const edgeElements = useMemo(() => {
     if (!layoutData?.edges) return null;
@@ -151,51 +168,24 @@ export const GraphView: React.FC = () => {
 
   return (
     <div className="w-full h-full bg-(--bg0) relative flex overflow-hidden">
+      <GraphToolbar modeDescription={modeDescription} help={<GraphLegend />} />
       {isCalculating && (
-        <div className="absolute top-2.5 left-2.5 text-(--acc) z-10 bg-(--bg1) px-3 py-1.5 rounded-md border border-(--border)">
+        <div className="absolute left-1/2 top-16 z-10 -translate-x-1/2 rounded-full border border-(--border) bg-(--bg1)/95 px-4 py-1.5 text-[12px] text-(--acc) shadow-lg backdrop-blur-md">
           {t('graphView.recalculatingGraph')}
         </div>
       )}
-      <div
-        className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-col gap-2"
-        style={{ width: graphInfoWidth }}
-      >
-        <GraphHint />
-        <GraphLegend />
-        <div className="text-(--t1) surface-card p-3 text-[12px] shadow-sm backdrop-blur-md bg-(--bg1)/90 pointer-events-auto">
-          <div className="font-semibold mb-1 text-(--t0)">
-            {t('graphView.mode')}:{' '}
-            {layoutMode === 'hierarchy' ? t('graphView.hierarchy') : t('graphView.dependencies')}
-          </div>
-          <div className="text-(--t2) leading-relaxed">
-            {layoutMode === 'hierarchy'
-              ? graphInsights?.selectedVisibleId
-                ? t('graphView.hierarchySelectedDescription', {
-                    incomingCount: graphInsights.incomingCount,
-                    outgoingCount: graphInsights.outgoingCount,
-                  })
-                : t('graphView.hierarchyDefaultDescription')
-              : graphInsights?.selectedVisibleId
-                ? t('graphView.dependenciesSelectedDescription', {
-                    incomingCount: graphInsights.incomingCount,
-                    outgoingCount: graphInsights.outgoingCount,
-                  })
-                : t('graphView.dependenciesDefaultDescription')}
-          </div>
-        </div>
-      </div>
-      <div className="pointer-events-none absolute bottom-4 right-4 top-4 z-10 flex w-[min(320px,calc(100%-1.25rem))] flex-col gap-4">
-        <div className="pointer-events-auto shrink-0">
-          <FilterPanel />
-        </div>
-        {selectedNode && (
+      {selectedNode && (
+        <div className="pointer-events-none absolute bottom-3 right-3 top-16 z-10 flex w-[320px] flex-col">
           <NodeDetailsPanel
             graph={graphData}
             node={selectedNode}
             onSelect={setSelectedNode}
             onClose={() => setSelectedNode(null)}
           />
-        )}
+        </div>
+      )}
+      <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2">
+        <GraphHint />
       </div>
       <GraphControls
         onFit={() => fit()}

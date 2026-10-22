@@ -81,6 +81,9 @@
       "nothing": "No dependencies",
       "more": "+{{count}} more",
       "highChurn": "Changed {{count}} times: a likely hot spot"
+    },
+    "help": {
+      "title": "How to read the graph"
     }
   },
   "fileTree": {

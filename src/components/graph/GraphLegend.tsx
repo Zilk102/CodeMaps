@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 const ITEMS: Array<{ key: string; color: string; shape?: 'dashed' | 'round' }> = [
@@ -10,23 +10,16 @@ const ITEMS: Array<{ key: string; color: string; shape?: 'dashed' | 'round' }> =
   { key: 'churn', color: 'var(--red)', shape: 'dashed' },
 ];
 
+/** Controls hint and colour legend, shown inside the toolbar's help popover. */
 export const GraphLegend: React.FC = () => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
 
   return (
-    <div className="surface-card pointer-events-auto w-[220px] text-[12px] text-(--t1) shadow-lg backdrop-blur-md">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between px-3 py-2 font-semibold text-(--t0)"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {t('graphView.legend.title')}
-        <span className="text-(--t3)">{open ? '▾' : '▸'}</span>
-      </button>
-      {open && (
-        <ul className="flex flex-col gap-1.5 px-3 pb-3">
+    <div className="flex flex-col gap-3">
+      <p className="text-(--t2)">{t('graphView.controlsHint')}</p>
+      <div>
+        <div className="section-label mb-2">{t('graphView.legend.title')}</div>
+        <ul className="flex flex-col gap-1.5">
           {ITEMS.map((item) => (
             <li key={item.key} className="flex items-center gap-2">
               <span
@@ -45,7 +38,7 @@ export const GraphLegend: React.FC = () => {
             </li>
           ))}
         </ul>
-      )}
+      </div>
     </div>
   );
 };

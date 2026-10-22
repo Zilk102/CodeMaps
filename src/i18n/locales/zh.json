@@ -81,6 +81,9 @@
       "nothing": "无依赖",
       "more": "另有 {{count}} 项",
       "highChurn": "已修改 {{count}} 次：可能是热点"
+    },
+    "help": {
+      "title": "如何阅读图"
     }
   },
   "fileTree": {
