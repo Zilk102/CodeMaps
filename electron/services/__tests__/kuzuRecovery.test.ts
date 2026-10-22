@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isRecoverableCorruption, quarantineDatabaseFiles } from '../kuzuRecovery';
+import { isRecoverableCorruption, quarantineDatabaseFiles } from '../KuzuRecovery';
 
 describe('isRecoverableCorruption', () => {
   it('recognises damage that makes the cache unusable', () => {

@@ -1,5 +1,11 @@
 # CodeMaps Changelog
 
+## v1.1.45 (2026-10-22)
+
+### Fixed
+
+- **v1.1.44 broke the Kuzu worker in installed builds.** The new database-recovery helper was named `kuzuRecovery.ts` (lower-case k) while the `asarUnpack` rule is `Kuzu*.js` and is case-sensitive, so the file stayed inside `app.asar` where the system Node that runs the worker cannot read it, and the worker exited with code 1 at start-up. The helper is now `KuzuRecovery.ts`. A new test walks every file the worker loads and fails if one is not covered by `asarUnpack`, and the fix was verified by running the worker from a real packaged build against a copy of a damaged database.
+
 ## v1.1.44 (2026-10-22)
 
 ### Fixed

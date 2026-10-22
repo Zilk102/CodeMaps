@@ -1,5 +1,5 @@
 import { Connection, Database } from 'kuzu';
-import { isRecoverableCorruption, quarantineDatabaseFiles } from './kuzuRecovery';
+import { isRecoverableCorruption, quarantineDatabaseFiles } from './KuzuRecovery';
 
 export interface SharedKuzuState {
   db: Database;
