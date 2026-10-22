@@ -14,12 +14,23 @@ import { registerResources } from './resources';
 import { ServiceRegistry } from './ServiceRegistry';
 import { registerTools } from './tools';
 
+const resolveAppVersion = (): string => {
+  try {
+    // Lazy require keeps this module loadable in unit tests, where Electron is unavailable.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { app } = require('electron') as typeof import('electron');
+    return app?.getVersion?.() || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+};
+
 export const createMcpServerInstance = () => {
   const server = new McpServer(
     {
       name: 'codemaps-mcp',
-      version: '1.0.0',
-      websiteUrl: 'https://localhost/codemaps',
+      version: resolveAppVersion(),
+      websiteUrl: 'https://github.com/Zilk102/CodeMaps',
     },
     {
       capabilities: {

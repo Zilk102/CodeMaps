@@ -164,6 +164,11 @@
         "title": "验证架构变更",
         "description": "对当前图状态即时执行架构验证。",
         "recommendedWhen": "在完成代码修改之前，确认没有违反层级边界。"
+      },
+      "analyze_decomposition": {
+        "title": "分析拆分方案",
+        "description": "发现并建议拆分 God 类、重复代码克隆和过大的单体模块。",
+        "recommendedWhen": "当需要清理代码、消除重复或重构过大的模块时。"
       }
     },
     "resources": {

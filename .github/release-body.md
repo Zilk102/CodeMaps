@@ -2,18 +2,21 @@
 
 ### 🇷🇺 Изменения (RU)
 
-- **Полная переработка панели фильтров**: Удалены топорные кнопки и чекбоксы. Внедрены современные сегментированные контролы (Segmented Controls) для выбора режимов, стильные кнопки-переключатели (Pill Toggles) для быстрых пресетов и плавные iOS-подобные свитчи для фильтров графа. Добавлена полноценная интерактивность (hover/active состояния).
-- **Удаление фейковой телеметрии**: Из панели графа и списка недавних проектов удалены бессмысленные и неработающие счетчики (латентность 0.0 ms, пропуски 0%, тренды). В соответствии с Zero Mock Policy интерфейс очищен от заглушек.
-- **Исправление Проводника (FileTree)**: Выровнена иерархия файлов. Соединительные линии больше не наезжают на иконки папок. Добавлен нижний отступ, чтобы переключатель языков не перекрывал последние файлы в списке. Добавлены стильные эффекты при наведении на файлы.
+- **Интеграция с Claude Code и Claude Desktop**: во вкладке «Подключение» окна настроек MCP появились готовые сниппеты для Claude Code (пользовательский и проектный `.mcp.json`) и Claude Desktop (мост `mcp-remote`). В репозиторий добавлены `.mcp.json`, `CLAUDE.md`, навык `codemaps-agent-autopilot` для `.claude/skills` и руководство `docs/CLAUDE_INTEGRATION.md`.
+- **Локализация новых инструментов**: описания `analyze_decomposition`, `get_semantic_skeleton` и `validate_architecture_changes` переведены на RU / EN / ZH, навык агента знает о новых инструментах. Новый тест не даёт добавить MCP-инструмент без перевода.
+- **Исправлен `mcp:smoke`**: тест ждал устаревший список инструментов и зависал после ошибки. Теперь он проверяет все 21 инструмент и 4 ресурса.
+- **Честная версия MCP-сервера**: сервер сообщает реальную версию приложения и ссылку на проект вместо заглушек.
 
 ### 🇬🇧 Changes (EN)
 
-- **Complete Filter Panel Redesign**: Removed clunky buttons and checkboxes. Introduced modern segmented controls for layout modes, stylish pill toggles for quick presets, and smooth iOS-like switches for graph filters. Full interactivity (hover/active states) added.
-- **Removed Fake Telemetry**: Meaningless and non-functional counters (latency 0.0 ms, skip rate 0%, trends) were removed from the graph view and recent projects list. In accordance with the Zero Mock Policy, the UI is cleared of placeholders.
-- **File Explorer (FileTree) Fix**: Aligned file hierarchy. Connecting lines no longer overlap folder icons. Added bottom padding so the language switcher does not overlap the last files in the list. Added stylish hover effects to file rows.
+- **Claude Code and Claude Desktop integration**: the Clients tab in MCP Settings now offers ready snippets for Claude Code (user scope and project `.mcp.json`) and Claude Desktop (`mcp-remote` bridge). The repository ships `.mcp.json`, `CLAUDE.md`, a `codemaps-agent-autopilot` skill for `.claude/skills`, and the `docs/CLAUDE_INTEGRATION.md` guide.
+- **Localized new tools**: `analyze_decomposition`, `get_semantic_skeleton` and `validate_architecture_changes` are described in RU / EN / ZH, and the agent skill covers them. A new test prevents adding an MCP tool without a translation.
+- **`mcp:smoke` fixed**: the test expected an outdated tool list and hung after a failure. It now exercises all 21 tools and 4 resources.
+- **Truthful MCP server version**: the server reports the real application version and project URL instead of placeholders.
 
 ### 🇨🇳 变更 (ZH)
 
-- **完全重新设计过滤器面板**：删除了笨重的按钮和复选框。引入了用于布局模式的现代分段控件 (Segmented Controls)、用于快速预设的时尚药丸形切换按钮 (Pill Toggles) 以及用于图形过滤器的流畅的类似 iOS 的开关。添加了完整的交互性（悬停/活动状态）。
-- **删除虚假遥测**：从图形视图和最近项目列表中删除了无意义且不起作用的计数器（延迟 0.0 毫秒，跳过率 0%，趋势）。根据零模拟策略 (Zero Mock Policy)，界面中清除了占位符。
-- **文件资源管理器 (FileTree) 修复**：对齐了文件层次结构。连接线不再与文件夹图标重叠。添加了底部内边距，使语言切换器不会与列表中的最后几个文件重叠。为文件行添加了时尚的悬停效果。
+- **集成 Claude Code 与 Claude Desktop**：MCP 设置的“连接”标签页新增 Claude Code（用户级与项目级 `.mcp.json`）和 Claude Desktop（`mcp-remote` 桥接）的现成配置片段。仓库新增 `.mcp.json`、`CLAUDE.md`、适用于 `.claude/skills` 的 `codemaps-agent-autopilot` 技能以及 `docs/CLAUDE_INTEGRATION.md` 指南。
+- **新工具本地化**：`analyze_decomposition`、`get_semantic_skeleton` 和 `validate_architecture_changes` 现已提供 RU / EN / ZH 说明，代理技能也涵盖这些工具。新增测试可防止添加没有翻译的 MCP 工具。
+- **修复 `mcp:smoke`**：该测试原先期望过时的工具列表，并在失败后挂起。现在它会检查全部 21 个工具和 4 个资源。
+- **MCP 服务器版本准确**：服务器现在报告真实的应用版本和项目链接，而不是占位值。

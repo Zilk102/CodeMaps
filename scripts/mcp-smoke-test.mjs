@@ -227,6 +227,12 @@ try {
   // ─── 11c. validate_architecture_changes ───────────────────────
   await runTool('validate_architecture_changes');
 
+  // ─── 11d. advanced analysis tools ─────────────────────────────
+  await runTool('analyze_decomposition', { limit: 5 });
+  await runTool('analyze_activity_heatmap', {});
+  await runTool('calculate_blast_radius_v2', { nodeId: blastTarget.id });
+  await runTool('analyze_pr_impact', { baseBranch: 'HEAD~1', headBranch: 'HEAD' });
+
   // ─── 12. prepare_project_context ──────────────────────────
   const projCtx = await runTool('prepare_project_context', {
     limit: 8,

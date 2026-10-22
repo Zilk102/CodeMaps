@@ -1,11 +1,29 @@
 # CodeMaps Changelog
 
-## Unreleased
+## v1.1.37 (2026-10-22)
 
 ### Added
 
 - **Claude integration**: MCP Settings → Clients now provides ready snippets for Claude Code (user scope and project `.mcp.json`) and Claude Desktop (`mcp-remote` bridge). The repository ships `.mcp.json`, `CLAUDE.md`, a `.claude/skills/codemaps-agent-autopilot` skill and `docs/CLAUDE_INTEGRATION.md`.
-- Localized (EN/RU/ZH) descriptions for `get_semantic_skeleton` and `validate_architecture_changes`; the agent skill now covers both tools.
+- Localized (EN/RU/ZH) descriptions for `analyze_decomposition`, `get_semantic_skeleton` and `validate_architecture_changes`; the agent skill now covers the new tools.
+- A descriptor test that fails when an MCP tool has no localized description.
+
+### Fixed
+
+- `mcp:smoke` expected an outdated tool list, never closed its session after a failure (the process hung), and left four tools untested. It now covers all 21 tools and 4 resources.
+- The MCP server now reports the real application version and project URL instead of a hardcoded `1.0.0` and a placeholder link.
+
+## v1.1.30 – v1.1.36 (2026-09-16 – 2026-09-17)
+
+### Added
+
+- `analyze_decomposition` MCP tool and Decomposition Wizard panel (God classes, duplicate clones, oversized modules).
+- `get_semantic_skeleton` and `validate_architecture_changes` MCP tools; skeleton extraction supports C++, C#, Rust, Python and Java via tree-sitter.
+
+### Fixed
+
+- Binary files are ignored and memory bloat is prevented during metrics calculation.
+- ESM import issues with `p-limit`, Tailwind tracking utility, locale test coverage and CI formatting of test artifacts.
 
 ## v1.1.29 (2026-09-16)
 
