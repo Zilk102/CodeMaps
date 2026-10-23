@@ -56,6 +56,70 @@ const BlastRadiusResultView: React.FC<{ result: BlastRadiusResult }> = ({ result
   );
 };
 
+interface ControlsProps {
+  nodeId: string;
+  onNodeIdChange: (value: string) => void;
+  placeholder: string;
+  maxDepth: number;
+  onMaxDepthChange: (value: number) => void;
+  onCalculate: () => void;
+  isCalculating: boolean;
+  canCalculate: boolean;
+}
+
+const BlastRadiusControls: React.FC<ControlsProps> = ({
+  nodeId,
+  onNodeIdChange,
+  placeholder,
+  maxDepth,
+  onMaxDepthChange,
+  onCalculate,
+  isCalculating,
+  canCalculate,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-2 xl:flex-row">
+      <input
+        type="text"
+        value={nodeId}
+        onChange={(e) => onNodeIdChange(e.target.value)}
+        placeholder={placeholder}
+        className="min-w-0 flex-1 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)"
+      />
+      <select
+        value={maxDepth}
+        onChange={(e) => onMaxDepthChange(parseInt(e.target.value, 10))}
+        className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors focus:border-(--acc)"
+      >
+        <option value={3}>3 {t('blastRadius.depth')}</option>
+        <option value={5}>5 {t('blastRadius.depth')}</option>
+        <option value={10}>10 {t('blastRadius.depth')}</option>
+      </select>
+      <button
+        type="button"
+        onClick={onCalculate}
+        disabled={isCalculating || !canCalculate}
+        className="rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isCalculating ? t('blastRadius.calculating') : t('blastRadius.calculate')}
+      </button>
+    </div>
+  );
+};
+
+const requestBlastRadius = async (
+  projectPath: string,
+  nodeId: string,
+  maxDepth: number
+): Promise<BlastRadiusResult> => {
+  if (!window.api?.calculateBlastRadius) {
+    throw new Error('Blast Radius v2 not available');
+  }
+  const response = await window.api.calculateBlastRadius(projectPath, nodeId, maxDepth);
+  return unwrapResponse<BlastRadiusResult>(response);
+};
+
 export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { selectedNode } = useGraphStore();
@@ -69,17 +133,10 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
   const handleCalculate = () => {
     if (!effectiveNodeId) return;
 
-    return run(async () => {
-      if (!window.api?.calculateBlastRadius) {
-        throw new Error('Blast Radius v2 not available');
-      }
-      const response = await window.api.calculateBlastRadius(
-        projectPath,
-        effectiveNodeId,
-        maxDepth
-      );
-      return unwrapResponse<BlastRadiusResult>(response);
-    }, t('blastRadius.error'));
+    return run(
+      () => requestBlastRadius(projectPath, effectiveNodeId, maxDepth),
+      t('blastRadius.error')
+    );
   };
 
   return (
@@ -101,32 +158,16 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
             onUseSelected={() => selectedNode && setNodeId(selectedNode.id)}
           />
 
-          <div className="flex flex-col gap-2 xl:flex-row">
-            <input
-              type="text"
-              value={nodeId}
-              onChange={(e) => setNodeId(e.target.value)}
-              placeholder={selectedNode?.id || t('blastRadius.nodeIdPlaceholder')}
-              className="min-w-0 flex-1 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)"
-            />
-            <select
-              value={maxDepth}
-              onChange={(e) => setMaxDepth(parseInt(e.target.value, 10))}
-              className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors focus:border-(--acc)"
-            >
-              <option value={3}>3 {t('blastRadius.depth')}</option>
-              <option value={5}>5 {t('blastRadius.depth')}</option>
-              <option value={10}>10 {t('blastRadius.depth')}</option>
-            </select>
-            <button
-              type="button"
-              onClick={handleCalculate}
-              disabled={isCalculating || !effectiveNodeId}
-              className="rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isCalculating ? t('blastRadius.calculating') : t('blastRadius.calculate')}
-            </button>
-          </div>
+          <BlastRadiusControls
+            nodeId={nodeId}
+            onNodeIdChange={setNodeId}
+            placeholder={selectedNode?.id || t('blastRadius.nodeIdPlaceholder')}
+            maxDepth={maxDepth}
+            onMaxDepthChange={setMaxDepth}
+            onCalculate={handleCalculate}
+            isCalculating={isCalculating}
+            canCalculate={!!effectiveNodeId}
+          />
         </div>
       </PanelCard>
 

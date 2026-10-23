@@ -11,6 +11,70 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
+const ErrorFallback = ({
+  t,
+  error,
+  errorInfo,
+}: {
+  t: WithTranslation['t'];
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}) => (
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      width: '100vw',
+      backgroundColor: 'var(--bg0)',
+      color: 'var(--t2)',
+      padding: '20px',
+      textAlign: 'center',
+    }}
+  >
+    <h1 style={{ color: 'var(--acc)', marginBottom: '10px' }}>{t('app.errorBoundary.title')}</h1>
+    <p style={{ marginBottom: '20px', maxWidth: '600px', lineHeight: '1.5' }}>
+      {t('app.errorBoundary.message')}
+    </p>
+    {error && (
+      <pre
+        style={{
+          backgroundColor: 'var(--bg1)',
+          padding: '15px',
+          borderRadius: '8px',
+          overflowX: 'auto',
+          maxWidth: '80%',
+          border: '1px solid var(--border)',
+          textAlign: 'left',
+          fontSize: '12px',
+          color: 'var(--t3)',
+        }}
+      >
+        {error.toString()}
+        {'\n'}
+        {errorInfo?.componentStack}
+      </pre>
+    )}
+    <button
+      onClick={() => window.location.reload()}
+      style={{
+        marginTop: '20px',
+        padding: '10px 20px',
+        backgroundColor: 'var(--acc)',
+        color: 'var(--bg0)',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+      }}
+    >
+      {t('app.errorBoundary.reload')}
+    </button>
+  </div>
+);
+
 class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
@@ -33,63 +97,7 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       const { t } = this.props;
-      return (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            width: '100vw',
-            backgroundColor: 'var(--bg0)',
-            color: 'var(--t2)',
-            padding: '20px',
-            textAlign: 'center',
-          }}
-        >
-          <h1 style={{ color: 'var(--acc)', marginBottom: '10px' }}>
-            {t('app.errorBoundary.title')}
-          </h1>
-          <p style={{ marginBottom: '20px', maxWidth: '600px', lineHeight: '1.5' }}>
-            {t('app.errorBoundary.message')}
-          </p>
-          {this.state.error && (
-            <pre
-              style={{
-                backgroundColor: 'var(--bg1)',
-                padding: '15px',
-                borderRadius: '8px',
-                overflowX: 'auto',
-                maxWidth: '80%',
-                border: '1px solid var(--border)',
-                textAlign: 'left',
-                fontSize: '12px',
-                color: 'var(--t3)',
-              }}
-            >
-              {this.state.error.toString()}
-              {'\n'}
-              {this.state.errorInfo?.componentStack}
-            </pre>
-          )}
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: '20px',
-              padding: '10px 20px',
-              backgroundColor: 'var(--acc)',
-              color: 'var(--bg0)',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
-          >
-            {t('app.errorBoundary.reload')}
-          </button>
-        </div>
-      );
+      return <ErrorFallback t={t} error={this.state.error} errorInfo={this.state.errorInfo} />;
     }
 
     return this.props.children;
