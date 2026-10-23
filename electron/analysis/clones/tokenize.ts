@@ -12,6 +12,11 @@ export interface TokenStream {
   lines: number[];
 }
 
+/** A token stream that also keeps the source text of every token, for explaining differences. */
+export interface TextTokenStream extends TokenStream {
+  texts: string[];
+}
+
 const MAX_FILE_BYTES = 400_000;
 const TS_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts']);
 
@@ -46,7 +51,29 @@ const normalizeTsToken = (kind: ts.SyntaxKind): string | null =>
     ? (TS_TOKEN_CLASSES.get(kind) ?? null)
     : (ts.tokenToString(kind) ?? ts.SyntaxKind[kind]);
 
-const tokenizeTypeScript = (filePath: string, text: string): TokenStream => {
+/**
+ * The scanner does not know it is inside a template literal: after `${` the closing `}` has to be
+ * re-scanned as the next template part, or the rest of the file would read as one string.
+ */
+const createTemplateTracker = (scanner: ts.Scanner) => {
+  const openBraces: number[] = [];
+  return (kind: ts.SyntaxKind): ts.SyntaxKind => {
+    if (kind === ts.SyntaxKind.TemplateHead) openBraces.push(0);
+    if (openBraces.length === 0) return kind;
+    const last = openBraces.length - 1;
+    if (kind === ts.SyntaxKind.OpenBraceToken) openBraces[last] += 1;
+    if (kind !== ts.SyntaxKind.CloseBraceToken) return kind;
+    if (openBraces[last] > 0) {
+      openBraces[last] -= 1;
+      return kind;
+    }
+    const part = scanner.reScanTemplateToken(false);
+    if (part === ts.SyntaxKind.TemplateTail) openBraces.pop();
+    return part;
+  };
+};
+
+const tokenizeTypeScript = (filePath: string, text: string): TextTokenStream => {
   const isJsx = /\.[cm]?[jt]sx$/.test(filePath) || /\.[cm]?js$/.test(filePath);
   const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, false);
   const skipped = source.statements
@@ -65,8 +92,11 @@ const tokenizeTypeScript = (filePath: string, text: string): TokenStream => {
   );
   const tokens: string[] = [];
   const lines: number[] = [];
+  const texts: string[] = [];
+  const trackTemplates = createTemplateTracker(scanner);
   let skipIndex = 0;
   for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    kind = trackTemplates(kind);
     const start = scanner.getTokenStart();
     while (skipIndex < skipped.length && skipped[skipIndex][1] <= start) skipIndex += 1;
     if (skipIndex < skipped.length && start >= skipped[skipIndex][0]) continue;
@@ -74,8 +104,9 @@ const tokenizeTypeScript = (filePath: string, text: string): TokenStream => {
     if (!normalized) continue;
     tokens.push(normalized);
     lines.push(source.getLineAndCharacterOfPosition(start).line + 1);
+    texts.push(scanner.getTokenText());
   }
-  return { file: filePath, tokens, lines };
+  return { file: filePath, tokens, lines, texts };
 };
 
 // ---- Tree-sitter languages --------------------------------------------------------------
@@ -89,9 +120,10 @@ const leafToken = (node: Node): string | null => {
   return /identifier|^name$/.test(node.type) ? 'ID' : node.type;
 };
 
-const tokenizeTree = (filePath: string, root: Node): TokenStream => {
+const tokenizeTree = (filePath: string, root: Node): TextTokenStream => {
   const tokens: string[] = [];
   const lines: number[] = [];
+  const texts: string[] = [];
 
   const stack: Node[] = [root];
   while (stack.length > 0) {
@@ -101,6 +133,7 @@ const tokenizeTree = (filePath: string, root: Node): TokenStream => {
     if (token !== null) {
       tokens.push(token);
       lines.push(node.startPosition.row + 1);
+      texts.push(node.text);
       continue;
     }
     for (let index = node.childCount - 1; index >= 0; index -= 1) {
@@ -108,11 +141,10 @@ const tokenizeTree = (filePath: string, root: Node): TokenStream => {
       if (child) stack.push(child);
     }
   }
-  return { file: filePath, tokens, lines };
+  return { file: filePath, tokens, lines, texts };
 };
 
-/** Tokenizes one file, or returns null when the language is unsupported or the file is huge. */
-export const tokenizeFile = async (filePath: string): Promise<TokenStream | null> => {
+const tokenizeWithText = async (filePath: string): Promise<TextTokenStream | null> => {
   const extension = path.extname(filePath).toLowerCase();
   const stat = await fs.stat(filePath).catch(() => null);
   if (!stat || stat.size > MAX_FILE_BYTES) return null;
@@ -129,3 +161,12 @@ export const tokenizeFile = async (filePath: string): Promise<TokenStream | null
   const tree = parser.parse(text);
   return tree ? tokenizeTree(filePath, tree.rootNode) : null;
 };
+
+/** Tokenizes one file, or returns null when the language is unsupported or the file is huge. */
+export const tokenizeFile = async (filePath: string): Promise<TokenStream | null> => {
+  const stream = await tokenizeWithText(filePath);
+  return stream ? { file: stream.file, tokens: stream.tokens, lines: stream.lines } : null;
+};
+
+/** Like `tokenizeFile`, plus the raw text of each token (names, numbers and strings intact). */
+export const tokenizeFileWithText = tokenizeWithText;

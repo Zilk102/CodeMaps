@@ -1,7 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
-import { ChangeTaskMode } from '../analysis/ChangeContextService';
-import { ensureGraphLoaded } from './utils';
+import { defineGraphTool } from './defineTool';
 import { McpToolContext } from './toolContext';
 import {
   PATTERN_LIMIT_DESCRIPTION,
@@ -23,34 +22,28 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
   registerReviewContext(server, context);
 }
 
+/** The inputs every context tool that can include classifications and security findings shares. */
+const contextSwitches = (securityDescription: string) => ({
+  includeClassifications: includeClassificationsField,
+  includeSecurityFindings: optionalBoolean(securityDescription),
+  limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
+});
+
 function registerProjectContext(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'prepare_project_context',
+  const switches = contextSwitches('When true, include security findings in the project context');
+  defineGraphTool(
+    server,
     {
+      name: 'prepare_project_context',
       title: 'Prepare Project Context',
       description:
         'Prepare a project-level mental model so an agent can understand architecture before editing or review',
-      inputSchema: {
-        projectPath: projectPathField,
-        includeClassifications: includeClassificationsField,
-        includeSecurityFindings: optionalBoolean(
-          'When true, include security findings in the project context'
-        ),
-        limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
-      },
+      inputSchema: { projectPath: projectPathField, ...switches },
     },
-    async ({
-      projectPath,
-      includeClassifications = false,
-      includeSecurityFindings = false,
-      limit = 10,
-    }: {
-      projectPath?: string;
-      includeClassifications?: boolean;
-      includeSecurityFindings?: boolean;
-      limit?: number;
-    }) => {
-      const graph = await ensureGraphLoaded(projectPath);
+    async (
+      graph,
+      { includeClassifications = false, includeSecurityFindings = false, limit = 10 }
+    ) => {
       const preparedContext = await context.projectInsightService.prepareContext(graph, {
         includeClassifications,
         includeSecurityFindings,
@@ -62,9 +55,11 @@ function registerProjectContext(server: McpServer, context: McpToolContext) {
 }
 
 function registerTaskContext(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'prepare_task_context',
+  const switches = contextSwitches('When true, include security findings in prepared contexts');
+  defineGraphTool(
+    server,
     {
+      name: 'prepare_task_context',
       title: 'Prepare Task Context',
       description:
         'Route a natural-language user request into the right CodeMaps composite workflow with prepared context',
@@ -79,29 +74,19 @@ function registerTaskContext(server: McpServer, context: McpToolContext) {
           20,
           'Optional blast radius depth limit when change-like context is selected'
         ),
-        includeClassifications: includeClassificationsField,
-        includeSecurityFindings: optionalBoolean(
-          'When true, include security findings in prepared contexts'
-        ),
-        limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
+        ...switches,
       },
     },
-    async ({
-      userRequest,
-      projectPath,
-      depth,
-      includeClassifications = false,
-      includeSecurityFindings = false,
-      limit = 10,
-    }: {
-      userRequest: string;
-      projectPath?: string;
-      depth?: number;
-      includeClassifications?: boolean;
-      includeSecurityFindings?: boolean;
-      limit?: number;
-    }) => {
-      const graph = await ensureGraphLoaded(projectPath);
+    async (
+      graph,
+      {
+        userRequest,
+        depth,
+        includeClassifications = false,
+        includeSecurityFindings = false,
+        limit = 10,
+      }
+    ) => {
       const taskResult = await context.taskIntelligenceService.prepareContext(graph, {
         userRequest,
         depth,
@@ -137,36 +122,28 @@ const changeCampaignInputSchema = {
 };
 
 function registerChangeCampaign(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'prepare_change_campaign',
+  defineGraphTool(
+    server,
     {
+      name: 'prepare_change_campaign',
       title: 'Prepare Change Campaign',
       description:
         'Prepare a phased multi-target migration/refactor context for broad codebase changes',
       inputSchema: changeCampaignInputSchema,
     },
-    async ({
-      userRequest,
-      projectPath,
-      taskMode = 'refactor',
-      depth,
-      includeSecurityFindings = false,
-      maxSeeds = 10,
-      maxFiles = 50,
-      seedNodeIds,
-      candidateQueries,
-    }: {
-      userRequest: string;
-      projectPath?: string;
-      taskMode?: ChangeTaskMode;
-      depth?: number;
-      includeSecurityFindings?: boolean;
-      maxSeeds?: number;
-      maxFiles?: number;
-      seedNodeIds?: string[];
-      candidateQueries?: string[];
-    }) => {
-      const graph = await ensureGraphLoaded(projectPath);
+    async (
+      graph,
+      {
+        userRequest,
+        taskMode = 'refactor',
+        depth,
+        includeSecurityFindings = false,
+        maxSeeds = 10,
+        maxFiles = 50,
+        seedNodeIds,
+        candidateQueries,
+      }
+    ) => {
       const campaign = await context.changeCampaignService.prepareContext(graph, {
         userRequest,
         taskMode,
@@ -183,9 +160,10 @@ function registerChangeCampaign(server: McpServer, context: McpToolContext) {
 }
 
 function registerChangeContext(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'prepare_change_context',
+  defineGraphTool(
+    server,
     {
+      name: 'prepare_change_context',
       title: 'Prepare Change Context',
       description:
         'Prepare a high-level change context so an agent can edit code with architectural awareness',
@@ -206,26 +184,10 @@ function registerChangeContext(server: McpServer, context: McpToolContext) {
         ),
       },
     },
-    async ({
-      target,
-      taskMode,
-      changeIntent,
-      type,
-      projectPath,
-      depth,
-      includeSecurityFindings = false,
-      limit = 15,
-    }: {
-      target: string;
-      taskMode?: ChangeTaskMode;
-      changeIntent?: string;
-      type?: string;
-      projectPath?: string;
-      depth?: number;
-      includeSecurityFindings?: boolean;
-      limit?: number;
-    }) => {
-      const graph = await ensureGraphLoaded(projectPath);
+    async (
+      graph,
+      { target, taskMode, changeIntent, type, depth, includeSecurityFindings = false, limit = 15 }
+    ) => {
       const preparedContext = await context.changeContextService.prepareChangeContext(graph, {
         target,
         taskMode,
@@ -240,9 +202,13 @@ function registerChangeContext(server: McpServer, context: McpToolContext) {
 }
 
 function registerReviewContext(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'prepare_review_context',
+  const switches = contextSwitches(
+    'When true, include security findings (default true for review contexts)'
+  );
+  defineGraphTool(
+    server,
     {
+      name: 'prepare_review_context',
       title: 'Prepare Review Context',
       description:
         'Prepare a high-level review context so an agent can assess code quality, architecture and security',
@@ -255,29 +221,19 @@ function registerReviewContext(server: McpServer, context: McpToolContext) {
           'Optional free-text query to narrow the review to a specific directory or file'
         ),
         projectPath: projectPathField,
-        includeClassifications: includeClassificationsField,
-        includeSecurityFindings: optionalBoolean(
-          'When true, include security findings (default true for review contexts)'
-        ),
-        limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
+        ...switches,
       },
     },
-    async ({
-      taskMode,
-      focusQuery,
-      projectPath,
-      includeClassifications = false,
-      includeSecurityFindings = true,
-      limit = 10,
-    }: {
-      taskMode?: 'review' | 'architecture' | 'security' | 'stabilization';
-      focusQuery?: string;
-      projectPath?: string;
-      includeClassifications?: boolean;
-      includeSecurityFindings?: boolean;
-      limit?: number;
-    }) => {
-      const graph = await ensureGraphLoaded(projectPath);
+    async (
+      graph,
+      {
+        taskMode,
+        focusQuery,
+        includeClassifications = false,
+        includeSecurityFindings = true,
+        limit = 10,
+      }
+    ) => {
       const preparedContext = await context.reviewContextService.prepareReviewContext(graph, {
         taskMode,
         focusQuery,

@@ -159,6 +159,21 @@ function registerAnalyticsBindings(
       runDecomposition(rawProjectPath, focusNodeIds)
     )
   );
+
+  ipcMain.handle('find-duplicates', (_, rawProjectPath: unknown, limit?: number) =>
+    respond('[Duplicates] Analysis failed:', () => runFindDuplicates(rawProjectPath, limit))
+  );
+}
+
+async function runFindDuplicates(rawProjectPath: unknown, limit?: number) {
+  requireProjectDirectory(rawProjectPath); // validate
+  const graphData = oracleStore.getState().getValidGraph();
+  const { cloneIndex } = await import('./analysis/clones/CloneIndex.js');
+  const { buildDuplicateReport } = await import('./analysis/clones/duplicateReport.js');
+  const groups = await cloneIndex.refreshFor(graphData);
+  return buildDuplicateReport(graphData, groups, {
+    limit: typeof limit === 'number' ? limit : undefined,
+  });
 }
 
 async function runPrImpact(rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) {

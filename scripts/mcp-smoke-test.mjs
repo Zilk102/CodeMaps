@@ -121,6 +121,7 @@ try {
     'search_signatures',
     'get_semantic_skeleton',
     'validate_architecture_changes',
+    'find_duplicates',
     'prepare_task_context',
     'prepare_change_campaign',
     'prepare_project_context',
@@ -235,6 +236,16 @@ try {
 
   // ─── 11d. advanced analysis tools ─────────────────────────────
   await runTool('analyze_decomposition', { limit: 5 });
+
+  // ─── 11e. find_duplicates ─────────────────────────────────────
+  const duplicates = await runTool('find_duplicates', { limit: 5, minLines: 6 });
+  assert(duplicates?.totalGroups >= 0, 'find_duplicates: expected totalGroups >= 0');
+  assert(Array.isArray(duplicates?.groups), 'find_duplicates: expected groups array');
+  assert(duplicates?.omittedGroups >= 0, 'find_duplicates: expected omittedGroups >= 0');
+  for (const group of duplicates?.groups || []) {
+    assert(group.copies.length >= 2, 'find_duplicates: a group needs at least two copies');
+    assert(typeof group.suggestion?.action === 'string', 'find_duplicates: expected a suggestion');
+  }
   await runTool('analyze_activity_heatmap', {});
   await runTool('calculate_blast_radius_v2', { nodeId: blastTarget.id });
   await runTool('analyze_pr_impact', { baseBranch: 'HEAD~1', headBranch: 'HEAD' });

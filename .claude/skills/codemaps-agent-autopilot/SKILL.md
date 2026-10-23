@@ -32,6 +32,8 @@ Do not wait until after file inspection to use it.
   Start with `prepare_task_context`. Use `get_semantic_skeleton` on large files to save tokens while exploring.
 - Code cleanup, refactoring monoliths, removing slop, fixing God classes, resolving duplication:
   Start with `analyze_decomposition` (pass `filePath` for a specific file) to get actionable refactoring targets and `splitPlans`: the file's symbols already grouped into clusters with a suggested file each. Follow the clusters instead of reading the whole file, keep `sharedHelpers` and `orchestrators` where they are, then use `prepare_change_context` on the chosen targets.
+- Duplicated or copy-pasted code, "remove duplication":
+  Call `find_duplicates` (pass `filePath` to focus on one file). Each group lists the copies with line ranges, `parameters` (how many values differ, i.e. the arguments of the function to extract), sample `differences` and a `suggestion` with the action and a target file. Extract the shared code there, then call `find_duplicates` again to confirm the group is gone.
 - Broad migration, replace SDK/library everywhere, cross-cutting refactor:
   Start with `prepare_task_context` and follow `prepare_change_campaign` if selected.
 
@@ -52,6 +54,7 @@ Do not wait until after file inspection to use it.
 - For large changes, work in waves from `prepare_change_campaign` instead of editing many files ad hoc.
 - Re-check CodeMaps after meaningful edits if the architectural context may have changed.
 - Run `validate_architecture_changes` before declaring a non-trivial change finished.
+- Before writing new code that resembles existing code, call `find_duplicates` (with `filePath` of the similar file) and reuse or extract instead of copy-pasting; after a refactor, call it again to confirm the duplication is gone.
 - `prepare_*` responses are size-bounded. If `_compaction` is present, some lists were cut; raise `limit` (up to 50) or use a low-level tool for the omitted part.
 
 ## Low-Level Fallback Tools
@@ -65,6 +68,7 @@ Use these only if the selected composite context is insufficient:
 - `get_health_score`
 - `detect_patterns`
 - `analyze_decomposition`
+- `find_duplicates` (copy-pasted code with how to extract it: parameters, differences and a target file; run it before writing similar code and after a refactor)
 - `get_semantic_skeleton`
 - `validate_architecture_changes`
 - `run_security_scan`

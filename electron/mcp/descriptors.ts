@@ -165,6 +165,14 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
       'When the user asks to clean up code, remove slop, or refactor oversized modules.',
   },
   {
+    name: 'find_duplicates',
+    title: 'Find Duplicates',
+    description:
+      'Finds copy-pasted code and says how to remove it: each group lists the copies with line ranges, how many values differ between them (the parameters of the function to extract), sample differences, and a suggested action with a target file.',
+    recommendedWhen:
+      'When the user asks to remove duplication, and before writing code similar to existing code.',
+  },
+  {
     name: 'get_semantic_skeleton',
     title: 'Get Semantic Skeleton',
     description:
