@@ -41,6 +41,27 @@ const getOwningDependencyNodeId = (
   return undefined;
 };
 
+/** Owning visible [source, target] file ids of a link, or null when it is not drawable. */
+const resolveVisibleEndpoints = (
+  link: GraphLink,
+  nodeIndex: Map<string, GraphNode>,
+  visibleNodeIds: Set<string>
+): [string, string] | null => {
+  const source = getOwningDependencyNodeId(getLinkNodeId(link.source), nodeIndex);
+  const target = getOwningDependencyNodeId(getLinkNodeId(link.target), nodeIndex);
+
+  if (
+    !source ||
+    !target ||
+    source === target ||
+    !visibleNodeIds.has(source) ||
+    !visibleNodeIds.has(target)
+  ) {
+    return null;
+  }
+  return [source, target];
+};
+
 const buildDependencyLayoutEdges = (
   graphData: GraphData,
   validNodes: Map<string, GraphNode>,
@@ -58,20 +79,11 @@ const buildDependencyLayoutEdges = (
     : undefined;
 
   graphData.links.forEach((link, idx) => {
-    const sourceId = getLinkNodeId(link.source);
-    const targetId = getLinkNodeId(link.target);
-    const visibleSourceId = getOwningDependencyNodeId(sourceId, nodeIndex);
-    const visibleTargetId = getOwningDependencyNodeId(targetId, nodeIndex);
-
-    if (
-      !visibleSourceId ||
-      !visibleTargetId ||
-      visibleSourceId === visibleTargetId ||
-      !visibleNodeIds.has(visibleSourceId) ||
-      !visibleNodeIds.has(visibleTargetId)
-    ) {
+    const endpoints = resolveVisibleEndpoints(link, nodeIndex, visibleNodeIds);
+    if (!endpoints) {
       return;
     }
+    const [visibleSourceId, visibleTargetId] = endpoints;
 
     const edgeKey = `${visibleSourceId}->${visibleTargetId}:${link.type || 'default'}`;
     if (dedupe.has(edgeKey)) {

@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
-import { ErrorBanner, PanelCard, PanelHeader, StatTile } from './panels/PanelParts';
+import {
+  ErrorBanner,
+  InsetItem,
+  PanelCard,
+  PanelHeader,
+  StatTile,
+  TitledListCard,
+} from './panels/PanelParts';
 import { unwrapResponse } from './panels/panelUtils';
 import { getFileStatusDotClass, getRiskColor } from './panels/prImpactUtils';
 
@@ -52,44 +59,32 @@ const BranchField: React.FC<{
 const ChangedFilesList: React.FC<{ files: Record<string, unknown>[] }> = ({ files }) => {
   const { t } = useTranslation();
   return (
-    <PanelCard className="p-4">
-      <h4 className="text-[13px] font-semibold text-(--t0)">{t('prImpact.changedFilesList')}</h4>
-      <ul className="mt-3 space-y-2">
-        {files.map((file) => (
-          <li
-            key={String(file.path)}
-            className="flex items-center justify-between gap-3 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${getFileStatusDotClass(file.status)}`} />
-              <span className="truncate text-sm text-(--t1)">{file.path as string}</span>
-            </span>
-            <span className="shrink-0 text-xs text-(--t2)">
-              +{file.additions as number} -{file.deletions as number}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </PanelCard>
+    <TitledListCard title={t('prImpact.changedFilesList')}>
+      {files.map((file) => (
+        <InsetItem key={String(file.path)} className="flex items-center justify-between gap-3">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={`h-2 w-2 rounded-full ${getFileStatusDotClass(file.status)}`} />
+            <span className="truncate text-sm text-(--t1)">{file.path as string}</span>
+          </span>
+          <span className="shrink-0 text-xs text-(--t2)">
+            +{file.additions as number} -{file.deletions as number}
+          </span>
+        </InsetItem>
+      ))}
+    </TitledListCard>
   );
 };
 
 const RecommendationsList: React.FC<{ recommendations: string[] }> = ({ recommendations }) => {
   const { t } = useTranslation();
   return (
-    <PanelCard className="p-4">
-      <h4 className="text-[13px] font-semibold text-(--t0)">{t('prImpact.recommendations')}</h4>
-      <ul className="mt-3 space-y-2">
-        {recommendations.map((rec) => (
-          <li
-            key={rec}
-            className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-sm text-(--t1)"
-          >
-            {rec}
-          </li>
-        ))}
-      </ul>
-    </PanelCard>
+    <TitledListCard title={t('prImpact.recommendations')}>
+      {recommendations.map((rec) => (
+        <InsetItem key={rec} className="text-sm text-(--t1)">
+          {rec}
+        </InsetItem>
+      ))}
+    </TitledListCard>
   );
 };
 

@@ -1,15 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
-import {
-  ErrorBanner,
-  PanelCard,
-  PanelHeader,
-  SelectedNodeBar,
-  StatTile,
-} from './panels/PanelParts';
-import { describeNode, unwrapResponse } from './panels/panelUtils';
+import { NodePanelFrame } from './panels/NodePanelFrame';
+import { PanelCard, StatTile } from './panels/PanelParts';
+import { unwrapResponse } from './panels/panelUtils';
 
 interface BlastRadiusV2PanelProps {
   projectPath: string;
@@ -128,8 +123,6 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
   const { isRunning: isCalculating, result, error, run } = useAnalysisRunner<BlastRadiusResult>();
   const effectiveNodeId = nodeId.trim() || selectedNode?.id || '';
 
-  const selectedNodeSummary = useMemo(() => describeNode(selectedNode), [selectedNode]);
-
   const handleCalculate = () => {
     if (!effectiveNodeId) return;
 
@@ -140,40 +133,28 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <PanelHeader
-        eyebrow={t('tools.quickActions.highRisk')}
-        title={t('blastRadius.title')}
-        description={t('tools.quickActions.blastDescription')}
-      />
-
-      <PanelCard className="p-4">
-        <div className="flex flex-col gap-3">
-          <SelectedNodeBar
-            label={t('blastRadius.targetNode')}
-            selectedLabel={t('blastRadius.selectedNode')}
-            useSelectedLabel={t('blastRadius.useSelected')}
-            hasSelection={!!selectedNode}
-            summary={selectedNodeSummary}
-            onUseSelected={() => selectedNode && setNodeId(selectedNode.id)}
-          />
-
-          <BlastRadiusControls
-            nodeId={nodeId}
-            onNodeIdChange={setNodeId}
-            placeholder={selectedNode?.id || t('blastRadius.nodeIdPlaceholder')}
-            maxDepth={maxDepth}
-            onMaxDepthChange={setMaxDepth}
-            onCalculate={handleCalculate}
-            isCalculating={isCalculating}
-            canCalculate={!!effectiveNodeId}
-          />
-        </div>
-      </PanelCard>
-
-      {error && <ErrorBanner className="px-4 py-3 text-sm text-(--red)">{error}</ErrorBanner>}
-
+    <NodePanelFrame
+      eyebrow={t('tools.quickActions.highRisk')}
+      title={t('blastRadius.title')}
+      description={t('tools.quickActions.blastDescription')}
+      nodeLabel={t('blastRadius.targetNode')}
+      selectedNode={selectedNode}
+      onUseSelected={setNodeId}
+      error={error}
+      controls={
+        <BlastRadiusControls
+          nodeId={nodeId}
+          onNodeIdChange={setNodeId}
+          placeholder={selectedNode?.id || t('blastRadius.nodeIdPlaceholder')}
+          maxDepth={maxDepth}
+          onMaxDepthChange={setMaxDepth}
+          onCalculate={handleCalculate}
+          isCalculating={isCalculating}
+          canCalculate={!!effectiveNodeId}
+        />
+      }
+    >
       {result && <BlastRadiusResultView result={result} />}
-    </div>
+    </NodePanelFrame>
   );
 };

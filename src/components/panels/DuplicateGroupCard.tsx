@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DuplicateCopy, DuplicateGroup } from '../../types/duplicates';
-import { PanelCard } from './PanelParts';
+import { BulletBox, PanelCard, ReasonLine } from './PanelParts';
 import { actionLabelKey, formatCopy } from './duplicatesUtils';
 
 const BADGE =
@@ -44,18 +44,11 @@ const CopyList: React.FC<CopyListProps> = ({ copies, isSelectable, onSelect }) =
 const DifferenceList: React.FC<{ differences: string[] }> = ({ differences }) => {
   const { t } = useTranslation();
   return (
-    <div className="rounded-xl border border-(--border) bg-(--bg1) p-3">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-(--t3)">
-        {t('duplicates.differences')}
-      </div>
-      <ul className="list-disc space-y-1 pl-4">
-        {differences.map((diff, i) => (
-          <li key={i} className="break-all font-mono text-[12px] text-(--t2)">
-            {diff}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <BulletBox
+      title={t('duplicates.differences')}
+      items={differences}
+      itemClassName="break-all font-mono text-[12px] text-(--t2)"
+    />
   );
 };
 
@@ -84,10 +77,7 @@ export const DuplicateGroupCard: React.FC<DuplicateGroupCardProps> = ({
         <span className={BADGE}>{t(actionLabelKey(suggestion.action))}</span>
       </div>
 
-      <div className="text-[13px] leading-5 text-(--t2)">
-        <span className="font-semibold text-(--t1)">{t('duplicates.reason')}: </span>
-        {suggestion.reason}
-      </div>
+      <ReasonLine label={t('duplicates.reason')} reason={suggestion.reason} />
 
       {suggestion.targetFile && (
         <div className="break-all font-mono text-[12px] text-(--t3)">

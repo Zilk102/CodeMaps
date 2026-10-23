@@ -79,6 +79,28 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
   { pattern: /(^|[\\/])(analysis)([\\/]|$)/i, layer: 'analysis', reason: 'analysis_path' },
   { pattern: /(^|[\\/])(parsing)([\\/]|$)/i, layer: 'parsing', reason: 'parsing_path' },
   { pattern: /(^|[\\/])(oracle)([\\/]|$)/i, layer: 'application', reason: 'orchestration_path' },
+  // Fallbacks for conventions not covered above; they sit last so every rule above still wins.
+  {
+    pattern: /(^|[\\/])(resolution)([\\/]|$)/i,
+    layer: 'application',
+    reason: 'resolution_pipeline',
+  },
+  {
+    pattern:
+      /(^|[\\/])(extractors?|facts|catalogs?|policies|scoring|clones|detectors?|heuristics)([\\/]|$)/i,
+    layer: 'analysis',
+    reason: 'analysis_support_path',
+  },
+  {
+    pattern: /(^|[\\/])(?:[^\\/]*[.-])?setup(?:tests?)?\.[cm]?[jt]sx?$/i,
+    layer: 'configuration',
+    reason: 'tooling_setup_file',
+  },
+  {
+    pattern: /(^|[\\/])(?:app|main|index)\.[jt]sx$/i,
+    layer: 'presentation',
+    reason: 'ui_entrypoint',
+  },
 ];
 
 const toArchitectureRule = (rule: {
