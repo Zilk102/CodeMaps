@@ -42,6 +42,41 @@ const CandidateList: React.FC<{ result: DecompositionResult }> = ({ result }) =>
   );
 };
 
+const DecompositionResultView: React.FC<{ result: DecompositionResult }> = ({ result }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <StatTile
+          label={t('decomposition.candidatesCount')}
+          value={result.summary.candidateCount}
+        />
+        <StatTile
+          label={t('decomposition.highPriority')}
+          value={result.summary.highPriorityCount}
+          valueClassName="text-(--red)"
+        />
+      </div>
+
+      <CandidateList result={result} />
+    </div>
+  );
+};
+
+const requestDecomposition = async (
+  projectPath: string,
+  focusNodeId: string
+): Promise<DecompositionResult> => {
+  if (!window.api?.analyzeDecomposition) {
+    throw new Error('Decomposition Wizard not available in IPC');
+  }
+  const response = await window.api.analyzeDecomposition(
+    projectPath,
+    focusNodeId.trim() ? [focusNodeId.trim()] : undefined
+  );
+  return unwrapResponse<DecompositionResult>(response);
+};
+
 export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> = ({
   projectPath,
 }) => {
@@ -51,16 +86,7 @@ export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> =
   const { isRunning: isAnalyzing, result, error, run } = useAnalysisRunner<DecompositionResult>();
 
   const handleAnalyze = () =>
-    run(async () => {
-      if (!window.api?.analyzeDecomposition) {
-        throw new Error('Decomposition Wizard not available in IPC');
-      }
-      const response = await window.api.analyzeDecomposition(
-        projectPath,
-        focusNodeId.trim() ? [focusNodeId.trim()] : undefined
-      );
-      return unwrapResponse<DecompositionResult>(response);
-    }, t('decomposition.error'));
+    run(() => requestDecomposition(projectPath, focusNodeId), t('decomposition.error'));
 
   const selectedNodeSummary = useMemo(() => describeNode(selectedNode), [selectedNode]);
 
@@ -105,23 +131,7 @@ export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> =
 
       {error && <ErrorBanner className="px-4 py-3 text-sm text-(--red)">{error}</ErrorBanner>}
 
-      {result && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <StatTile
-              label={t('decomposition.candidatesCount')}
-              value={result.summary.candidateCount}
-            />
-            <StatTile
-              label={t('decomposition.highPriority')}
-              value={result.summary.highPriorityCount}
-              valueClassName="text-(--red)"
-            />
-          </div>
-
-          <CandidateList result={result} />
-        </div>
-      )}
+      {result && <DecompositionResultView result={result} />}
     </div>
   );
 };

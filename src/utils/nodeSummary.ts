@@ -27,6 +27,49 @@ const toRelativePath = (root: string, id: string) => {
     : normalizedId;
 };
 
+/** Ids of the node itself plus, for files and directories, everything inside it. */
+export const collectOwnIds = (nodes: GraphNode[], node: GraphNode): Set<string> => {
+  const ownIds = new Set([node.id]);
+  if (node.type === 'file' || node.type === 'directory') {
+    nodes.forEach((item) => {
+      if (
+        item.id.startsWith(`${node.id}#`) ||
+        (node.type === 'directory' && item.id.startsWith(`${node.id}/`))
+      ) {
+        ownIds.add(item.id);
+      }
+    });
+  }
+  return ownIds;
+};
+
+const bump = (counts: Map<string, number>, key: string) =>
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+
+/** Counts, per outside file, how many links point into / out of the node. */
+export const countNeighbourLinks = (
+  links: GraphData['links'],
+  ownIds: Set<string>,
+  ownFile: string,
+  fileOf: (id: string) => string
+): { usedBy: Map<string, number>; dependsOn: Map<string, number> } => {
+  const usedBy = new Map<string, number>();
+  const dependsOn = new Map<string, number>();
+
+  for (const link of links) {
+    if (isStructural(link.type)) continue;
+    const source = linkEnd(link.source);
+    const target = linkEnd(link.target);
+    const sourceInside = ownIds.has(source);
+    if (sourceInside === ownIds.has(target)) continue;
+
+    const incoming = !sourceInside;
+    const other = fileOf(incoming ? source : target);
+    if (other !== ownFile) bump(incoming ? usedBy : dependsOn, other);
+  }
+  return { usedBy, dependsOn };
+};
+
 /**
  * Explains a node in plain terms: who uses it and what it depends on. Symbols inside a
  * file count towards the file, and neighbours are folded to their file so the lists stay
@@ -36,37 +79,8 @@ export const summarizeNode = (graph: GraphData, node: GraphNode, limit = 8): Nod
   const nodeIndex = new Map(graph.nodes.map((item) => [item.id, item]));
   const fileOf = (id: string) => (nodeIndex.has(id.split('#')[0]) ? id.split('#')[0] : id);
   const ownFile = fileOf(node.id);
-  const ownIds = new Set([node.id]);
-  if (node.type === 'file' || node.type === 'directory') {
-    graph.nodes.forEach((item) => {
-      if (
-        item.id.startsWith(`${node.id}#`) ||
-        (node.type === 'directory' && item.id.startsWith(`${node.id}/`))
-      ) {
-        ownIds.add(item.id);
-      }
-    });
-  }
-
-  const usedBy = new Map<string, number>();
-  const dependsOn = new Map<string, number>();
-
-  for (const link of graph.links) {
-    if (isStructural(link.type)) continue;
-    const source = linkEnd(link.source);
-    const target = linkEnd(link.target);
-    const sourceInside = ownIds.has(source);
-    const targetInside = ownIds.has(target);
-    if (sourceInside === targetInside) continue;
-
-    if (targetInside) {
-      const other = fileOf(source);
-      if (other !== ownFile) usedBy.set(other, (usedBy.get(other) ?? 0) + 1);
-    } else {
-      const other = fileOf(target);
-      if (other !== ownFile) dependsOn.set(other, (dependsOn.get(other) ?? 0) + 1);
-    }
-  }
+  const ownIds = collectOwnIds(graph.nodes, node);
+  const { usedBy, dependsOn } = countNeighbourLinks(graph.links, ownIds, ownFile, fileOf);
 
   const rank = (counts: Map<string, number>): NeighbourSummary[] =>
     Array.from(counts.entries())

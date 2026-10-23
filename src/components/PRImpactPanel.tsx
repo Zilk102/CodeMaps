@@ -118,6 +118,50 @@ const PRImpactResultView: React.FC<{ result: PRImpactResult }> = ({ result }) =>
   );
 };
 
+const PRImpactForm: React.FC<{
+  baseBranch: string;
+  headBranch: string;
+  onBaseChange: (value: string) => void;
+  onHeadChange: (value: string) => void;
+  onAnalyze: () => void;
+  isAnalyzing: boolean;
+}> = ({ baseBranch, headBranch, onBaseChange, onHeadChange, onAnalyze, isAnalyzing }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <BranchField
+        label={t('prImpact.baseBranch')}
+        value={baseBranch}
+        placeholder="main"
+        onChange={onBaseChange}
+      />
+      <BranchField
+        label={t('prImpact.headBranch')}
+        value={headBranch}
+        placeholder="HEAD"
+        onChange={onHeadChange}
+      />
+      <div className="flex items-end">
+        <button
+          type="button"
+          onClick={onAnalyze}
+          disabled={isAnalyzing}
+          className="w-full rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 xl:w-auto"
+        >
+          {isAnalyzing ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner />
+              {t('prImpact.analyzing')}
+            </span>
+          ) : (
+            t('prImpact.analyzeButton')
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const [baseBranch, setBaseBranch] = useState('main');
@@ -142,37 +186,14 @@ export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({ projectPath }) => 
       />
 
       <PanelCard className="p-4">
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-          <BranchField
-            label={t('prImpact.baseBranch')}
-            value={baseBranch}
-            placeholder="main"
-            onChange={setBaseBranch}
-          />
-          <BranchField
-            label={t('prImpact.headBranch')}
-            value={headBranch}
-            placeholder="HEAD"
-            onChange={setHeadBranch}
-          />
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={handleAnalyze}
-              disabled={isAnalyzing}
-              className="w-full rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 xl:w-auto"
-            >
-              {isAnalyzing ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner />
-                  {t('prImpact.analyzing')}
-                </span>
-              ) : (
-                t('prImpact.analyzeButton')
-              )}
-            </button>
-          </div>
-        </div>
+        <PRImpactForm
+          baseBranch={baseBranch}
+          headBranch={headBranch}
+          onBaseChange={setBaseBranch}
+          onHeadChange={setHeadBranch}
+          onAnalyze={handleAnalyze}
+          isAnalyzing={isAnalyzing}
+        />
       </PanelCard>
 
       {error && (

@@ -1,9 +1,5 @@
-import React, { Suspense, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { Suspense } from 'react';
 
-const FileTree = React.lazy(() =>
-  import('./components/FileTree').then((m) => ({ default: m.FileTree }))
-);
 const GraphView = React.lazy(() =>
   import('./components/GraphView').then((m) => ({ default: m.GraphView }))
 );
@@ -23,36 +19,50 @@ const ToolsPanel = React.lazy(() =>
 
 import TitleBar from './components/TitleBar';
 import ErrorBoundary from './components/ErrorBoundary';
-import { useUIStore, useGraphStore, useConnectionStore } from './store/useStore';
+import { AppSidebar, LazyFallback, ParsingProgressToast } from './components/AppParts';
+import { useUIStore, useGraphStore } from './store/useStore';
+import { useRealtimeConnection } from './hooks/useRealtimeConnection';
 import { useProjectDrop } from './hooks/useProjectDrop';
 import { useSidebarResize } from './hooks/useSidebarResize';
 
-const LazyFallback: React.FC = () => {
-  const { t } = useTranslation();
+const AppWorkspace: React.FC = () => {
+  const { sidebarWidth, setSidebarWidth, isToolsPanelOpen } = useUIStore();
+  const { graphData } = useGraphStore();
+  const { isDraggingState, startSidebarDrag, sidebarViewportState } =
+    useSidebarResize(setSidebarWidth);
+  const showSidebar = Boolean(graphData);
+
   return (
-    <div className="w-full h-full bg-(--bg0) flex items-center justify-center text-(--t2)">
-      {t('app.loading')}
+    <div className="flex flex-1 overflow-hidden relative">
+      {showSidebar && (
+        <AppSidebar
+          width={sidebarWidth}
+          isDragging={isDraggingState}
+          viewport={sidebarViewportState}
+          onDragStart={startSidebarDrag}
+        />
+      )}
+
+      <div className="flex-1 relative min-w-0 bg-(--bg0)">
+        <Suspense fallback={<LazyFallback />}>
+          {graphData ? <GraphView /> : <RecentProjects />}
+        </Suspense>
+      </div>
+
+      {graphData && isToolsPanelOpen && (
+        <Suspense fallback={<LazyFallback />}>
+          <ToolsPanel projectPath={graphData.projectRoot} />
+        </Suspense>
+      )}
     </div>
   );
 };
 
 const App: React.FC = () => {
-  const { t } = useTranslation();
-  const { sidebarWidth, setSidebarWidth, isToolsPanelOpen, parsingProgress } = useUIStore();
-  const { graphData } = useGraphStore();
-  const { initializeWatcher, initializeWebSocket, teardownRealtime, fetchGraph } =
-    useConnectionStore();
-  const { isDraggingState, startSidebarDrag, sidebarViewportState } =
-    useSidebarResize(setSidebarWidth);
+  const { parsingProgress } = useUIStore();
+  const { fetchGraph } = useRealtimeConnection();
   const { dragOver, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } =
     useProjectDrop(fetchGraph);
-  const showSidebar = Boolean(graphData);
-
-  useEffect(() => {
-    initializeWatcher();
-    initializeWebSocket();
-    return () => teardownRealtime();
-  }, [initializeWatcher, initializeWebSocket, teardownRealtime]);
 
   return (
     <ErrorBoundary>
@@ -68,48 +78,7 @@ const App: React.FC = () => {
           <UpdateNotification />
         </Suspense>
 
-        <div className="flex flex-1 overflow-hidden relative">
-          {showSidebar && (
-            <>
-              <div
-                className="flex flex-col h-full bg-(--bg1) border-r border-(--border) transition-[width] duration-200 ease-in-out"
-                style={{
-                  width: sidebarWidth,
-                  minWidth: 200,
-                  maxWidth: sidebarViewportState.maxWidth,
-                  position: sidebarViewportState.isMobile ? 'absolute' : 'relative',
-                  zIndex: sidebarViewportState.isMobile ? 20 : 1,
-                  ...(isDraggingState ? { transition: 'none' } : {}),
-                }}
-              >
-                <Suspense fallback={<LazyFallback />}>
-                  <FileTree />
-                </Suspense>
-              </div>
-
-              <div
-                onMouseDown={startSidebarDrag}
-                className="absolute h-full w-2 cursor-col-resize bg-transparent hover:bg-(--acc) hover:opacity-30 transition-all"
-                style={{
-                  zIndex: sidebarViewportState.isMobile ? 21 : 10,
-                  left: sidebarWidth - 4,
-                }}
-              />
-            </>
-          )}
-
-          <div className="flex-1 relative min-w-0 bg-(--bg0)">
-            <Suspense fallback={<LazyFallback />}>
-              {graphData ? <GraphView /> : <RecentProjects />}
-            </Suspense>
-          </div>
-
-          {graphData && isToolsPanelOpen && (
-            <Suspense fallback={<LazyFallback />}>
-              <ToolsPanel projectPath={graphData.projectRoot} />
-            </Suspense>
-          )}
-        </div>
+        <AppWorkspace />
 
         {/* Drag & Drop Overlay */}
         <Suspense fallback={null}>
@@ -117,32 +86,7 @@ const App: React.FC = () => {
         </Suspense>
 
         {/* Parsing Progress */}
-        {parsingProgress && (
-          <div className="absolute bottom-5 right-5 bg-(--bg1) p-4 rounded-lg border border-(--border) shadow-[0_4px_12px_rgba(0,0,0,0.1)] z-1000 flex flex-col gap-2 min-w-[250px]">
-            <div className="flex justify-between items-center">
-              <span className="font-bold">
-                {t(`indexing.status.${parsingProgress.status}`, { defaultValue: 'Indexing...' })}
-              </span>
-              <span>{Math.round((parsingProgress.current / parsingProgress.total) * 100)}%</span>
-            </div>
-            <div className="w-full h-1 bg-(--bg2) rounded-sm overflow-hidden">
-              <div
-                className="h-full bg-(--acc) transition-[width] duration-300 ease-in-out"
-                style={{
-                  width: `${(parsingProgress.current / parsingProgress.total) * 100}%`,
-                }}
-              />
-            </div>
-            {parsingProgress.filename && (
-              <div
-                className="text-xs text-(--t2) whitespace-nowrap overflow-hidden text-ellipsis"
-                title={parsingProgress.filename}
-              >
-                {parsingProgress.filename}
-              </div>
-            )}
-          </div>
-        )}
+        {parsingProgress && <ParsingProgressToast progress={parsingProgress} />}
 
         <Suspense fallback={<LazyFallback />}>
           <McpSettingsModal />

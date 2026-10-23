@@ -1,245 +1,92 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useGraphStore, useConnectionStore } from '../store/useStore';
-import type { GraphNode } from '../types/graph';
+import { useFileTreeState } from '../hooks/useFileTreeState';
+import { ChevronIcon } from './FileTreeIcons';
+import { FileTreeNode } from './FileTreeNode';
+import type { FileTreeEntry } from './fileTreeModel';
 
-interface TreeNode {
-  name: string;
-  path: string;
-  isDir: boolean;
-  children?: Record<string, TreeNode>;
-  nodeData?: GraphNode;
-}
-
-const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
+const ErrorBanner: React.FC<{ error: string }> = ({ error }) => (
+  <div
     style={{
-      transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-      transition: 'transform 0.1s',
-      minWidth: 16,
-      opacity: 0.6,
+      color: 'var(--red)',
+      fontSize: 13,
+      padding: '12px',
+      background: 'rgba(238, 0, 0, 0.1)',
+      borderRadius: 6,
     }}
   >
-    <path
-      d="M6 4L10 8L6 12"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
+    {error}
+  </div>
 );
 
-const FileIcon = ({ name, isDir }: { name: string; isDir: boolean }) => {
-  if (isDir) {
-    return (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ minWidth: 16, color: 'var(--t2)' }}
-      >
-        <path
-          d="M1.5 4.5C1.5 3.39543 2.39543 2.5 3.5 2.5H6.58579C6.851 2.5 7.10536 2.60536 7.29289 2.79289L8.70711 4.20711C8.89464 4.39464 9.149 4.5 9.41421 4.5H12.5C13.6046 4.5 14.5 5.39543 14.5 6.5V11.5C14.5 12.6046 13.6046 13.5 12.5 13.5H3.5C2.39543 13.5 1.5 12.6046 1.5 11.5V4.5Z"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        />
-      </svg>
-    );
-  }
-
-  const ext = name.split('.').pop()?.toLowerCase();
-
-  if (ext === 'tsx' || ext === 'jsx') {
-    return (
-      <svg
-        width="16"
-        height="16"
-        viewBox="-11.5 -10.23174 23 20.46348"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ minWidth: 16 }}
-      >
-        <circle cx="0" cy="0" r="2.05" fill="#61dafb" />
-        <g stroke="#61dafb" strokeWidth="1" fill="none">
-          <ellipse rx="11" ry="4.2" />
-          <ellipse rx="11" ry="4.2" transform="rotate(60)" />
-          <ellipse rx="11" ry="4.2" transform="rotate(120)" />
-        </g>
-      </svg>
-    );
-  }
-
-  if (ext === 'ts') {
-    return (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ minWidth: 16 }}
-      >
-        <rect x="2" y="2" width="12" height="12" fill="#3178c6" />
-        <path
-          d="M7.4 9.9H8.6V13H9.8V9.9H11V8.8H7.4V9.9ZM5.3 10.6C5.3 10.1 5.4 9.8 5.7 9.5C5.9 9.3 6.3 9.2 6.7 9.2C7 9.2 7.3 9.3 7.5 9.4L7.3 10.4C7.1 10.3 6.9 10.3 6.7 10.3C6.5 10.3 6.4 10.3 6.3 10.4C6.3 10.5 6.2 10.6 6.2 10.8C6.2 10.9 6.3 11 6.3 11.1C6.4 11.2 6.5 11.2 6.7 11.3L7.1 11.4C7.5 11.5 7.8 11.7 8 11.9C8.2 12.1 8.3 12.4 8.3 12.8C8.3 13.2 8.1 13.6 7.8 13.8C7.5 14 7.1 14.1 6.6 14.1C6.1 14.1 5.7 14 5.3 13.8L5.6 12.8C5.8 12.9 6 13 6.2 13.1C6.4 13.1 6.5 13.2 6.7 13.2C6.9 13.2 7 13.1 7.1 13C7.2 12.9 7.3 12.8 7.3 12.6C7.3 12.4 7.2 12.3 7.1 12.2C7 12.1 6.9 12.1 6.7 12L6.3 11.9C5.9 11.8 5.6 11.6 5.5 11.4C5.4 11.2 5.3 10.9 5.3 10.6Z"
-          fill="white"
-        />
-      </svg>
-    );
-  }
-
-  if (ext === 'html') {
-    return (
-      <span
-        style={{
-          color: '#e34c26',
-          fontWeight: 'bold',
-          fontSize: 11,
-          minWidth: 16,
-          textAlign: 'center',
-        }}
-      >
-        &lt;&gt;
-      </span>
-    );
-  }
-
-  if (ext === 'json') {
-    return (
-      <span
-        style={{
-          color: '#cbcb41',
-          fontWeight: 'bold',
-          fontSize: 11,
-          minWidth: 16,
-          textAlign: 'center',
-        }}
-      >{`{}`}</span>
-    );
-  }
-
-  if (name.includes('config')) {
-    return <span style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>⚙️</span>;
-  }
-
-  if (name.includes('vite')) {
-    return <span style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>⚡</span>;
-  }
-
+const EmptyState: React.FC<{ isLoading: boolean; openProject: () => void }> = ({
+  isLoading,
+  openProject,
+}) => {
+  const { t } = useTranslation();
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      style={{ minWidth: 16, color: 'var(--t2)' }}
-    >
-      <path
-        d="M4 2.5C4 1.67157 4.67157 1 5.5 1H9.5L13.5 5V13.5C13.5 14.3284 12.8284 15 12 15H5.5C4.67157 15 4 14.3284 4 13.5V2.5Z"
-        stroke="currentColor"
-        strokeWidth="1.2"
-      />
-    </svg>
+    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ color: 'var(--t2)', fontSize: 13, textAlign: 'center' }}>
+        {t('fileTree.noFolderOpen')}
+      </div>
+      <button
+        onClick={openProject}
+        disabled={isLoading}
+        className="btn-primary"
+        style={{
+          width: '100%',
+          padding: '8px',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontSize: '13px',
+          fontWeight: 500,
+          textAlign: 'center',
+        }}
+      >
+        {isLoading ? t('fileTree.analyzing') : t('fileTree.openFolder')}
+      </button>
+    </div>
   );
 };
 
-const FileTreeNode: React.FC<{
-  node: TreeNode;
-  level: number;
+const ProjectTree: React.FC<{
+  tree: FileTreeEntry;
   expandedFolders: Record<string, boolean>;
   toggleFolder: (path: string, currentlyExpanded: boolean) => void;
   selectedPath: string | null;
-  onSelect: (node: TreeNode) => void;
-}> = ({ node, level, expandedFolders, toggleFolder, selectedPath, onSelect }) => {
-  const isSelected = selectedPath === node.path;
-  const isExpanded = expandedFolders[node.path] ?? level === 0;
-
-  if (!node.name || node.name === 'root') {
-    return (
-      <div className="px-2">
-        {Object.values(node.children || {})
-          .sort((a, b) => {
-            if (a.isDir && !b.isDir) return -1;
-            if (!a.isDir && b.isDir) return 1;
-            return a.name.localeCompare(b.name);
-          })
-          .map((child) => (
-            <FileTreeNode
-              key={child.path}
-              node={child}
-              level={0}
-              expandedFolders={expandedFolders}
-              toggleFolder={toggleFolder}
-              selectedPath={selectedPath}
-              onSelect={onSelect}
-            />
-          ))}
-      </div>
-    );
-  }
-
-  const basePadding = 8;
-  const indentStep = 16;
-  const currentIndent = basePadding + level * indentStep;
-  // Line should align with the center of the chevron icon (which is 16px wide, so +8px from its left edge)
-  const lineLeft = currentIndent + 8;
-
+  onSelect: (node: FileTreeEntry) => void;
+}> = ({ tree, expandedFolders, toggleFolder, selectedPath, onSelect }) => {
+  const { t } = useTranslation();
+  const rootExpanded = expandedFolders['root_folder'] !== false;
   return (
-    <div className="relative">
+    <div style={{ paddingBottom: 20 }}>
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          if (node.isDir) toggleFolder(node.path, isExpanded);
-          onSelect(node);
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '6px 12px',
+          cursor: 'pointer',
+          fontWeight: '600',
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          color: 'var(--t2)',
+          marginBottom: '8px',
         }}
-        className={`group flex items-center py-1.5 cursor-pointer rounded-md transition-colors select-none text-[13px] ${
-          isSelected ? 'bg-(--accbg) text-(--t0) font-medium' : 'text-(--t1) hover:bg-(--hover)'
-        }`}
-        style={{ paddingLeft: `${currentIndent}px`, paddingRight: '8px' }}
+        onClick={() => toggleFolder('root_folder', rootExpanded)}
       >
-        <div className="flex items-center justify-center w-4 mr-1 shrink-0">
-          {node.isDir ? <ChevronIcon expanded={isExpanded} /> : null}
-        </div>
-
-        <div className="flex items-center mr-2 shrink-0">
-          <FileIcon name={node.name} isDir={node.isDir} />
-        </div>
-
-        <span className="flex-1 truncate group-hover:text-(--t0) transition-colors">
-          {node.name}
-        </span>
+        <ChevronIcon expanded={rootExpanded} />
+        <span style={{ marginLeft: 6 }}>{t('fileTree.project')}</span>
       </div>
 
-      {node.isDir && isExpanded && node.children && (
-        <div className="relative">
-          <div
-            className="absolute top-0 bottom-0 w-px bg-(--border)"
-            style={{ left: `${lineLeft}px`, zIndex: 1 }}
-          />
-
-          {Object.values(node.children)
-            .sort((a, b) => {
-              if (a.isDir && !b.isDir) return -1;
-              if (!a.isDir && b.isDir) return 1;
-              return a.name.localeCompare(b.name);
-            })
-            .map((child) => (
-              <FileTreeNode
-                key={child.path}
-                node={child}
-                level={level + 1}
-                expandedFolders={expandedFolders}
-                toggleFolder={toggleFolder}
-                selectedPath={selectedPath}
-                onSelect={onSelect}
-              />
-            ))}
-        </div>
+      {rootExpanded && (
+        <FileTreeNode
+          node={tree}
+          level={0}
+          expandedFolders={expandedFolders}
+          toggleFolder={toggleFolder}
+          selectedPath={selectedPath}
+          onSelect={onSelect}
+        />
       )}
     </div>
   );
@@ -247,56 +94,16 @@ const FileTreeNode: React.FC<{
 
 export const FileTree: React.FC = () => {
   const { t } = useTranslation();
-  const { graphData, selectedPath, isLoading, error, setSelectedNode, setSelectedPath } =
-    useGraphStore();
-  const { openProject } = useConnectionStore();
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
-
-  const toggleFolder = (path: string, currentlyExpanded: boolean) => {
-    setExpandedFolders((prev) => ({ ...prev, [path]: !currentlyExpanded }));
-  };
-
-  const handleSelect = (node: TreeNode) => {
-    setSelectedPath(node.path);
-    if (node.nodeData) {
-      setSelectedNode(node.nodeData);
-    } else {
-      setSelectedNode(null);
-    }
-  };
-
-  const tree = useMemo(() => {
-    if (!graphData) return null;
-
-    const root: TreeNode = { name: 'root', path: '', isDir: true, children: {} };
-
-    const files = graphData.nodes.filter((n) => n.type === 'file');
-    files.forEach((file) => {
-      let relPath = file.id.replace(graphData.projectRoot.replace(/\\/g, '/'), '');
-      if (relPath.startsWith('/')) relPath = relPath.substring(1);
-
-      const parts = relPath.split('/');
-      let current = root;
-
-      parts.forEach((part, idx) => {
-        const isLast = idx === parts.length - 1;
-        if (!current.children) current.children = {};
-
-        if (!current.children[part]) {
-          const path = parts.slice(0, idx + 1).join('/');
-          current.children[part] = {
-            name: part,
-            path,
-            isDir: !isLast,
-            nodeData: isLast ? file : undefined,
-          };
-        }
-        current = current.children[part];
-      });
-    });
-
-    return root;
-  }, [graphData]);
+  const {
+    selectedPath,
+    isLoading,
+    error,
+    openProject,
+    expandedFolders,
+    toggleFolder,
+    handleSelect,
+    tree,
+  } = useFileTreeState();
 
   return (
     <div
@@ -325,70 +132,17 @@ export const FileTree: React.FC = () => {
         className="sidebar-scroll"
       >
         {error ? (
-          <div
-            style={{
-              color: 'var(--red)',
-              fontSize: 13,
-              padding: '12px',
-              background: 'rgba(238, 0, 0, 0.1)',
-              borderRadius: 6,
-            }}
-          >
-            {error}
-          </div>
+          <ErrorBanner error={error} />
         ) : tree ? (
-          <div style={{ paddingBottom: 20 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '6px 12px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                color: 'var(--t2)',
-                marginBottom: '8px',
-              }}
-              onClick={() => toggleFolder('root_folder', expandedFolders['root_folder'] !== false)}
-            >
-              <ChevronIcon expanded={expandedFolders['root_folder'] !== false} />
-              <span style={{ marginLeft: 6 }}>{t('fileTree.project')}</span>
-            </div>
-
-            {expandedFolders['root_folder'] !== false && (
-              <FileTreeNode
-                node={tree}
-                level={0}
-                expandedFolders={expandedFolders}
-                toggleFolder={toggleFolder}
-                selectedPath={selectedPath}
-                onSelect={handleSelect}
-              />
-            )}
-          </div>
+          <ProjectTree
+            tree={tree}
+            expandedFolders={expandedFolders}
+            toggleFolder={toggleFolder}
+            selectedPath={selectedPath}
+            onSelect={handleSelect}
+          />
         ) : (
-          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ color: 'var(--t2)', fontSize: 13, textAlign: 'center' }}>
-              {t('fileTree.noFolderOpen')}
-            </div>
-            <button
-              onClick={openProject}
-              disabled={isLoading}
-              className="btn-primary"
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 500,
-                textAlign: 'center',
-              }}
-            >
-              {isLoading ? t('fileTree.analyzing') : t('fileTree.openFolder')}
-            </button>
-          </div>
+          <EmptyState isLoading={isLoading} openProject={openProject} />
         )}
       </div>
     </div>

@@ -187,34 +187,49 @@ const useFollowResize = ({ containerRef, frame, framedKey, userMoved }: FollowRe
   }, [frame, containerRef, framedKey, userMoved]);
 };
 
-export const useGraphViewport = ({
-  layoutData,
-  frameKey,
-  focusNodeId,
-  frameWholeLayout,
-  reserveRight,
-}: UseGraphViewportOptions) => {
-  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const framedKey = useRef<string | null>(null);
-  const focusedId = useRef<string | null>(null);
-  // Once the person zooms or pans themselves, resizing must not yank the view back.
-  const userMoved = useRef(false);
+interface CanvasAccessArgs {
+  transformRef: MutableRefObject<ReactZoomPanPinchRef | null>;
+  containerRef: MutableRefObject<HTMLDivElement | null>;
+}
 
+/** Reads the container size and pushes transforms into the canvas. */
+const useCanvasAccess = ({ transformRef, containerRef }: CanvasAccessArgs) => {
   const measure = useCallback((): Size | null => {
     const rect = containerRef.current?.getBoundingClientRect();
     return rect && rect.width > 0 && rect.height > 0
       ? { width: rect.width, height: rect.height }
       : null;
-  }, []);
+  }, [containerRef]);
 
   /** Applies a transform and reports whether the canvas actually accepted it. */
-  const apply = useCallback((next: ViewTransform, animate: boolean): boolean => {
-    const api = transformRef.current;
-    if (!api) return false;
-    api.setTransform(next.x, next.y, next.scale, animate ? ANIMATION_MS : 0, 'easeOut');
-    return animate || Math.abs(api.instance.state.scale - next.scale) < 0.001;
-  }, []);
+  const apply = useCallback(
+    (next: ViewTransform, animate: boolean): boolean => {
+      const api = transformRef.current;
+      if (!api) return false;
+      api.setTransform(next.x, next.y, next.scale, animate ? ANIMATION_MS : 0, 'easeOut');
+      return animate || Math.abs(api.instance.state.scale - next.scale) < 0.001;
+    },
+    [transformRef]
+  );
+
+  return { measure, apply };
+};
+
+interface ViewportControlsArgs extends CanvasAccessArgs {
+  layoutData: LayoutResult | null;
+  reserveRight: number;
+  onUserZoom: () => void;
+}
+
+/** Imperative helpers (fit, focus, zoom) that push transforms into the canvas. */
+const useViewportControls = ({
+  layoutData,
+  reserveRight,
+  transformRef,
+  containerRef,
+  onUserZoom,
+}: ViewportControlsArgs) => {
+  const { measure, apply } = useCanvasAccess({ transformRef, containerRef });
 
   const fit = useCallback(
     (options: FitOptions = {}, animate = true): boolean => {
@@ -243,7 +258,7 @@ export const useGraphViewport = ({
         animate
       );
     },
-    [layoutData, measure, apply, reserveRight]
+    [layoutData, measure, apply, reserveRight, transformRef]
   );
 
   const zoomBy = useCallback(
@@ -252,11 +267,40 @@ export const useGraphViewport = ({
       const container = measure();
       if (!api || !container) return;
 
-      userMoved.current = true;
+      onUserZoom();
       apply(computeZoomTransform(container, api.instance.state, factor, reserveRight), true);
     },
-    [measure, apply, reserveRight]
+    [measure, apply, reserveRight, transformRef, onUserZoom]
   );
+
+  return { fit, focusNode, zoomBy };
+};
+
+export const useGraphViewport = ({
+  layoutData,
+  frameKey,
+  focusNodeId,
+  frameWholeLayout,
+  reserveRight,
+}: UseGraphViewportOptions) => {
+  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const framedKey = useRef<string | null>(null);
+  const focusedId = useRef<string | null>(null);
+  // Once the person zooms or pans themselves, resizing must not yank the view back.
+  const userMoved = useRef(false);
+
+  const markUserMoved = useCallback(() => {
+    userMoved.current = true;
+  }, []);
+
+  const { fit, focusNode, zoomBy } = useViewportControls({
+    layoutData,
+    reserveRight,
+    transformRef,
+    containerRef,
+    onUserZoom: markUserMoved,
+  });
 
   const fitByUser = useCallback(() => {
     userMoved.current = false;
@@ -276,10 +320,6 @@ export const useGraphViewport = ({
 
   useFrameOnChange({ layoutData, frameKey, focusNodeId, frame, framedKey, focusedId, userMoved });
   useFollowResize({ containerRef, frame, framedKey, userMoved });
-
-  const markUserMoved = useCallback(() => {
-    userMoved.current = true;
-  }, []);
 
   return { transformRef, containerRef, fit: fitByUser, zoomBy, markUserMoved };
 };

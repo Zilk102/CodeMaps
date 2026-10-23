@@ -22,6 +22,36 @@ export const resolveVisibleNodeId = (
   return currentId || null;
 };
 
+export const computeGraphInsights = (
+  graphData: GraphData,
+  layoutData: LayoutResult,
+  selectedNode: GraphNode | null
+) => {
+  const selectedVisibleId = resolveVisibleNodeId(selectedNode, layoutData.nodes, graphData);
+  const connectedEdges = selectedVisibleId
+    ? layoutData.edges.filter(
+        (edge) => edge.sourceId === selectedVisibleId || edge.targetId === selectedVisibleId
+      )
+    : [];
+  const relatedNodeIds = new Set<string>(selectedVisibleId ? [selectedVisibleId] : []);
+
+  connectedEdges.forEach((edge) => {
+    relatedNodeIds.add(edge.sourceId);
+    relatedNodeIds.add(edge.targetId);
+  });
+
+  const incomingCount = connectedEdges.filter((edge) => edge.targetId === selectedVisibleId).length;
+  const outgoingCount = connectedEdges.filter((edge) => edge.sourceId === selectedVisibleId).length;
+
+  return {
+    selectedVisibleId,
+    connectedEdges,
+    relatedNodeIds,
+    incomingCount,
+    outgoingCount,
+  };
+};
+
 export const useGraphLayout = (
   graphData: GraphData | null,
   filters: GraphFilters,
@@ -57,39 +87,11 @@ export const useGraphLayout = (
     };
   }, [graphData, filters, layoutMode, selectedNode?.id, setLayoutData]);
 
-  const graphInsights = useMemo(() => {
-    if (!graphData || !layoutData) {
-      return null;
-    }
-
-    const selectedVisibleId = resolveVisibleNodeId(selectedNode, layoutData.nodes, graphData);
-    const connectedEdges = selectedVisibleId
-      ? layoutData.edges.filter(
-          (edge) => edge.sourceId === selectedVisibleId || edge.targetId === selectedVisibleId
-        )
-      : [];
-    const relatedNodeIds = new Set<string>(selectedVisibleId ? [selectedVisibleId] : []);
-
-    connectedEdges.forEach((edge) => {
-      relatedNodeIds.add(edge.sourceId);
-      relatedNodeIds.add(edge.targetId);
-    });
-
-    const incomingCount = connectedEdges.filter(
-      (edge) => edge.targetId === selectedVisibleId
-    ).length;
-    const outgoingCount = connectedEdges.filter(
-      (edge) => edge.sourceId === selectedVisibleId
-    ).length;
-
-    return {
-      selectedVisibleId,
-      connectedEdges,
-      relatedNodeIds,
-      incomingCount,
-      outgoingCount,
-    };
-  }, [graphData, layoutData, selectedNode]);
+  const graphInsights = useMemo(
+    () =>
+      graphData && layoutData ? computeGraphInsights(graphData, layoutData, selectedNode) : null,
+    [graphData, layoutData, selectedNode]
+  );
 
   return { isCalculating, graphInsights };
 };

@@ -5,52 +5,63 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
+export interface TreeFilters {
+  showDirectories: boolean;
+  showFiles: boolean;
+  showFunctions: boolean;
+  showClasses: boolean;
+  showADR: boolean;
+}
+
+const FILTER_BY_TYPE: Record<string, keyof TreeFilters> = {
+  directory: 'showDirectories',
+  file: 'showFiles',
+  function: 'showFunctions',
+  class: 'showClasses',
+  adr: 'showADR',
+};
+
+/** True when the node's type is switched off by the visibility filters. */
+export const isNodeHidden = (node: GraphNode, filters: TreeFilters): boolean => {
+  const key = FILTER_BY_TYPE[node.type];
+  return key !== undefined && !filters[key];
+};
+
+/** True when following parentId from this node leads back to itself or loops. */
+export const hasParentCycle = (node: GraphNode, nodes: GraphNode[]): boolean => {
+  let curr: string | undefined = node.parentId;
+  const visited = new Set<string>();
+  while (curr) {
+    if (curr === node.id || visited.has(curr)) return true;
+    visited.add(curr);
+    const currId: string = curr;
+    curr = nodes.find((n) => n.id === currId)?.parentId;
+  }
+  return false;
+};
+
+const buildCleanParentMap = (nodes: GraphNode[]): Map<string, string> => {
+  const cleanParentMap = new Map<string, string>();
+  nodes.forEach((node) => {
+    if (node.parentId && !hasParentCycle(node, nodes)) {
+      cleanParentMap.set(node.id, node.parentId);
+    }
+  });
+  return cleanParentMap;
+};
+
 export const buildTree = (
   graphData: { nodes: GraphNode[]; links: GraphLink[] } | null,
-  filters: {
-    showDirectories: boolean;
-    showFiles: boolean;
-    showFunctions: boolean;
-    showClasses: boolean;
-    showADR: boolean;
-  }
+  filters: TreeFilters
 ): TreeNode[] => {
   if (!graphData) return [];
 
-  const cleanParentMap = new Map<string, string>();
-  graphData.nodes.forEach((node) => {
-    if (node.parentId) {
-      let curr: string | undefined = node.parentId;
-      let hasCycle = false;
-      const visited = new Set<string>();
-      while (curr) {
-        if (curr === node.id || visited.has(curr)) {
-          hasCycle = true;
-          break;
-        }
-        visited.add(curr);
-        // Find parent of curr
-        const parentNode = graphData.nodes.find((n) => n.id === curr);
-        curr = parentNode?.parentId;
-      }
-      if (!hasCycle) {
-        cleanParentMap.set(node.id, node.parentId);
-      }
-    }
-  });
+  const cleanParentMap = buildCleanParentMap(graphData.nodes);
 
-  // 3. Build tree from flat list
+  // Build tree from flat list, applying visibility filters during construction
   const nodeMap = new Map<string, TreeNode>();
   graphData.nodes.forEach((node) => {
-    // Apply visibility filters right during tree construction
-    let isHidden = false;
-    if (node.type === 'directory' && !filters.showDirectories) isHidden = true;
-    if (node.type === 'file' && !filters.showFiles) isHidden = true;
-    if (node.type === 'function' && !filters.showFunctions) isHidden = true;
-    if (node.type === 'class' && !filters.showClasses) isHidden = true;
-    if (node.type === 'adr' && !filters.showADR) isHidden = true;
-
-    if (!isHidden) {
+    if (!isNodeHidden(node, filters)) {
       nodeMap.set(node.id, { data: node, children: [] });
     }
   });

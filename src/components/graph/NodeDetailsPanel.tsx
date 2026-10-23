@@ -47,6 +47,50 @@ const NeighbourList: React.FC<{
   </div>
 );
 
+const NodeHeader: React.FC<{ node: GraphNode; onClose: () => void }> = ({ node, onClose }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className="truncate text-[14px] font-semibold text-(--t0)" title={node.label}>
+          {node.label}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-(--t3)">
+          <span className="rounded-full bg-(--bg2) px-2 py-0.5">
+            {t(`graphView.nodeTypes.${node.type}`, { defaultValue: node.type })}
+          </span>
+          {node.language && <span>{node.language}</span>}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="text-(--t3) hover:text-(--t0)"
+        onClick={onClose}
+        aria-label={t('graphView.details.close')}
+      >
+        ✕
+      </button>
+    </div>
+  );
+};
+
+const ExportsList: React.FC<{ names: string[] }> = ({ names }) => {
+  const { t } = useTranslation();
+  if (names.length === 0) return null;
+  return (
+    <div>
+      <div className="section-label mb-1.5">{t('graphView.details.exports')}</div>
+      <div className="flex flex-wrap gap-1">
+        {names.map((name) => (
+          <span key={name} className="rounded bg-(--bg2) px-1.5 py-0.5 font-mono text-[11px]">
+            {name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   graph,
   node,
@@ -58,27 +102,7 @@ export const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
 
   return (
     <div className="surface-card pointer-events-auto flex min-h-0 w-[320px] flex-col gap-3 overflow-y-auto p-4 text-[12px] text-(--t1) shadow-lg">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-[14px] font-semibold text-(--t0)" title={node.label}>
-            {node.label}
-          </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-(--t3)">
-            <span className="rounded-full bg-(--bg2) px-2 py-0.5">
-              {t(`graphView.nodeTypes.${node.type}`, { defaultValue: node.type })}
-            </span>
-            {node.language && <span>{node.language}</span>}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="text-(--t3) hover:text-(--t0)"
-          onClick={onClose}
-          aria-label={t('graphView.details.close')}
-        >
-          ✕
-        </button>
-      </div>
+      <NodeHeader node={node} onClose={onClose} />
 
       <div className="break-all font-mono text-[11px] text-(--t2)">{summary.relativePath}</div>
 
@@ -88,18 +112,7 @@ export const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
         </div>
       )}
 
-      {summary.exportNames.length > 0 && (
-        <div>
-          <div className="section-label mb-1.5">{t('graphView.details.exports')}</div>
-          <div className="flex flex-wrap gap-1">
-            {summary.exportNames.map((name) => (
-              <span key={name} className="rounded bg-(--bg2) px-1.5 py-0.5 font-mono text-[11px]">
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <ExportsList names={summary.exportNames} />
 
       <NeighbourList
         title={t('graphView.details.usedBy')}

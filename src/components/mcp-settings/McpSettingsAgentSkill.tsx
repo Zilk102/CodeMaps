@@ -8,11 +8,8 @@ interface Props {
   copyText: (key: string, text: string) => void;
 }
 
-export const McpSettingsAgentSkill: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
-  const { t } = useTranslation();
-
-  const skillSnippet = useMemo(
-    () => `---
+/** Agent skill template; `__ENDPOINT__` is replaced with the live MCP endpoint. */
+const SKILL_TEMPLATE = `---
 name: "codemaps-agent-autopilot"
 description: "Uses CodeMaps MCP as the default architectural brain for project understanding, debugging, refactors, reviews, and migration campaigns. Invoke whenever CodeMaps is connected."
 ---
@@ -29,7 +26,7 @@ Do not wait until after file inspection to use it.
 ## MCP Server
 
 - Server name: \`codemaps\`
-- MCP endpoint: \`${endpoint}\`
+- MCP endpoint: \`__ENDPOINT__\`
 
 ## Default Flow
 
@@ -83,9 +80,15 @@ The agent should behave like it has a project-aware architectural map:
 - choose the right scope automatically,
 - avoid blind file-by-file wandering,
 - treat CodeMaps as the default brain for project structure and impact analysis.
-`,
-    [endpoint]
-  );
+`;
+
+export const buildSkillSnippet = (endpoint: string): string =>
+  SKILL_TEMPLATE.split('__ENDPOINT__').join(endpoint);
+
+export const McpSettingsAgentSkill: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
+  const { t } = useTranslation();
+
+  const skillSnippet = useMemo(() => buildSkillSnippet(endpoint), [endpoint]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

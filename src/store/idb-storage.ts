@@ -1,22 +1,27 @@
-export function getIDBStorage(dbName: string, storeName: string) {
-  // Fallback to 'readonly' and 'readwrite' string literals if IDBTransactionMode is not available globally
-  type TransactionMode = 'readonly' | 'readwrite';
+type TransactionMode = 'readonly' | 'readwrite';
 
+const openDatabase = (dbName: string, storeName: string): Promise<IDBDatabase> =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(storeName);
+    };
+  });
+
+const requestToPromise = <T>(request: IDBRequest, map: (result: unknown) => T): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(map(request.result));
+  });
+
+export function getIDBStorage(dbName: string, storeName: string) {
   let dbInstance: IDBDatabase | null = null;
 
-  const initDB = (): Promise<IDBDatabase> => {
-    if (dbInstance) return Promise.resolve(dbInstance);
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(dbName, 1);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        dbInstance = request.result;
-        resolve(dbInstance);
-      };
-      request.onupgradeneeded = () => {
-        request.result.createObjectStore(storeName);
-      };
-    });
+  const initDB = async (): Promise<IDBDatabase> => {
+    if (!dbInstance) dbInstance = await openDatabase(dbName, storeName);
+    return dbInstance;
   };
 
   const getStore = async (mode: TransactionMode) => {
@@ -39,29 +44,20 @@ export function getIDBStorage(dbName: string, storeName: string) {
     getItem: (name: string): Promise<string | null> =>
       tolerant(async () => {
         const store = await getStore('readonly');
-        return new Promise<string | null>((resolve, reject) => {
-          const request = store.get(name);
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => resolve(request.result ?? null);
-        });
+        return requestToPromise(
+          store.get(name),
+          (result) => (result as string | undefined) ?? null
+        );
       }, null),
     setItem: (name: string, value: string): Promise<void> =>
       tolerant(async () => {
         const store = await getStore('readwrite');
-        return new Promise<void>((resolve, reject) => {
-          const request = store.put(value, name);
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => resolve();
-        });
+        return requestToPromise(store.put(value, name), () => undefined);
       }, undefined),
     removeItem: (name: string): Promise<void> =>
       tolerant(async () => {
         const store = await getStore('readwrite');
-        return new Promise<void>((resolve, reject) => {
-          const request = store.delete(name);
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => resolve();
-        });
+        return requestToPromise(store.delete(name), () => undefined);
       }, undefined),
   };
 }
