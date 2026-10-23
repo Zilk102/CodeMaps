@@ -6,9 +6,13 @@ import type { LanguageFactsWithDeclarations } from './types';
 /** Shared state every AST-walking facts extractor fills in. */
 export class FactsAccumulator {
   readonly imports: ImportRecord[] = [];
-  readonly entities = new EntityCollector();
+  readonly entities: EntityCollector;
   private readonly usedNames = new BoundedSet<string>(MAX_USED_NAMES);
   private readonly qualifiedUses = new BoundedSet<QualifiedUse>(MAX_QUALIFIED_USES);
+
+  constructor(uniqueEntityNames = false) {
+    this.entities = new EntityCollector(uniqueEntityNames);
+  }
 
   /** Records an identifier-like node as a used name (single characters are noise). */
   noteIdentifier(node: Node): void {

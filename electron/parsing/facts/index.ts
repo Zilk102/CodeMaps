@@ -1,7 +1,12 @@
 import type { Node } from 'web-tree-sitter';
+import { extractCppFacts } from './cppFacts';
+import { extractCSharpFacts } from './csharpFacts';
 import { extractGoFacts } from './goFacts';
 import { extractJavaFacts } from './javaFacts';
+import { extractKotlinFacts } from './kotlinFacts';
+import { extractPhpFacts } from './phpFacts';
 import { extractPythonFacts } from './pythonFacts';
+import { extractRubyFacts } from './rubyFacts';
 import { extractRustFacts } from './rustFacts';
 import type { LanguageFacts, LanguageFactsWithDeclarations } from './types';
 
@@ -10,6 +15,11 @@ const EXTRACTORS: Record<string, (root: Node) => LanguageFactsWithDeclarations> 
   python: extractPythonFacts,
   java: extractJavaFacts,
   rust: extractRustFacts,
+  cpp: extractCppFacts,
+  c_sharp: extractCSharpFacts,
+  kotlin: extractKotlinFacts,
+  php: extractPhpFacts,
+  ruby: extractRubyFacts,
 };
 
 /** Languages whose imports are resolved against the whole project after indexing. */
