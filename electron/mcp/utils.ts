@@ -161,13 +161,16 @@ const relativeToRoot = (root: string | undefined, id: string) => {
  * the project root (optionally with `./` and a `#symbol`) is mapped to the id the graph uses;
  * anything else is returned unchanged so the caller reports it as not found.
  */
+/** Drive-letter paths are absolute on every platform; graph ids use them on Windows. */
+const isAbsoluteReference = (value: string) => path.isAbsolute(value) || /^[A-Za-z]:\//.test(value);
+
 export const resolveNodeReference = (graph: GraphData, reference: string): string => {
   const normalized = reference.replace(/\\/g, '/');
   if (graph.nodes.some((node) => node.id === normalized)) return normalized;
 
   const root = (graph.projectRoot ?? '').replace(/\/$/, '');
   const relative = normalized.replace(/^\.\//, '');
-  if (!root || path.isAbsolute(relative)) return normalized;
+  if (!root || isAbsoluteReference(relative)) return normalized;
 
   const candidate = `${root}/${relative}`;
   if (graph.nodes.some((node) => node.id === candidate)) return candidate;
@@ -178,7 +181,7 @@ export const resolveNodeReference = (graph: GraphData, reference: string): strin
 /** The same mapping for a file that may not be a graph node (for tools that read the file). */
 export const resolveProjectFilePath = (graph: GraphData, filePath: string): string => {
   const normalized = filePath.replace(/\\/g, '/');
-  if (path.isAbsolute(normalized) || !graph.projectRoot) return normalized;
+  if (isAbsoluteReference(normalized) || !graph.projectRoot) return normalized;
   return `${graph.projectRoot.replace(/\/$/, '')}/${normalized.replace(/^\.\//, '')}`;
 };
 
