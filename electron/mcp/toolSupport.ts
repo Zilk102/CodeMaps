@@ -1,6 +1,6 @@
 import { GraphData } from '../store';
 import { compactPayload, CompactOptions } from './compactPayload';
-import { createTextContent } from './utils';
+import { createTextContent, resolveNodeReference } from './utils';
 
 export const okToolResult = (payload: unknown) => ({
   content: [
@@ -87,4 +87,38 @@ export const requireProjectRoot = (graph: GraphData, action: string) => {
   }
 
   return graph.projectRoot;
+};
+
+/**
+ * Resolves a node reference (id, absolute path or project-relative path) to a graph node, or
+ * returns the standard "Node not found" tool error.
+ */
+export const lookupNode = (graph: GraphData, reference: string) => {
+  const nodeId = resolveNodeReference(graph, reference);
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) {
+    return {
+      nodeId,
+      error: errorToolResult(
+        `Node not found: ${nodeId}. Pass the node id from the graph, an absolute path, or a path relative to the project root.`
+      ),
+    };
+  }
+  return { nodeId, node };
+};
+
+/** Runs `run` against a service that needs `init()` before use and `close()` afterwards. */
+export const withInitializedService = async <
+  S extends { init(): Promise<unknown>; close(): Promise<unknown> },
+  R,
+>(
+  service: S,
+  run: (service: S) => Promise<R> | R
+): Promise<R> => {
+  await service.init();
+  try {
+    return await run(service);
+  } finally {
+    await service.close();
+  }
 };

@@ -6,9 +6,26 @@ import { GitService } from '../services/GitService';
 import { oracle } from '../oracle';
 import { ensureGraphLoaded, resolveNodeReference, resolveProjectFilePath } from './utils';
 import { McpToolContext } from './toolContext';
+import {
+  boundedInt,
+  includeClassificationsField,
+  optionalBoolean,
+  optionalString,
+} from './toolSchemas';
 import { okStatusToolResult } from './toolSupport';
 
 export function registerAnalysisTools(server: McpServer, context: McpToolContext) {
+  registerHealthScore(server, context);
+  registerArchitectureOverview(server, context);
+  registerDetectPatterns(server, context);
+  registerSecurityScan(server, context);
+  registerSearchSignatures(server, context);
+  registerDecomposition(server);
+  registerSemanticSkeleton(server);
+  registerValidateChanges(server, context);
+}
+
+function registerHealthScore(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'get_health_score',
     {
@@ -22,7 +39,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       return okStatusToolResult({ health });
     }
   );
+}
 
+function registerArchitectureOverview(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'get_architecture_overview',
     {
@@ -30,10 +49,7 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       description:
         'Return architectural layer classification, cross-layer dependencies and boundary violations',
       inputSchema: {
-        includeClassifications: z
-          .boolean()
-          .optional()
-          .describe('When true, include per-node layer classifications'),
+        includeClassifications: includeClassificationsField,
       },
     },
     async ({ includeClassifications = false }: { includeClassifications?: boolean }) => {
@@ -51,20 +67,16 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       });
     }
   );
+}
 
+function registerDetectPatterns(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'detect_patterns',
     {
       title: 'Detect Patterns',
       description: 'Detect architectural hotspots and anti-pattern candidates in the graph',
       inputSchema: {
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .describe('Optional maximum number of patterns to return'),
+        limit: boundedInt(100, 'Optional maximum number of patterns to return'),
       },
     },
     async ({ limit = 20 }: { limit?: number }) => {
@@ -76,20 +88,16 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       });
     }
   );
+}
 
+function registerSecurityScan(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'run_security_scan',
     {
       title: 'Run Security Scan',
       description: 'Scan indexed source files for high-risk patterns and suspicious artifacts',
       inputSchema: {
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(500)
-          .optional()
-          .describe('Optional maximum number of findings to return'),
+        limit: boundedInt(500, 'Optional maximum number of findings to return'),
       },
     },
     async ({ limit = 100 }: { limit?: number }) => {
@@ -101,7 +109,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       });
     }
   );
+}
 
+function registerSearchSignatures(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'search_signatures',
     {
@@ -109,23 +119,13 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       description: 'Search declaration-like code signatures across indexed source files',
       inputSchema: {
         query: z.string().describe('Text or regex pattern to search in declaration signatures'),
-        type: z
-          .string()
-          .optional()
-          .describe('Optional symbol type filter such as function or class'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .describe('Maximum number of matches to return'),
-        caseSensitive: z.boolean().optional().describe('Enable case-sensitive matching'),
-        regex: z.boolean().optional().describe('Treat query as a regular expression'),
-        filePath: z
-          .string()
-          .optional()
-          .describe('Only search files whose path contains this text, e.g. "moduleQualityMetrics"'),
+        type: optionalString('Optional symbol type filter such as function or class'),
+        limit: boundedInt(100, 'Maximum number of matches to return'),
+        caseSensitive: optionalBoolean('Enable case-sensitive matching'),
+        regex: optionalBoolean('Treat query as a regular expression'),
+        filePath: optionalString(
+          'Only search files whose path contains this text, e.g. "moduleQualityMetrics"'
+        ),
       },
     },
     async ({
@@ -154,7 +154,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       return okStatusToolResult(result);
     }
   );
+}
 
+function registerDecomposition(server: McpServer) {
   server.registerTool(
     'analyze_decomposition',
     {
@@ -166,19 +168,10 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
           .array(z.string())
           .optional()
           .describe('Optional array of specific node IDs to focus the decomposition analysis on.'),
-        filePath: z
-          .string()
-          .optional()
-          .describe(
-            'Optional path of one file to plan a split for (absolute, or relative to the project root).'
-          ),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .describe('Maximum number of refactoring candidates to return (default 12).'),
+        filePath: optionalString(
+          'Optional path of one file to plan a split for (absolute, or relative to the project root).'
+        ),
+        limit: boundedInt(50, 'Maximum number of refactoring candidates to return (default 12).'),
       },
     },
     async ({
@@ -213,7 +206,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       return okStatusToolResult({ ...result, splitPlans });
     }
   );
+}
 
+function registerSemanticSkeleton(server: McpServer) {
   server.registerTool(
     'get_semantic_skeleton',
     {
@@ -243,7 +238,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       }
     }
   );
+}
 
+function registerValidateChanges(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'validate_architecture_changes',
     {
@@ -255,10 +252,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
           .array(z.string())
           .optional()
           .describe('Files to validate (absolute or project-relative). Overrides git detection.'),
-        baseRef: z
-          .string()
-          .optional()
-          .describe('Git revision to diff against (default HEAD, i.e. uncommitted changes).'),
+        baseRef: optionalString(
+          'Git revision to diff against (default HEAD, i.e. uncommitted changes).'
+        ),
         scope: z
           .enum(['auto', 'changed', 'project'])
           .optional()
@@ -281,12 +277,7 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       const patterns = context.patternDetectionAnalyzer.analyze(graph);
 
       const root = graph.projectRoot ?? '';
-      let resolved: string[] = [];
-      if (scope !== 'project') {
-        resolved = changedFiles?.length
-          ? changedFiles.map((file) => resolveProjectFile(root, file))
-          : detectChangedFiles(root, baseRef);
-      }
+      const resolved = scope === 'project' ? [] : filesToValidate(root, changedFiles, baseRef);
 
       const result = validateChanges({
         patterns: patterns.patterns,
@@ -301,6 +292,11 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
     }
   );
 }
+
+const filesToValidate = (root: string, changedFiles: string[] | undefined, baseRef?: string) =>
+  changedFiles?.length
+    ? changedFiles.map((file) => resolveProjectFile(root, file))
+    : detectChangedFiles(root, baseRef);
 
 const resolveProjectFile = (root: string, file: string) => {
   const normalized = file.replace(/\\/g, '/');
