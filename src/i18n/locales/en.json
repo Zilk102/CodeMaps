@@ -451,6 +451,9 @@
     "decomposition": "Decomposition Wizard",
     "decompositionEyebrow": "Monolith Refactoring",
     "decompositionDescription": "Find and split God classes, clones, and oversized modules.",
+    "duplicates": "Duplicates",
+    "duplicatesEyebrow": "Copy-pasted code",
+    "duplicatesDescription": "Finds copy-pasted code and suggests how to merge it.",
     "prImpact": "PR Impact",
     "prImpactEyebrow": "Branch review",
     "prImpactDescription": "Builds risk and blast-radius context between base and head branches.",
@@ -463,7 +466,32 @@
       "blastDescription": "Assess which nodes and dependencies are affected by a change in a file, class, or function.",
       "prDescription": "Review branch impact before code review, release, or merge.",
       "heatmapDescription": "Find high-churn files to guide stabilization and refactoring work.",
-      "decompositionActionDescription": "Analyze God classes, tangled methods, and architectural defects to safely split them."
+      "decompositionActionDescription": "Analyze God classes, tangled methods, and architectural defects to safely split them.",
+      "cleanup": "Cleanup",
+      "duplicatesDescription": "Find copy-pasted code and see where to extract a shared function or module."
+    }
+  },
+  "duplicates": {
+    "title": "Duplicate Code",
+    "hint": "Scans the project for identical blocks of code.",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing...",
+    "error": "Duplicate analysis failed",
+    "groupsCount": "Duplicate groups",
+    "duplicatedLines": "Duplicated lines",
+    "empty": "No duplicates found.",
+    "omitted": "{{count}} more groups not shown",
+    "linesTimesCopies": "{{lines}} lines × {{copies}} copies",
+    "reason": "Reason",
+    "targetFile": "Suggested location",
+    "differences": "Differences between copies",
+    "test": "test",
+    "selectCopy": "Select this file in the graph",
+    "notInGraph": "This file is not in the graph",
+    "actions": {
+      "extract_function": "Extract Function",
+      "extract_shared_module": "Extract Shared Module",
+      "merge_into_one": "Merge Into One"
     }
   },
   "decomposition": {

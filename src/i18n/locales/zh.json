@@ -425,6 +425,9 @@
   "tools": {
     "blastRadius": "爆炸半径",
     "heatmap": "活动热图",
+    "duplicates": "重复代码",
+    "duplicatesEyebrow": "复制粘贴的代码",
+    "duplicatesDescription": "查找复制粘贴的代码，并建议如何合并。",
     "prImpact": "PR 影响",
     "workspace": "工作区",
     "workspaceEyebrow": "分析工作区",
@@ -455,7 +458,32 @@
       "blastDescription": "评估文件、类或函数的变更会影响哪些节点和依赖关系。",
       "prDescription": "在代码审查、发布或合并之前审查分支影响。",
       "heatmapDescription": "找出高频变更的文件，为稳定性改进和重构工作提供依据。",
-      "decompositionActionDescription": "分析 God 类、纠缠的方法和架构缺陷，以便安全地拆分它们。"
+      "decompositionActionDescription": "分析 God 类、纠缠的方法和架构缺陷，以便安全地拆分它们。",
+      "cleanup": "代码清理",
+      "duplicatesDescription": "查找复制粘贴的代码，了解在哪里提取公共函数或模块。"
+    }
+  },
+  "duplicates": {
+    "title": "重复代码",
+    "hint": "扫描项目中完全相同的代码块。",
+    "analyze": "分析",
+    "analyzing": "分析中...",
+    "error": "重复代码分析失败",
+    "groupsCount": "重复组数",
+    "duplicatedLines": "重复行数",
+    "empty": "未发现重复代码。",
+    "omitted": "另有 {{count}} 组未显示",
+    "linesTimesCopies": "{{lines}} 行 × {{copies}} 份",
+    "reason": "原因",
+    "targetFile": "建议位置",
+    "differences": "副本之间的差异",
+    "test": "测试",
+    "selectCopy": "在图中选中此文件",
+    "notInGraph": "此文件不在图中",
+    "actions": {
+      "extract_function": "提取函数",
+      "extract_shared_module": "提取公共模块",
+      "merge_into_one": "合并为一个"
     }
   },
   "decomposition": {

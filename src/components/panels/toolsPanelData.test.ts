@@ -17,6 +17,7 @@ describe('buildTabs', () => {
       'blast',
       'heatmap',
       'decomposition',
+      'duplicates',
       'pr',
     ]);
     expect(tabs[0]).toEqual({
@@ -36,13 +37,13 @@ describe('buildTabs', () => {
 
 describe('buildScenarioCards / buildWorkflowSteps', () => {
   it('use the overview order', () => {
-    const ids = ['blast', 'decomposition', 'pr', 'heatmap'];
+    const ids = ['blast', 'decomposition', 'duplicates', 'pr', 'heatmap'];
     expect(buildScenarioCards(t).map((c) => c.id)).toEqual(ids);
     expect(buildWorkflowSteps(t).map((s) => s.id)).toEqual(ids);
   });
 
   it('carry badge and quick description', () => {
-    const pr = buildScenarioCards(t)[2];
+    const pr = buildScenarioCards(t)[3];
     expect(pr).toEqual({
       id: 'pr',
       title: 'T:tools.prImpact',

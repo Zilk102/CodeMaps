@@ -1,4 +1,4 @@
-export type WorkspaceTab = 'overview' | 'blast' | 'heatmap' | 'pr' | 'decomposition';
+export type WorkspaceTab = 'overview' | 'blast' | 'heatmap' | 'pr' | 'decomposition' | 'duplicates';
 export type ToolTab = Exclude<WorkspaceTab, 'overview'>;
 
 type Translate = (key: string) => string;
@@ -57,6 +57,14 @@ const DECOMPOSITION: ToolDefinition = {
   badgeKey: 'tools.quickActions.refactoring',
   quickDescriptionKey: 'tools.quickActions.decompositionActionDescription',
 };
+const DUPLICATES: ToolDefinition = {
+  id: 'duplicates',
+  nameKey: 'tools.duplicates',
+  eyebrowKey: 'tools.duplicatesEyebrow',
+  descriptionKey: 'tools.duplicatesDescription',
+  badgeKey: 'tools.quickActions.cleanup',
+  quickDescriptionKey: 'tools.quickActions.duplicatesDescription',
+};
 const PR: ToolDefinition = {
   id: 'pr',
   nameKey: 'tools.prImpact',
@@ -67,9 +75,9 @@ const PR: ToolDefinition = {
 };
 
 /** Order of the tool tabs after the overview tab. */
-const TAB_ORDER: ToolDefinition[] = [BLAST, HEATMAP, DECOMPOSITION, PR];
+const TAB_ORDER: ToolDefinition[] = [BLAST, HEATMAP, DECOMPOSITION, DUPLICATES, PR];
 /** Order of the cards and guide steps on the overview tab. */
-const SCENARIO_ORDER: ToolDefinition[] = [BLAST, DECOMPOSITION, PR, HEATMAP];
+const SCENARIO_ORDER: ToolDefinition[] = [BLAST, DECOMPOSITION, DUPLICATES, PR, HEATMAP];
 
 export function buildTabs(t: Translate): TabMeta[] {
   return [

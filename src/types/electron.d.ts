@@ -1,6 +1,7 @@
 // Global types for Electron API exposed via preload.ts
 
 import type { GraphData } from './graph';
+import type { DuplicatesResponse } from './duplicates';
 
 export interface UpdateState {
   checking: boolean;
@@ -159,6 +160,9 @@ export interface ElectronAPI {
     };
     error?: string;
   }>;
+
+  // Duplicate code finder
+  findDuplicates?: (projectPath: string, limit?: number) => Promise<DuplicatesResponse>;
 
   // Activity Heatmap
   analyzeActivityHeatmap: (

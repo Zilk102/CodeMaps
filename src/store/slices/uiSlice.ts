@@ -1,17 +1,18 @@
 import { StateCreator } from 'zustand';
 import type { LayoutResult } from '../../utils/layoutEngine';
+import type { WorkspaceTab } from '../../components/panels/toolsPanelData';
 
 export interface UISlice {
   layoutData: LayoutResult | null;
   isMcpSettingsOpen: boolean;
   isToolsPanelOpen: boolean;
-  activeTab: 'overview' | 'pr' | 'blast' | 'heatmap' | 'decomposition';
+  activeTab: WorkspaceTab;
   sidebarWidth: number;
 
   setMcpSettingsOpen: (isOpen: boolean) => void;
   setLayoutData: (data: LayoutResult | null) => void;
   toggleToolsPanel: () => void;
-  setActiveTab: (tab: 'overview' | 'pr' | 'blast' | 'heatmap' | 'decomposition') => void;
+  setActiveTab: (tab: WorkspaceTab) => void;
   setSidebarWidth: (width: number) => void;
 }
 
