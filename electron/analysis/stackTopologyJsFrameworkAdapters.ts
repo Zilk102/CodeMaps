@@ -15,6 +15,29 @@ import {
   toRelativeList,
 } from './stackTopologySupport';
 
+type GraphSymbolIndex = ReturnType<typeof buildGraphSymbolIndex>;
+
+/** A relationship from the class of `sourceFile` to each symbol of `symbols` its text mentions. */
+function linkReferencedSymbols(
+  graphSymbolIndex: GraphSymbolIndex,
+  sourceFile: string,
+  sourceText: string,
+  symbols: Map<string, string>,
+  reason: string
+) {
+  return findReferencedSymbolMatches(sourceText, symbols, [sourceFile]).map(
+    ({ filePath, symbol }) =>
+      createRelationship(
+        resolveSymbolEndpoint(sourceFile, graphSymbolIndex, {
+          preferredSymbols: inferClassSymbolsForFile(sourceText),
+        }),
+        resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
+        'framework',
+        reason
+      )
+  );
+}
+
 export const nextJsAdapter: StackAdapter = {
   id: 'nextjs-topology',
   displayName: 'Next.js Topology',
@@ -190,60 +213,24 @@ export const nestJsAdapter: StackAdapter = {
       relativeContentEntries.filter((entry) => modules.includes(entry.filePath))
     );
     const controllerProviderLinks = controllers.flatMap((controllerFile) =>
-      findReferencedSymbolMatches(
+      linkReferencedSymbols(
+        graphSymbolIndex,
+        controllerFile,
         contentByRelativePath.get(controllerFile) || '',
         providerSymbols,
-        [controllerFile]
-      ).map(({ filePath, symbol }) =>
-        createRelationship(
-          resolveSymbolEndpoint(controllerFile, graphSymbolIndex, {
-            preferredSymbols: inferClassSymbolsForFile(
-              contentByRelativePath.get(controllerFile) || ''
-            ),
-          }),
-          resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-          'framework',
-          'nestjs_controller_provider'
-        )
+        'nestjs_controller_provider'
       )
     );
     const moduleSemanticLinks = modules.flatMap((moduleFile) => {
       const moduleText = contentByRelativePath.get(moduleFile) || '';
-      return [
-        ...findReferencedSymbolMatches(moduleText, controllerSymbols, [moduleFile]).map(
-          ({ filePath, symbol }) =>
-            createRelationship(
-              resolveSymbolEndpoint(moduleFile, graphSymbolIndex, {
-                preferredSymbols: inferClassSymbolsForFile(moduleText),
-              }),
-              resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-              'framework',
-              'nestjs_module_controller'
-            )
-        ),
-        ...findReferencedSymbolMatches(moduleText, providerSymbols, [moduleFile]).map(
-          ({ filePath, symbol }) =>
-            createRelationship(
-              resolveSymbolEndpoint(moduleFile, graphSymbolIndex, {
-                preferredSymbols: inferClassSymbolsForFile(moduleText),
-              }),
-              resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-              'framework',
-              'nestjs_module_provider'
-            )
-        ),
-        ...findReferencedSymbolMatches(moduleText, moduleSymbols, [moduleFile]).map(
-          ({ filePath, symbol }) =>
-            createRelationship(
-              resolveSymbolEndpoint(moduleFile, graphSymbolIndex, {
-                preferredSymbols: inferClassSymbolsForFile(moduleText),
-              }),
-              resolveSymbolEndpoint(filePath, graphSymbolIndex, { preferredSymbols: [symbol] }),
-              'framework',
-              'nestjs_module_import'
-            )
-        ),
+      const targets: Array<[reason: string, symbols: Map<string, string>]> = [
+        ['nestjs_module_controller', controllerSymbols],
+        ['nestjs_module_provider', providerSymbols],
+        ['nestjs_module_import', moduleSymbols],
       ];
+      return targets.flatMap(([reason, symbols]) =>
+        linkReferencedSymbols(graphSymbolIndex, moduleFile, moduleText, symbols, reason)
+      );
     });
     const controllerMethodLinks = controllers.flatMap((controllerFile) =>
       extractNestRouteMethods(contentByRelativePath.get(controllerFile) || '').map((methodName) =>

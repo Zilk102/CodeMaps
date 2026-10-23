@@ -1,5 +1,5 @@
 import { GraphData } from '../store/types';
-import { toStructuralNodeId, unique } from './AgentContextUtils';
+import { buildCollapsedAdjacency, toStructuralNodeId, unique } from './AgentContextUtils';
 import { DecompositionCandidate, DecompositionGuidance } from './DecompositionGuidanceService';
 import {
   BuildQualityGovernanceInput,
@@ -289,20 +289,7 @@ export function summarizeBudgetForStep(budget: QualityBudget) {
 }
 
 function buildCollapsedFileGraph(graph: GraphData) {
-  const outgoing = new Map<string, string[]>();
-  const incoming = new Map<string, string[]>();
-
-  for (const link of graph.links) {
-    const source = toStructuralNodeId(link.source);
-    const target = toStructuralNodeId(link.target);
-    if (source === target) {
-      continue;
-    }
-    outgoing.set(source, unique([...(outgoing.get(source) || []), target]));
-    incoming.set(target, unique([...(incoming.get(target) || []), source]));
-  }
-
-  return { outgoing, incoming };
+  return buildCollapsedAdjacency(graph);
 }
 
 function scoreCandidateDependencyPressure(

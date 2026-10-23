@@ -176,40 +176,42 @@ async function runFindDuplicates(rawProjectPath: unknown, limit?: number) {
   });
 }
 
+/** Initializes `service`, runs `work` with it, then closes it. */
+async function withInitializedService<
+  Service extends { init(): unknown; close(): unknown },
+  Result,
+>(service: Service, work: (service: Service) => Result | Promise<Result>): Promise<Result> {
+  await service.init();
+  const result = await work(service);
+  await service.close();
+  return result;
+}
+
 async function runPrImpact(rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) {
   const projectPath = requireProjectDirectory(rawProjectPath);
   const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
-  const analyzer = new PRImpactAnalyzer(projectPath);
-  await analyzer.init();
-  const result = await analyzer.analyzePR(
-    requireString(baseBranch, 'Base branch'),
-    requireString(headBranch, 'Head branch')
+  return withInitializedService(new PRImpactAnalyzer(projectPath), (analyzer) =>
+    analyzer.analyzePR(
+      requireString(baseBranch, 'Base branch'),
+      requireString(headBranch, 'Head branch')
+    )
   );
-  await analyzer.close();
-  return result;
 }
 
 async function runActivityHeatmap(rawProjectPath: unknown, since?: string, until?: string) {
   const projectPath = requireProjectDirectory(rawProjectPath);
   const { GitActivityService } = await import('./services/GitActivityService.js');
-  const service = new GitActivityService(projectPath);
-  await service.init();
-  const result = service.analyzeChurn(
-    since ? new Date(since) : undefined,
-    until ? new Date(until) : undefined
+  return withInitializedService(new GitActivityService(projectPath), (service) =>
+    service.analyzeChurn(since ? new Date(since) : undefined, until ? new Date(until) : undefined)
   );
-  await service.close();
-  return result;
 }
 
 async function runBlastRadius(rawProjectPath: unknown, nodeId: unknown, maxDepth?: number) {
   const projectPath = requireProjectDirectory(rawProjectPath);
   const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
-  const analyzer = new BlastRadiusV2(projectPath);
-  await analyzer.init();
-  const result = await analyzer.calculate(requireString(nodeId, 'Node id'), maxDepth || 5);
-  await analyzer.close();
-  return result;
+  return withInitializedService(new BlastRadiusV2(projectPath), (analyzer) =>
+    analyzer.calculate(requireString(nodeId, 'Node id'), maxDepth || 5)
+  );
 }
 
 async function runDecomposition(rawProjectPath: unknown, focusNodeIds?: string[]) {

@@ -11,7 +11,7 @@ import type {
 } from './ChangeContextService';
 import type { DecompositionCandidate } from './DecompositionGuidanceService';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
-import { isDesignSmellPattern, isHotspotChangeRiskPattern } from './patternPolicies';
+import { evaluateRiskRules, riskWhen, structuralRiskRules, type RiskRule } from './riskRules';
 import type { SecurityFinding } from './SecurityScanner';
 
 export function buildChangeAutopilotPlan(args: {
@@ -65,53 +65,48 @@ type ChangeRiskArgs = {
 const isWideImpactLayer = (layer: string) => layer === 'shared' || layer === 'domain';
 
 /** Applied in order; each rule yields a risk message, or null when it does not apply. */
-const CHANGE_RISK_RULES: Array<(args: ChangeRiskArgs) => string | null> = [
-  (a) =>
-    a.blastRadius.confidence === 'high' && a.blastRadius.affectedNodes.length > 0
-      ? `The change has a confirmed impact on ${a.blastRadius.affectedNodes.length} dependent nodes.`
-      : null,
-  (a) =>
-    a.targetViolations.length > 0
-      ? 'The target area is already involved in layer violations; a local fix may solidify the architectural smell.'
-      : null,
-  (a) =>
-    a.relevantPatterns.some(isHotspotChangeRiskPattern)
-      ? 'The target lies near high-coupling hotspot nodes; caution is needed with new dependencies.'
-      : null,
-  (a) =>
-    a.relevantPatterns.some(isDesignSmellPattern)
-      ? 'The target sits in an oversized or responsibility-dense module; extending it may entrench SRP violations, long/complex methods, or god-object behavior and make future decomposition harder.'
-      : null,
-  (a) =>
-    a.securityFindings.length > 0
-      ? 'There are already security findings in adjacent files; the change must be verified against data and API security.'
-      : null,
-  (a) =>
-    isWideImpactLayer(a.targetClassification.layer)
-      ? `The target is in the ${a.targetClassification.layer} layer, so the blast radius may extend far beyond the local module.`
-      : null,
-  (a) =>
-    a.runtimeContractNodes.length > 0
-      ? 'The target participates in runtime DI wiring; provider tokens, bean factories, or service registrations may expand impact beyond explicit imports.'
-      : null,
-  (a) =>
-    a.contractBindingNodes.length > 0
-      ? 'The target participates in API contract/runtime bindings; schema roots, generated clients, handlers, or servers may widen impact beyond direct imports.'
-      : null,
+const CHANGE_RISK_RULES: Array<RiskRule<ChangeRiskArgs>> = [
+  riskWhen(
+    (a) => a.blastRadius.confidence === 'high' && a.blastRadius.affectedNodes.length > 0,
+    (a) =>
+      `The change has a confirmed impact on ${a.blastRadius.affectedNodes.length} dependent nodes.`
+  ),
+  ...structuralRiskRules<ChangeRiskArgs>(
+    (a) => ({ violations: a.targetViolations, patterns: a.relevantPatterns }),
+    {
+      violations:
+        'The target area is already involved in layer violations; a local fix may solidify the architectural smell.',
+      hotspots:
+        'The target lies near high-coupling hotspot nodes; caution is needed with new dependencies.',
+      designSmells:
+        'The target sits in an oversized or responsibility-dense module; extending it may entrench SRP violations, long/complex methods, or god-object behavior and make future decomposition harder.',
+    }
+  ),
+  riskWhen(
+    (a) => a.securityFindings.length > 0,
+    'There are already security findings in adjacent files; the change must be verified against data and API security.'
+  ),
+  riskWhen(
+    (a) => isWideImpactLayer(a.targetClassification.layer),
+    (a) =>
+      `The target is in the ${a.targetClassification.layer} layer, so the blast radius may extend far beyond the local module.`
+  ),
+  riskWhen(
+    (a) => a.runtimeContractNodes.length > 0,
+    'The target participates in runtime DI wiring; provider tokens, bean factories, or service registrations may expand impact beyond explicit imports.'
+  ),
+  riskWhen(
+    (a) => a.contractBindingNodes.length > 0,
+    'The target participates in API contract/runtime bindings; schema roots, generated clients, handlers, or servers may widen impact beyond direct imports.'
+  ),
 ];
 
 export function buildChangeRisks(args: ChangeRiskArgs) {
-  const risks = CHANGE_RISK_RULES.map((rule) => rule(args)).filter(
-    (risk): risk is string => risk !== null
+  return evaluateRiskRules(
+    CHANGE_RISK_RULES,
+    args,
+    'No obvious structural red flags found, but still verify runtime contracts and reverse dependencies.'
   );
-
-  if (risks.length === 0) {
-    risks.push(
-      'No obvious structural red flags found, but still verify runtime contracts and reverse dependencies.'
-    );
-  }
-
-  return risks;
 }
 
 export function buildChangeNextSteps(args: {

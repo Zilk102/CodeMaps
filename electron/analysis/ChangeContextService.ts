@@ -134,7 +134,6 @@ export class ChangeContextService {
     graph: GraphData,
     input: PrepareChangeContextInput
   ): Promise<ChangeContextResult> {
-    const taskMode = normalizeChangeTaskMode(input.taskMode);
     const resolvedTarget = resolveTarget(graph, input.target, input.type);
     const architecture = this.architectureInsightService.analyze(graph);
     const targetClassification = resolveTargetClassification({
@@ -146,7 +145,7 @@ export class ChangeContextService {
     const evidence = await this.collectEvidence(graph, input, resolvedTarget, architecture);
 
     return this.assembleResult(graph, input, {
-      taskMode,
+      taskMode: normalizeChangeTaskMode(input.taskMode),
       resolvedTarget,
       architecture,
       targetClassification,

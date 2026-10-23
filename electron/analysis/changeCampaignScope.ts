@@ -1,7 +1,7 @@
 import type { GraphData, GraphNode } from '../store/types';
 import type { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { isDiRuntimeLink } from './graphAnalysisUtils';
-import { toStructuralNodeId, unique } from './AgentContextUtils';
+import { buildCollapsedAdjacency, toStructuralNodeId, unique } from './AgentContextUtils';
 import { scoreCampaignNodeMatch } from './changeCampaignScoring';
 
 export interface ChangeCampaignBlastRadiusView {
@@ -127,26 +127,6 @@ export function buildChangeCampaignBlastRadius(
 }
 
 function buildCollapsedFileGraph(graph: GraphData) {
-  const outgoing = new Map<string, string[]>();
-  const incoming = new Map<string, string[]>();
-
-  for (const link of graph.links) {
-    const source = toStructuralNodeId(link.source);
-    const target = toStructuralNodeId(link.target);
-
-    if (source === target) {
-      continue;
-    }
-
-    const sourceNode = graph.nodes.find((node) => node.id === source);
-    const targetNode = graph.nodes.find((node) => node.id === target);
-    if (sourceNode?.type !== 'file' || targetNode?.type !== 'file') {
-      continue;
-    }
-
-    outgoing.set(source, unique([...(outgoing.get(source) || []), target]));
-    incoming.set(target, unique([...(incoming.get(target) || []), source]));
-  }
-
-  return { outgoing, incoming };
+  const isFile = (id: string) => graph.nodes.find((node) => node.id === id)?.type === 'file';
+  return buildCollapsedAdjacency(graph, (source, target) => isFile(source) && isFile(target));
 }

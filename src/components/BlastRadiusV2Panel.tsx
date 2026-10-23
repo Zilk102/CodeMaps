@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
 import { NodePanelFrame } from './panels/NodePanelFrame';
-import { PanelCard, StatTile } from './panels/PanelParts';
+import { PanelCard, StatTileGrid } from './panels/PanelParts';
 import { unwrapResponse } from './panels/panelUtils';
 
 interface BlastRadiusV2PanelProps {
@@ -21,14 +21,13 @@ const BlastRadiusResultView: React.FC<{ result: BlastRadiusResult }> = ({ result
   const { t } = useTranslation();
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <StatTile label={t('blastRadius.totalAffected')} value={result.totalAffected} />
-        <StatTile label={t('blastRadius.direct')} value={result.directDependencies.length} />
-        <StatTile
-          label={t('blastRadius.transitive')}
-          value={result.transitiveDependencies.length}
-        />
-      </div>
+      <StatTileGrid
+        tiles={[
+          ['blastRadius.totalAffected', result.totalAffected],
+          ['blastRadius.direct', result.directDependencies.length],
+          ['blastRadius.transitive', result.transitiveDependencies.length],
+        ]}
+      />
 
       <PanelCard className="p-4">
         <h4 className="text-[13px] font-semibold text-(--t0)">{t('blastRadius.riskPaths')}</h4>

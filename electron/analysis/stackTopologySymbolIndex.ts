@@ -68,28 +68,14 @@ export const resolveSymbolEndpoint = (
   return relativeFilePath;
 };
 
-export const buildSymbolToFileMap = (entries: FileContentEntry[]) => {
-  const symbolToFile = new Map<string, string>();
-
-  for (const entry of entries) {
-    for (const symbol of inferSymbolsForFile(entry.filePath, entry.text)) {
-      if (!symbolToFile.has(symbol)) {
-        symbolToFile.set(symbol, entry.filePath);
-      }
-    }
-  }
-
-  return symbolToFile;
-};
-
 export const buildNamedSymbolToFileMap = (
   entries: FileContentEntry[],
-  extractor: (text: string) => string[]
+  extractor: (text: string, filePath: string) => string[]
 ) => {
   const symbolToFile = new Map<string, string>();
 
   for (const entry of entries) {
-    for (const symbol of extractor(entry.text)) {
+    for (const symbol of extractor(entry.text, entry.filePath)) {
       if (!symbolToFile.has(symbol)) {
         symbolToFile.set(symbol, entry.filePath);
       }
@@ -136,3 +122,6 @@ export const createRelationship = (
 
 export const getContentByRelativePath = (entries: FileContentEntry[]) =>
   new Map(entries.map((entry) => [entry.filePath, entry.text]));
+
+export const buildSymbolToFileMap = (entries: FileContentEntry[]) =>
+  buildNamedSymbolToFileMap(entries, (text, filePath) => inferSymbolsForFile(filePath, text));

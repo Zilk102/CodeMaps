@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
-import { ErrorBanner, PanelCard, StatTile } from './panels/PanelParts';
+import { ErrorBanner, PanelCard, StatTileGrid } from './panels/PanelParts';
 import {
   HEAT_LEGEND,
   MAX_VISIBLE_FILES,
@@ -102,11 +102,13 @@ const HeatmapResults: React.FC<{ heatmap: HeatmapData }> = ({ heatmap }) => {
   const { t } = useTranslation();
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <StatTile label={t('activityHeatmap.filesAnalyzed')} value={heatmap.totalFiles} />
-        <StatTile label={t('activityHeatmap.maxCommits')} value={heatmap.maxCommits} />
-        <StatTile label={t('activityHeatmap.maxChanges')} value={heatmap.maxChanges} />
-      </div>
+      <StatTileGrid
+        tiles={[
+          ['activityHeatmap.filesAnalyzed', heatmap.totalFiles],
+          ['activityHeatmap.maxCommits', heatmap.maxCommits],
+          ['activityHeatmap.maxChanges', heatmap.maxChanges],
+        ]}
+      />
 
       <HeatLegend />
 

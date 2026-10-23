@@ -1,5 +1,6 @@
 import type { GraphData, GraphNode } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
+import { compareScoredNodes } from './AgentContextUtils';
 import { getCampaignNodeTypePriority, scoreCampaignNodeMatch } from './changeCampaignScoring';
 
 const CAMPAIGN_NODE_TYPES = ['file', 'class', 'function'];
@@ -31,12 +32,7 @@ function rankQueryMatches(graph: GraphData, candidateQueries: string[], limit: n
       ),
     }))
     .filter(({ score }) => score > 0)
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        getCampaignNodeTypePriority(b.node.type) - getCampaignNodeTypePriority(a.node.type) ||
-        a.node.label.localeCompare(b.node.label)
-    )
+    .sort(compareScoredNodes(getCampaignNodeTypePriority))
     .slice(0, limit);
 }
 

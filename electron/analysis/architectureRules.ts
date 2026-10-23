@@ -3,6 +3,17 @@ import log from 'electron-log/main';
 import { loadProjectArchitectureRuleRecords } from './projectArchitectureRuleLoader';
 import { ArchitectureLayer, ArchitectureRule } from './architectureTypes';
 
+/** A rule for files under any directory named in `directories` (a regex alternation). */
+const dirRule = (
+  directories: string,
+  layer: ArchitectureLayer,
+  reason: string
+): ArchitectureRule => ({
+  pattern: new RegExp(`(^|[\\\\/])(${directories})([\\\\/]|$)`, 'i'),
+  layer,
+  reason,
+});
+
 export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
   {
     pattern:
@@ -10,55 +21,32 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     layer: 'configuration',
     reason: 'config_or_doc_file',
   },
-  {
-    pattern: /(^|[\\/])(config|configs|settings|migrations|deploy|deployments|nginx|k8s)([\\/]|$)/i,
-    layer: 'configuration',
-    reason: 'configuration_path',
-  },
-  {
-    pattern: /(^|[\\/])(scripts|\.github|\.husky)([\\/]|$)/i,
-    layer: 'configuration',
-    reason: 'automation_scripts',
-  },
-  {
-    pattern: /(^|[\\/])(test|__tests__|spec)([\\/]|$)/i,
-    layer: 'configuration',
-    reason: 'test_or_support_path',
-  },
-  {
-    pattern:
-      /(^|[\\/])(components|views|pages|ui|screens|layouts|hooks|i18n|locales|handlers?|routers?|routes|endpoints|transport|rest|grpc|graphql|resolvers|middleware|templates)([\\/]|$)/i,
-    layer: 'presentation',
-    reason: 'ui_layer',
-  },
-  {
-    pattern: /(^|[\\/])(assets|public|static)([\\/]|$)/i,
-    layer: 'presentation',
-    reason: 'static_assets',
-  },
+  dirRule(
+    'config|configs|settings|migrations|deploy|deployments|nginx|k8s',
+    'configuration',
+    'configuration_path'
+  ),
+  dirRule('scripts|\\.github|\\.husky', 'configuration', 'automation_scripts'),
+  dirRule('test|__tests__|spec', 'configuration', 'test_or_support_path'),
+  dirRule(
+    'components|views|pages|ui|screens|layouts|hooks|i18n|locales|handlers?|routers?|routes|endpoints|transport|rest|grpc|graphql|resolvers|middleware|templates',
+    'presentation',
+    'ui_layer'
+  ),
+  dirRule('assets|public|static', 'presentation', 'static_assets'),
   { pattern: /\.(css|scss|sass|less|styl)$/i, layer: 'presentation', reason: 'stylesheet_path' },
-  {
-    pattern: /(^|[\\/])(store|state|reducers|actions|context)([\\/]|$)/i,
-    layer: 'state',
-    reason: 'state_management',
-  },
-  {
-    pattern:
-      /(^|[\\/])(services?|usecases?|use_cases|interactors|application|features|controllers?)([\\/]|$)/i,
-    layer: 'application',
-    reason: 'application_logic',
-  },
-  {
-    pattern: /(^|[\\/])(domain|models?|entit(?:y|ies)|dtos?|schemas?|core)([\\/]|$)/i,
-    layer: 'domain',
-    reason: 'domain_logic',
-  },
-  {
-    pattern:
-      /(^|[\\/])(infrastructure|db|database|api|clients?|repositor(?:y|ies)|repos?|dao|persistence|gateways?|storage|postgres|redis|mysql|mongo|cache|queues?|messaging|integration|bin|mcp)([\\/]|$)/i,
-    layer: 'integration',
-    reason: 'infrastructure_integration',
-  },
+  dirRule('store|state|reducers|actions|context', 'state', 'state_management'),
+  dirRule(
+    'services?|usecases?|use_cases|interactors|application|features|controllers?',
+    'application',
+    'application_logic'
+  ),
+  dirRule('domain|models?|entit(?:y|ies)|dtos?|schemas?|core', 'domain', 'domain_logic'),
+  dirRule(
+    'infrastructure|db|database|api|clients?|repositor(?:y|ies)|repos?|dao|persistence|gateways?|storage|postgres|redis|mysql|mongo|cache|queues?|messaging|integration|bin|mcp',
+    'integration',
+    'infrastructure_integration'
+  ),
   {
     pattern: /(^|[\\/])electron$|(^|[\\/])electron([\\/])[^\\/]+\.[A-Za-z0-9]+$/i,
     layer: 'integration',
@@ -69,28 +57,22 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     layer: 'integration',
     reason: 'entrypoint_or_adapter_path',
   },
-  {
-    pattern:
-      /(^|[\\/])(utils?|shared|helpers?|common|types|interfaces|pkg|lib|libs|support)([\\/]|$)/i,
-    layer: 'shared',
-    reason: 'shared_utilities',
-  },
+  dirRule(
+    'utils?|shared|helpers?|common|types|interfaces|pkg|lib|libs|support',
+    'shared',
+    'shared_utilities'
+  ),
   { pattern: /\.d\.ts$/i, layer: 'shared', reason: 'type_declaration_path' },
-  { pattern: /(^|[\\/])(analysis)([\\/]|$)/i, layer: 'analysis', reason: 'analysis_path' },
-  { pattern: /(^|[\\/])(parsing)([\\/]|$)/i, layer: 'parsing', reason: 'parsing_path' },
-  { pattern: /(^|[\\/])(oracle)([\\/]|$)/i, layer: 'application', reason: 'orchestration_path' },
+  dirRule('analysis', 'analysis', 'analysis_path'),
+  dirRule('parsing', 'parsing', 'parsing_path'),
+  dirRule('oracle', 'application', 'orchestration_path'),
   // Fallbacks for conventions not covered above; they sit last so every rule above still wins.
-  {
-    pattern: /(^|[\\/])(resolution)([\\/]|$)/i,
-    layer: 'application',
-    reason: 'resolution_pipeline',
-  },
-  {
-    pattern:
-      /(^|[\\/])(extractors?|facts|catalogs?|policies|scoring|clones|detectors?|heuristics)([\\/]|$)/i,
-    layer: 'analysis',
-    reason: 'analysis_support_path',
-  },
+  dirRule('resolution', 'application', 'resolution_pipeline'),
+  dirRule(
+    'extractors?|facts|catalogs?|policies|scoring|clones|detectors?|heuristics',
+    'analysis',
+    'analysis_support_path'
+  ),
   {
     pattern: /(^|[\\/])(?:[^\\/]*[.-])?setup(?:tests?)?\.[cm]?[jt]sx?$/i,
     layer: 'configuration',

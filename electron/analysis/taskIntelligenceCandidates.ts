@@ -1,5 +1,5 @@
 import { GraphData, GraphNode } from '../store/types';
-import { toStructuralNodeId } from './AgentContextUtils';
+import { compareScoredNodes, toStructuralNodeId } from './AgentContextUtils';
 import type { ProjectInsightResult } from './projectInsightTypes';
 import {
   CAMPAIGN_HINTS,
@@ -45,12 +45,7 @@ export function findTargetCandidates(
   }
 
   return Array.from(scored.values())
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        getNodeTypePriority(b.node.type) - getNodeTypePriority(a.node.type) ||
-        a.node.label.localeCompare(b.node.label)
-    )
+    .sort(compareScoredNodes(getNodeTypePriority))
     .slice(0, MAX_CANDIDATES)
     .map(({ node }) => node);
 }

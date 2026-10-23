@@ -209,11 +209,19 @@ export function buildBlastRadiusView(
   };
 }
 
-function isExactNodeMatch(node: GraphNode, normalizedQuery: string) {
-  const normalizedLabel = node.label.toLowerCase();
+/** The lower-cased names a query can match: the label, the file name, and the file name without extension. */
+function nodeNameForms(node: GraphNode) {
   const structuralId = toStructuralNodeId(node.id.toLowerCase());
   const basename = structuralId.split('/').pop() || structuralId;
-  const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
+  return {
+    normalizedLabel: node.label.toLowerCase(),
+    basename,
+    basenameWithoutExtension: basename.replace(/\.[^.]+$/u, ''),
+  };
+}
+
+function isExactNodeMatch(node: GraphNode, normalizedQuery: string) {
+  const { normalizedLabel, basename, basenameWithoutExtension } = nodeNameForms(node);
   return (
     normalizedLabel === normalizedQuery ||
     basename === normalizedQuery ||
@@ -222,10 +230,7 @@ function isExactNodeMatch(node: GraphNode, normalizedQuery: string) {
 }
 
 function describeMatchReason(node: GraphNode, normalizedQuery: string) {
-  const normalizedLabel = node.label.toLowerCase();
-  const structuralId = toStructuralNodeId(node.id.toLowerCase());
-  const basename = structuralId.split('/').pop() || structuralId;
-  const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
+  const { normalizedLabel, basename, basenameWithoutExtension } = nodeNameForms(node);
 
   if (basenameWithoutExtension === normalizedQuery) {
     return 'basename_without_extension_match';

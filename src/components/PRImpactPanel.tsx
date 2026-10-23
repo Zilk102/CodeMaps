@@ -6,7 +6,7 @@ import {
   InsetItem,
   PanelCard,
   PanelHeader,
-  StatTile,
+  StatTileGrid,
   TitledListCard,
 } from './panels/PanelParts';
 import { unwrapResponse } from './panels/panelUtils';
@@ -98,11 +98,13 @@ const PRImpactResultView: React.FC<{ result: PRImpactResult }> = ({ result }) =>
         {t(`prImpact.risk.${result.riskScore}`)}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <StatTile label={t('prImpact.changedFiles')} value={result.changedFiles.length} />
-        <StatTile label={t('prImpact.affectedNodes')} value={result.affectedNodes.length} />
-        <StatTile label={t('prImpact.blastRadius')} value={result.blastRadius} />
-      </div>
+      <StatTileGrid
+        tiles={[
+          ['prImpact.changedFiles', result.changedFiles.length],
+          ['prImpact.affectedNodes', result.affectedNodes.length],
+          ['prImpact.blastRadius', result.blastRadius],
+        ]}
+      />
 
       <ChangedFilesList files={result.changedFiles} />
 

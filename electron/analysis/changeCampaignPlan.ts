@@ -6,7 +6,7 @@ import type {
 } from './ArchitectureInsightService';
 import type { ChangeTaskMode } from './ChangeContextService';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
-import { isDesignSmellPattern, isHotspotChangeRiskPattern } from './patternPolicies';
+import { evaluateRiskRules, riskWhen, structuralRiskRules, type RiskRule } from './riskRules';
 import type {
   QualityBudget,
   RefactoringWave,
@@ -153,35 +153,35 @@ interface RiskInput {
 }
 
 /** Each rule yields a risk message, or null when it does not apply. */
-const RISK_RULES: Array<(input: RiskInput) => string | null> = [
-  (i) =>
-    i.affectedFiles.length >= 20
-      ? `Кампания затрагивает ${i.affectedFiles.length} файлов; высок риск частичных несовместимых изменений между волнами.`
-      : null,
-  (i) =>
-    i.layersInvolved.length >= 3
-      ? 'Затронуто несколько архитектурных слоёв; нужно удержать границы и не смешать foundation/core/edge изменения.'
-      : null,
-  (i) =>
-    i.campaignViolations.length > 0
-      ? 'Часть файлов кампании уже вовлечена в layer violations; миграция может закрепить smell, если не поправить границы сразу.'
-      : null,
-  (i) =>
-    i.patterns.some(isHotspotChangeRiskPattern)
-      ? 'Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.'
-      : null,
-  (i) =>
-    i.patterns.some(isDesignSmellPattern)
-      ? 'Кампания проходит через oversized/god modules и другие design smells; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.'
-      : null,
-  (i) =>
-    i.runtimeCompositionRoots.length > 0
-      ? 'Кампания затрагивает runtime composition roots; provider bindings и service registrations нужно проверять как отдельный источник совместимости.'
-      : null,
-  (i) =>
-    i.securityFindings.length > 0
-      ? 'В области кампании есть security findings; миграцию нужно сверять с безопасностью токенов, cookies и API contracts.'
-      : null,
+const RISK_RULES: Array<RiskRule<RiskInput>> = [
+  riskWhen(
+    (i) => i.affectedFiles.length >= 20,
+    (i) =>
+      `Кампания затрагивает ${i.affectedFiles.length} файлов; высок риск частичных несовместимых изменений между волнами.`
+  ),
+  riskWhen(
+    (i) => i.layersInvolved.length >= 3,
+    'Затронуто несколько архитектурных слоёв; нужно удержать границы и не смешать foundation/core/edge изменения.'
+  ),
+  ...structuralRiskRules<RiskInput>(
+    (i) => ({ violations: i.campaignViolations, patterns: i.patterns }),
+    {
+      violations:
+        'Часть файлов кампании уже вовлечена в layer violations; миграция может закрепить smell, если не поправить границы сразу.',
+      hotspots:
+        'Кампания пересекается с high fan-out / hub areas; blast radius может быть больше, чем видно по именам файлов.',
+      designSmells:
+        'Кампания проходит через oversized/god modules и другие design smells; если просто наращивать код в этих файлах, smell закрепится и усложнит последующие миграции.',
+    }
+  ),
+  riskWhen(
+    (i) => i.runtimeCompositionRoots.length > 0,
+    'Кампания затрагивает runtime composition roots; provider bindings и service registrations нужно проверять как отдельный источник совместимости.'
+  ),
+  riskWhen(
+    (i) => i.securityFindings.length > 0,
+    'В области кампании есть security findings; миграцию нужно сверять с безопасностью токенов, cookies и API contracts.'
+  ),
 ];
 
 export function buildChangeCampaignRisks(
@@ -200,17 +200,11 @@ export function buildChangeCampaignRisks(
     patterns,
     securityFindings,
   };
-  const risks = RISK_RULES.map((rule) => rule(input)).filter(
-    (risk): risk is string => risk !== null
+  return evaluateRiskRules(
+    RISK_RULES,
+    input,
+    'Явных structural red flags не найдено, но массовую миграцию всё равно нужно выполнять по фазам и с post-wave validation.'
   );
-
-  if (risks.length === 0) {
-    risks.push(
-      'Явных structural red flags не найдено, но массовую миграцию всё равно нужно выполнять по фазам и с post-wave validation.'
-    );
-  }
-
-  return risks;
 }
 
 export function buildChangeCampaignNextSteps(args: {

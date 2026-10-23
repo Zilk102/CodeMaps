@@ -67,14 +67,42 @@ export const searchGraph = (graph: GraphData, query: string, type?: string, limi
       score: scoreNodeMatch(node, normalizedQuery),
     }))
     .filter(({ score }) => score > 0)
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        getNodeTypePriority(b.node.type) - getNodeTypePriority(a.node.type) ||
-        a.node.label.localeCompare(b.node.label)
-    )
+    .sort(compareScoredNodes())
     .slice(0, limit)
     .map(({ node }) => node);
+};
+
+export interface ScoredNode {
+  node: GraphNode;
+  score: number;
+}
+
+/** Best score first, then the more specific node type, then the label alphabetically. */
+export const compareScoredNodes =
+  (typePriority: (type: string) => number = getNodeTypePriority) =>
+  (a: ScoredNode, b: ScoredNode) =>
+    b.score - a.score ||
+    typePriority(b.node.type) - typePriority(a.node.type) ||
+    a.node.label.localeCompare(b.node.label);
+
+/**
+ * Outgoing and incoming neighbours between structural (file-level) ids. Self links are dropped;
+ * `acceptLink` lets a caller keep only some of the remaining links.
+ */
+export const buildCollapsedAdjacency = (
+  graph: GraphData,
+  acceptLink: (sourceId: string, targetId: string) => boolean = () => true
+) => {
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, string[]>();
+  for (const link of graph.links) {
+    const source = toStructuralNodeId(link.source);
+    const target = toStructuralNodeId(link.target);
+    if (source === target || !acceptLink(source, target)) continue;
+    outgoing.set(source, unique([...(outgoing.get(source) || []), target]));
+    incoming.set(target, unique([...(incoming.get(target) || []), source]));
+  }
+  return { outgoing, incoming };
 };
 
 export const promoteCodeTarget = (matches: GraphNode[], normalizedQuery: string) => {

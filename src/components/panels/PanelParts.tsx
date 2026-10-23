@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const CARD_BASE = 'rounded-2xl border border-(--border) bg-(--bg2)';
 
@@ -46,6 +47,23 @@ export const StatTile: React.FC<StatTileProps> = ({
     <div className={`mt-2 text-[24px] font-semibold ${valueClassName}`}>{value}</div>
   </PanelCard>
 );
+
+interface StatTileGridProps {
+  /** Each tile: the i18n key of its caption, and the value to show. */
+  tiles: Array<readonly [labelKey: string, value: React.ReactNode]>;
+}
+
+/** A responsive row of StatTiles: one column on narrow screens, three on wide ones. */
+export const StatTileGrid: React.FC<StatTileGridProps> = ({ tiles }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      {tiles.map(([labelKey, value]) => (
+        <StatTile key={labelKey} label={t(labelKey)} value={value} />
+      ))}
+    </div>
+  );
+};
 
 interface ErrorBannerProps {
   className?: string;
