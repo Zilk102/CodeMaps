@@ -27,7 +27,7 @@ export const ToolsTabBar: React.FC<ToolsTabBarProps> = ({ tabs, activeTab, onSel
     <div
       role="tablist"
       aria-label={t('tools.workspaceTabs')}
-      className="flex gap-1 overflow-x-auto border-b border-(--border) bg-(--bg1) px-6 py-3"
+      className="flex shrink-0 gap-1 overflow-x-auto border-b border-(--border) bg-(--bg1) px-6 py-3"
     >
       {tabs.map((tab, index) => {
         const isActive = activeTab === tab.id;

@@ -134,6 +134,7 @@ lint_results.json
 # (css.d.ts, electron.d.ts, ...) are tracked.
 src/types/*.js
 src/types/graph.d.ts
+src/types/duplicates.d.ts
 
 # This project builds with yarn; a second lockfile only causes drift
 package-lock.json

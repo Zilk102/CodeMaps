@@ -1,5 +1,22 @@
 # CodeMaps Changelog
 
+## v1.1.54 (2026-10-23)
+
+### Added
+
+- **`find_duplicates`, the 22nd MCP tool: where code is copy-pasted and how to remove it.** For each group of copies it returns the files and line ranges, how many values differ between the copies (the arguments of the function to extract), sample differences ("users.go:12 `user` vs orders.go:30 `order`"), and a suggestion: merge identical copies, extract a function in the same package, or move shared code to a shared module (with a target file). `filePath` limits it to groups touching one file, `includeTests` searches tests as well. The agent skill tells agents to call it before writing code similar to existing code and again after a refactor.
+- **A "Duplicates" tab in the Workspace panel** shows the same report to people: totals, one card per group with the suggested action and reason, and every copy as a button that selects the file in the graph.
+- **Project-level import resolution for C/C++, C#, Kotlin, PHP and Ruby**, with the same quality bar as Go, Python, Java and Rust. C/C++: quoted includes (relative to the file, then `include/`, `src/` and path suffixes) and the declarations used from headers, `.cpp` linked to its header. C#: `using`, `using static`, aliases, file-scoped and block namespaces. Kotlin: imports, wildcards, aliases and top-level functions, shared with Java (they link to each other). PHP: `use`, group use, aliases and PSR-4 from `composer.json`, plus `require`/`include` of literal paths. Ruby: `require_relative`, `require` through `lib/`, `load`, and constants used.
+
+### Fixed
+
+- **Duplicates in TypeScript were mostly missed.** The token scanner did not know it was inside a template literal, so everything after the first `${}` was read as one string. TypeScript clone groups in a project jump accordingly (CodeMaps itself now shows 40 groups instead of 18).
+- **The tab bar of the Workspace panel was clipped** when a tab had a long result: the header and tabs could shrink instead of the content scrolling.
+
+### Changed
+
+- **Health score of CodeMaps on itself: 59 (F) -> 61 -> 70 (C)** over the last releases: god files 5 -> 0, god classes 11 -> 0, long methods 13 -> 0, oversized modules 10 -> 4, mixed-responsibility modules 10 -> 3, SOLID 57 -> 90. The remaining penalty is mostly duplication (40 groups, newly visible thanks to the tokenizer fix), 14 methods of complexity 12-16 and layer guesses for new folders. The split-plan code, clone detector, stack-detection catalogs and adapters were split into small modules (the Spring, Ktor, Micronaut, Quarkus, ASP.NET, Python, Ruby, PHP, Go and Rust adapters now share one adapter kit). Tests: 412 -> 467.
+
 ## v1.1.53 (2026-10-23)
 
 ### Changed

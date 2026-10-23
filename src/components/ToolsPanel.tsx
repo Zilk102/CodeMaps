@@ -52,7 +52,7 @@ const ToolsHeader: React.FC<{
 }> = ({ projectName, description, onClose }) => {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-(--border) bg-(--bg0)">
+    <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-(--border) bg-(--bg0)">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-3">
           <h2 className="text-[18px] font-semibold text-(--t0) tracking-tight">
@@ -111,7 +111,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
           role="tabpanel"
           id={`tabpanel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
-          className="flex-1 overflow-y-auto bg-(--bg1)"
+          className="min-h-0 flex-1 overflow-y-auto bg-(--bg1)"
         >
           {activeTab === 'overview' && (
             <ToolsOverview
