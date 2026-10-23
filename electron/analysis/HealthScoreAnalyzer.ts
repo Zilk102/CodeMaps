@@ -17,139 +17,174 @@ import {
 import type { HealthScoreMetricSnapshot, HealthScoreResult } from './healthScoreTypes';
 export type { HealthScoreIssue, HealthScoreResult, HealthScoreSummary } from './healthScoreTypes';
 
+type Architecture = ReturnType<ArchitectureInsightService['analyze']>;
+type ModuleQuality = ReturnType<typeof analyzeModuleQuality>;
+type GraphAdjacency = ReturnType<typeof buildGraphAdjacency>;
+type GraphNode = GraphData['nodes'][number];
+
+interface QualityCounts {
+  oversizedModules: number;
+  godFiles: number;
+  godClasses: number;
+  longMethods: number;
+  complexMethods: number;
+  codeClones: number;
+  mixedResponsibilityModules: number;
+  avgDesignSmellScore: number;
+}
+
+function sumMatches<T>(items: T[], pick: (item: T) => unknown[]): number {
+  return items.reduce((count, item) => count + pick(item).length, 0);
+}
+
+function summarizeQuality(quality: ModuleQuality): QualityCounts {
+  return {
+    oversizedModules: quality.oversizedModules.length,
+    godFiles: quality.godFiles.length,
+    godClasses: sumMatches(quality.godClasses, (metric) => metric.matchedClasses),
+    longMethods: sumMatches(quality.longMethods, (metric) => metric.matchedMethods),
+    complexMethods: sumMatches(quality.complexMethods, (metric) => metric.matchedMethods),
+    codeClones: quality.codeClones ? quality.codeClones.length : 0,
+    mixedResponsibilityModules: quality.mixedResponsibilityModules.length,
+    avgDesignSmellScore:
+      quality.metrics.length === 0
+        ? 0
+        : quality.metrics.reduce((sum, metric) => sum + metric.designSmellScore, 0) /
+          quality.metrics.length,
+  };
+}
+
+function isOrphanNode(
+  node: GraphNode,
+  layerByNodeId: Map<string, string>,
+  adjacency: GraphAdjacency
+): boolean {
+  if (layerByNodeId.get(node.id) === 'configuration') {
+    return false;
+  }
+  const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = adjacency;
+  const hasIncoming = (incomingByTarget.get(node.id) || []).length > 0;
+  const hasOutgoing = (outgoingBySource.get(node.id) || []).length > 0;
+  const hasKnownHierarchyParent = hasKnownParent(node, nodeById);
+  const hasHierarchyChildren = (childrenByParentId.get(node.id) || []).length > 0;
+  const structuralNode = node.type === 'directory' || node.type === 'project';
+  return (
+    !structuralNode &&
+    !hasIncoming &&
+    !hasOutgoing &&
+    !hasKnownHierarchyParent &&
+    !hasHierarchyChildren
+  );
+}
+
+function calculateDirectoryCoverageRatio(
+  graph: GraphData,
+  nodeById: GraphAdjacency['nodeById']
+): number {
+  const directoryChildren = graph.nodes.filter((node) => {
+    if (!shouldHaveDirectoryParent(node, graph.projectRoot)) {
+      return false;
+    }
+    if (node.type !== 'file' && node.type !== 'adr') {
+      return false;
+    }
+    if (!node.parentId) return false;
+    const parent = nodeById.get(node.parentId);
+    return parent?.type === 'directory';
+  }).length;
+
+  const nodesThatShouldHaveDirectoryParent = graph.nodes.filter((node) =>
+    shouldHaveDirectoryParent(node, graph.projectRoot)
+  ).length;
+
+  return nodesThatShouldHaveDirectoryParent === 0
+    ? 1
+    : directoryChildren / nodesThatShouldHaveDirectoryParent;
+}
+
+function buildRefreshMetrics(graph: GraphData) {
+  const refreshTelemetry = graph.refreshTelemetry;
+  const refreshTrends = refreshTelemetry?.trends;
+  return {
+    watcherFlushes: refreshTelemetry?.watcher.flushCount || 0,
+    watcherBatchedEvents: refreshTelemetry?.watcher.batchedEventCount || 0,
+    watcherCoalescedFlushes: refreshTelemetry?.watcher.coalescedFlushes || 0,
+    skippedRefreshes: refreshTelemetry?.enrichment.skippedRefreshes || 0,
+    runtimePriorityRebuilds: refreshTelemetry?.enrichment.runtimePriorityRebuilds || 0,
+    avgRefreshLatencyMs: refreshTelemetry?.enrichment.avgRefreshLatencyMs || 0,
+    refreshSkipRate: refreshTrends?.enrichment.skipRate || 0,
+    runtimePriorityRate: refreshTrends?.enrichment.runtimePriorityRate || 0,
+    refreshLatencyTrend: refreshTrends?.enrichment.latencyTrend || 'stable',
+    refreshPipelineDegraded: refreshTrends?.enrichment.degraded || false,
+  } as const;
+}
+
+function buildLinkMetrics(graph: GraphData, nodeById: GraphAdjacency['nodeById']) {
+  return {
+    unresolvedImportLinks: graph.links.filter(
+      (link) => link.type === 'import' && !nodeById.has(link.target)
+    ).length,
+    stackAwareLinks: graph.links.filter((link) => isStackAwareLink(link)).length,
+    diRuntimeLinks: graph.links.filter((link) => isDiRuntimeLink(link)).length,
+    contractSemanticLinks: graph.links.filter((link) => isContractSemanticLink(link)).length,
+  };
+}
+
+function buildArchitectureMetrics(
+  architecture: Architecture,
+  counts: QualityCounts,
+  fileCount: number
+) {
+  const architectureViolations = architecture.summary.violationCount;
+  return {
+    architectureViolations,
+    unknownLayerNodes: architecture.summary.unknownNodes,
+    maintainabilityScore: calculateMaintainabilityScore({
+      avgDesignSmellScore: counts.avgDesignSmellScore,
+      longMethods: counts.longMethods,
+      complexMethods: counts.complexMethods,
+      oversizedModules: counts.oversizedModules,
+      godFiles: counts.godFiles,
+      fileNodes: fileCount,
+      codeClones: counts.codeClones,
+    }),
+    solidScore: calculateSolidScore({
+      godFiles: counts.godFiles,
+      godClasses: counts.godClasses,
+      mixedResponsibilityModules: counts.mixedResponsibilityModules,
+      architectureViolations,
+      avgDesignSmellScore: counts.avgDesignSmellScore,
+    }),
+  };
+}
+
 export class HealthScoreAnalyzer {
   constructor(private readonly architectureInsightService = new ArchitectureInsightService()) {}
 
   analyze(graph: GraphData): HealthScoreResult {
     const architecture = this.architectureInsightService.analyze(graph);
-    const layerByNodeId = new Map(
+    const layerByNodeId = new Map<string, string>(
       architecture.classifications.map((record) => [record.nodeId, record.layer])
     );
-    const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } =
-      buildGraphAdjacency(graph);
-    const quality = analyzeModuleQuality(graph);
-    const fileNodes = graph.nodes.filter((node) => node.type === 'file');
-    const symbolNodes = graph.nodes.filter((node) => node.id.includes('#'));
-    const orphanNodes = graph.nodes.filter((node) => {
-      if (layerByNodeId.get(node.id) === 'configuration') {
-        return false;
-      }
-
-      const hasIncoming = (incomingByTarget.get(node.id) || []).length > 0;
-      const hasOutgoing = (outgoingBySource.get(node.id) || []).length > 0;
-      const hasKnownHierarchyParent = hasKnownParent(node, nodeById);
-      const hasHierarchyChildren = (childrenByParentId.get(node.id) || []).length > 0;
-      const structuralNode = node.type === 'directory' || node.type === 'project';
-      return (
-        !structuralNode &&
-        !hasIncoming &&
-        !hasOutgoing &&
-        !hasKnownHierarchyParent &&
-        !hasHierarchyChildren
-      );
-    });
-
-    const unresolvedImportLinks = graph.links.filter((link) => {
-      if (link.type !== 'import') return false;
-      return !nodeById.has(link.target);
-    }).length;
-    const stackAwareLinks = graph.links.filter((link) => isStackAwareLink(link)).length;
-    const diRuntimeLinks = graph.links.filter((link) => isDiRuntimeLink(link)).length;
-    const contractSemanticLinks = graph.links.filter((link) => isContractSemanticLink(link)).length;
-    const oversizedModules = quality.oversizedModules.length;
-    const godFiles = quality.godFiles.length;
-    const godClasses = quality.godClasses.reduce(
-      (count, metric) => count + metric.matchedClasses.length,
-      0
-    );
-    const longMethods = quality.longMethods.reduce(
-      (count, metric) => count + metric.matchedMethods.length,
-      0
-    );
-    const complexMethods = quality.complexMethods.reduce(
-      (count, metric) => count + metric.matchedMethods.length,
-      0
-    );
-    const codeClones = quality.codeClones ? quality.codeClones.length : 0;
-    const mixedResponsibilityModules = quality.mixedResponsibilityModules.length;
-    const avgDesignSmellScore =
-      quality.metrics.length === 0
-        ? 0
-        : quality.metrics.reduce((sum, metric) => sum + metric.designSmellScore, 0) /
-          quality.metrics.length;
-    const maintainabilityScore = calculateMaintainabilityScore({
-      avgDesignSmellScore,
-      longMethods,
-      complexMethods,
-      oversizedModules,
-      godFiles,
-      fileNodes: fileNodes.length,
-      codeClones,
-    });
-    const solidScore = calculateSolidScore({
-      godFiles,
-      godClasses,
-      mixedResponsibilityModules,
-      architectureViolations: architecture.summary.violationCount,
-      avgDesignSmellScore,
-    });
-    const refreshTelemetry = graph.refreshTelemetry;
-    const refreshTrends = refreshTelemetry?.trends;
-
-    const directoryChildren = graph.nodes.filter((node) => {
-      if (!shouldHaveDirectoryParent(node, graph.projectRoot)) {
-        return false;
-      }
-      if (node.type !== 'file' && node.type !== 'adr') {
-        return false;
-      }
-      if (!node.parentId) return false;
-      const parent = nodeById.get(node.parentId);
-      return parent?.type === 'directory';
-    }).length;
-
-    const nodesThatShouldHaveDirectoryParent = graph.nodes.filter((node) =>
-      shouldHaveDirectoryParent(node, graph.projectRoot)
+    const adjacency = buildGraphAdjacency(graph);
+    const counts = summarizeQuality(analyzeModuleQuality(graph));
+    const fileCount = graph.nodes.filter((node) => node.type === 'file').length;
+    const symbolCount = graph.nodes.filter((node) => node.id.includes('#')).length;
+    const orphanCount = graph.nodes.filter((node) =>
+      isOrphanNode(node, layerByNodeId, adjacency)
     ).length;
-
-    const directoryCoverageRatio =
-      nodesThatShouldHaveDirectoryParent === 0
-        ? 1
-        : directoryChildren / nodesThatShouldHaveDirectoryParent;
 
     const metrics: HealthScoreMetricSnapshot = {
       totalNodes: graph.nodes.length,
       totalLinks: graph.links.length,
-      fileNodes: fileNodes.length,
-      symbolNodes: symbolNodes.length,
-      orphanNodes: orphanNodes.length,
-      unresolvedImportLinks,
-      directoryCoverageRatio,
-      architectureViolations: architecture.summary.violationCount,
-      unknownLayerNodes: architecture.summary.unknownNodes,
-      stackAwareLinks,
-      diRuntimeLinks,
-      contractSemanticLinks,
-      oversizedModules,
-      godFiles,
-      godClasses,
-      longMethods,
-      complexMethods,
-      codeClones,
-      mixedResponsibilityModules,
-      avgDesignSmellScore,
-      maintainabilityScore,
-      solidScore,
-      watcherFlushes: refreshTelemetry?.watcher.flushCount || 0,
-      watcherBatchedEvents: refreshTelemetry?.watcher.batchedEventCount || 0,
-      watcherCoalescedFlushes: refreshTelemetry?.watcher.coalescedFlushes || 0,
-      skippedRefreshes: refreshTelemetry?.enrichment.skippedRefreshes || 0,
-      runtimePriorityRebuilds: refreshTelemetry?.enrichment.runtimePriorityRebuilds || 0,
-      avgRefreshLatencyMs: refreshTelemetry?.enrichment.avgRefreshLatencyMs || 0,
-      refreshSkipRate: refreshTrends?.enrichment.skipRate || 0,
-      runtimePriorityRate: refreshTrends?.enrichment.runtimePriorityRate || 0,
-      refreshLatencyTrend: refreshTrends?.enrichment.latencyTrend || 'stable',
-      refreshPipelineDegraded: refreshTrends?.enrichment.degraded || false,
+      fileNodes: fileCount,
+      symbolNodes: symbolCount,
+      orphanNodes: orphanCount,
+      ...buildLinkMetrics(graph, adjacency.nodeById),
+      directoryCoverageRatio: calculateDirectoryCoverageRatio(graph, adjacency.nodeById),
+      ...buildArchitectureMetrics(architecture, counts, fileCount),
+      ...counts,
+      ...buildRefreshMetrics(graph),
     };
 
     return buildHealthScoreResult(metrics);

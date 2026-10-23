@@ -5,173 +5,205 @@ import type {
   HealthScoreSummary,
 } from './healthScoreTypes';
 
-export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): HealthScoreResult {
+type Severity = HealthScoreIssue['severity'];
+
+interface HealthFinding {
+  issue: HealthScoreIssue;
+  penalty: number;
+}
+
+type HealthRule = (metrics: HealthScoreMetricSnapshot) => HealthFinding | null;
+
+function finding(code: string, severity: Severity, message: string, penalty = 0): HealthFinding {
+  return { issue: { code, severity, message }, penalty };
+}
+
+/** Severity helper: `high` when the condition holds, otherwise `medium`. */
+function highIf(condition: boolean): Severity {
+  return condition ? 'high' : 'medium';
+}
+
+const STRUCTURE_RULES: HealthRule[] = [
+  (m) =>
+    m.totalNodes === 0
+      ? finding('empty_graph', 'high', 'Граф пуст, индексация проекта не дала ни одного узла.', 70)
+      : null,
+  (m) =>
+    m.unresolvedImportLinks > 0
+      ? finding(
+          'unresolved_import_links',
+          highIf(m.unresolvedImportLinks > 25),
+          `Обнаружено ${m.unresolvedImportLinks} import-связей с неразрешенной целью.`,
+          Math.min(25, m.unresolvedImportLinks)
+        )
+      : null,
+  (m) =>
+    m.orphanNodes > 0
+      ? finding(
+          'orphan_nodes',
+          m.orphanNodes > 20 ? 'medium' : 'low',
+          `Обнаружено ${m.orphanNodes} изолированных узлов без входящих и исходящих связей.`,
+          Math.min(15, Math.ceil(m.orphanNodes / 3))
+        )
+      : null,
+  (m) =>
+    m.directoryCoverageRatio < 0.85
+      ? finding(
+          'weak_hierarchy',
+          highIf(m.directoryCoverageRatio < 0.5),
+          `Иерархия неполная: только ${(m.directoryCoverageRatio * 100).toFixed(1)}% файлов и ADR узлов имеют директорию-родителя.`,
+          Math.min(20, Math.ceil((1 - m.directoryCoverageRatio) * 20))
+        )
+      : null,
+  (m) =>
+    m.symbolNodes === 0 && m.fileNodes > 0
+      ? finding(
+          'missing_symbols',
+          'high',
+          'Файлы найдены, но symbol-level узлы отсутствуют: парсинг сущностей деградировал.',
+          25
+        )
+      : null,
+  (m) =>
+    m.architectureViolations > 0
+      ? finding(
+          'architecture_violations',
+          highIf(m.architectureViolations > 10),
+          `Обнаружено ${m.architectureViolations} нарушений межслоевых зависимостей.`,
+          Math.min(20, m.architectureViolations * 2)
+        )
+      : null,
+  (m) =>
+    m.unknownLayerNodes > 0
+      ? finding(
+          'unknown_layer_nodes',
+          m.unknownLayerNodes > 25 ? 'medium' : 'low',
+          `Для ${m.unknownLayerNodes} узлов не удалось определить архитектурный слой.`,
+          Math.min(10, Math.ceil(m.unknownLayerNodes / 10))
+        )
+      : null,
+];
+
+const DESIGN_RULES: HealthRule[] = [
+  (m) =>
+    m.oversizedModules > 0
+      ? finding(
+          'oversized_modules',
+          highIf(m.oversizedModules >= 3),
+          `Обнаружено ${m.oversizedModules} oversized-модулей с избыточным размером или плотностью символов.`
+        )
+      : null,
+  (m) =>
+    m.godFiles > 0
+      ? finding(
+          'god_files',
+          'high',
+          `Обнаружено ${m.godFiles} god-file модулей с чрезмерной концентрацией ответственности.`
+        )
+      : null,
+  (m) =>
+    m.godClasses > 0
+      ? finding(
+          'god_classes',
+          highIf(m.godClasses >= 3),
+          `Обнаружено ${m.godClasses} god-class конструкций с перегруженным публичным API или слишком большим телом класса.`
+        )
+      : null,
+  (m) =>
+    m.longMethods > 0
+      ? finding(
+          'long_methods',
+          highIf(m.longMethods >= 4),
+          `Обнаружено ${m.longMethods} длинных методов/функций, ухудшающих читаемость и стоимость безопасного рефакторинга.`
+        )
+      : null,
+  (m) =>
+    m.complexMethods > 0
+      ? finding(
+          'complex_methods',
+          highIf(m.complexMethods >= 4),
+          `Обнаружено ${m.complexMethods} методов/функций с высокой цикломатической сложностью или глубокой вложенностью.`
+        )
+      : null,
+  (m) =>
+    m.codeClones > 0
+      ? finding(
+          'code_clones',
+          highIf(m.codeClones >= 3),
+          `Обнаружено ${m.codeClones} групп дублирующегося кода (клонов). Дублирование усложняет поддержку и увеличивает объем кодовой базы.`
+        )
+      : null,
+  (m) =>
+    m.mixedResponsibilityModules > 0
+      ? finding(
+          'mixed_responsibility_modules',
+          highIf(m.mixedResponsibilityModules >= 3),
+          `Обнаружено ${m.mixedResponsibilityModules} модулей со смешанными архитектурными ответственностями.`
+        )
+      : null,
+];
+
+const QUALITY_RULES: HealthRule[] = [
+  (m) =>
+    m.maintainabilityScore < 85
+      ? finding(
+          'maintainability_score',
+          highIf(m.maintainabilityScore < 60),
+          `Maintainability score снижен до ${m.maintainabilityScore.toFixed(1)}: стоимость поддержки и безопасного рефакторинга уже заметно выросла.`
+        )
+      : null,
+  (m) =>
+    m.solidScore < 85
+      ? finding(
+          'solid_score',
+          highIf(m.solidScore < 60),
+          `SOLID score снижен до ${m.solidScore.toFixed(1)}: наблюдаются признаки нарушения SRP/размывания границ ответственности.`
+        )
+      : null,
+  (m) =>
+    m.refreshPipelineDegraded
+      ? finding(
+          'refresh_pipeline_degradation',
+          highIf(m.avgRefreshLatencyMs >= 50 || m.runtimePriorityRate >= 0.5),
+          `Incremental refresh деградирует: latency trend=${m.refreshLatencyTrend}, runtime priority rate=${(m.runtimePriorityRate * 100).toFixed(1)}%, avg latency=${m.avgRefreshLatencyMs.toFixed(1)} ms.`,
+          calculateRefreshPenalty(
+            m.avgRefreshLatencyMs,
+            m.runtimePriorityRate,
+            m.runtimePriorityRebuilds
+          )
+        )
+      : null,
+];
+
+function applyRules(
+  rules: HealthRule[],
+  metrics: HealthScoreMetricSnapshot
+): { issues: HealthScoreIssue[]; penalty: number } {
   const issues: HealthScoreIssue[] = [];
-  let score = 100;
-
-  if (metrics.totalNodes === 0) {
-    issues.push({
-      code: 'empty_graph',
-      severity: 'high',
-      message: 'Граф пуст, индексация проекта не дала ни одного узла.',
-    });
-    score -= 70;
+  let penalty = 0;
+  for (const rule of rules) {
+    const result = rule(metrics);
+    if (!result) continue;
+    issues.push(result.issue);
+    penalty += result.penalty;
   }
+  return { issues, penalty };
+}
 
-  if (metrics.unresolvedImportLinks > 0) {
-    issues.push({
-      code: 'unresolved_import_links',
-      severity: metrics.unresolvedImportLinks > 25 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.unresolvedImportLinks} import-связей с неразрешенной целью.`,
-    });
-    score -= Math.min(25, metrics.unresolvedImportLinks);
-  }
+export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): HealthScoreResult {
+  const structure = applyRules(STRUCTURE_RULES, metrics);
+  const design = applyRules(DESIGN_RULES, metrics);
+  const quality = applyRules(QUALITY_RULES, metrics);
 
-  if (metrics.orphanNodes > 0) {
-    issues.push({
-      code: 'orphan_nodes',
-      severity: metrics.orphanNodes > 20 ? 'medium' : 'low',
-      message: `Обнаружено ${metrics.orphanNodes} изолированных узлов без входящих и исходящих связей.`,
-    });
-    score -= Math.min(15, Math.ceil(metrics.orphanNodes / 3));
-  }
-
-  if (metrics.directoryCoverageRatio < 0.85) {
-    issues.push({
-      code: 'weak_hierarchy',
-      severity: metrics.directoryCoverageRatio < 0.5 ? 'high' : 'medium',
-      message: `Иерархия неполная: только ${(metrics.directoryCoverageRatio * 100).toFixed(1)}% файлов и ADR узлов имеют директорию-родителя.`,
-    });
-    score -= Math.min(20, Math.ceil((1 - metrics.directoryCoverageRatio) * 20));
-  }
-
-  if (metrics.symbolNodes === 0 && metrics.fileNodes > 0) {
-    issues.push({
-      code: 'missing_symbols',
-      severity: 'high',
-      message: 'Файлы найдены, но symbol-level узлы отсутствуют: парсинг сущностей деградировал.',
-    });
-    score -= 25;
-  }
-
-  if (metrics.architectureViolations > 0) {
-    issues.push({
-      code: 'architecture_violations',
-      severity: metrics.architectureViolations > 10 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.architectureViolations} нарушений межслоевых зависимостей.`,
-    });
-    score -= Math.min(20, metrics.architectureViolations * 2);
-  }
-
-  if (metrics.unknownLayerNodes > 0) {
-    issues.push({
-      code: 'unknown_layer_nodes',
-      severity: metrics.unknownLayerNodes > 25 ? 'medium' : 'low',
-      message: `Для ${metrics.unknownLayerNodes} узлов не удалось определить архитектурный слой.`,
-    });
-    score -= Math.min(10, Math.ceil(metrics.unknownLayerNodes / 10));
-  }
-
-  const designDebtPenalty = calculateDesignDebtPenalty(metrics);
-
-  if (metrics.oversizedModules > 0) {
-    issues.push({
-      code: 'oversized_modules',
-      severity: metrics.oversizedModules >= 3 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.oversizedModules} oversized-модулей с избыточным размером или плотностью символов.`,
-    });
-  }
-
-  if (metrics.godFiles > 0) {
-    issues.push({
-      code: 'god_files',
-      severity: 'high',
-      message: `Обнаружено ${metrics.godFiles} god-file модулей с чрезмерной концентрацией ответственности.`,
-    });
-  }
-
-  if (metrics.godClasses > 0) {
-    issues.push({
-      code: 'god_classes',
-      severity: metrics.godClasses >= 3 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.godClasses} god-class конструкций с перегруженным публичным API или слишком большим телом класса.`,
-    });
-  }
-
-  if (metrics.longMethods > 0) {
-    issues.push({
-      code: 'long_methods',
-      severity: metrics.longMethods >= 4 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.longMethods} длинных методов/функций, ухудшающих читаемость и стоимость безопасного рефакторинга.`,
-    });
-  }
-
-  if (metrics.complexMethods > 0) {
-    issues.push({
-      code: 'complex_methods',
-      severity: metrics.complexMethods >= 4 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.complexMethods} методов/функций с высокой цикломатической сложностью или глубокой вложенностью.`,
-    });
-  }
-
-  if (metrics.codeClones > 0) {
-    issues.push({
-      code: 'code_clones',
-      severity: metrics.codeClones >= 3 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.codeClones} групп дублирующегося кода (клонов). Дублирование усложняет поддержку и увеличивает объем кодовой базы.`,
-    });
-  }
-
-  if (metrics.mixedResponsibilityModules > 0) {
-    issues.push({
-      code: 'mixed_responsibility_modules',
-      severity: metrics.mixedResponsibilityModules >= 3 ? 'high' : 'medium',
-      message: `Обнаружено ${metrics.mixedResponsibilityModules} модулей со смешанными архитектурными ответственностями.`,
-    });
-  }
-
-  if (designDebtPenalty > 0) {
-    score -= designDebtPenalty;
-  }
-
-  if (metrics.maintainabilityScore < 85) {
-    issues.push({
-      code: 'maintainability_score',
-      severity: metrics.maintainabilityScore < 60 ? 'high' : 'medium',
-      message: `Maintainability score снижен до ${metrics.maintainabilityScore.toFixed(1)}: стоимость поддержки и безопасного рефакторинга уже заметно выросла.`,
-    });
-  }
-
-  if (metrics.solidScore < 85) {
-    issues.push({
-      code: 'solid_score',
-      severity: metrics.solidScore < 60 ? 'high' : 'medium',
-      message: `SOLID score снижен до ${metrics.solidScore.toFixed(1)}: наблюдаются признаки нарушения SRP/размывания границ ответственности.`,
-    });
-  }
-
-  if (metrics.refreshPipelineDegraded) {
-    const refreshPenalty = calculateRefreshPenalty(
-      metrics.avgRefreshLatencyMs,
-      metrics.runtimePriorityRate,
-      metrics.runtimePriorityRebuilds
-    );
-    issues.push({
-      code: 'refresh_pipeline_degradation',
-      severity:
-        metrics.avgRefreshLatencyMs >= 50 || metrics.runtimePriorityRate >= 0.5 ? 'high' : 'medium',
-      message: `Incremental refresh деградирует: latency trend=${metrics.refreshLatencyTrend}, runtime priority rate=${(metrics.runtimePriorityRate * 100).toFixed(1)}%, avg latency=${metrics.avgRefreshLatencyMs.toFixed(1)} ms.`,
-    });
-    score -= refreshPenalty;
-  }
-
-  score = Math.max(0, Math.min(100, score));
+  const totalPenalty =
+    structure.penalty + design.penalty + calculateDesignDebtPenalty(metrics) + quality.penalty;
+  const score = Math.max(0, Math.min(100, 100 - totalPenalty));
 
   return {
     score,
     grade: toGrade(score),
     summary: buildHealthSummary(metrics),
-    issues,
+    issues: [...structure.issues, ...design.issues, ...quality.issues],
   };
 }
 
