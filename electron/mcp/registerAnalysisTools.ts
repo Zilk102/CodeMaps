@@ -4,6 +4,7 @@ import * as z from 'zod/v4';
 import { validateChanges } from '../analysis/ChangeValidationService';
 import { GitService } from '../services/GitService';
 import { oracle } from '../oracle';
+import { defineGraphTool } from './defineTool';
 import { ensureGraphLoaded, resolveNodeReference, resolveProjectFilePath } from './utils';
 import { McpToolContext } from './toolContext';
 import {
@@ -26,25 +27,23 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
 }
 
 function registerHealthScore(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'get_health_score',
+  defineGraphTool(
+    server,
     {
+      name: 'get_health_score',
       title: 'Get Health Score',
       description: 'Compute structural graph health metrics and an overall score',
       inputSchema: {},
     },
-    async () => {
-      const graph = await ensureGraphLoaded();
-      const health = context.healthScoreAnalyzer.analyze(graph);
-      return okStatusToolResult({ health });
-    }
+    (graph) => okStatusToolResult({ health: context.healthScoreAnalyzer.analyze(graph) })
   );
 }
 
 function registerArchitectureOverview(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'get_architecture_overview',
+  defineGraphTool(
+    server,
     {
+      name: 'get_architecture_overview',
       title: 'Get Architecture Overview',
       description:
         'Return architectural layer classification, cross-layer dependencies and boundary violations',
@@ -52,8 +51,7 @@ function registerArchitectureOverview(server: McpServer, context: McpToolContext
         includeClassifications: includeClassificationsField,
       },
     },
-    async ({ includeClassifications = false }: { includeClassifications?: boolean }) => {
-      const graph = await ensureGraphLoaded();
+    (graph, { includeClassifications = false }) => {
       const overview = context.architectureInsightService.analyze(graph);
       return okStatusToolResult({
         architecture: includeClassifications
@@ -70,17 +68,17 @@ function registerArchitectureOverview(server: McpServer, context: McpToolContext
 }
 
 function registerDetectPatterns(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'detect_patterns',
+  defineGraphTool(
+    server,
     {
+      name: 'detect_patterns',
       title: 'Detect Patterns',
       description: 'Detect architectural hotspots and anti-pattern candidates in the graph',
       inputSchema: {
         limit: boundedInt(100, 'Optional maximum number of patterns to return'),
       },
     },
-    async ({ limit = 20 }: { limit?: number }) => {
-      const graph = await ensureGraphLoaded();
+    (graph, { limit = 20 }) => {
       const result = context.patternDetectionAnalyzer.analyze(graph);
       return okStatusToolResult({
         count: Math.min(result.patterns.length, limit),
@@ -91,17 +89,17 @@ function registerDetectPatterns(server: McpServer, context: McpToolContext) {
 }
 
 function registerSecurityScan(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'run_security_scan',
+  defineGraphTool(
+    server,
     {
+      name: 'run_security_scan',
       title: 'Run Security Scan',
       description: 'Scan indexed source files for high-risk patterns and suspicious artifacts',
       inputSchema: {
         limit: boundedInt(500, 'Optional maximum number of findings to return'),
       },
     },
-    async ({ limit = 100 }: { limit?: number }) => {
-      const graph = await ensureGraphLoaded();
+    async (graph, { limit = 100 }) => {
       const scan = await context.securityScanner.analyze(graph);
       return okStatusToolResult({
         summary: scan.summary,
@@ -112,9 +110,10 @@ function registerSecurityScan(server: McpServer, context: McpToolContext) {
 }
 
 function registerSearchSignatures(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'search_signatures',
+  defineGraphTool(
+    server,
     {
+      name: 'search_signatures',
       title: 'Search Signatures',
       description: 'Search declaration-like code signatures across indexed source files',
       inputSchema: {
@@ -128,31 +127,16 @@ function registerSearchSignatures(server: McpServer, context: McpToolContext) {
         ),
       },
     },
-    async ({
-      query,
-      type,
-      limit = 20,
-      caseSensitive = false,
-      regex = false,
-      filePath,
-    }: {
-      query: string;
-      type?: string;
-      limit?: number;
-      caseSensitive?: boolean;
-      regex?: boolean;
-      filePath?: string;
-    }) => {
-      const graph = await ensureGraphLoaded();
-      const result = await context.signatureSearchService.search(graph, query, {
-        type,
-        limit,
-        caseSensitive,
-        regex,
-        filePath,
-      });
-      return okStatusToolResult(result);
-    }
+    async (graph, { query, type, limit = 20, caseSensitive = false, regex = false, filePath }) =>
+      okStatusToolResult(
+        await context.signatureSearchService.search(graph, query, {
+          type,
+          limit,
+          caseSensitive,
+          regex,
+          filePath,
+        })
+      )
   );
 }
 

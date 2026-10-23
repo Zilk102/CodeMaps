@@ -38,6 +38,7 @@ export const TOOL_CATEGORIES: Array<{ title: string; intro: string; tools: strin
       'get_architecture_overview',
       'detect_patterns',
       'analyze_decomposition',
+      'find_duplicates',
       'run_security_scan',
       'analyze_activity_heatmap',
     ],

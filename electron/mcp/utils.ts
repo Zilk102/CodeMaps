@@ -124,13 +124,23 @@ const analyzeWithTimeout = (targetPath: string) =>
     return Promise.race([oracle.analyzeProject(targetPath), timeout]);
   });
 
+const resolveTargetPath = (projectPath: string | undefined, baseDir: string | undefined) =>
+  projectPath ? resolveRequestedPath(projectPath) : resolveDefaultPath(baseDir);
+
+/** A project must be (re)analyzed when none is open or a different one was requested. */
+const needsAnalysis = (
+  projectPath: string | undefined,
+  baseDir: string | undefined,
+  target: string
+) => !baseDir || Boolean(projectPath && normalizePath(baseDir) !== target);
+
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
   const { baseDir } = oracleStore.getState();
-  const targetPath = projectPath ? resolveRequestedPath(projectPath) : resolveDefaultPath(baseDir);
-
-  const needsAnalysis = !baseDir || (projectPath && normalizePath(baseDir) !== targetPath);
-  if (needsAnalysis) return withCloneIndex(await analyzeWithTimeout(targetPath));
-  return withCloneIndex(oracle.getGraph());
+  const targetPath = resolveTargetPath(projectPath, baseDir);
+  const graph = needsAnalysis(projectPath, baseDir, targetPath)
+    ? await analyzeWithTimeout(targetPath)
+    : oracle.getGraph();
+  return withCloneIndex(graph);
 };
 
 /** Tools that report duplication read it from the clone index, so it must be current first. */
@@ -154,11 +164,6 @@ const relativeToRoot = (root: string | undefined, id: string) => {
     : normalized;
 };
 
-/**
- * Links around a node. A file node also covers its own symbols, because imports point at
- * `file#symbol`; without that a file would wrongly look unused. The per-file summaries list
- * every neighbouring file once with how many links tie it to the node.
- */
 /**
  * Agents often pass `internal/app/main.go` instead of the absolute node id. A path relative to
  * the project root (optionally with `./` and a `#symbol`) is mapped to the id the graph uses;
@@ -188,45 +193,58 @@ export const resolveProjectFilePath = (graph: GraphData, filePath: string): stri
   return `${graph.projectRoot.replace(/\/$/, '')}/${normalized.replace(/^\.\//, '')}`;
 };
 
+type GraphLink = GraphData['links'][number];
+
+/** Tells whether a link end belongs to the node; a file node also owns its `file#symbol` ids. */
+const ownershipOf = (nodeId: string, isFile: boolean) => {
+  const memberPrefix = isFile ? `${nodeId}#` : null;
+  return (id: string) => id === nodeId || (memberPrefix !== null && id.startsWith(memberPrefix));
+};
+
+/** Every neighbouring file once, with how many links tie it to the node. */
+const summarizeNeighbours = (
+  graph: GraphData,
+  nodeId: string,
+  links: GraphLink[],
+  pick: (link: GraphLink) => string
+): NeighbourFile[] => {
+  const counts = new Map<string, number>();
+  for (const link of links) {
+    if (link.type === 'structure') continue;
+    const file = pick(link).split('#')[0];
+    if (file === nodeId.split('#')[0]) continue;
+    counts.set(file, (counts.get(file) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([file, linkCount]): NeighbourFile => ({
+      file: relativeToRoot(graph.projectRoot, file),
+      links: linkCount,
+    }))
+    .sort((a, b) => b.links - a.links || a.file.localeCompare(b.file));
+};
+
+/**
+ * Links around a node. A file node also covers its own symbols, because imports point at
+ * `file#symbol`; without that a file would wrongly look unused. The per-file summaries list
+ * every neighbouring file once with how many links tie it to the node.
+ */
 export const getNodeDependencies = (
   graph: GraphData,
   nodeId: string,
   limit = DEFAULT_DEPENDENCY_LIMIT
 ) => {
-  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
-  const memberPrefix = node?.type === 'file' ? `${nodeId}#` : null;
-  const isOwn = (id: string) =>
-    id === nodeId || (memberPrefix !== null && id.startsWith(memberPrefix));
+  const isFile = graph.nodes.find((candidate) => candidate.id === nodeId)?.type === 'file';
+  const isOwn = ownershipOf(nodeId, isFile);
+  // A file's own symbols linking to each other are internal, not dependencies.
+  const crossesBoundary = (inside: string, outside: string) =>
+    isOwn(inside) && (!isFile || !isOwn(outside));
 
-  const allDependencies = graph.links.filter(
-    (link) => isOwn(link.source) && (memberPrefix === null || !isOwn(link.target))
-  );
-  const allDependents = graph.links.filter(
-    (link) => isOwn(link.target) && (memberPrefix === null || !isOwn(link.source))
-  );
-
-  const summarize = (
-    links: typeof allDependencies,
-    pick: (link: (typeof allDependencies)[number]) => string
-  ) => {
-    const counts = new Map<string, number>();
-    for (const link of links) {
-      if (link.type === 'structure') continue;
-      const file = pick(link).split('#')[0];
-      if (file === nodeId.split('#')[0]) continue;
-      counts.set(file, (counts.get(file) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .map(([file, linkCount]): NeighbourFile => ({
-        file: relativeToRoot(graph.projectRoot, file),
-        links: linkCount,
-      }))
-      .sort((a, b) => b.links - a.links || a.file.localeCompare(b.file));
-  };
+  const allDependencies = graph.links.filter((link) => crossesBoundary(link.source, link.target));
+  const allDependents = graph.links.filter((link) => crossesBoundary(link.target, link.source));
 
   return {
-    dependencyFiles: summarize(allDependencies, (link) => link.target),
-    dependentFiles: summarize(allDependents, (link) => link.source),
+    dependencyFiles: summarizeNeighbours(graph, nodeId, allDependencies, (link) => link.target),
+    dependentFiles: summarizeNeighbours(graph, nodeId, allDependents, (link) => link.source),
     dependenciesTotal: allDependencies.length,
     dependentsTotal: allDependents.length,
     dependencies: allDependencies.slice(0, limit),

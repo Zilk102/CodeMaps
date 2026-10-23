@@ -35,21 +35,27 @@ export class CloneIndex {
     return root ? (this.results.get(root)?.groups ?? null) : null;
   }
 
-  refreshFor(graph: GraphData): Promise<CloneGroup[]> {
+  /** `includeTests` adds test files to the search; they are left out by default. */
+  refreshFor(graph: GraphData, includeTests = false): Promise<CloneGroup[]> {
     const files = graph.nodes.filter((node) => node.type === 'file').map((node) => node.id);
-    return this.refresh(graph.projectRoot ?? '', files);
+    return this.refresh(graph.projectRoot ?? '', files, includeTests);
   }
 
-  refresh(root: string, files: string[]): Promise<CloneGroup[]> {
-    const running = this.inflight.get(root);
+  refresh(root: string, files: string[], includeTests = false): Promise<CloneGroup[]> {
+    // Groups with and without tests are different results, so they are cached apart.
+    const key = includeTests ? `${root}::tests` : root;
+    const running = this.inflight.get(key);
     if (running) return running;
     const candidates = files
-      .filter((file) => !isTestFile(file) && !GENERATED_PATH.test(file.replace(/\\/g, '/')))
+      .filter(
+        (file) =>
+          (includeTests || !isTestFile(file)) && !GENERATED_PATH.test(file.replace(/\\/g, '/'))
+      )
       .slice(0, MAX_FILES);
-    const work = this.compute(root, candidates).finally(() => {
-      this.inflight.delete(root);
+    const work = this.compute(key, candidates).finally(() => {
+      this.inflight.delete(key);
     });
-    this.inflight.set(root, work);
+    this.inflight.set(key, work);
     return work;
   }
 
@@ -58,7 +64,7 @@ export class CloneIndex {
     this.results.clear();
   }
 
-  private async compute(root: string, files: string[]): Promise<CloneGroup[]> {
+  private async compute(key: string, files: string[]): Promise<CloneGroup[]> {
     const limit = pLimit(STAT_CONCURRENCY);
     const stats = await Promise.all(
       files.map((file) =>
@@ -73,7 +79,7 @@ export class CloneIndex {
       .map((entry) => `${entry.file}:${entry.mtimeMs}:${entry.size}`)
       .join('|');
 
-    const previous = this.results.get(root);
+    const previous = this.results.get(key);
     if (previous?.signature === signature) return previous.groups;
 
     const streams: TokenStream[] = [];
@@ -92,7 +98,7 @@ export class CloneIndex {
 
     await yieldToEventLoop();
     const groups = detectClones(streams);
-    this.results.set(root, { signature, groups });
+    this.results.set(key, { signature, groups });
     return groups;
   }
 }

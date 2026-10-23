@@ -3,7 +3,8 @@ import * as path from 'path';
 import * as z from 'zod/v4';
 import { summarizeBlastRadius } from '../analysis/blastRadiusSummary';
 import { oracleStore } from '../store';
-import { createGraphSummary, ensureGraphLoaded, getNodeDependencies, searchGraph } from './utils';
+import { defineGraphTool } from './defineTool';
+import { createGraphSummary, getNodeDependencies, searchGraph } from './utils';
 import { McpToolContext } from './toolContext';
 import { boundedInt, nodeIdField, optionalBoolean, optionalString } from './toolSchemas';
 import { lookupNode, okStatusToolResult } from './toolSupport';
@@ -20,9 +21,10 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
 }
 
 function registerAnalyzeProject(server: McpServer) {
-  server.registerTool(
-    'analyze_project',
+  defineGraphTool(
+    server,
     {
+      name: 'analyze_project',
       title: 'Analyze Project',
       description: 'Analyze a project directory and load it into CodeMaps',
       inputSchema: {
@@ -31,8 +33,7 @@ function registerAnalyzeProject(server: McpServer) {
         ),
       },
     },
-    async ({ projectPath }: { projectPath?: string }) => {
-      const graph = await ensureGraphLoaded(projectPath);
+    (graph) => {
       const summary = createGraphSummary(graph);
 
       if (graph.projectRoot) {
@@ -48,17 +49,17 @@ function registerAnalyzeProject(server: McpServer) {
 }
 
 function registerGetGraphContext(server: McpServer) {
-  server.registerTool(
-    'get_graph_context',
+  defineGraphTool(
+    server,
     {
+      name: 'get_graph_context',
       title: 'Get Graph Context',
       description: 'Return the graph or a compact graph summary for the loaded project',
       inputSchema: {
         includeFullGraph: optionalBoolean('When true, return the full graph payload.'),
       },
     },
-    async ({ includeFullGraph = false }: { includeFullGraph?: boolean }) => {
-      const graph = await ensureGraphLoaded();
+    (graph, { includeFullGraph = false }) => {
       const payload = includeFullGraph
         ? {
             ...graph,
@@ -76,9 +77,10 @@ function registerGetGraphContext(server: McpServer) {
 }
 
 function registerGetNodeDependencies(server: McpServer) {
-  server.registerTool(
-    'get_node_dependencies',
+  defineGraphTool(
+    server,
     {
+      name: 'get_node_dependencies',
       title: 'Get Node Dependencies',
       description:
         'Return incoming and outgoing links for a graph node. For a file node it covers the symbols inside it and lists every neighbouring file once (dependentFiles, dependencyFiles).',
@@ -90,8 +92,7 @@ function registerGetNodeDependencies(server: McpServer) {
         ),
       },
     },
-    async ({ nodeId, limit }: { nodeId: string; limit?: number }) => {
-      const graph = await ensureGraphLoaded();
+    (graph, { nodeId, limit }) => {
       const found = lookupNode(graph, nodeId);
       if (found.error) return found.error;
 
@@ -104,9 +105,10 @@ function registerGetNodeDependencies(server: McpServer) {
 }
 
 function registerSearchGraph(server: McpServer) {
-  server.registerTool(
-    'search_graph',
+  defineGraphTool(
+    server,
     {
+      name: 'search_graph',
       title: 'Search Graph',
       description: 'Search nodes by label or id with optional type filter',
       inputSchema: {
@@ -117,8 +119,7 @@ function registerSearchGraph(server: McpServer) {
         limit: boundedInt(100, 'Maximum number of matches to return'),
       },
     },
-    async ({ query, type, limit = 20 }: { query: string; type?: string; limit?: number }) => {
-      const graph = await ensureGraphLoaded();
+    (graph, { query, type, limit = 20 }) => {
       const matches = searchGraph(graph, query, type, limit);
       return okStatusToolResult({ count: matches.length, matches });
     }
@@ -126,9 +127,10 @@ function registerSearchGraph(server: McpServer) {
 }
 
 function registerGetBlastRadius(server: McpServer, context: McpToolContext) {
-  server.registerTool(
-    'get_blast_radius',
+  defineGraphTool(
+    server,
     {
+      name: 'get_blast_radius',
       title: 'Get Blast Radius',
       description:
         'Return the impact of changing a node: files grouped by area, the direct dependents, and only the nearest indirect ones. Use detail "full" for the raw node-level result.',
@@ -145,18 +147,7 @@ function registerGetBlastRadius(server: McpServer, context: McpToolContext) {
           .describe('summary (default) or the raw node-level result'),
       },
     },
-    async ({
-      nodeId,
-      depth = 3,
-      limit = 15,
-      detail = 'summary',
-    }: {
-      nodeId: string;
-      depth?: number;
-      limit?: number;
-      detail?: 'summary' | 'full';
-    }) => {
-      const graph = await ensureGraphLoaded();
+    (graph, { nodeId, depth = 3, limit = 15, detail = 'summary' }) => {
       const found = lookupNode(graph, nodeId);
       if (found.error) return found.error;
 

@@ -11,7 +11,10 @@ const subscribe = <T>(channel: string, callback: (payload: T) => void) => {
   };
 };
 
-const api: ElectronAPI = {
+// `findDuplicates` is declared here as well until the renderer's ElectronAPI type lists it.
+const api: ElectronAPI & {
+  findDuplicates: (projectPath: string, limit?: number) => Promise<unknown>;
+} = {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
   analyzeProject: (projectPath?: string) => ipcRenderer.invoke('analyze-project', projectPath),
@@ -49,6 +52,10 @@ const api: ElectronAPI = {
   // Decomposition Guidance
   analyzeDecomposition: (projectPath, focusNodeIds) =>
     ipcRenderer.invoke('analyze-decomposition', projectPath, focusNodeIds),
+
+  // Duplicate code groups with extraction guidance
+  findDuplicates: (projectPath: string, limit?: number) =>
+    ipcRenderer.invoke('find-duplicates', projectPath, limit),
 
   // Activity Heatmap
   analyzeActivityHeatmap: (projectPath, since, until) =>
