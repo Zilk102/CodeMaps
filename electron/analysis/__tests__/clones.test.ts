@@ -157,6 +157,42 @@ describe('detectClones', () => {
     expect(groups[0].instances.map((instance) => instance.file)).toEqual([file, file]);
   });
 
+  it('finds a copy that was edited after pasting (an extra statement in the middle)', async () => {
+    const block = (extra: string[]) =>
+      [
+        'func (h *Handler) one(c *gin.Context) {',
+        '  user, err := h.repo.Find(c.Param("id"))',
+        '  if err != nil {',
+        '    c.JSON(500, gin.H{"error": err.Error()})',
+        '    return',
+        '  }',
+        '  if user.Blocked == "yes" {',
+        '    c.JSON(403, gin.H{"error": "forbidden"})',
+        '    return',
+        '  }',
+        ...extra,
+        '  h.audit.Record(c, user.ID, "viewed")',
+        '  limit := h.config.Limit(user.Role)',
+        '  if limit < 1 {',
+        '    c.JSON(429, gin.H{"error": "too many"})',
+        '    return',
+        '  }',
+        '  c.JSON(200, user)',
+        '}',
+      ].join('\n');
+    const files = [
+      write('gap/a.go', `package g\n${block([])}`),
+      write('gap/b.go', `package g\n${block(['  h.metrics.Inc("viewed", user.ID)'])}`),
+    ];
+    const streams = (await Promise.all(files.map((file) => tokenizeFile(file)))).filter(
+      (stream) => stream !== null
+    );
+    const groups = detectClones(streams);
+    expect(groups).toHaveLength(1);
+    // One group covering the whole function, not two halves.
+    expect(groups[0].lineCount).toBeGreaterThanOrEqual(18);
+  });
+
   it('reports every copy of a block that exists three times', async () => {
     const files = ['A', 'B', 'C'].map((name, index) =>
       write(`three/${name}.go`, `package t\n${goHandler(`Thing${name}`, 'F' + index, 'x')}`)

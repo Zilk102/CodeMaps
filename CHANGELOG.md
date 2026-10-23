@@ -1,5 +1,19 @@
 # CodeMaps Changelog
 
+## v1.1.52 (2026-10-23)
+
+### Added
+
+- **Clone detection now finds copies that were edited after pasting.** Until now only code that was identical up to names, numbers and strings was reported, so a block with one extra statement or a renamed branch looked unique and agents found such duplicates only by reading the file. Exact matches of the same two places that follow each other with up to a statement of difference between them are now merged into one copy. On the Go project used for the benchmark this reveals the copied "me" response blocks and the repeated hex-neighbour expansion in `handlers.go` that were missed before, and the existing groups grow to cover the whole edited block. Detection still takes 0.15-0.65 s on projects of 120-190 files.
+
+### Changed
+
+- **CodeMaps now passes its own checks better.** CodeMaps was run on itself and its worst offenders were the new `planSplit` (complexity 52), `detectClones` (40) and `analyzeModuleQuality` (38): each is now a pipeline of small named functions with identical results (split-plan quality and clone output verified unchanged), and the source-file structure analysis moved out of the 950-line `moduleQualityMetrics.ts` into its own module. The two near-identical edge builders of the cluster planner became one.
+
+### Fixed
+
+- **A broken screenshot on the GitHub profile.** The profile README hotlinked `screenshots/main-graph.jpg`, which v1.1.46 replaced. The link now points at the new image, and a test fails if a README references an image that does not exist or if the image the profile uses is removed.
+
 ## v1.1.51 (2026-10-23)
 
 ### Fixed

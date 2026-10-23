@@ -31,7 +31,7 @@ flowchart LR
 
 ## Duplication and coupling
 
-Duplicated code is found by `electron/analysis/clones/`: every supported file is turned into a stream of normalized tokens (names, numbers and strings are interchangeable), n-gram hashes are winnowed, and matches are extended to maximal copies, across and inside files. Token streams are cached per file in `CloneIndex`, so tools that report clones (`ensureGraphLoaded` awaits the refresh) pay only for the files that changed. `electron/analysis/couplingMetrics.ts` counts fan-in and fan-out in distinct files rather than links, weighs references inside one package at a quarter, and exempts shared-by-design code and entry points from hub, fan-out and layer findings.
+Duplicated code is found by `electron/analysis/clones/`: every supported file is turned into a stream of normalized tokens (names, numbers and strings are interchangeable), n-gram hashes are winnowed, and matches are extended to maximal copies, and exact matches of the same two places that are only a statement apart are merged into one edited copy, across and inside files. Token streams are cached per file in `CloneIndex`, so tools that report clones (`ensureGraphLoaded` awaits the refresh) pay only for the files that changed. `electron/analysis/couplingMetrics.ts` counts fan-in and fan-out in distinct files rather than links, weighs references inside one package at a quarter, and exempts shared-by-design code and entry points from hub, fan-out and layer findings.
 
 ## MCP server
 

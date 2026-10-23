@@ -164,53 +164,49 @@ const detectCommunities = (
   return community;
 };
 
-/** Symbols that share a topic word attract each other, the stronger the rarer the word. */
-const addTokenEdges = (
+/**
+ * Symbols that share a rare feature (a topic word of their names, a field or type they use)
+ * attract each other, the stronger the rarer the feature.
+ */
+const addSharedFeatureEdges = (
   graph: WeightedGraph,
   members: number[],
-  tokensOf: string[][],
-  maxShareRatio: number
+  featuresOf: string[][],
+  maxShareRatio: number,
+  baseWeight: number
 ) => {
-  const membersByToken = new Map<string, number[]>();
+  const membersByFeature = new Map<string, number[]>();
   for (const index of members) {
-    for (const token of new Set(tokensOf[index])) {
-      const bucket = membersByToken.get(token);
+    for (const feature of new Set(featuresOf[index])) {
+      const bucket = membersByFeature.get(feature);
       if (bucket) bucket.push(index);
-      else membersByToken.set(token, [index]);
+      else membersByFeature.set(feature, [index]);
     }
   }
   const maxShare = Math.min(
     MAX_TOKEN_GROUP,
     Math.max(3, Math.floor(members.length * maxShareRatio))
   );
-  for (const group of membersByToken.values()) {
+  for (const group of membersByFeature.values()) {
     if (group.length < 2 || group.length > maxShare) continue;
-    const weight = TOKEN_EDGE_WEIGHT * (1 - group.length / members.length);
+    const weight = baseWeight * (1 - group.length / members.length);
     for (let a = 0; a < group.length; a += 1) {
       for (let b = a + 1; b < group.length; b += 1) addEdge(graph, group[a], group[b], weight);
     }
   }
 };
 
+/** Symbols that share a topic word of their names. */
+const addTokenEdges = (
+  graph: WeightedGraph,
+  members: number[],
+  tokensOf: string[][],
+  maxShareRatio: number
+) => addSharedFeatureEdges(graph, members, tokensOf, maxShareRatio, TOKEN_EDGE_WEIGHT);
+
 /** Symbols that touch the same fields, types and functions of other files work on the same data. */
-const addDataEdges = (graph: WeightedGraph, members: number[], usesOf: string[][]) => {
-  const membersByName = new Map<string, number[]>();
-  for (const index of members) {
-    for (const name of usesOf[index]) {
-      const bucket = membersByName.get(name);
-      if (bucket) bucket.push(index);
-      else membersByName.set(name, [index]);
-    }
-  }
-  const maxShare = Math.min(MAX_TOKEN_GROUP, Math.max(3, Math.floor(members.length * 0.2)));
-  for (const group of membersByName.values()) {
-    if (group.length < 2 || group.length > maxShare) continue;
-    const weight = DATA_EDGE_WEIGHT * (1 - group.length / members.length);
-    for (let a = 0; a < group.length; a += 1) {
-      for (let b = a + 1; b < group.length; b += 1) addEdge(graph, group[a], group[b], weight);
-    }
-  }
-};
+const addDataEdges = (graph: WeightedGraph, members: number[], usesOf: string[][]) =>
+  addSharedFeatureEdges(graph, members, usesOf, 0.2, DATA_EDGE_WEIGHT);
 
 interface Group {
   members: number[];
@@ -340,59 +336,82 @@ const fileNameFor = (clusterName: string, language: string, extension: string) =
     ? `${titleCase(clusterName)}${extension}`
     : `${clusterName}${extension}`;
 
-/**
- * Splits the declarations of one file into the groups that belong together: symbols that call
- * each other or share a topic word end up in the same cluster, and symbols used all over the
- * file are set aside as shared helpers. Returns null when the file is too small to split.
- */
-export const planSplit = (
-  graph: SymbolGraph,
-  displayPath: string,
-  listLimit = MAX_LISTED_SYMBOLS
-): SplitPlan | null => {
-  const { symbols } = graph;
-  if (symbols.length < MIN_SYMBOLS) return null;
+/** What every step of the plan needs to know about the file. */
+interface Analysis {
+  symbols: SymbolInfo[];
+  /** `references[a]` are the symbols `a` uses; `referrers[b]` are the symbols that use `b`. */
+  references: Array<Set<number>>;
+  referrers: Array<Set<number>>;
+  hubs: Set<number>;
+  orchestrators: Set<number>;
+  /** Symbols that are clustered: everything except hubs and orchestrators. */
+  active: number[];
+  tokensOf: string[][];
+  usesOf: string[][];
+  documentFrequency: Map<string, number>;
+  /** Call edges only, and call edges plus topic and data affinity. */
+  referenceWeighted: WeightedGraph;
+  weighted: WeightedGraph;
+  linesOf: (members: number[]) => number;
+}
 
+const emptyGraph = (size: number): WeightedGraph =>
+  Array.from({ length: size }, () => new Map<number, number>());
+
+const indexRange = (size: number) => Array.from({ length: size }, (_, index) => index);
+
+const buildReferences = (symbols: SymbolInfo[]): Array<Set<number>> => {
   const indexByName = new Map(symbols.map((symbol, index) => [symbol.name, index]));
-  const references: Array<Set<number>> = symbols.map(() => new Set<number>());
+  const references = symbols.map(() => new Set<number>());
   symbols.forEach((symbol, from) => {
     for (const ref of symbol.refs) {
       const to = indexByName.get(ref);
       if (to !== undefined && to !== from) references[from].add(to);
     }
   });
+  return references;
+};
 
-  // A symbol that calls a third of the file (a route table, a main) wires the file together; it
-  // would pull every cluster into one, so it stays put instead of being clustered.
+/**
+ * Sorts out the symbols that must not be clustered. A symbol that calls a third of the file (a
+ * route table, a main) wires it together and would pull every cluster into one. A symbol that a
+ * fifth of the file uses (at most a quarter of the file) is a shared helper.
+ */
+const classifyRoles = (symbols: SymbolInfo[], references: Array<Set<number>>) => {
   const orchestratorThreshold = Math.max(8, Math.ceil(symbols.length * 0.3));
   const orchestrators = new Set(
-    symbols
-      .map((_, index) => index)
-      .filter((index) => references[index].size >= orchestratorThreshold)
+    indexRange(symbols.length).filter((index) => references[index].size >= orchestratorThreshold)
   );
 
   // Who uses a symbol, not counting the wiring code that uses everything.
-  const referrers: Array<Set<number>> = symbols.map(() => new Set<number>());
+  const referrers = symbols.map(() => new Set<number>());
   references.forEach((targets, from) => {
     if (orchestrators.has(from)) return;
     for (const to of targets) referrers[to].add(from);
   });
 
-  // Shared helpers: referenced by a fifth of the file (at least 4 symbols), at most a quarter of it.
   const hubThreshold = Math.max(4, Math.ceil(symbols.length * 0.2));
-  const hubCandidates = symbols
-    .map((_, index) => index)
-    .filter((index) => !orchestrators.has(index) && referrers[index].size >= hubThreshold)
-    .sort((a, b) => referrers[b].size - referrers[a].size)
-    .slice(0, Math.max(1, Math.floor(symbols.length * 0.25)));
-  const hubs = new Set(hubCandidates);
-  const active = symbols
-    .map((_, index) => index)
-    .filter((index) => !hubs.has(index) && !orchestrators.has(index));
-  if (active.length < 2) return null;
+  const hubs = new Set(
+    indexRange(symbols.length)
+      .filter((index) => !orchestrators.has(index) && referrers[index].size >= hubThreshold)
+      .sort((a, b) => referrers[b].size - referrers[a].size)
+      .slice(0, Math.max(1, Math.floor(symbols.length * 0.25)))
+  );
+  const active = indexRange(symbols.length).filter(
+    (index) => !hubs.has(index) && !orchestrators.has(index)
+  );
+  return { referrers, hubs, orchestrators, active };
+};
 
-  const weighted: WeightedGraph = symbols.map(() => new Map<number, number>());
-  const referenceWeighted: WeightedGraph = symbols.map(() => new Map<number, number>());
+/** Call edges, then the weaker pull of shared topic words and shared data. */
+const buildAffinity = (
+  symbols: SymbolInfo[],
+  references: Array<Set<number>>,
+  roles: ReturnType<typeof classifyRoles>
+) => {
+  const { hubs, orchestrators, active } = roles;
+  const weighted = emptyGraph(symbols.length);
+  const referenceWeighted = emptyGraph(symbols.length);
   for (const from of active) {
     for (const to of references[from]) {
       if (hubs.has(to) || orchestrators.has(to)) continue;
@@ -412,44 +431,48 @@ export const planSplit = (
   addTokenEdges(weighted, active, tokensOf, 0.25);
   const usesOf = symbols.map((symbol) => symbol.uses ?? []);
   addDataEdges(weighted, active, usesOf);
+  return { weighted, referenceWeighted, tokensOf, usesOf, documentFrequency };
+};
 
-  const labels = detectCommunities(weighted, active);
+const groupByLabel = (active: number[], labels: Map<number, number>): Group[] => {
   const byLabel = new Map<number, number[]>();
   for (const index of active) {
     const label = labels.get(index)!;
-    const bucket = byLabel.get(label);
-    if (bucket) bucket.push(index);
-    else byLabel.set(label, [index]);
+    byLabel.set(label, [...(byLabel.get(label) ?? []), index]);
   }
+  return [...byLabel.values()].map((members) => ({ members }));
+};
 
-  const linesOf = (members: number[]) =>
-    members.reduce((total, member) => total + symbols[member].lineCount, 0);
-  let groups: Group[] = [...byLabel.values()].map((members) => ({ members }));
-  const totalLines = symbols.reduce((sum, symbol) => sum + symbol.lineCount, 0);
+/** A big cluster is a topic with sub-topics: look again inside it, with its own word statistics. */
+const subdivide = (analysis: Analysis, group: Group): Group[] => {
+  const { symbols, referenceWeighted, tokensOf, usesOf } = analysis;
+  const local = emptyGraph(symbols.length);
+  const inGroup = new Set(group.members);
+  for (const from of group.members) {
+    for (const [to, weight] of referenceWeighted[from]) {
+      if (to > from && inGroup.has(to)) addEdge(local, from, to, weight);
+    }
+  }
+  addTokenEdges(local, group.members, tokensOf, 0.5);
+  addDataEdges(local, group.members, usesOf);
+  const inner = detectCommunities(local, group.members, SUBDIVIDE_RESOLUTION);
+  const parts = groupByLabel(group.members, inner);
+  return parts.length > 1 ? parts : [group];
+};
+
+/** Splits clusters that are too big, then folds the leftovers into a small, sensible set. */
+const partition = (analysis: Analysis): Group[] => {
+  const { symbols, active, weighted, linesOf } = analysis;
+  const totalLines = linesOf(indexRange(symbols.length));
+  let groups = groupByLabel(active, detectCommunities(weighted, active));
   groups = groups.flatMap((group) => {
     const tooBig =
       group.members.length > SUBDIVIDE_MIN_SYMBOLS &&
       linesOf(group.members) > totalLines * SUBDIVIDE_MIN_SHARE;
-    if (!tooBig) return [group];
-    // A big cluster is a topic with sub-topics: look again inside it, with its own word statistics.
-    const local: WeightedGraph = symbols.map(() => new Map<number, number>());
-    const inGroup = new Set(group.members);
-    for (const from of group.members) {
-      for (const [to, weight] of referenceWeighted[from]) {
-        if (to > from && inGroup.has(to)) addEdge(local, from, to, weight);
-      }
-    }
-    addTokenEdges(local, group.members, tokensOf, 0.5);
-    addDataEdges(local, group.members, usesOf);
-    const inner = detectCommunities(local, group.members, SUBDIVIDE_RESOLUTION);
-    const parts = new Map<number, number[]>();
-    for (const member of group.members) {
-      const label = inner.get(member)!;
-      parts.set(label, [...(parts.get(label) ?? []), member]);
-    }
-    return parts.size > 1 ? [...parts.values()].map((members) => ({ members })) : [group];
+    return tooBig ? subdivide(analysis, group) : [group];
   });
   groups = mergeSmallGroups(groups, weighted, linesOf);
+
   const loose = groups.filter((group) => group.members.length < 2);
   if (loose.length > 0 && groups.length > loose.length) {
     groups = [
@@ -457,29 +480,38 @@ export const planSplit = (
       { members: loose.flatMap((group) => group.members), misc: true },
     ];
   }
+
   // A small file does not need a dozen files: the cap grows with the number of symbols.
   const maxClusters = Math.min(
     MAX_CLUSTERS,
     Math.max(MIN_CLUSTER_CAP, Math.ceil(symbols.length / SYMBOLS_PER_CLUSTER))
   );
   groups = capGroups(groups, weighted, linesOf, maxClusters);
-  groups.sort((a, b) => linesOf(b.members) - linesOf(a.members));
+  return groups.sort((a, b) => linesOf(b.members) - linesOf(a.members));
+};
 
-  const clusterOf = new Map<number, number>();
-  groups.forEach((group, groupIndex) => group.members.forEach((m) => clusterOf.set(m, groupIndex)));
-
-  // Cohesion: how much of the call traffic between non-shared symbols stays inside a cluster.
+/** How much of the call traffic between clustered symbols stays inside a cluster. */
+const measureCohesion = (analysis: Analysis, clusterOf: Map<number, number>): number => {
   let inside = 0;
   let total = 0;
-  for (const from of active) {
-    for (const [to, weight] of referenceWeighted[from]) {
+  for (const from of analysis.active) {
+    for (const [to, weight] of analysis.referenceWeighted[from]) {
       if (to < from) continue;
       total += weight;
       if (clusterOf.get(from) === clusterOf.get(to)) inside += weight;
     }
   }
-  const cohesion = total === 0 ? 0 : Math.round((inside / total) * 100) / 100;
+  return total === 0 ? 0 : Math.round((inside / total) * 100) / 100;
+};
 
+const describeClusters = (
+  analysis: Analysis,
+  groups: Group[],
+  clusterOf: Map<number, number>,
+  graph: SymbolGraph,
+  listLimit: number
+): SplitCluster[] => {
+  const { symbols, references, hubs, tokensOf, documentFrequency, linesOf } = analysis;
   const taken = new Set<string>();
   const names = groups.map((group) => {
     if (!group.misc) return nameCluster(group.members, symbols, tokensOf, documentFrequency, taken);
@@ -488,18 +520,19 @@ export const planSplit = (
   });
   const extension = path.extname(graph.filePath);
 
-  const clusters: SplitCluster[] = groups.map((group, groupIndex) => {
+  return groups.map((group, groupIndex) => {
     const ordered = [...group.members].sort((a, b) => symbols[a].startLine - symbols[b].startLine);
     const helperUse = new Map<number, number>();
     const talksTo = new Map<number, number>();
     for (const member of group.members) {
       for (const to of references[member]) {
-        if (hubs.has(to)) helperUse.set(to, (helperUse.get(to) ?? 0) + 1);
-        else {
-          const other = clusterOf.get(to);
-          if (other !== undefined && other !== groupIndex) {
-            talksTo.set(other, (talksTo.get(other) ?? 0) + 1);
-          }
+        if (hubs.has(to)) {
+          helperUse.set(to, (helperUse.get(to) ?? 0) + 1);
+          continue;
+        }
+        const other = clusterOf.get(to);
+        if (other !== undefined && other !== groupIndex) {
+          talksTo.set(other, (talksTo.get(other) ?? 0) + 1);
         }
       }
     }
@@ -521,42 +554,78 @@ export const planSplit = (
       dependsOn: [...talksTo.entries()].sort((a, b) => b[1] - a[1]).map(([other]) => names[other]),
     };
   });
+};
 
-  const sharedHelpers = [...hubs]
-    .sort((a, b) => referrers[b].size - referrers[a].size)
-    .slice(0, MAX_SHARED_LISTED)
-    .map((hub) => ({
-      name: symbols[hub].name,
-      kind: symbols[hub].kind,
-      usedBy: referrers[hub].size,
-      lines: symbols[hub].lineCount,
-    }));
+const rateConfidence = (
+  clusterCount: number,
+  cohesion: number,
+  largestShare: number
+): SplitPlan['confidence'] => {
+  if (clusterCount < 2 || cohesion < 0.45 || largestShare > 0.6) return 'low';
+  return cohesion < 0.7 ? 'medium' : 'high';
+};
 
+const adviceFor = (
+  clusterCount: number,
+  largestShare: number,
+  confidence: SplitPlan['confidence']
+): string => {
+  if (clusterCount < 2) {
+    return 'The symbols do not fall apart into separate groups; split by responsibility, not by call structure.';
+  }
+  if (largestShare > 0.6) {
+    return 'One cluster still holds most of the code: split it further by responsibility before moving files.';
+  }
+  if (confidence === 'low') {
+    return 'Clusters are weakly separated (many cross-cluster calls); treat them as a starting point and check each seam.';
+  }
+  return 'Move each cluster to its own file; keep shared helpers in the original file or a small shared file, and update imports.';
+};
+
+const heaviestSymbols = (symbols: SymbolInfo[]): SplitPlan['heaviest'] =>
+  [...symbols]
+    .sort((a, b) => b.lineCount - a.lineCount)
+    .slice(0, 3)
+    .filter((symbol) => symbol.lineCount >= 40)
+    .map((symbol) => ({ name: symbol.name, kind: symbol.kind, lines: symbol.lineCount }));
+
+/**
+ * Splits the declarations of one file into the groups that belong together: symbols that call
+ * each other or share a topic word end up in the same cluster, and symbols used all over the
+ * file are set aside as shared helpers. Returns null when the file is too small to split.
+ */
+export const planSplit = (
+  graph: SymbolGraph,
+  displayPath: string,
+  listLimit = MAX_LISTED_SYMBOLS
+): SplitPlan | null => {
+  const { symbols } = graph;
+  if (symbols.length < MIN_SYMBOLS) return null;
+
+  const references = buildReferences(symbols);
+  const roles = classifyRoles(symbols, references);
+  if (roles.active.length < 2) return null;
+
+  const analysis: Analysis = {
+    symbols,
+    references,
+    ...roles,
+    ...buildAffinity(symbols, references, roles),
+    linesOf: (members) => members.reduce((total, member) => total + symbols[member].lineCount, 0),
+  };
+
+  const groups = partition(analysis);
+  const clusterOf = new Map<number, number>();
+  groups.forEach((group, groupIndex) => group.members.forEach((m) => clusterOf.set(m, groupIndex)));
+
+  const cohesion = measureCohesion(analysis, clusterOf);
+  const clusters = describeClusters(analysis, groups, clusterOf, graph, listLimit);
+  const clusteredLines = groups.reduce((sum, group) => sum + analysis.linesOf(group.members), 0);
   const largestShare =
-    Math.max(...groups.map((group) => linesOf(group.members))) /
-    Math.max(
-      1,
-      groups.reduce((sum, group) => sum + linesOf(group.members), 0)
-    );
-  const symbolLines = symbols.reduce((sum, symbol) => sum + symbol.lineCount, 0);
-  const coverage = Math.min(
-    1,
-    Math.round((symbolLines / Math.max(1, graph.lineCount)) * 100) / 100
-  );
-  const confidence =
-    clusters.length < 2 || cohesion < 0.45 || largestShare > 0.6
-      ? 'low'
-      : cohesion < 0.7
-        ? 'medium'
-        : 'high';
-  const note =
-    clusters.length < 2
-      ? 'The symbols do not fall apart into separate groups; split by responsibility, not by call structure.'
-      : largestShare > 0.6
-        ? 'One cluster still holds most of the code: split it further by responsibility before moving files.'
-        : confidence === 'low'
-          ? 'Clusters are weakly separated (many cross-cluster calls); treat them as a starting point and check each seam.'
-          : 'Move each cluster to its own file; keep shared helpers in the original file or a small shared file, and update imports.';
+    Math.max(...groups.map((group) => analysis.linesOf(group.members))) /
+    Math.max(1, clusteredLines);
+  const confidence = rateConfidence(clusters.length, cohesion, largestShare);
+  const symbolLines = analysis.linesOf(indexRange(symbols.length));
 
   return {
     file: displayPath,
@@ -565,15 +634,19 @@ export const planSplit = (
     symbolCount: symbols.length,
     confidence,
     cohesion,
-    coverage,
-    sharedHelpers,
-    heaviest: [...symbols]
-      .sort((a, b) => b.lineCount - a.lineCount)
-      .slice(0, 3)
-      .filter((symbol) => symbol.lineCount >= 40)
-      .map((symbol) => ({ name: symbol.name, kind: symbol.kind, lines: symbol.lineCount })),
-    orchestrators: [...orchestrators].map((index) => symbols[index].name),
+    coverage: Math.min(1, Math.round((symbolLines / Math.max(1, graph.lineCount)) * 100) / 100),
+    sharedHelpers: [...roles.hubs]
+      .sort((a, b) => roles.referrers[b].size - roles.referrers[a].size)
+      .slice(0, MAX_SHARED_LISTED)
+      .map((hub) => ({
+        name: symbols[hub].name,
+        kind: symbols[hub].kind,
+        usedBy: roles.referrers[hub].size,
+        lines: symbols[hub].lineCount,
+      })),
+    heaviest: heaviestSymbols(symbols),
+    orchestrators: [...roles.orchestrators].map((index) => symbols[index].name),
     clusters,
-    note,
+    note: adviceFor(clusters.length, largestShare, confidence),
   };
 };
