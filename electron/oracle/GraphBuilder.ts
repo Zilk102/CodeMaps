@@ -3,6 +3,12 @@ import { ParseResult } from '../parsing/types';
 import { GraphLink, oracleStore } from '../store';
 import { getParentDir, normalizePath } from './shared';
 import { linkImports, resolveReExports } from './graphImportLinks';
+import {
+  addADRLink,
+  handleMarkdownADR,
+  handleSizeExceeded,
+  processEntities,
+} from './graphNodeWriters';
 
 export class GraphBuilder {
   ensureDirectoryChainForFile(filePath: string, baseDir: string) {
@@ -65,82 +71,6 @@ export class GraphBuilder {
     }
   }
 
-  private handleSizeExceeded(
-    normalizedPath: string,
-    fileName: string,
-    churn: number,
-    detectedLanguage?: string,
-    parentId?: string
-  ) {
-    const store = oracleStore.getState();
-    if (!store.nodes.has(normalizedPath)) {
-      store.upsertNode({
-        id: normalizedPath,
-        label: fileName,
-        group: 1,
-        type: 'file',
-        churn,
-        filePath: normalizedPath,
-        language: detectedLanguage,
-        parentId,
-      });
-    }
-  }
-
-  private handleMarkdownADR(
-    normalizedPath: string,
-    adr: string,
-    churn: number,
-    detectedLanguage?: string,
-    parentId?: string
-  ) {
-    oracleStore.getState().upsertNode({
-      id: normalizedPath,
-      label: `ADR: ${adr}`,
-      group: 4,
-      type: 'adr',
-      churn,
-      filePath: normalizedPath,
-      language: detectedLanguage,
-      adr: normalizedPath,
-      parentId,
-    });
-  }
-
-  private addADRLink(normalizedPath: string, adr: string) {
-    const store = oracleStore.getState();
-    const adrPathMatch = Array.from(store.nodes.keys()).find(
-      (candidate) =>
-        candidate.toLowerCase().includes(adr.toLowerCase()) &&
-        store.nodes.get(candidate)?.type === 'adr'
-    );
-    if (adrPathMatch) {
-      store.addLink({ source: normalizedPath, target: adrPathMatch, value: 3, type: 'adr' });
-    }
-  }
-
-  private processEntities(
-    normalizedPath: string,
-    entities: ParseResult['entities'],
-    churn: number,
-    detectedLanguage?: string
-  ) {
-    const store = oracleStore.getState();
-    for (const entity of entities) {
-      store.upsertNode({
-        id: `${normalizedPath}#${entity.name}`,
-        label: entity.name,
-        group: entity.type === 'class' ? 2 : 3,
-        type: entity.type,
-        churn,
-        filePath: normalizedPath,
-        language: detectedLanguage,
-        sourceLocation: entity.location,
-        parentId: normalizedPath,
-      });
-    }
-  }
-
   applyParsedFile(filePath: string, baseDir: string, churn: number, result: ParseResult) {
     const normalizedPath = normalizePath(filePath);
     const fileName = path.basename(normalizedPath);
@@ -152,14 +82,14 @@ export class GraphBuilder {
     this.ensureDirectoryChainForFile(normalizedPath, baseDir);
 
     if (result.sizeExceeded) {
-      this.handleSizeExceeded(normalizedPath, fileName, churn, result.detectedLanguage, parentId);
+      handleSizeExceeded(normalizedPath, fileName, churn, result.detectedLanguage, parentId);
       return;
     }
 
     const { imports, entities, exports, reExports, adr, isMarkdownADR } = result;
 
     if (isMarkdownADR && adr) {
-      this.handleMarkdownADR(normalizedPath, adr, churn, result.detectedLanguage, parentId);
+      handleMarkdownADR(normalizedPath, adr, churn, result.detectedLanguage, parentId);
       return;
     }
 
@@ -179,10 +109,10 @@ export class GraphBuilder {
     });
 
     if (adr) {
-      this.addADRLink(normalizedPath, adr);
+      addADRLink(normalizedPath, adr);
     }
 
     linkImports(normalizedPath, imports);
-    this.processEntities(normalizedPath, entities, churn, result.detectedLanguage);
+    processEntities(normalizedPath, entities, churn, result.detectedLanguage);
   }
 }

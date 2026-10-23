@@ -1,3 +1,4 @@
+import type { ImportRecord } from '../parsing/types';
 import {
   dirOf,
   entityTarget,
@@ -16,71 +17,78 @@ interface ModuleHit {
   file: string;
 }
 
+/** The candidate that shares the longest directory prefix with the importer. */
+const nearest = (importer: string, candidates: string[]): string => {
+  const score = (candidate: string) => {
+    const a = importer.split('/');
+    const b = candidate.split('/');
+    let shared = 0;
+    while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
+    return shared;
+  };
+  return candidates.reduce((best, candidate) =>
+    score(candidate) > score(best) ? candidate : best
+  );
+};
+
+/** Directories an absolute import may be rooted at: every ancestor plus `src/`. */
+const absoluteRoots = (rootDir: string, importer: FileEntry): string[] => {
+  const roots: string[] = [];
+  let current = dirOf(importer.path);
+  while (current.length >= rootDir.length) {
+    roots.push(current);
+    if (current === rootDir) break;
+    current = dirOf(current);
+  }
+  roots.push(joinPath(rootDir, 'src'));
+  return roots;
+};
+
+/** `django_host.apps.billing` -> candidate files, for every suffix of every module path. */
+const buildModulesBySuffix = (index: ProjectIndex): Map<string, string[]> => {
+  const modulesBySuffix = new Map<string, string[]>();
+  const prefix = `${index.root}/`;
+  for (const entry of index.files.values()) {
+    if (entry.language !== 'python') continue;
+    const relative = entry.path.startsWith(prefix) ? entry.path.slice(prefix.length) : entry.path;
+    const segments = relative.replace(/\.pyi?$/, '').split('/');
+    if (segments[segments.length - 1] === '__init__') segments.pop();
+    // Source roots are not declared anywhere (src/, a monorepo service folder, ...), so any
+    // trailing part of the path may be the module name.
+    for (let start = 0; start < segments.length; start += 1) {
+      const key = segments.slice(start).join('.');
+      const bucket = modulesBySuffix.get(key);
+      if (bucket) bucket.push(entry.path);
+      else modulesBySuffix.set(key, [entry.path]);
+    }
+  }
+  return modulesBySuffix;
+};
+
+const importEdge = (target: string): ResolvedEdge => ({
+  target,
+  value: 1,
+  reason: 'python:import',
+});
+
 export class PythonResolver implements LanguageResolver {
   readonly languageId = 'python';
   private index!: ProjectIndex;
 
-  /** `django_host.apps.billing` -> candidate files, for every suffix of every module path. */
   private modulesBySuffix = new Map<string, string[]>();
 
   async prepare(index: ProjectIndex): Promise<void> {
     this.index = index;
-    this.modulesBySuffix = new Map();
-    const prefix = `${index.root}/`;
-    for (const entry of index.files.values()) {
-      if (entry.language !== 'python') continue;
-      const relative = entry.path.startsWith(prefix) ? entry.path.slice(prefix.length) : entry.path;
-      const segments = relative.replace(/\.pyi?$/, '').split('/');
-      if (segments[segments.length - 1] === '__init__') segments.pop();
-      // Source roots are not declared anywhere (src/, a monorepo service folder, ...), so any
-      // trailing part of the path may be the module name.
-      for (let start = 0; start < segments.length; start += 1) {
-        const key = segments.slice(start).join('.');
-        const bucket = this.modulesBySuffix.get(key);
-        if (bucket) bucket.push(entry.path);
-        else this.modulesBySuffix.set(key, [entry.path]);
-      }
-    }
-  }
-
-  /** The candidate that shares the longest directory prefix with the importer. */
-  private nearest(importer: string, candidates: string[]): string {
-    const score = (candidate: string) => {
-      const a = importer.split('/');
-      const b = candidate.split('/');
-      let shared = 0;
-      while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
-      return shared;
-    };
-    return candidates.reduce((best, candidate) =>
-      score(candidate) > score(best) ? candidate : best
-    );
-  }
-
-  private has(path: string): boolean {
-    return this.index.files.has(path);
+    this.modulesBySuffix = buildModulesBySuffix(index);
   }
 
   /** `base/a/b` -> the file that module a.b lives in, if the project has one. */
   private moduleFileAt(base: string, segments: string[]): ModuleHit | null {
     const stem = joinPath(base, ...segments);
-    if (segments.length > 0 && this.has(`${stem}.py`)) return { file: `${stem}.py` };
-    if (this.has(joinPath(stem, '__init__.py'))) return { file: joinPath(stem, '__init__.py') };
+    if (segments.length > 0 && this.index.files.has(`${stem}.py`)) return { file: `${stem}.py` };
+    if (this.index.files.has(joinPath(stem, '__init__.py')))
+      return { file: joinPath(stem, '__init__.py') };
     return null;
-  }
-
-  /** Directories an absolute import may be rooted at: every ancestor plus `src/`. */
-  private absoluteRoots(importer: FileEntry): string[] {
-    const roots: string[] = [];
-    const rootDir = this.index.root;
-    let current = dirOf(importer.path);
-    while (current.length >= rootDir.length) {
-      roots.push(current);
-      if (current === rootDir) break;
-      current = dirOf(current);
-    }
-    roots.push(joinPath(rootDir, 'src'));
-    return roots;
   }
 
   private resolveModule(importer: FileEntry, spec: string): ModuleHit | null {
@@ -93,17 +101,17 @@ export class PythonResolver implements LanguageResolver {
       // `from . import x` has no module part: the package itself.
       if (segments.length === 0) {
         const init = joinPath(base, '__init__.py');
-        return this.has(init) ? { file: init } : null;
+        return this.index.files.has(init) ? { file: init } : null;
       }
       return this.moduleFileAt(base, segments);
     }
 
-    for (const root of this.absoluteRoots(importer)) {
+    for (const root of absoluteRoots(this.index.root, importer)) {
       const hit = this.moduleFileAt(root, segments);
       if (hit) return hit;
     }
     const candidates = this.modulesBySuffix.get(segments.join('.'));
-    return candidates?.length ? { file: this.nearest(importer.path, candidates) } : null;
+    return candidates?.length ? { file: nearest(importer.path, candidates) } : null;
   }
 
   /** Where `name` imported from `module` really lives, following `from .x import name` re-exports. */
@@ -128,43 +136,35 @@ export class PythonResolver implements LanguageResolver {
     return this.moduleFileAt(dirOf(packageFile), [name]);
   }
 
-  resolve(file: FileEntry): ResolvedEdge[] {
-    const edges: ResolvedEdge[] = [];
-    for (const record of file.facts.imports) {
-      const target = this.resolveModule(file, record.path);
-      if (!target || target.file === file.path) continue;
+  /** `import pkg.mod as m` then `m.func()`: link the used function itself. */
+  private qualifiedUseEdges(file: FileEntry, record: ImportRecord, target: string): ResolvedEdge[] {
+    const qualifier = record.alias ?? (record.path.includes('.') ? null : record.path);
+    if (!qualifier) return [];
+    return file.facts.qualifiedUses
+      .filter((use) => use.qualifier === qualifier && hasEntity(this.index, target, use.name))
+      .map((use) => ({
+        target: entityTarget(target, use.name),
+        value: 2,
+        reason: 'python:import',
+      }));
+  }
 
-      if (record.importedEntities.length === 0) {
-        edges.push({ target: target.file, value: 1, reason: 'python:import' });
-        // `import pkg.mod as m` then `m.func()`: link the used function itself.
-        const qualifier = record.alias ?? (record.path.includes('.') ? null : record.path);
-        if (qualifier) {
-          for (const use of file.facts.qualifiedUses) {
-            if (use.qualifier === qualifier && hasEntity(this.index, target.file, use.name)) {
-              edges.push({
-                target: entityTarget(target.file, use.name),
-                value: 2,
-                reason: 'python:import',
-              });
-            }
-          }
-        }
-        continue;
-      }
+  private importedNameEdge(targetFile: string, name: string): ResolvedEdge {
+    if (name === '*') return importEdge(targetFile);
+    const child = this.submodule(targetFile, name);
+    return child ? importEdge(child.file) : this.resolveName(targetFile, name);
+  }
 
-      for (const name of record.importedEntities) {
-        if (name === '*') {
-          edges.push({ target: target.file, value: 1, reason: 'python:import' });
-          continue;
-        }
-        const child = this.submodule(target.file, name);
-        if (child) {
-          edges.push({ target: child.file, value: 1, reason: 'python:import' });
-          continue;
-        }
-        edges.push(this.resolveName(target.file, name));
-      }
+  private edgesForImport(file: FileEntry, record: ImportRecord): ResolvedEdge[] {
+    const target = this.resolveModule(file, record.path);
+    if (!target || target.file === file.path) return [];
+    if (record.importedEntities.length === 0) {
+      return [importEdge(target.file), ...this.qualifiedUseEdges(file, record, target.file)];
     }
-    return edges;
+    return record.importedEntities.map((name) => this.importedNameEdge(target.file, name));
+  }
+
+  resolve(file: FileEntry): ResolvedEdge[] {
+    return file.facts.imports.flatMap((record) => this.edgesForImport(file, record));
   }
 }

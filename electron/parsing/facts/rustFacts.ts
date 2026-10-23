@@ -1,13 +1,7 @@
 import type { Node } from 'web-tree-sitter';
-import type { ImportRecord, QualifiedUse } from '../types';
-import {
-  BoundedSet,
-  EntityCollector,
-  MAX_QUALIFIED_USES,
-  MAX_USED_NAMES,
-  walkNamed,
-  namedOf,
-} from './astUtils';
+import type { ImportRecord } from '../types';
+import { walkNamed, namedOf } from './astUtils';
+import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const ITEM_TYPES = new Set(['struct_item', 'enum_item', 'union_item', 'trait_item', 'type_item']);
@@ -52,73 +46,68 @@ const implTypeName = (impl: Node): string | undefined => {
   return inner?.text;
 };
 
+interface RustState {
+  acc: FactsAccumulator;
+  moduleDeclarations: string[];
+}
+
+const registerImplMembers = (impl: Node, acc: FactsAccumulator): void => {
+  const owner = implTypeName(impl);
+  const body = impl.childForFieldName('body');
+  for (const member of body ? namedOf(body) : []) {
+    if (member.type !== 'function_item') continue;
+    const name = member.childForFieldName('name');
+    if (name) acc.entities.add('function', owner ? `${owner}::${name.text}` : name.text, name);
+  }
+};
+
+const identifierHandler: NodeHandler<RustState> = (node, { acc }) => {
+  acc.noteIdentifier(node);
+  return false;
+};
+
+const HANDLERS: Record<string, NodeHandler<RustState>> = {
+  use_declaration: (node, { acc }) => {
+    const argument = node.childForFieldName('argument');
+    if (argument) flattenUse(argument, '', acc.imports);
+    return false;
+  },
+  mod_item: (node, state) => {
+    const name = node.childForFieldName('name')?.text;
+    if (name && !node.childForFieldName('body')) state.moduleDeclarations.push(name);
+    return true;
+  },
+  impl_item: (node, { acc }) => {
+    registerImplMembers(node, acc);
+    return true;
+  },
+  function_item: (node, { acc }) => {
+    const name = node.childForFieldName('name');
+    // Impl members were registered with their type.
+    if (name && node.parent?.parent?.type !== 'impl_item')
+      acc.entities.add('function', name.text, name);
+    return true;
+  },
+  scoped_identifier: (node, { acc }) => {
+    const path = node.childForFieldName('path');
+    const name = node.childForFieldName('name');
+    if (path?.type === 'identifier' && name) acc.noteQualified('::', path.text, name.text);
+    return true;
+  },
+  identifier: identifierHandler,
+  type_identifier: identifierHandler,
+};
+
+const visitItem = (node: Node, { acc }: RustState): boolean => {
+  if (ITEM_TYPES.has(node.type)) {
+    const name = node.childForFieldName('name');
+    if (name) acc.entities.add('class', name.text, name);
+  }
+  return true;
+};
+
 export const extractRustFacts = (root: Node): LanguageFactsWithDeclarations => {
-  const imports: ImportRecord[] = [];
-  const moduleDeclarations: string[] = [];
-  const entities = new EntityCollector();
-  const usedNames = new BoundedSet<string>(MAX_USED_NAMES);
-  const qualifiedUses = new BoundedSet<QualifiedUse>(MAX_QUALIFIED_USES);
-
-  walkNamed(root, (node) => {
-    switch (node.type) {
-      case 'use_declaration': {
-        const argument = node.childForFieldName('argument');
-        if (argument) flattenUse(argument, '', imports);
-        return false;
-      }
-      case 'mod_item': {
-        const name = node.childForFieldName('name')?.text;
-        if (name && !node.childForFieldName('body')) moduleDeclarations.push(name);
-        return true;
-      }
-      case 'impl_item': {
-        const owner = implTypeName(node);
-        const body = node.childForFieldName('body');
-        for (const member of body ? namedOf(body) : []) {
-          if (member.type !== 'function_item') continue;
-          const name = member.childForFieldName('name');
-          if (name) entities.add('function', owner ? `${owner}::${name.text}` : name.text, name);
-        }
-        return true;
-      }
-      case 'function_item': {
-        const name = node.childForFieldName('name');
-        // Impl members were registered with their type.
-        if (name && node.parent?.parent?.type !== 'impl_item') {
-          entities.add('function', name.text, name);
-        }
-        return true;
-      }
-      case 'scoped_identifier': {
-        const path = node.childForFieldName('path');
-        const name = node.childForFieldName('name');
-        if (path?.type === 'identifier' && name) {
-          qualifiedUses.add(`${path.text}::${name.text}`, {
-            qualifier: path.text,
-            name: name.text,
-          });
-        }
-        return true;
-      }
-      case 'identifier':
-      case 'type_identifier':
-        if (node.text.length > 1) usedNames.add(node.text, node.text);
-        return false;
-      default:
-        if (ITEM_TYPES.has(node.type)) {
-          const name = node.childForFieldName('name');
-          if (name) entities.add('class', name.text, name);
-        }
-        return true;
-    }
-  });
-
-  return {
-    imports,
-    entities: entities.entities,
-    declarations: entities.declarations,
-    qualifiedUses: qualifiedUses.toArray(),
-    usedNames: usedNames.toArray(),
-    moduleDeclarations,
-  };
+  const state: RustState = { acc: new FactsAccumulator(), moduleDeclarations: [] };
+  walkNamed(root, (node) => (HANDLERS[node.type] ?? visitItem)(node, state));
+  return state.acc.toFacts({ moduleDeclarations: state.moduleDeclarations });
 };
