@@ -35,6 +35,23 @@ const resolveBazelBuildFile = (context: StackAdapterContext, packagePath: string
   return candidates.find((candidate) => context.hasRelativePath(candidate)) || null;
 };
 
+/** A target named like a file (`lib.ts`, `src/a.py`) that exists in its package. */
+const findTargetFile = (context: StackAdapterContext, packagePath: string, target: string) => {
+  if (!target || !/[./]/.test(target)) return null;
+  const fileCandidate = path.posix.normalize(path.posix.join(packagePath, target));
+  return context.hasRelativePath(fileCandidate) ? fileCandidate : null;
+};
+
+/** `//pkg:name` or `:name` into the package directory and the target name. */
+const splitBazelLabel = (label: string, sourceDir: string) => {
+  if (label.startsWith('//')) {
+    const [, body] = label.split('//');
+    const [pkg, targetName = ''] = (body || '').split(':');
+    return { packagePath: pkg || '', target: targetName };
+  }
+  return { packagePath: sourceDir === '.' ? '' : sourceDir, target: label.slice(1) };
+};
+
 const resolveBazelLabel = (
   context: StackAdapterContext,
   sourceRelativePath: string,
@@ -52,25 +69,10 @@ const resolveBazelLabel = (
     return context.hasRelativePath(fileCandidate) ? { file: fileCandidate } : null;
   }
 
-  let packagePath: string;
-  let target: string;
+  const { packagePath, target } = splitBazelLabel(label, sourceDir);
 
-  if (label.startsWith('//')) {
-    const [, body] = label.split('//');
-    const [pkg, targetName = ''] = (body || '').split(':');
-    packagePath = pkg || '';
-    target = targetName;
-  } else {
-    packagePath = sourceDir === '.' ? '' : sourceDir;
-    target = label.slice(1);
-  }
-
-  if (target && /[./]/.test(target)) {
-    const fileCandidate = path.posix.normalize(path.posix.join(packagePath, target));
-    if (context.hasRelativePath(fileCandidate)) {
-      return { file: fileCandidate };
-    }
-  }
+  const targetFile = findTargetFile(context, packagePath, target);
+  if (targetFile) return { file: targetFile };
 
   const descriptor = resolveBazelBuildFile(context, packagePath);
   return descriptor ? { descriptor } : null;
@@ -109,12 +111,8 @@ const resolvePantsAddress = (
   const [maybePath, target = ''] = address.split(':');
   const packagePath = maybePath ? maybePath : sourceDir === '.' ? '' : sourceDir;
 
-  if (target && /[./]/.test(target)) {
-    const fileCandidate = path.posix.normalize(path.posix.join(packagePath, target));
-    if (context.hasRelativePath(fileCandidate)) {
-      return { file: fileCandidate };
-    }
-  }
+  const targetFile = findTargetFile(context, packagePath, target);
+  if (targetFile) return { file: targetFile };
 
   const descriptor = resolvePantsBuildFile(context, packagePath);
   return descriptor ? { descriptor } : null;

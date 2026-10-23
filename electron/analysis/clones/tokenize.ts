@@ -25,28 +25,26 @@ const NUMBER_NODE =
 
 // ---- TypeScript / JavaScript ------------------------------------------------------------
 
-const normalizeTsToken = (kind: ts.SyntaxKind): string | null => {
-  switch (kind) {
-    case ts.SyntaxKind.Identifier:
-    case ts.SyntaxKind.PrivateIdentifier:
-      return 'ID';
-    case ts.SyntaxKind.NumericLiteral:
-    case ts.SyntaxKind.BigIntLiteral:
-      return 'NUM';
-    case ts.SyntaxKind.StringLiteral:
-    case ts.SyntaxKind.NoSubstitutionTemplateLiteral:
-    case ts.SyntaxKind.TemplateHead:
-    case ts.SyntaxKind.TemplateMiddle:
-    case ts.SyntaxKind.TemplateTail:
-    case ts.SyntaxKind.RegularExpressionLiteral:
-      return 'STR';
-    case ts.SyntaxKind.JsxText:
-    case ts.SyntaxKind.JsxTextAllWhiteSpaces:
-      return null;
-    default:
-      return ts.tokenToString(kind) ?? ts.SyntaxKind[kind];
-  }
-};
+/** Token kinds that stand for a class of tokens; null drops the token. */
+const TS_TOKEN_CLASSES = new Map<ts.SyntaxKind, string | null>([
+  [ts.SyntaxKind.Identifier, 'ID'],
+  [ts.SyntaxKind.PrivateIdentifier, 'ID'],
+  [ts.SyntaxKind.NumericLiteral, 'NUM'],
+  [ts.SyntaxKind.BigIntLiteral, 'NUM'],
+  [ts.SyntaxKind.StringLiteral, 'STR'],
+  [ts.SyntaxKind.NoSubstitutionTemplateLiteral, 'STR'],
+  [ts.SyntaxKind.TemplateHead, 'STR'],
+  [ts.SyntaxKind.TemplateMiddle, 'STR'],
+  [ts.SyntaxKind.TemplateTail, 'STR'],
+  [ts.SyntaxKind.RegularExpressionLiteral, 'STR'],
+  [ts.SyntaxKind.JsxText, null],
+  [ts.SyntaxKind.JsxTextAllWhiteSpaces, null],
+]);
+
+const normalizeTsToken = (kind: ts.SyntaxKind): string | null =>
+  TS_TOKEN_CLASSES.has(kind)
+    ? (TS_TOKEN_CLASSES.get(kind) ?? null)
+    : (ts.tokenToString(kind) ?? ts.SyntaxKind[kind]);
 
 const tokenizeTypeScript = (filePath: string, text: string): TokenStream => {
   const isJsx = /\.[cm]?[jt]sx$/.test(filePath) || /\.[cm]?js$/.test(filePath);
@@ -82,29 +80,27 @@ const tokenizeTypeScript = (filePath: string, text: string): TokenStream => {
 
 // ---- Tree-sitter languages --------------------------------------------------------------
 
+/** The single token a leaf or a literal node stands for, or null when it has children to walk. */
+const leafToken = (node: Node): string | null => {
+  if (node.isNamed && STRING_NODE.test(node.type)) return 'STR';
+  if (node.isNamed && NUMBER_NODE.test(node.type)) return 'NUM';
+  if (node.childCount > 0) return null;
+  if (!node.isNamed) return node.text;
+  return /identifier|^name$/.test(node.type) ? 'ID' : node.type;
+};
+
 const tokenizeTree = (filePath: string, root: Node): TokenStream => {
   const tokens: string[] = [];
   const lines: number[] = [];
-  const push = (token: string, node: Node) => {
-    tokens.push(token);
-    lines.push(node.startPosition.row + 1);
-  };
 
   const stack: Node[] = [root];
   while (stack.length > 0) {
     const node = stack.pop()!;
     if (SKIPPED_NODE.test(node.type)) continue;
-    if (node.isNamed && STRING_NODE.test(node.type)) {
-      push('STR', node);
-      continue;
-    }
-    if (node.isNamed && NUMBER_NODE.test(node.type)) {
-      push('NUM', node);
-      continue;
-    }
-    if (node.childCount === 0) {
-      if (!node.isNamed) push(node.text, node);
-      else push(/identifier|^name$/.test(node.type) ? 'ID' : node.type, node);
+    const token = leafToken(node);
+    if (token !== null) {
+      tokens.push(token);
+      lines.push(node.startPosition.row + 1);
       continue;
     }
     for (let index = node.childCount - 1; index >= 0; index -= 1) {

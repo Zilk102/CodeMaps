@@ -1,4 +1,5 @@
 import type { GraphData, GraphNode } from '../store/types';
+import { summarizeSecurityFindings } from './securityFindingSummary';
 import type {
   ArchitectureNodeClassification,
   ArchitectureOverview,
@@ -80,13 +81,7 @@ export function normalizeReviewTaskMode(taskMode?: ReviewTaskMode): ReviewTaskMo
 
 export function buildReviewSecurityView(findings: SecurityFinding[]) {
   return {
-    summary: {
-      total: findings.length,
-      critical: findings.filter((finding) => finding.severity === 'critical').length,
-      high: findings.filter((finding) => finding.severity === 'high').length,
-      medium: findings.filter((finding) => finding.severity === 'medium').length,
-      low: findings.filter((finding) => finding.severity === 'low').length,
-    },
+    summary: summarizeSecurityFindings(findings),
     findings: findings.slice(0, MAX_REVIEW_FINDINGS),
   };
 }

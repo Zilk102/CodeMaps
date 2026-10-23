@@ -57,29 +57,30 @@ export interface ModuleQualitySummary {
   }>;
 }
 
-function createResponsibilityAxisCount(
-  metric: Omit<
-    ModuleQualityMetric,
-    'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'
-  >
-): number {
-  const axes = new Set<string>();
+type BaseMetric = Omit<
+  ModuleQualityMetric,
+  'responsibilityAxisCount' | 'mixedResponsibilities' | 'designSmellScore'
+>;
 
-  if (metric.fanIn >= 6) axes.add('fan_in');
-  if (metric.fanOut >= 10) axes.add('fan_out');
-  if (metric.symbolCount >= 20) axes.add('symbol_density');
-  if ((metric.lineCount || 0) >= 500) axes.add('module_size');
-  if (metric.sourceMetrics.classCount > 0) axes.add('oop_surface');
-  if (metric.sourceMetrics.topLevelFunctionCount >= 8) axes.add('procedural_surface');
-  if (metric.sourceMetrics.publicMethodCount >= 8) axes.add('public_api_surface');
-  if (metric.stackAwareDegree > 0) axes.add('stack_orchestration');
-  if (metric.diRuntimeDegree > 0) axes.add('runtime_di');
-  if (metric.contractDegree > 0) axes.add('contract_binding');
-  if (metric.node.churn >= 10) axes.add('high_churn');
-  if (metric.sourceMetrics.longMethods.length > 0) axes.add('long_methods');
-  if (metric.sourceMetrics.complexMethods.length > 0) axes.add('complex_methods');
+/** One named axis of responsibility and the test that says a module spans it. */
+const RESPONSIBILITY_AXES: Array<[string, (metric: BaseMetric) => boolean]> = [
+  ['fan_in', (metric) => metric.fanIn >= 6],
+  ['fan_out', (metric) => metric.fanOut >= 10],
+  ['symbol_density', (metric) => metric.symbolCount >= 20],
+  ['module_size', (metric) => (metric.lineCount || 0) >= 500],
+  ['oop_surface', (metric) => metric.sourceMetrics.classCount > 0],
+  ['procedural_surface', (metric) => metric.sourceMetrics.topLevelFunctionCount >= 8],
+  ['public_api_surface', (metric) => metric.sourceMetrics.publicMethodCount >= 8],
+  ['stack_orchestration', (metric) => metric.stackAwareDegree > 0],
+  ['runtime_di', (metric) => metric.diRuntimeDegree > 0],
+  ['contract_binding', (metric) => metric.contractDegree > 0],
+  ['high_churn', (metric) => metric.node.churn >= 10],
+  ['long_methods', (metric) => metric.sourceMetrics.longMethods.length > 0],
+  ['complex_methods', (metric) => metric.sourceMetrics.complexMethods.length > 0],
+];
 
-  return axes.size;
+function createResponsibilityAxisCount(metric: BaseMetric): number {
+  return RESPONSIBILITY_AXES.filter(([, spans]) => spans(metric)).length;
 }
 
 function isMixedResponsibility(
@@ -93,14 +94,15 @@ function isMixedResponsibility(
   const dependencySurface = metric.fanIn + metric.fanOut;
   const runtimeSurface = metric.stackAwareDegree + metric.diRuntimeDegree + metric.contractDegree;
 
-  return (
-    (lineCount >= 450 && axisCount >= 4) ||
-    (lineCount >= 320 && axisCount >= 5) ||
-    (lineCount >= 140 && axisCount >= 5) ||
-    (lineCount >= 100 && axisCount >= 6) ||
-    (dependencySurface >= 18 && axisCount >= 4) ||
-    (runtimeSurface >= 4 && axisCount >= 4)
-  );
+  const thresholds: Array<[number, number, number]> = [
+    [lineCount, 450, 4],
+    [lineCount, 320, 5],
+    [lineCount, 140, 5],
+    [lineCount, 100, 6],
+    [dependencySurface, 18, 4],
+    [runtimeSurface, 4, 4],
+  ];
+  return thresholds.some(([value, minValue, minAxes]) => value >= minValue && axisCount >= minAxes);
 }
 
 function calculateDesignSmellScore(

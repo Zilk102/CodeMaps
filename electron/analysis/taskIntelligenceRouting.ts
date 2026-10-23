@@ -245,6 +245,18 @@ export function buildTaskNextSteps(
   ];
 }
 
+const OPERATIONAL_NODE_PATTERN =
+  /(filewatcher|stackgraphenrichmentservice|graphrepository|projectindexer|cachemanager)/i;
+
+/** Extra score for the runtime roots and refresh services a request is about. */
+const createCandidateBonus = (normalizedRequest: string, runtimeRootIds: Set<string>) => {
+  const wantsRuntimeRoots = hasDiRuntimeSignals(normalizedRequest);
+  const wantsRefreshServices = hasOperationalRefreshSignals(normalizedRequest);
+  return (node: GraphNode) =>
+    (wantsRuntimeRoots && runtimeRootIds.has(toStructuralNodeId(node.id)) ? 120 : 0) +
+    (wantsRefreshServices && OPERATIONAL_NODE_PATTERN.test(node.id) ? 140 : 0);
+};
+
 export function findTargetCandidates(
   graph: GraphData,
   candidateQueries: string[],
@@ -255,33 +267,13 @@ export function findTargetCandidates(
   const runtimeRootIds = new Set(
     projectContext.mentalModel.runtimeCompositionRoots.map((node) => toStructuralNodeId(node.id))
   );
-  const requestHasDiRuntimeSignals = hasDiRuntimeSignals(userRequest.toLowerCase());
-  const requestHasOperationalRefreshSignals = hasOperationalRefreshSignals(
-    userRequest.toLowerCase()
-  );
+  const bonusFor = createCandidateBonus(userRequest.toLowerCase(), runtimeRootIds);
 
   for (const query of candidateQueries) {
     for (const node of graph.nodes) {
-      let score = scoreNodeMatch(node, query);
-      if (requestHasDiRuntimeSignals && runtimeRootIds.has(toStructuralNodeId(node.id))) {
-        score += 120;
-      }
-      if (
-        requestHasOperationalRefreshSignals &&
-        /(filewatcher|stackgraphenrichmentservice|graphrepository|projectindexer|cachemanager)/i.test(
-          node.id
-        )
-      ) {
-        score += 140;
-      }
-      if (score <= 0) {
-        continue;
-      }
-
+      const score = scoreNodeMatch(node, query) + bonusFor(node);
       const current = scored.get(node.id);
-      if (!current || score > current.score) {
-        scored.set(node.id, { node, score });
-      }
+      if (score > 0 && (!current || score > current.score)) scored.set(node.id, { node, score });
     }
   }
 
@@ -296,6 +288,10 @@ export function findTargetCandidates(
     .map(({ node }) => node);
 }
 
+const BROAD_RUNTIME_SCOPE =
+  /(services|providers|registrations|bindings|contracts|modules|сервисы|провайдер|регистрац|контракт|модули)/u;
+const EXPLICIT_FILE_MENTION = /[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md|cs|java|kt)/u;
+
 export function shouldUseCampaignContext(
   userRequest: string,
   inferredIntent: TaskIntentInference,
@@ -303,42 +299,34 @@ export function shouldUseCampaignContext(
   projectContext: ProjectInsightResult
 ) {
   const normalized = userRequest.toLowerCase();
-  const hasCampaignHints = CAMPAIGN_HINTS.some((hint) => normalized.includes(hint));
-  const requestHasDiRuntimeSignals = hasDiRuntimeSignals(normalized);
-  const hasExplicitFileMention =
-    /[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md|cs|java|kt)/u.test(normalized);
-  const hasBroadRuntimeScope =
-    /(services|providers|registrations|bindings|contracts|modules|сервисы|провайдер|регистрац|контракт|модули)/u.test(
-      normalized
-    );
+  const isChange = isChangeIntent(inferredIntent.taskKind);
+  const hasBroadRuntimeScope = BROAD_RUNTIME_SCOPE.test(normalized);
 
-  if (
-    hasExplicitFileMention &&
-    targetCandidates.length > 0 &&
-    targetCandidates[0].type === 'file' &&
-    !hasBroadRuntimeScope
-  ) {
-    return false;
-  }
-  if (
-    hasCampaignHints &&
-    (isChangeIntent(inferredIntent.taskKind) || inferredIntent.taskKind === 'explore')
-  ) {
+  if (pointsAtOneFile(normalized, targetCandidates, hasBroadRuntimeScope)) return false;
+  if (hasCampaignHints(normalized) && (isChange || inferredIntent.taskKind === 'explore')) {
     return true;
   }
-  if (!isChangeIntent(inferredIntent.taskKind)) {
-    return false;
-  }
-  if (
-    requestHasDiRuntimeSignals &&
+  if (!isChange) return false;
+
+  const wiresRuntime =
+    hasDiRuntimeSignals(normalized) &&
     projectContext.mentalModel.runtimeCompositionRoots.length > 0 &&
-    (hasBroadRuntimeScope || targetCandidates.length >= 2)
-  ) {
-    return true;
-  }
-
-  return inferredIntent.taskKind === 'refactor' && targetCandidates.length >= 3;
+    (hasBroadRuntimeScope || targetCandidates.length >= 2);
+  return wiresRuntime || (inferredIntent.taskKind === 'refactor' && targetCandidates.length >= 3);
 }
+
+const hasCampaignHints = (normalized: string) =>
+  CAMPAIGN_HINTS.some((hint) => normalized.includes(hint));
+
+/** The request names a file and the best match is that file, not a broad scope. */
+const pointsAtOneFile = (
+  normalized: string,
+  targetCandidates: GraphNode[],
+  hasBroadRuntimeScope: boolean
+) =>
+  EXPLICIT_FILE_MENTION.test(normalized) &&
+  targetCandidates[0]?.type === 'file' &&
+  !hasBroadRuntimeScope;
 
 const TASK_MATCH_WEIGHTS: NodeMatchWeights = {
   labelEquals: 160,

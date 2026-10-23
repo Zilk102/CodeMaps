@@ -13,37 +13,32 @@ const pushLimited = <T>(items: T[], value: T) => [...items, value].slice(-TELEME
 const average = (values: number[]) =>
   values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
 
-const computeBatchSizeTrend = (recentBatchSizes: number[]): TrendState => {
-  if (recentBatchSizes.length < 4) {
-    return 'stable';
-  }
-  const midpoint = Math.floor(recentBatchSizes.length / 2);
-  const firstHalf = average(recentBatchSizes.slice(0, midpoint));
-  const secondHalf = average(recentBatchSizes.slice(midpoint));
+const MIN_TREND_SAMPLES = 4;
 
-  if (secondHalf >= firstHalf + 0.75) {
-    return 'improving';
-  }
-  if (secondHalf <= firstHalf - 0.75) {
-    return 'degrading';
-  }
+/** Mean of the older and of the newer half of the samples. */
+const halfAverages = (values: number[]) => {
+  const midpoint = Math.floor(values.length / 2);
+  return {
+    firstHalf: average(values.slice(0, midpoint)),
+    secondHalf: average(values.slice(midpoint)),
+  };
+};
+
+const computeBatchSizeTrend = (recentBatchSizes: number[]): TrendState => {
+  if (recentBatchSizes.length < MIN_TREND_SAMPLES) return 'stable';
+  const { firstHalf, secondHalf } = halfAverages(recentBatchSizes);
+
+  if (secondHalf >= firstHalf + 0.75) return 'improving';
+  if (secondHalf <= firstHalf - 0.75) return 'degrading';
   return 'stable';
 };
 
 const computeLatencyTrend = (recentLatencyMs: number[]): TrendState => {
-  if (recentLatencyMs.length < 4) {
-    return 'stable';
-  }
-  const midpoint = Math.floor(recentLatencyMs.length / 2);
-  const firstHalf = average(recentLatencyMs.slice(0, midpoint));
-  const secondHalf = average(recentLatencyMs.slice(midpoint));
+  if (recentLatencyMs.length < MIN_TREND_SAMPLES) return 'stable';
+  const { firstHalf, secondHalf } = halfAverages(recentLatencyMs);
 
-  if (secondHalf >= firstHalf + 8) {
-    return 'degrading';
-  }
-  if (secondHalf <= Math.max(0, firstHalf - 8)) {
-    return 'improving';
-  }
+  if (secondHalf >= firstHalf + 8) return 'degrading';
+  if (secondHalf <= Math.max(0, firstHalf - 8)) return 'improving';
   return 'stable';
 };
 

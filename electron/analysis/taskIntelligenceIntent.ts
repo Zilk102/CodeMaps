@@ -207,60 +207,118 @@ export const CAMPAIGN_HINTS = [
   'библиотек',
 ];
 
+type IntentRule = {
+  hints: string[];
+  taskKind: RoutedTaskKind;
+  confidence: TaskIntentInference['confidence'];
+  reason: string;
+};
+
+/** Checked in order once the bugfix and migration special cases did not apply. */
+const INTENT_RULES: IntentRule[] = [
+  {
+    hints: REFACTOR_HINTS,
+    taskKind: 'refactor',
+    confidence: 'high',
+    reason: 'Refactoring signals detected.',
+  },
+  {
+    hints: FEATURE_HINTS,
+    taskKind: 'feature',
+    confidence: 'high',
+    reason: 'Feature request signals detected.',
+  },
+  {
+    hints: SECURITY_HINTS,
+    taskKind: 'security',
+    confidence: 'medium',
+    reason: 'Security task signals detected.',
+  },
+  {
+    hints: ARCHITECTURE_HINTS,
+    taskKind: 'architecture',
+    confidence: 'medium',
+    reason: 'Architecture analysis signals detected.',
+  },
+  {
+    hints: REVIEW_HINTS,
+    taskKind: 'review',
+    confidence: 'medium',
+    reason: 'Review/audit task signals detected.',
+  },
+  {
+    hints: STABILIZATION_HINTS,
+    taskKind: 'stabilization',
+    confidence: 'medium',
+    reason: 'Stabilization/degradation signals detected.',
+  },
+];
+
 export function inferTaskIntent(userRequest: string): TaskIntentInference {
   const normalized = userRequest.trim().toLowerCase();
   const extractedKeywords = extractCandidateQueries(userRequest);
-  const reasoning: string[] = [];
   const has = (hints: string[]) => hints.some((hint) => normalized.includes(hint));
+  const result = (
+    taskKind: RoutedTaskKind,
+    confidence: TaskIntentInference['confidence'],
+    ...reasoning: string[]
+  ): TaskIntentInference => ({ taskKind, confidence, reasoning, extractedKeywords });
 
   if (has(BUGFIX_HINTS)) {
-    reasoning.push('Bugfix/incident signals detected.');
-    if (has(SECURITY_HINTS) && !normalized.includes('ломает')) {
-      reasoning.push('Security signals found in the request.');
-      return { taskKind: 'security', confidence: 'medium', reasoning, extractedKeywords };
-    }
-    return { taskKind: 'bugfix', confidence: 'high', reasoning, extractedKeywords };
+    const isSecurity = has(SECURITY_HINTS) && !normalized.includes('ломает');
+    return isSecurity
+      ? result(
+          'security',
+          'medium',
+          'Bugfix/incident signals detected.',
+          'Security signals found in the request.'
+        )
+      : result('bugfix', 'high', 'Bugfix/incident signals detected.');
   }
 
-  if (
-    has(CAMPAIGN_HINTS) &&
-    (has(REFACTOR_HINTS) ||
-      has(FEATURE_HINTS) ||
-      normalized.includes('нов') ||
-      normalized.includes('библиотек'))
-  ) {
-    reasoning.push('Signals of massive migration or broad refactor change detected.');
-    return { taskKind: 'refactor', confidence: 'high', reasoning, extractedKeywords };
+  const isBroadChange =
+    has(REFACTOR_HINTS) ||
+    has(FEATURE_HINTS) ||
+    normalized.includes('нов') ||
+    normalized.includes('библиотек');
+  if (has(CAMPAIGN_HINTS) && isBroadChange) {
+    return result(
+      'refactor',
+      'high',
+      'Signals of massive migration or broad refactor change detected.'
+    );
   }
 
-  if (has(REFACTOR_HINTS)) {
-    reasoning.push('Refactoring signals detected.');
-    return { taskKind: 'refactor', confidence: 'high', reasoning, extractedKeywords };
-  }
-  if (has(FEATURE_HINTS)) {
-    reasoning.push('Feature request signals detected.');
-    return { taskKind: 'feature', confidence: 'high', reasoning, extractedKeywords };
-  }
-  if (has(SECURITY_HINTS)) {
-    reasoning.push('Security task signals detected.');
-    return { taskKind: 'security', confidence: 'medium', reasoning, extractedKeywords };
-  }
-  if (has(ARCHITECTURE_HINTS)) {
-    reasoning.push('Architecture analysis signals detected.');
-    return { taskKind: 'architecture', confidence: 'medium', reasoning, extractedKeywords };
-  }
-  if (has(REVIEW_HINTS)) {
-    reasoning.push('Review/audit task signals detected.');
-    return { taskKind: 'review', confidence: 'medium', reasoning, extractedKeywords };
-  }
-  if (has(STABILIZATION_HINTS)) {
-    reasoning.push('Stabilization/degradation signals detected.');
-    return { taskKind: 'stabilization', confidence: 'medium', reasoning, extractedKeywords };
-  }
-
-  reasoning.push('No explicit task intent extracted, explore path selected.');
-  return { taskKind: 'explore', confidence: 'low', reasoning, extractedKeywords };
+  const rule = INTENT_RULES.find((candidate) => has(candidate.hints));
+  if (rule) return result(rule.taskKind, rule.confidence, rule.reason);
+  return result('explore', 'low', 'No explicit task intent extracted, explore path selected.');
 }
+
+const DI_RUNTIME_TERMS = [
+  'program',
+  'module',
+  'provider',
+  'binding',
+  'bean',
+  'registration',
+  'inject',
+  'wiring',
+];
+
+const OPERATIONAL_REFRESH_TERMS = [
+  'filewatcher',
+  'stackgraphenrichmentservice',
+  'graphrepository',
+  'projectindexer',
+  'refresh',
+  'watcher',
+  'incremental',
+  'latency',
+  'batching',
+];
+
+const addTerms = (target: Set<string>, terms: string[]) =>
+  terms.forEach((term) => target.add(term));
 
 export function extractCandidateQueries(userRequest: string) {
   const normalized = userRequest.toLowerCase();
@@ -276,38 +334,11 @@ export function extractCandidateQueries(userRequest: string) {
 
   const expanded = new Set<string>([...quoted, ...fileLike, ...tokens]);
   if (normalized.includes('авторизац') || normalized.includes('auth')) {
-    ['auth', 'authentication', 'login', 'token', 'cookie', 'session'].forEach((term) =>
-      expanded.add(term)
-    );
+    addTerms(expanded, ['auth', 'authentication', 'login', 'token', 'cookie', 'session']);
   }
-  if (normalized.includes('логин')) {
-    ['login', 'auth', 'session'].forEach((term) => expanded.add(term));
-  }
-  if (hasDiRuntimeSignals(normalized)) {
-    [
-      'program',
-      'module',
-      'provider',
-      'binding',
-      'bean',
-      'registration',
-      'inject',
-      'wiring',
-    ].forEach((term) => expanded.add(term));
-  }
-  if (hasOperationalRefreshSignals(normalized)) {
-    [
-      'filewatcher',
-      'stackgraphenrichmentservice',
-      'graphrepository',
-      'projectindexer',
-      'refresh',
-      'watcher',
-      'incremental',
-      'latency',
-      'batching',
-    ].forEach((term) => expanded.add(term));
-  }
+  if (normalized.includes('логин')) addTerms(expanded, ['login', 'auth', 'session']);
+  if (hasDiRuntimeSignals(normalized)) addTerms(expanded, DI_RUNTIME_TERMS);
+  if (hasOperationalRefreshSignals(normalized)) addTerms(expanded, OPERATIONAL_REFRESH_TERMS);
 
   return Array.from(expanded).filter(Boolean).slice(0, MAX_KEYWORDS);
 }

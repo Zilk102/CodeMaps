@@ -3,6 +3,7 @@ import type { ArchitectureViolation } from './ArchitectureInsightService';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
 import type { SecurityFinding } from './SecurityScanner';
 import { toStructuralNodeId } from './AgentContextUtils';
+import { summarizeSecurityFindings } from './securityFindingSummary';
 
 export type { CampaignBreadth, ChangeCampaignWave } from './changeCampaignPlan';
 export {
@@ -72,13 +73,7 @@ export function collectCampaignViolations(
 
 export function buildCampaignSecurityView(findings: SecurityFinding[]): ChangeCampaignSecurityView {
   return {
-    summary: {
-      total: findings.length,
-      critical: findings.filter((finding) => finding.severity === 'critical').length,
-      high: findings.filter((finding) => finding.severity === 'high').length,
-      medium: findings.filter((finding) => finding.severity === 'medium').length,
-      low: findings.filter((finding) => finding.severity === 'low').length,
-    },
+    summary: summarizeSecurityFindings(findings),
     findings,
   };
 }
