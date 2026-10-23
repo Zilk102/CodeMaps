@@ -1,5 +1,6 @@
 import { cloneIndex } from './clones/CloneIndex';
 import { computeFileCoupling } from './couplingMetrics';
+import { isTestFile } from './testFiles';
 import { GraphData, GraphNode } from '../store/types';
 import {
   buildGraphAdjacency,
@@ -280,26 +281,30 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
     .filter((node) => node.type === 'file')
     .map((node) => buildModuleMetric(node, adjacency, coupling));
 
+  // A test file is long by nature (one describe per behaviour); size and complexity findings
+  // are about code someone has to maintain in production, so tests stay in `metrics` only.
+  const production = metrics.filter((metric) => !isTestFile(metric.node.id));
+
   return {
     metrics,
-    oversizedModules: findOversizedModules(metrics),
-    godFiles: findGodFiles(metrics),
+    oversizedModules: findOversizedModules(production),
+    godFiles: findGodFiles(production),
     godClasses: rankByWorstMatch(
-      metrics,
+      production,
       (metric) => metric.sourceMetrics.godClasses,
       (item) => item.lineCount + item.methodCount * 15
     ).map(({ metric, matched }) => ({ ...metric, matchedClasses: matched })),
     longMethods: rankByWorstMatch(
-      metrics,
+      production,
       (metric) => metric.sourceMetrics.longMethods,
       (item) => item.lineCount
     ).map(({ metric, matched }) => ({ ...metric, matchedMethods: matched })),
     complexMethods: rankByWorstMatch(
-      metrics,
+      production,
       (metric) => metric.sourceMetrics.complexMethods,
       (item) => item.complexity * 10 + item.maxNesting * 5 + item.branchCount
     ).map(({ metric, matched }) => ({ ...metric, matchedMethods: matched })),
-    mixedResponsibilityModules: findMixedResponsibilityModules(metrics),
+    mixedResponsibilityModules: findMixedResponsibilityModules(production),
     // The function-body comparison stays as the fallback (and for tiny projects).
     codeClones: findStructuralClones(graph.projectRoot) ?? findFunctionClones(metrics),
   };
