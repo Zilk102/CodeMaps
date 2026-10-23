@@ -1,5 +1,5 @@
 import type { ArchitectureOverview } from './ArchitectureInsightService';
-import type { ProjectInsightResult } from './ProjectInsightService';
+import type { ProjectInsightResult } from './projectInsightTypes';
 import type { SecurityFinding } from './SecurityScanner';
 
 const DEFAULT_PATTERN_LIMIT = 10;

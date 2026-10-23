@@ -2,9 +2,8 @@ import { EventEmitter } from 'events';
 import * as path from 'path';
 import Piscina from 'piscina';
 import { oracleStore } from './store';
-import { getLanguageByExtension } from './parsing/languageRegistry';
-import { ProjectLanguageProfile } from './parsing/types';
 import { CacheManager } from './oracle/CacheManager';
+import { LanguageProfileTracker } from './oracle/LanguageProfileTracker';
 import { ChurnAnalyzer } from './oracle/ChurnAnalyzer';
 import { FileWatcher } from './oracle/FileWatcher';
 import { GraphBuilder } from './oracle/GraphBuilder';
@@ -29,10 +28,7 @@ export class OracleService extends EventEmitter {
   private readonly performanceConfig = getOraclePerformanceConfig();
   private parsingProgressResetTimeout: ReturnType<typeof setTimeout> | null = null;
   private shutdownPromise: Promise<void> | null = null;
-  private projectLanguageProfile: ProjectLanguageProfile = {
-    activeLanguageIds: [],
-    languageFileCounts: {},
-  };
+  private readonly languageProfile = new LanguageProfileTracker();
 
   constructor() {
     super();
@@ -61,27 +57,6 @@ export class OracleService extends EventEmitter {
 
   public getGraph() {
     return this.graphRepository.getGraph();
-  }
-
-  private updateLanguageCount(filePath: string, delta: 1 | -1) {
-    const language = getLanguageByExtension(path.extname(filePath).toLowerCase());
-    if (!language) return;
-
-    const nextCounts = { ...this.projectLanguageProfile.languageFileCounts };
-    const nextCount = (nextCounts[language.id] || 0) + delta;
-
-    if (nextCount <= 0) {
-      delete nextCounts[language.id];
-    } else {
-      nextCounts[language.id] = nextCount;
-    }
-
-    this.projectLanguageProfile = {
-      languageFileCounts: nextCounts,
-      activeLanguageIds: Object.entries(nextCounts)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .map(([languageId]) => languageId),
-    };
   }
 
   private emitGraphUpdated() {
@@ -120,15 +95,15 @@ export class OracleService extends EventEmitter {
       (progress) => this.emit('parsing-progress', progress)
     );
 
-    this.projectLanguageProfile = indexResult.languageProfile;
+    this.languageProfile.replace(indexResult.languageProfile);
     await this.importResolutionService.resolveAll();
     await this.stackGraphEnrichmentService.rebuild(this.graphRepository.getGraph());
     this.cacheManager.saveDebounced(normalizedBaseDir);
 
     await this.fileWatcher.start(
       normalizedBaseDir,
-      () => this.projectLanguageProfile,
-      (filePath, delta) => this.updateLanguageCount(filePath, delta),
+      () => this.languageProfile.get(),
+      (filePath, delta) => this.languageProfile.adjust(filePath, delta),
       {
         refreshStackGraphEnrichment: async (changedPaths, event) => {
           await this.importResolutionService.resolveAll();

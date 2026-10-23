@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
@@ -6,14 +6,9 @@ import {
   DecompositionCandidateCard,
   type DecompositionResult,
 } from './panels/DecompositionCandidateCard';
-import {
-  ErrorBanner,
-  PanelCard,
-  PanelHeader,
-  SelectedNodeBar,
-  StatTile,
-} from './panels/PanelParts';
-import { describeNode, unwrapResponse } from './panels/panelUtils';
+import { NodePanelFrame } from './panels/NodePanelFrame';
+import { PanelCard, StatTile } from './panels/PanelParts';
+import { unwrapResponse } from './panels/panelUtils';
 
 interface DecompositionWizardPanelProps {
   projectPath: string;
@@ -88,50 +83,36 @@ export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> =
   const handleAnalyze = () =>
     run(() => requestDecomposition(projectPath, focusNodeId), t('decomposition.error'));
 
-  const selectedNodeSummary = useMemo(() => describeNode(selectedNode), [selectedNode]);
-
   return (
-    <div className="space-y-4 p-4">
-      <PanelHeader
-        eyebrow={t('tools.quickActions.refactoring')}
-        title={t('decomposition.title')}
-        description={t('tools.quickActions.decompositionActionDescription')}
-      />
-
-      <PanelCard className="p-4">
-        <div className="flex flex-col gap-3">
-          <SelectedNodeBar
-            label={t('decomposition.focusNode')}
-            selectedLabel={t('blastRadius.selectedNode')}
-            useSelectedLabel={t('blastRadius.useSelected')}
-            hasSelection={!!selectedNode}
-            summary={selectedNodeSummary}
-            onUseSelected={() => selectedNode && setFocusNodeId(selectedNode.id)}
+    <NodePanelFrame
+      eyebrow={t('tools.quickActions.refactoring')}
+      title={t('decomposition.title')}
+      description={t('tools.quickActions.decompositionActionDescription')}
+      nodeLabel={t('decomposition.focusNode')}
+      selectedNode={selectedNode}
+      onUseSelected={setFocusNodeId}
+      error={error}
+      controls={
+        <div className="flex flex-col gap-2 xl:flex-row">
+          <input
+            type="text"
+            value={focusNodeId}
+            onChange={(e) => setFocusNodeId(e.target.value)}
+            placeholder={t('decomposition.nodePlaceholder')}
+            className="min-w-0 flex-1 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)"
           />
-
-          <div className="flex flex-col gap-2 xl:flex-row">
-            <input
-              type="text"
-              value={focusNodeId}
-              onChange={(e) => setFocusNodeId(e.target.value)}
-              placeholder={t('decomposition.nodePlaceholder')}
-              className="min-w-0 flex-1 rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)"
-            />
-            <button
-              type="button"
-              onClick={handleAnalyze}
-              disabled={isAnalyzing}
-              className="rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isAnalyzing ? t('decomposition.analyzing') : t('decomposition.analyze')}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={isAnalyzing}
+            className="rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isAnalyzing ? t('decomposition.analyzing') : t('decomposition.analyze')}
+          </button>
         </div>
-      </PanelCard>
-
-      {error && <ErrorBanner className="px-4 py-3 text-sm text-(--red)">{error}</ErrorBanner>}
-
+      }
+    >
       {result && <DecompositionResultView result={result} />}
-    </div>
+    </NodePanelFrame>
   );
 };

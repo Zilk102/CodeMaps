@@ -103,3 +103,63 @@ export const SelectedNodeBar: React.FC<SelectedNodeBarProps> = ({
     )}
   </>
 );
+
+const INSET_BASE = 'rounded-xl border border-(--border) bg-(--bg1)';
+
+interface InsetItemProps {
+  className?: string;
+  children: React.ReactNode;
+}
+
+/** List row drawn as a small inset box. */
+export const InsetItem: React.FC<InsetItemProps> = ({ className = '', children }) => (
+  <li className={`${className ? `${className} ` : ''}${INSET_BASE} px-3 py-2`}>{children}</li>
+);
+
+interface TitledListCardProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+/** Card with a small heading above a vertical list of rows. */
+export const TitledListCard: React.FC<TitledListCardProps> = ({ title, children }) => (
+  <PanelCard className="p-4">
+    <h4 className="text-[13px] font-semibold text-(--t0)">{title}</h4>
+    <ul className="mt-3 space-y-2">{children}</ul>
+  </PanelCard>
+);
+
+interface BulletBoxProps {
+  title: string;
+  items: string[];
+  itemClassName: string;
+}
+
+/** Inset box with an uppercase caption over a bulleted list of strings. */
+export const BulletBox: React.FC<BulletBoxProps> = ({ title, items, itemClassName }) => (
+  <div className={`${INSET_BASE} p-3`}>
+    <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-(--t3)">
+      {title}
+    </div>
+    <ul className="list-disc space-y-1 pl-4">
+      {items.map((item, i) => (
+        <li key={i} className={itemClassName}>
+          {item}
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+interface ReasonLineProps {
+  label: string;
+  reason: string;
+}
+
+/** "Label: reason" sentence with a bold label. */
+export const ReasonLine: React.FC<ReasonLineProps> = ({ label, reason }) => (
+  <div className="text-[13px] leading-5 text-(--t2)">
+    <span className="font-semibold text-(--t1)">{label}: </span>
+    {reason}
+  </div>
+);

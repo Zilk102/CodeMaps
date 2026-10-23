@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { PanelCard } from './PanelParts';
+import { BulletBox, PanelCard, ReasonLine } from './PanelParts';
 
 export interface DecompositionCandidate {
   fileNodeId: string;
@@ -53,18 +53,11 @@ export function priorityBadgeClass(priority: DecompositionCandidate['priority'])
 const EvidenceList: React.FC<{ evidence: string[] }> = ({ evidence }) => {
   const { t } = useTranslation();
   return (
-    <div className="rounded-xl border border-(--border) bg-(--bg1) p-3">
-      <div className="text-[11px] font-semibold uppercase tracking-widest text-(--t3) mb-2">
-        {t('decomposition.evidence')}
-      </div>
-      <ul className="list-disc pl-4 space-y-1">
-        {evidence.map((ev, i) => (
-          <li key={i} className="text-[12px] text-(--t2) font-mono">
-            {ev}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <BulletBox
+      title={t('decomposition.evidence')}
+      items={evidence}
+      itemClassName="text-[12px] text-(--t2) font-mono"
+    />
   );
 };
 
@@ -115,10 +108,7 @@ export const DecompositionCandidateCard: React.FC<{ candidate: DecompositionCand
         </div>
       </div>
 
-      <div className="text-[13px] leading-5 text-(--t2)">
-        <span className="font-semibold text-(--t1)">{t('decomposition.reason')}: </span>
-        {candidate.reason}
-      </div>
+      <ReasonLine label={t('decomposition.reason')} reason={candidate.reason} />
 
       {candidate.evidence && candidate.evidence.length > 0 && (
         <EvidenceList evidence={candidate.evidence} />

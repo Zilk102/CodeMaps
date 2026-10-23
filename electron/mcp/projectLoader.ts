@@ -1,0 +1,100 @@
+import { cloneIndex } from '../analysis/clones/CloneIndex';
+import { app } from 'electron';
+import { GraphData, oracleStore } from '../store';
+import { oracle } from '../oracle';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Simple concurrency limit of 1 (Mutex) to replace p-limit and avoid ESM issues
+let currentPromise: Promise<unknown> = Promise.resolve();
+const analyzeLimit = async <T>(fn: () => Promise<T>): Promise<T> => {
+  const result = currentPromise.then(() => fn());
+  currentPromise = result.catch(() => {});
+  return result;
+};
+
+export const normalizePath = (value?: string) => value?.replace(/\\/g, '/');
+
+/** A mistyped path would otherwise index nothing and look like a successful, empty analysis. */
+export const assertProjectDirectory = (resolvedPath: string, requestedPath: string) => {
+  let isDirectory = false;
+  try {
+    isDirectory = fs.statSync(resolvedPath).isDirectory();
+  } catch {
+    isDirectory = false;
+  }
+  if (!isDirectory) {
+    throw new Error(
+      `Project path does not exist or is not a directory: ${requestedPath} (resolved to ${resolvedPath}). Pass an absolute path.`
+    );
+  }
+};
+
+/** Any absolute path is allowed; a relative one resolves from cwd (no SAFE_ROOT restriction). */
+const resolveRequestedPath = (projectPath: string): string => {
+  const targetPath = normalizePath(
+    path.isAbsolute(projectPath) ? projectPath : path.resolve(process.cwd(), projectPath)
+  )!;
+  assertProjectDirectory(targetPath, projectPath);
+  return targetPath;
+};
+
+const isInsideElectronInstall = (targetPath: string): boolean => {
+  try {
+    const exeDir = normalizePath(path.dirname(app.getPath('exe')));
+    const resourcesDir = normalizePath(process.resourcesPath);
+    return Boolean(
+      (exeDir && targetPath.startsWith(exeDir)) ||
+      (resourcesDir && targetPath.startsWith(resourcesDir))
+    );
+  } catch {
+    // Ignore if app is not available
+    return false;
+  }
+};
+
+/** Prevent accidentally indexing the Electron installation directory if no project is opened. */
+const resolveDefaultPath = (baseDir: string | undefined): string => {
+  const targetPath = baseDir || normalizePath(process.env.CODEMAPS_ROOT || process.cwd())!;
+  if (!baseDir && !process.env.CODEMAPS_ROOT && isInsideElectronInstall(targetPath)) {
+    throw new Error(
+      'No active project loaded in CodeMaps. Please use the analyze_project tool to specify an absolute projectPath first.'
+    );
+  }
+  return targetPath;
+};
+
+const ANALYZE_TIMEOUT_MS = 60000;
+
+const analyzeWithTimeout = (targetPath: string) =>
+  analyzeLimit(async () => {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('oracle.analyzeProject timed out')), ANALYZE_TIMEOUT_MS)
+    );
+    return Promise.race([oracle.analyzeProject(targetPath), timeout]);
+  });
+
+const resolveTargetPath = (projectPath: string | undefined, baseDir: string | undefined) =>
+  projectPath ? resolveRequestedPath(projectPath) : resolveDefaultPath(baseDir);
+
+/** A project must be (re)analyzed when none is open or a different one was requested. */
+const needsAnalysis = (
+  projectPath: string | undefined,
+  baseDir: string | undefined,
+  target: string
+) => !baseDir || Boolean(projectPath && normalizePath(baseDir) !== target);
+
+export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
+  const { baseDir } = oracleStore.getState();
+  const targetPath = resolveTargetPath(projectPath, baseDir);
+  const graph = needsAnalysis(projectPath, baseDir, targetPath)
+    ? await analyzeWithTimeout(targetPath)
+    : oracle.getGraph();
+  return withCloneIndex(graph);
+};
+
+/** Tools that report duplication read it from the clone index, so it must be current first. */
+const withCloneIndex = async (graph: GraphData): Promise<GraphData> => {
+  await cloneIndex.refreshFor(graph).catch(() => undefined);
+  return graph;
+};

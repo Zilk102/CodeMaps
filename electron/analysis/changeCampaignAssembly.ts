@@ -4,7 +4,7 @@ import type {
   ArchitectureOverview,
   ArchitectureViolation,
 } from './ArchitectureInsightService';
-import type { ChangeCampaignResult, PrepareChangeCampaignInput } from './ChangeCampaignService';
+import type { ChangeCampaignResult, PrepareChangeCampaignInput } from './changeCampaignTypes';
 import type { ChangeTaskMode } from './ChangeContextService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
