@@ -1,13 +1,18 @@
 import * as path from 'path';
 import {
-  createInsight,
   createRelationship,
   escapeRegExp,
-  StackAdapter,
+  FileContentEntry,
   StackAdapterContext,
-  StackStructuralRelationship,
   toRelativeList,
 } from './stackTopologySupport';
+import {
+  configFilesNamed,
+  defineAdapter,
+  fanOutLinks,
+  filesWithBasename,
+  readRelativeEntries,
+} from './stackTopologyAdapterKit';
 
 const extractQuotedValues = (text: string) =>
   Array.from(text.matchAll(/["']([^"'\\]+)["']/g))
@@ -24,15 +29,30 @@ const extractNamedListValues = (text: string, fieldNames: string[]) =>
 const extractBazelSrcs = (text: string) => extractNamedListValues(text, ['srcs', 'outs', 'hdrs']);
 const extractBazelDeps = (text: string) =>
   extractNamedListValues(text, ['deps', 'exports', 'runtime_deps']);
+const extractPantsSources = (text: string) => extractNamedListValues(text, ['sources']);
+const extractPantsDependencies = (text: string) => extractNamedListValues(text, ['dependencies']);
 
-const resolveBazelBuildFile = (context: StackAdapterContext, packagePath: string) => {
+/** What a label or address points at: a source file, or the BUILD file of a package. */
+type ResolvedTarget = { descriptor?: string; file?: string } | null;
+
+type TargetResolver = (
+  context: StackAdapterContext,
+  sourceRelativePath: string,
+  rawReference: string
+) => ResolvedTarget;
+
+/** The first BUILD file among `names` that exists in the package directory. */
+const resolveBuildDescriptor = (
+  context: StackAdapterContext,
+  packagePath: string,
+  names: string[]
+) => {
   const normalizedPackage = packagePath.replace(/^\/+|\/+$/g, '');
-  const candidates = [
-    normalizedPackage ? `${normalizedPackage}/BUILD.bazel` : 'BUILD.bazel',
-    normalizedPackage ? `${normalizedPackage}/BUILD` : 'BUILD',
-  ];
-
-  return candidates.find((candidate) => context.hasRelativePath(candidate)) || null;
+  return (
+    names
+      .map((name) => (normalizedPackage ? `${normalizedPackage}/${name}` : name))
+      .find((candidate) => context.hasRelativePath(candidate)) || null
+  );
 };
 
 /** A target named like a file (`lib.ts`, `src/a.py`) that exists in its package. */
@@ -40,6 +60,32 @@ const findTargetFile = (context: StackAdapterContext, packagePath: string, targe
   if (!target || !/[./]/.test(target)) return null;
   const fileCandidate = path.posix.normalize(path.posix.join(packagePath, target));
   return context.hasRelativePath(fileCandidate) ? fileCandidate : null;
+};
+
+/** A plain reference names a file next to the one that mentions it. */
+const resolveSiblingFile = (
+  context: StackAdapterContext,
+  sourceRelativePath: string,
+  reference: string
+): ResolvedTarget => {
+  const fileCandidate = path.posix.normalize(
+    path.posix.join(path.posix.dirname(sourceRelativePath), reference)
+  );
+  return context.hasRelativePath(fileCandidate) ? { file: fileCandidate } : null;
+};
+
+/** A target inside a package: its source file when it names one, else the package's BUILD file. */
+const resolveInPackage = (
+  context: StackAdapterContext,
+  packagePath: string,
+  target: string,
+  descriptorNames: string[]
+): ResolvedTarget => {
+  const targetFile = findTargetFile(context, packagePath, target);
+  if (targetFile) return { file: targetFile };
+
+  const descriptor = resolveBuildDescriptor(context, packagePath, descriptorNames);
+  return descriptor ? { descriptor } : null;
 };
 
 /** `//pkg:name` or `:name` into the package directory and the target name. */
@@ -52,244 +98,138 @@ const splitBazelLabel = (label: string, sourceDir: string) => {
   return { packagePath: sourceDir === '.' ? '' : sourceDir, target: label.slice(1) };
 };
 
-const resolveBazelLabel = (
-  context: StackAdapterContext,
-  sourceRelativePath: string,
-  rawLabel: string
-): { descriptor?: string; file?: string } | null => {
+const resolveBazelLabel: TargetResolver = (context, sourceRelativePath, rawLabel) => {
   const label = rawLabel.trim();
   if (!label || label.startsWith('@')) {
     return null;
   }
 
-  const sourceDir = path.posix.dirname(sourceRelativePath);
-
   if (!label.startsWith('//') && !label.startsWith(':')) {
-    const fileCandidate = path.posix.normalize(path.posix.join(sourceDir, label));
-    return context.hasRelativePath(fileCandidate) ? { file: fileCandidate } : null;
+    return resolveSiblingFile(context, sourceRelativePath, label);
   }
 
-  const { packagePath, target } = splitBazelLabel(label, sourceDir);
-
-  const targetFile = findTargetFile(context, packagePath, target);
-  if (targetFile) return { file: targetFile };
-
-  const descriptor = resolveBazelBuildFile(context, packagePath);
-  return descriptor ? { descriptor } : null;
+  const { packagePath, target } = splitBazelLabel(label, path.posix.dirname(sourceRelativePath));
+  return resolveInPackage(context, packagePath, target, ['BUILD.bazel', 'BUILD']);
 };
 
-const extractPantsSources = (text: string) => extractNamedListValues(text, ['sources']);
-const extractPantsDependencies = (text: string) => extractNamedListValues(text, ['dependencies']);
-
-const resolvePantsBuildFile = (context: StackAdapterContext, packagePath: string) => {
-  const normalizedPackage = packagePath.replace(/^\/+|\/+$/g, '');
-  const candidates = [
-    normalizedPackage ? `${normalizedPackage}/BUILD` : 'BUILD',
-    normalizedPackage ? `${normalizedPackage}/BUILD.pants` : 'BUILD.pants',
-  ];
-
-  return candidates.find((candidate) => context.hasRelativePath(candidate)) || null;
-};
-
-const resolvePantsAddress = (
-  context: StackAdapterContext,
-  sourceRelativePath: string,
-  rawAddress: string
-): { descriptor?: string; file?: string } | null => {
+const resolvePantsAddress: TargetResolver = (context, sourceRelativePath, rawAddress) => {
   const address = rawAddress.trim();
   if (!address || address.startsWith('//') || address.includes('@')) {
     return null;
   }
 
-  const sourceDir = path.posix.dirname(sourceRelativePath);
-
   if (!address.includes(':')) {
-    const fileCandidate = path.posix.normalize(path.posix.join(sourceDir, address));
-    return context.hasRelativePath(fileCandidate) ? { file: fileCandidate } : null;
+    return resolveSiblingFile(context, sourceRelativePath, address);
   }
 
+  const sourceDir = path.posix.dirname(sourceRelativePath);
   const [maybePath, target = ''] = address.split(':');
   const packagePath = maybePath ? maybePath : sourceDir === '.' ? '' : sourceDir;
-
-  const targetFile = findTargetFile(context, packagePath, target);
-  if (targetFile) return { file: targetFile };
-
-  const descriptor = resolvePantsBuildFile(context, packagePath);
-  return descriptor ? { descriptor } : null;
+  return resolveInPackage(context, packagePath, target, ['BUILD', 'BUILD.pants']);
 };
 
-export const bazelAdapter: StackAdapter = {
+interface BuildFileAdapterSpec {
+  id: string;
+  displayName: string;
+  stackId: string;
+  /** How the summary names the tool, e.g. `Bazel`. */
+  label: string;
+  /** Prefix of the relationship reasons, e.g. `bazel` -> `bazel_target_source`. */
+  prefix: string;
+  /** Workspace files at the project root; each one links to every BUILD file. */
+  configNames: string[];
+  buildNames: string[];
+  extractSources: (text: string) => string[];
+  extractDependencies: (text: string) => string[];
+  resolve: TargetResolver;
+}
+
+/** Links from each BUILD file to the source files and the other packages its targets name. */
+const buildTargetLinks = (
+  context: StackAdapterContext,
+  entries: FileContentEntry[],
+  spec: BuildFileAdapterSpec
+) =>
+  entries.flatMap((entry) => [
+    ...spec.extractSources(entry.text).flatMap((reference) => {
+      const resolved = spec.resolve(context, entry.filePath, reference);
+      return resolved?.file
+        ? [
+            createRelationship(
+              entry.filePath,
+              resolved.file,
+              'build',
+              `${spec.prefix}_target_source`
+            ),
+          ]
+        : [];
+    }),
+    ...spec.extractDependencies(entry.text).flatMap((reference) => {
+      const resolved = spec.resolve(context, entry.filePath, reference);
+      const target =
+        resolved?.descriptor && resolved.descriptor !== entry.filePath
+          ? resolved.descriptor
+          : resolved?.file;
+      return target
+        ? [createRelationship(entry.filePath, target, 'build', `${spec.prefix}_target_dependency`)]
+        : [];
+    }),
+  ]);
+
+/** Bazel and Pants: workspace files, BUILD files and the targets that refer to each other. */
+const defineBuildFileAdapter = (spec: BuildFileAdapterSpec) =>
+  defineAdapter({
+    id: spec.id,
+    displayName: spec.displayName,
+    category: 'build',
+    stackId: spec.stackId,
+    find: async (context) => {
+      const configFiles = configFilesNamed(context, spec.configNames);
+      const buildFiles = filesWithBasename(context, spec.buildNames);
+      const entries = await readRelativeEntries(context, buildFiles);
+      const relationships = [
+        ...fanOutLinks(
+          toRelativeList(context, configFiles),
+          entries.map((entry) => entry.filePath),
+          `${spec.prefix}_workspace_package`
+        ),
+        ...buildTargetLinks(context, entries, spec),
+      ];
+
+      return {
+        summary: `Detected ${buildFiles.length} ${spec.label} BUILD descriptors and ${relationships.length} workspace/dependency/source relationships.`,
+        details: {
+          entryFiles: toRelativeList(context, configFiles),
+          configFiles: toRelativeList(context, [...configFiles, ...buildFiles]),
+          modules: entries.map((entry) => entry.filePath),
+          relationships,
+        },
+      };
+    },
+  });
+
+export const bazelAdapter = defineBuildFileAdapter({
   id: 'bazel-build-topology',
   displayName: 'Bazel Build Topology',
-  category: 'build',
-  supports: (context) => !!context.getDetectedStack('bazel'),
-  analyze: async (context) => {
-    const configFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'].includes(
-          context.getProjectRelativePath(filePath)
-        )
-      );
-    const buildFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['BUILD', 'BUILD.bazel'].includes(
-          path.posix.basename(context.getProjectRelativePath(filePath))
-        )
-      );
-    const buildContents = await context.readTexts(buildFiles);
-    const relativeEntries = buildContents.map((entry) => ({
-      filePath: context.getProjectRelativePath(entry.filePath),
-      text: entry.text,
-    }));
+  stackId: 'bazel',
+  label: 'Bazel',
+  prefix: 'bazel',
+  configNames: ['WORKSPACE', 'WORKSPACE.bazel', 'MODULE.bazel'],
+  buildNames: ['BUILD', 'BUILD.bazel'],
+  extractSources: extractBazelSrcs,
+  extractDependencies: extractBazelDeps,
+  resolve: resolveBazelLabel,
+});
 
-    const relationships: StackStructuralRelationship[] = [
-      ...configFiles.flatMap((configFile) =>
-        relativeEntries.map((entry) =>
-          createRelationship(
-            context.getProjectRelativePath(configFile),
-            entry.filePath,
-            'build',
-            'bazel_workspace_package'
-          )
-        )
-      ),
-      ...relativeEntries.flatMap((entry) =>
-        extractBazelSrcs(entry.text).flatMap((sourceValue) => {
-          const resolved = resolveBazelLabel(context, entry.filePath, sourceValue);
-          return resolved?.file
-            ? [createRelationship(entry.filePath, resolved.file, 'build', 'bazel_target_source')]
-            : [];
-        })
-      ),
-      ...relativeEntries.flatMap((entry) =>
-        extractBazelDeps(entry.text).flatMap((dependencyLabel) => {
-          const resolved = resolveBazelLabel(context, entry.filePath, dependencyLabel);
-          if (resolved?.descriptor && resolved.descriptor !== entry.filePath) {
-            return [
-              createRelationship(
-                entry.filePath,
-                resolved.descriptor,
-                'build',
-                'bazel_target_dependency'
-              ),
-            ];
-          }
-          return resolved?.file
-            ? [
-                createRelationship(
-                  entry.filePath,
-                  resolved.file,
-                  'build',
-                  'bazel_target_dependency'
-                ),
-              ]
-            : [];
-        })
-      ),
-    ];
-
-    return createInsight(
-      bazelAdapter.id,
-      bazelAdapter.displayName,
-      bazelAdapter.category,
-      `Detected ${buildFiles.length} Bazel BUILD descriptors and ${relationships.length} workspace/dependency/source relationships.`,
-      {
-        evidence: context.getDetectedStack('bazel')?.evidence || [],
-        entryFiles: toRelativeList(context, configFiles),
-        configFiles: toRelativeList(context, [...configFiles, ...buildFiles]),
-        modules: relativeEntries.map((entry) => entry.filePath),
-        relationships,
-      }
-    );
-  },
-};
-
-export const pantsAdapter: StackAdapter = {
+export const pantsAdapter = defineBuildFileAdapter({
   id: 'pants-build-topology',
   displayName: 'Pants Build Topology',
-  category: 'build',
-  supports: (context) => !!context.getDetectedStack('pants'),
-  analyze: async (context) => {
-    const configFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['pants.toml', 'BUILDROOT', 'pyproject.toml'].includes(
-          context.getProjectRelativePath(filePath)
-        )
-      );
-    const buildFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['BUILD', 'BUILD.pants'].includes(
-          path.posix.basename(context.getProjectRelativePath(filePath))
-        )
-      );
-    const buildContents = await context.readTexts(buildFiles);
-    const relativeEntries = buildContents.map((entry) => ({
-      filePath: context.getProjectRelativePath(entry.filePath),
-      text: entry.text,
-    }));
-
-    const relationships: StackStructuralRelationship[] = [
-      ...configFiles.flatMap((configFile) =>
-        relativeEntries.map((entry) =>
-          createRelationship(
-            context.getProjectRelativePath(configFile),
-            entry.filePath,
-            'build',
-            'pants_workspace_package'
-          )
-        )
-      ),
-      ...relativeEntries.flatMap((entry) =>
-        extractPantsSources(entry.text).flatMap((sourceValue) => {
-          const resolved = resolvePantsAddress(context, entry.filePath, sourceValue);
-          return resolved?.file
-            ? [createRelationship(entry.filePath, resolved.file, 'build', 'pants_target_source')]
-            : [];
-        })
-      ),
-      ...relativeEntries.flatMap((entry) =>
-        extractPantsDependencies(entry.text).flatMap((dependencyAddress) => {
-          const resolved = resolvePantsAddress(context, entry.filePath, dependencyAddress);
-          if (resolved?.descriptor && resolved.descriptor !== entry.filePath) {
-            return [
-              createRelationship(
-                entry.filePath,
-                resolved.descriptor,
-                'build',
-                'pants_target_dependency'
-              ),
-            ];
-          }
-          return resolved?.file
-            ? [
-                createRelationship(
-                  entry.filePath,
-                  resolved.file,
-                  'build',
-                  'pants_target_dependency'
-                ),
-              ]
-            : [];
-        })
-      ),
-    ];
-
-    return createInsight(
-      pantsAdapter.id,
-      pantsAdapter.displayName,
-      pantsAdapter.category,
-      `Detected ${buildFiles.length} Pants BUILD descriptors and ${relationships.length} workspace/dependency/source relationships.`,
-      {
-        evidence: context.getDetectedStack('pants')?.evidence || [],
-        entryFiles: toRelativeList(context, configFiles),
-        configFiles: toRelativeList(context, [...configFiles, ...buildFiles]),
-        modules: relativeEntries.map((entry) => entry.filePath),
-        relationships,
-      }
-    );
-  },
-};
+  stackId: 'pants',
+  label: 'Pants',
+  prefix: 'pants',
+  configNames: ['pants.toml', 'BUILDROOT', 'pyproject.toml'],
+  buildNames: ['BUILD', 'BUILD.pants'],
+  extractSources: extractPantsSources,
+  extractDependencies: extractPantsDependencies,
+  resolve: resolvePantsAddress,
+});

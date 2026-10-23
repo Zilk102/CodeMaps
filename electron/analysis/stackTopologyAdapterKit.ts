@@ -1,3 +1,4 @@
+import * as path from 'path';
 import {
   buildGraphSymbolIndex,
   buildSymbolToFileMap,
@@ -10,7 +11,9 @@ import {
   type FileContentEntry,
   type GraphSymbolIndex,
   type StackAdapter,
+  type StackAdapterCategory,
   type StackAdapterContext,
+  type StackRelationshipType,
   type StackStructuralInsight,
   type StackStructuralRelationship,
 } from './stackTopologySupport';
@@ -31,6 +34,18 @@ export interface AdapterSources {
   contentByRelativePath: Map<string, string>;
 }
 
+/** Reads the given files and keys the texts by project-relative path. */
+export const readRelativeEntries = async (
+  context: StackAdapterContext,
+  filePaths: string[]
+): Promise<FileContentEntry[]> => {
+  const contents = await context.readTexts(filePaths);
+  return contents.map((entry) => ({
+    filePath: context.getProjectRelativePath(entry.filePath),
+    text: entry.text,
+  }));
+};
+
 export const loadSources = async (
   context: StackAdapterContext,
   extensions: RegExp
@@ -39,11 +54,7 @@ export const loadSources = async (
   const candidateFiles = context
     .getAllFilePaths()
     .filter((filePath) => extensions.test(context.getProjectRelativePath(filePath)));
-  const contents = await context.readTexts(candidateFiles);
-  const entries = contents.map((entry) => ({
-    filePath: context.getProjectRelativePath(entry.filePath),
-    text: entry.text,
-  }));
+  const entries = await readRelativeEntries(context, candidateFiles);
   return {
     context,
     graphSymbolIndex,
@@ -59,6 +70,10 @@ export const textOf = (sources: AdapterSources, filePath: string) =>
 export const filesMatching = (entries: FileContentEntry[], pattern: RegExp) =>
   entries.filter(({ text }) => pattern.test(text)).map(({ filePath }) => filePath);
 
+/** Relative paths of the source files whose file name is in the set. */
+export const filesWithNameIn = (entries: FileContentEntry[], names: ReadonlySet<string>) =>
+  filesWhere(entries, (entry) => names.has(path.posix.basename(entry.filePath)));
+
 /** Relative paths of the source files for which the predicate holds. */
 export const filesWhere = (
   entries: FileContentEntry[],
@@ -70,6 +85,29 @@ export const configFilesNamed = (context: StackAdapterContext, names: string[]) 
   context
     .getAllFilePaths()
     .filter((filePath) => names.includes(context.getProjectRelativePath(filePath)));
+
+/** The project file (absolute path) whose relative path is `name`. */
+export const findFileNamed = (context: StackAdapterContext, name: string) =>
+  context.getAllFilePaths().find((filePath) => context.getProjectRelativePath(filePath) === name);
+
+/** Project files (absolute paths) whose file name is one of `names`, wherever they sit. */
+export const filesWithBasename = (context: StackAdapterContext, names: string[]) =>
+  context
+    .getAllFilePaths()
+    .filter((filePath) =>
+      names.includes(path.posix.basename(context.getProjectRelativePath(filePath)))
+    );
+
+/** Every source path links to every target path (both project-relative). */
+export const fanOutLinks = (
+  sourcePaths: string[],
+  targetPaths: string[],
+  reason: string,
+  type: StackRelationshipType = 'build'
+) =>
+  sourcePaths.flatMap((source) =>
+    targetPaths.map((target) => createRelationship(source, target, type, reason))
+  );
 
 /** Symbols declared by the given files, mapped back to their file. */
 export const symbolsOfFiles = (sources: AdapterSources, files: string[]) =>
@@ -121,6 +159,29 @@ export const referenceLinks = (
     reason
   );
 
+/**
+ * A file names symbols (routes, views, methods); each name the file extracts links to the symbol
+ * in the file `locate` finds for it, and is skipped when there is none.
+ */
+const namedSymbolLinks = (
+  sources: AdapterSources,
+  files: string[],
+  fromKind: EndpointKind,
+  extractNames: (text: string) => string[],
+  locate: (file: string, name: string) => string | undefined,
+  reason: string
+) =>
+  linksFromFiles(
+    files,
+    (file) => endpointOf(sources, file, fromKind),
+    (file) =>
+      extractNames(textOf(sources, file)).flatMap((name) => {
+        const target = locate(file, name);
+        return target === undefined ? [] : [fileEndpoint(sources, target, name)];
+      }),
+    reason
+  );
+
 /** A file names symbols (routes, views) that live in other files of the symbol map. */
 export const targetLinks = (
   sources: AdapterSources,
@@ -129,14 +190,12 @@ export const targetLinks = (
   symbolMap: Map<string, string>,
   reason: string
 ) =>
-  linksFromFiles(
+  namedSymbolLinks(
+    sources,
     fromFiles,
-    (file) => fileEndpoint(sources, file),
-    (file) =>
-      extractTargets(textOf(sources, file)).flatMap((symbol) => {
-        const filePath = symbolMap.get(symbol);
-        return filePath === undefined ? [] : [fileEndpoint(sources, filePath, symbol)];
-      }),
+    'file',
+    extractTargets,
+    (_file, symbol) => symbolMap.get(symbol),
     reason
   );
 
@@ -146,14 +205,7 @@ export const methodLinks = (
   files: string[],
   extractMethods: (text: string) => string[],
   reason: string
-) =>
-  linksFromFiles(
-    files,
-    (file) => classEndpoint(sources, file),
-    (file) =>
-      extractMethods(textOf(sources, file)).map((method) => fileEndpoint(sources, file, method)),
-    reason
-  );
+) => namedSymbolLinks(sources, files, 'class', extractMethods, (file) => file, reason);
 
 /** Every entry file links to every target file. */
 export const entryLinks = (
@@ -178,13 +230,12 @@ export const handlerLinks = (
   functionSymbols: Map<string, string>,
   reason: string
 ) =>
-  linksFromFiles(
+  namedSymbolLinks(
+    sources,
     routeFiles,
-    (file) => fileEndpoint(sources, file),
-    (file) =>
-      extractHandlers(textOf(sources, file)).map((handler) =>
-        fileEndpoint(sources, functionSymbols.get(handler) || file, handler)
-      ),
+    'file',
+    extractHandlers,
+    (file, handler) => functionSymbols.get(handler) || file,
     reason
   );
 
@@ -208,28 +259,70 @@ type InsightDetails = Partial<
   Omit<StackStructuralInsight, 'adapterId' | 'displayName' | 'category' | 'summary'>
 >;
 
-interface FrameworkAdapterSpec {
+export interface AdapterFindings {
+  /** The summary line. */
+  summary: string;
+  /** The structure found (evidence is added by the adapter). */
+  details: InsightDetails;
+}
+
+interface AdapterSpec {
+  id: string;
+  displayName: string;
+  category: StackAdapterCategory;
+  /** The detected stack the adapter belongs to; its evidence is reported. */
+  stackId: string;
+  /** Further detected stacks whose evidence is reported too. */
+  alsoEvidence?: string[];
+  /** Defaults to "the stack was detected". */
+  supports?: StackAdapter['supports'];
+  find: (context: StackAdapterContext) => Promise<AdapterFindings | null> | AdapterFindings | null;
+}
+
+/** An adapter states what it finds; the stack check, the evidence and the insight are shared. */
+export const defineAdapter = (spec: AdapterSpec): StackAdapter => ({
+  id: spec.id,
+  displayName: spec.displayName,
+  category: spec.category,
+  supports: spec.supports ?? ((context) => !!context.getDetectedStack(spec.stackId)),
+  analyze: async (context) => {
+    const found = await spec.find(context);
+    if (!found) return null;
+    const evidence = [spec.stackId, ...(spec.alsoEvidence ?? [])].flatMap(
+      (stackId) => context.getDetectedStack(stackId)?.evidence || []
+    );
+    return createInsight(spec.id, spec.displayName, spec.category, found.summary, {
+      evidence,
+      ...found.details,
+    });
+  },
+});
+
+interface SourceAdapterSpec {
   id: string;
   displayName: string;
   stackId: string;
   /** Source files the adapter reads. */
   extensions: RegExp;
-  /** The summary line and the structure found in the sources (evidence is added here). */
-  describe: (sources: AdapterSources) => { summary: string; details: InsightDetails };
+  /** File names of the tool's configuration; the matching sources are handed to `describe`. */
+  configBasenames?: ReadonlySet<string>;
+  describe: (sources: AdapterSources, configFiles: string[]) => AdapterFindings;
 }
 
-/** A framework adapter states what it finds; reading the sources and wrapping the insight is shared. */
-export const defineFrameworkAdapter = (spec: FrameworkAdapterSpec): StackAdapter => ({
-  id: spec.id,
-  displayName: spec.displayName,
-  category: 'framework',
-  supports: (context) => !!context.getDetectedStack(spec.stackId),
-  analyze: async (context) => {
-    const sources = await loadSources(context, spec.extensions);
-    const { summary, details } = spec.describe(sources);
-    return createInsight(spec.id, spec.displayName, 'framework', summary, {
-      evidence: context.getDetectedStack(spec.stackId)?.evidence || [],
-      ...details,
-    });
-  },
-});
+/** An adapter that reads the project files with the given extensions and describes them. */
+export const defineSourceAdapter = (category: StackAdapterCategory, spec: SourceAdapterSpec) =>
+  defineAdapter({
+    id: spec.id,
+    displayName: spec.displayName,
+    category,
+    stackId: spec.stackId,
+    find: async (context) => {
+      const sources = await loadSources(context, spec.extensions);
+      const configFiles = filesWithNameIn(sources.entries, spec.configBasenames ?? new Set());
+      return spec.describe(sources, configFiles);
+    },
+  });
+
+/** A framework adapter reads the sources and describes the structure found in them. */
+export const defineFrameworkAdapter = (spec: SourceAdapterSpec): StackAdapter =>
+  defineSourceAdapter('framework', spec);

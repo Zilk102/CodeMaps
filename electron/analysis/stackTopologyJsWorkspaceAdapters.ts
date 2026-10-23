@@ -1,34 +1,37 @@
 import * as path from 'path';
 import {
-  createInsight,
   createRelationship,
   escapeRegExp,
   FileContentEntry,
-  StackAdapter,
   StackAdapterContext,
   toRelativeList,
 } from './stackTopologySupport';
+import {
+  configFilesNamed,
+  defineAdapter,
+  fanOutLinks,
+  findFileNamed,
+  readRelativeEntries,
+} from './stackTopologyAdapterKit';
 
-export const viteAdapter: StackAdapter = {
+export const viteAdapter = defineAdapter({
   id: 'vite-build-topology',
   displayName: 'Vite Build Topology',
   category: 'build',
-  supports: (context) => !!context.getDetectedStack('vite'),
-  analyze: async (context) => {
-    const configFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['vite.config.ts', 'vite.config.js', 'vite.config.mjs'].includes(
-          context.getProjectRelativePath(filePath)
-        )
-      );
-    const entryFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['index.html', 'src/main.ts', 'src/main.tsx', 'src/main.js', 'src/main.jsx'].includes(
-          context.getProjectRelativePath(filePath)
-        )
-      );
+  stackId: 'vite',
+  find: (context) => {
+    const configFiles = configFilesNamed(context, [
+      'vite.config.ts',
+      'vite.config.js',
+      'vite.config.mjs',
+    ]);
+    const entryFiles = configFilesNamed(context, [
+      'index.html',
+      'src/main.ts',
+      'src/main.tsx',
+      'src/main.js',
+      'src/main.jsx',
+    ]);
     const modules = context
       .getAllFilePaths()
       .filter(
@@ -39,30 +42,21 @@ export const viteAdapter: StackAdapter = {
       .slice(0, 25)
       .map((filePath) => context.getProjectRelativePath(filePath));
 
-    return createInsight(
-      viteAdapter.id,
-      viteAdapter.displayName,
-      viteAdapter.category,
-      `Detected ${configFiles.length} Vite config files and ${entryFiles.length} likely web entrypoints.`,
-      {
-        evidence: context.getDetectedStack('vite')?.evidence || [],
+    return {
+      summary: `Detected ${configFiles.length} Vite config files and ${entryFiles.length} likely web entrypoints.`,
+      details: {
         entryFiles: toRelativeList(context, entryFiles),
         configFiles: toRelativeList(context, configFiles),
         modules,
-        relationships: [
-          ...configFiles.flatMap((configFile) =>
-            entryFiles.map((entryFile) => ({
-              source: context.getProjectRelativePath(configFile),
-              target: context.getProjectRelativePath(entryFile),
-              type: 'build' as const,
-              reason: 'vite_config_entry',
-            }))
-          ),
-        ],
-      }
-    );
+        relationships: fanOutLinks(
+          toRelativeList(context, configFiles),
+          toRelativeList(context, entryFiles),
+          'vite_config_entry'
+        ),
+      },
+    };
   },
-};
+});
 
 type ParsedJsonValue = Record<string, unknown> | null;
 type WorkspacePackageManifest = {
@@ -157,11 +151,7 @@ const collectWorkspacePackageManifests = async (
   relativeEntries: FileContentEntry[];
 }> => {
   const packageFiles = context.findBySuffix('package.json');
-  const packageContents = await context.readTexts(packageFiles);
-  const relativeEntries = packageContents.map((entry) => ({
-    filePath: context.getProjectRelativePath(entry.filePath),
-    text: entry.text,
-  }));
+  const relativeEntries = await readRelativeEntries(context, packageFiles);
 
   const manifests = relativeEntries
     .filter((entry) => entry.filePath !== 'package.json')
@@ -191,27 +181,38 @@ const collectWorkspacePackageManifests = async (
   return { manifests, byName, relativeEntries };
 };
 
-export const pnpmWorkspaceAdapter: StackAdapter = {
+/** Each package links to the workspace packages it depends on. */
+const workspaceDependencyLinks = (
+  manifests: WorkspacePackageManifest[],
+  byName: Map<string, WorkspacePackageManifest>,
+  reason: string
+) =>
+  manifests.flatMap((manifest) =>
+    manifest.dependencies.flatMap((dependencyName) => {
+      const target = byName.get(dependencyName);
+      return !target || target.filePath === manifest.filePath
+        ? []
+        : [createRelationship(manifest.filePath, target.filePath, 'build', reason)];
+    })
+  );
+
+export const pnpmWorkspaceAdapter = defineAdapter({
   id: 'pnpm-workspace-topology',
   displayName: 'pnpm Workspace Topology',
   category: 'build',
+  stackId: 'pnpm-workspace',
+  alsoEvidence: ['pnpm'],
   supports: (context) =>
     !!context.getDetectedStack('pnpm-workspace') ||
     (!!context.getDetectedStack('pnpm') && context.hasRelativePath('pnpm-workspace.yaml')),
-  analyze: async (context) => {
-    const configFiles = context
-      .getAllFilePaths()
-      .filter((filePath) =>
-        ['pnpm-workspace.yaml', 'package.json', 'pnpm-lock.yaml'].includes(
-          context.getProjectRelativePath(filePath)
-        )
-      );
-    const workspaceYaml = context
-      .getAllFilePaths()
-      .find((filePath) => context.getProjectRelativePath(filePath) === 'pnpm-workspace.yaml');
-    const rootPackageJson = context
-      .getAllFilePaths()
-      .find((filePath) => context.getProjectRelativePath(filePath) === 'package.json');
+  find: async (context) => {
+    const configFiles = configFilesNamed(context, [
+      'pnpm-workspace.yaml',
+      'package.json',
+      'pnpm-lock.yaml',
+    ]);
+    const workspaceYaml = findFileNamed(context, 'pnpm-workspace.yaml');
+    const rootPackageJson = findFileNamed(context, 'package.json');
     const workspacePatterns = new Set<string>();
     const workspaceRootDescriptor = workspaceYaml ? 'pnpm-workspace.yaml' : 'package.json';
 
@@ -242,58 +243,33 @@ export const pnpmWorkspaceAdapter: StackAdapter = {
           'pnpm_workspace_package'
         )
       ),
-      ...manifests.flatMap((manifest) =>
-        manifest.dependencies.flatMap((dependencyName) => {
-          const target = byName.get(dependencyName);
-          if (!target || target.filePath === manifest.filePath) {
-            return [];
-          }
-          return [
-            createRelationship(
-              manifest.filePath,
-              target.filePath,
-              'build',
-              'pnpm_workspace_dependency'
-            ),
-          ];
-        })
-      ),
+      ...workspaceDependencyLinks(manifests, byName, 'pnpm_workspace_dependency'),
     ];
 
-    return createInsight(
-      pnpmWorkspaceAdapter.id,
-      pnpmWorkspaceAdapter.displayName,
-      pnpmWorkspaceAdapter.category,
-      `Detected ${manifests.length} workspace packages and ${relationships.length} pnpm workspace relationships.`,
-      {
-        evidence: [
-          ...(context.getDetectedStack('pnpm-workspace')?.evidence || []),
-          ...(context.getDetectedStack('pnpm')?.evidence || []),
-        ],
+    return {
+      summary: `Detected ${manifests.length} workspace packages and ${relationships.length} pnpm workspace relationships.`,
+      details: {
         entryFiles: [workspaceRootDescriptor],
         configFiles: toRelativeList(context, configFiles),
         modules: manifests.map((manifest) => manifest.filePath),
         relationships,
-      }
-    );
+      },
+    };
   },
-};
+});
 
 const extractNxImplicitDependencies = (text: string) => {
   const parsed = parseJsonObject(text);
   return getStringArray(parsed?.implicitDependencies);
 };
 
-export const nxWorkspaceAdapter: StackAdapter = {
+export const nxWorkspaceAdapter = defineAdapter({
   id: 'nx-workspace-topology',
   displayName: 'Nx Workspace Topology',
   category: 'build',
-  supports: (context) => !!context.getDetectedStack('nx'),
-  analyze: async (context) => {
-    const nxJson = context
-      .getAllFilePaths()
-      .find((filePath) => context.getProjectRelativePath(filePath) === 'nx.json');
-    if (!nxJson) {
+  stackId: 'nx',
+  find: async (context) => {
+    if (!findFileNamed(context, 'nx.json')) {
       return null;
     }
 
@@ -302,11 +278,7 @@ export const nxWorkspaceAdapter: StackAdapter = {
       .filter((filePath) =>
         /(?:^|\/)project\.json$/i.test(context.getProjectRelativePath(filePath))
       );
-    const projectContents = await context.readTexts(projectJsonFiles);
-    const relativeProjectEntries = projectContents.map((entry) => ({
-      filePath: context.getProjectRelativePath(entry.filePath),
-      text: entry.text,
-    }));
+    const relativeProjectEntries = await readRelativeEntries(context, projectJsonFiles);
     const projectByName = new Map<string, string>();
     for (const entry of relativeProjectEntries) {
       const parsed = parseJsonObject(entry.text);
@@ -346,21 +318,17 @@ export const nxWorkspaceAdapter: StackAdapter = {
       }),
     ];
 
-    return createInsight(
-      nxWorkspaceAdapter.id,
-      nxWorkspaceAdapter.displayName,
-      nxWorkspaceAdapter.category,
-      `Detected ${relativeProjectEntries.length} Nx projects and ${relationships.length} workspace relationships.`,
-      {
-        evidence: context.getDetectedStack('nx')?.evidence || [],
+    return {
+      summary: `Detected ${relativeProjectEntries.length} Nx projects and ${relationships.length} workspace relationships.`,
+      details: {
         entryFiles: ['nx.json'],
         configFiles: ['nx.json'],
         modules: relativeProjectEntries.map((entry) => entry.filePath),
         relationships,
-      }
-    );
+      },
+    };
   },
-};
+});
 
 const extractTurboTaskNames = (text: string) => {
   const parsed = parseJsonObject(text);
@@ -368,18 +336,14 @@ const extractTurboTaskNames = (text: string) => {
   return taskRecord ? Object.keys(taskRecord) : [];
 };
 
-export const turborepoAdapter: StackAdapter = {
+export const turborepoAdapter = defineAdapter({
   id: 'turborepo-build-topology',
   displayName: 'Turborepo Build Topology',
   category: 'build',
-  supports: (context) => !!context.getDetectedStack('turborepo'),
-  analyze: async (context) => {
-    const turboJson = context
-      .getAllFilePaths()
-      .find((filePath) => context.getProjectRelativePath(filePath) === 'turbo.json');
-    const rootPackageJson = context
-      .getAllFilePaths()
-      .find((filePath) => context.getProjectRelativePath(filePath) === 'package.json');
+  stackId: 'turborepo',
+  find: async (context) => {
+    const turboJson = findFileNamed(context, 'turbo.json');
+    const rootPackageJson = findFileNamed(context, 'package.json');
     if (!turboJson || !rootPackageJson) {
       return null;
     }
@@ -400,36 +364,17 @@ export const turborepoAdapter: StackAdapter = {
       ...taskAwarePackages.map((manifest) =>
         createRelationship('turbo.json', manifest.filePath, 'build', 'turbo_pipeline_package')
       ),
-      ...taskAwarePackages.flatMap((manifest) =>
-        manifest.dependencies.flatMap((dependencyName) => {
-          const target = byName.get(dependencyName);
-          if (!target || target.filePath === manifest.filePath) {
-            return [];
-          }
-          return [
-            createRelationship(
-              manifest.filePath,
-              target.filePath,
-              'build',
-              'turbo_workspace_dependency'
-            ),
-          ];
-        })
-      ),
+      ...workspaceDependencyLinks(taskAwarePackages, byName, 'turbo_workspace_dependency'),
     ];
 
-    return createInsight(
-      turborepoAdapter.id,
-      turborepoAdapter.displayName,
-      turborepoAdapter.category,
-      `Detected ${taskAwarePackages.length} Turborepo packages participating in the pipeline and ${relationships.length} related build links.`,
-      {
-        evidence: context.getDetectedStack('turborepo')?.evidence || [],
+    return {
+      summary: `Detected ${taskAwarePackages.length} Turborepo packages participating in the pipeline and ${relationships.length} related build links.`,
+      details: {
         entryFiles: ['turbo.json'],
         configFiles: ['turbo.json', 'package.json'],
         modules: taskAwarePackages.map((manifest) => manifest.filePath),
         relationships,
-      }
-    );
+      },
+    };
   },
-};
+});

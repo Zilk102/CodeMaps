@@ -2,13 +2,11 @@ import * as path from 'path';
 import {
   buildIdentifierVariants,
   containsIdentifierVariantInNormalizedText,
-  createInsight,
   createRelationship,
-  resolveSymbolEndpoint,
-  type StackAdapter,
-  type StackStructuralRelationship,
+  type FileContentEntry,
 } from './stackTopologySupport';
-import { loadSources } from './stackTopologyAdapterKit';
+import { defineSourceAdapter, fanOutLinks, type AdapterSources } from './stackTopologyAdapterKit';
+import { contractBindingLinks } from './stackTopologyContractLinks';
 import {
   PROTOBUF_CONFIG_BASENAMES,
   extractConnectRuntimeSymbols,
@@ -25,246 +23,210 @@ import {
   isGrpcWebRuntimeEntry,
 } from './stackTopologyContractSupport';
 
-export const protobufAdapter: StackAdapter = {
+const CONNECT_CLIENT_MARKERS = [
+  'createPromiseClient(',
+  'createConnectTransport(',
+  'connectNodeAdapter(',
+];
+const GRPC_WEB_CLIENT_MARKERS = [
+  'GrpcWebFetchTransport(',
+  'grpc.unary(',
+  'grpc.invoke(',
+  'Client(',
+];
+
+const protoStemOf = (proto: FileContentEntry) =>
+  path.posix.basename(proto.filePath, '.proto').toLowerCase();
+const generatedStemOf = (generated: FileContentEntry) =>
+  normalizeProtoGeneratedStem(generated.filePath).toLowerCase();
+
+/** The proto files, the generated modules (and their flavours) and the hand-written runtime files. */
+const classifyProtoEntries = (entries: FileContentEntry[]) => {
+  const protoEntries = entries.filter((entry) => entry.filePath.endsWith('.proto'));
+  const generatedEntries = entries.filter(
+    (entry) =>
+      !entry.filePath.endsWith('.proto') && isGeneratedProtoModule(entry.filePath, entry.text)
+  );
+  const runtimeEntries = entries.filter(
+    (entry) =>
+      !entry.filePath.endsWith('.proto') &&
+      !generatedEntries.some((generatedEntry) => generatedEntry.filePath === entry.filePath)
+  );
+  return {
+    protoEntries,
+    generatedEntries,
+    connectGeneratedEntries: generatedEntries.filter((entry) =>
+      isConnectGeneratedModule(entry.filePath, entry.text)
+    ),
+    grpcWebGeneratedEntries: generatedEntries.filter((entry) =>
+      isGrpcWebGeneratedModule(entry.filePath, entry.text)
+    ),
+    connectRuntimeEntries: runtimeEntries.filter((entry) => isConnectRuntimeEntry(entry.text)),
+    grpcWebRuntimeEntries: runtimeEntries.filter((entry) => isGrpcWebRuntimeEntry(entry.text)),
+    runtimeEntries,
+  };
+};
+
+type ProtoEntries = ReturnType<typeof classifyProtoEntries>;
+
+/** A proto file links to the generated modules that carry its name. */
+const generatedModuleLinks = (
+  sources: AdapterSources,
+  protoEntries: FileContentEntry[],
+  generatedEntries: FileContentEntry[],
+  reason: string
+) =>
+  contractBindingLinks(sources, {
+    contracts: protoEntries,
+    implementations: generatedEntries,
+    namesOf: (proto) => [protoStemOf(proto)],
+    bind: (generated, stem) => (generatedStemOf(generated) === stem ? [] : null),
+    type: 'build',
+    fileReason: reason,
+  });
+
+/** A proto file links to the grpc-web modules generated for it and to the symbols of its services. */
+const grpcWebGeneratedLinks = (sources: AdapterSources, entries: ProtoEntries) => {
+  const spec = {
+    contracts: entries.protoEntries,
+    implementations: entries.grpcWebGeneratedEntries,
+    namesOf: (proto: FileContentEntry) => extractProtoServiceNames(proto.text),
+    type: 'build' as const,
+  };
+  const sameStem = (generated: FileContentEntry, proto: FileContentEntry) =>
+    generatedStemOf(generated) === protoStemOf(proto);
+  return [
+    ...contractBindingLinks(sources, {
+      ...spec,
+      bind: (generated, name, proto) => (sameStem(generated, proto) ? [name] : null),
+      fileReason: 'grpc_web_generated_module',
+      symbolReason: 'proto_service_symbol',
+    }),
+    ...contractBindingLinks(sources, {
+      ...spec,
+      bind: (generated, name, proto) =>
+        sameStem(generated, proto) ? [`${name}PromiseClient`, name] : null,
+      symbolReason: 'proto_client_symbol',
+    }),
+  ];
+};
+
+/** A proto file links to the runtime files that use one of its services through a generated client. */
+const clientRuntimeLinks = (
+  sources: AdapterSources,
+  protoEntries: FileContentEntry[],
+  runtimeEntries: FileContentEntry[],
+  markers: string[],
+  extractSymbols: (text: string) => string[],
+  reasons: { file: string; symbol: string }
+) =>
+  contractBindingLinks(sources, {
+    contracts: protoEntries,
+    implementations: runtimeEntries,
+    namesOf: (proto) => extractProtoServiceNames(proto.text),
+    bind: (runtime, name) =>
+      containsIdentifierVariantInNormalizedText(runtime.text, name) &&
+      markers.some((marker) => runtime.text.includes(marker))
+        ? extractSymbols(runtime.text)
+        : null,
+    type: 'framework',
+    fileReason: reasons.file,
+    symbolReason: reasons.symbol,
+  });
+
+/** A proto file links to the runtime files that serve or call its services. */
+const runtimeLinks = (sources: AdapterSources, entries: ProtoEntries) => [
+  ...contractBindingLinks(sources, {
+    contracts: entries.protoEntries,
+    implementations: entries.runtimeEntries,
+    namesOf: (proto) => extractProtoServiceNames(proto.text),
+    bind: (runtime, name) =>
+      matchesProtoRuntimeEntry(runtime.text, name)
+        ? [
+            ...extractProtoRuntimeSymbols(runtime.filePath, runtime.text, name),
+            ...buildIdentifierVariants(name),
+          ]
+        : null,
+    type: 'framework',
+    fileReason: 'proto_service_runtime_binding',
+    symbolReason: 'proto_server_symbol',
+  }),
+  ...clientRuntimeLinks(
+    sources,
+    entries.protoEntries,
+    entries.connectRuntimeEntries,
+    CONNECT_CLIENT_MARKERS,
+    extractConnectRuntimeSymbols,
+    { file: 'connectrpc_runtime_binding', symbol: 'connectrpc_client_symbol' }
+  ),
+  ...clientRuntimeLinks(
+    sources,
+    entries.protoEntries,
+    entries.grpcWebRuntimeEntries,
+    GRPC_WEB_CLIENT_MARKERS,
+    extractGrpcWebRuntimeSymbols,
+    { file: 'grpc_web_runtime_binding', symbol: 'grpc_web_client_symbol' }
+  ),
+];
+
+/** Buf config files link to the generated modules inside their output directories. */
+const bufOutputLinks = (
+  configFiles: string[],
+  bufOutputDirs: string[],
+  generatedEntries: FileContentEntry[]
+) =>
+  configFiles.flatMap((configFile) =>
+    bufOutputDirs.flatMap((outputDir) =>
+      generatedEntries
+        .filter((generatedEntry) =>
+          generatedEntry.filePath.startsWith(`${outputDir.replace(/\/+$/, '')}/`)
+        )
+        .map((generatedEntry) =>
+          createRelationship(configFile, generatedEntry.filePath, 'build', 'buf_codegen_output')
+        )
+    )
+  );
+
+export const protobufAdapter = defineSourceAdapter('build', {
+  stackId: 'protobuf',
+  extensions: /\.(proto|ts|tsx|js|jsx|go|java|kt|cs|py|yaml|yml)$/i,
+  configBasenames: PROTOBUF_CONFIG_BASENAMES,
   id: 'protobuf-contract-topology',
   displayName: 'Protocol Buffers Contract Topology',
-  category: 'build',
-  supports: (context) => !!context.getDetectedStack('protobuf'),
-  analyze: async (context) => {
-    const sources = await loadSources(
-      context,
-      /\.(proto|ts|tsx|js|jsx|go|java|kt|cs|py|yaml|yml)$/i
-    );
-    const { graphSymbolIndex, entries: relativeEntries } = sources;
-    const protoEntries = relativeEntries.filter((entry) => entry.filePath.endsWith('.proto'));
-    const configFiles = relativeEntries
-      .filter((entry) => PROTOBUF_CONFIG_BASENAMES.has(path.posix.basename(entry.filePath)))
-      .map((entry) => entry.filePath);
-    const bufOutputDirs = relativeEntries
+  describe: (sources, configFiles) => {
+    const { entries } = sources;
+    const classified = classifyProtoEntries(entries);
+    const { protoEntries, generatedEntries } = classified;
+    const bufOutputDirs = entries
       .filter((entry) => path.posix.basename(entry.filePath) === 'buf.gen.yaml')
       .flatMap((entry) => extractBufOutputDirs(entry.text));
-    const generatedEntries = relativeEntries.filter(
-      (entry) =>
-        !entry.filePath.endsWith('.proto') && isGeneratedProtoModule(entry.filePath, entry.text)
-    );
-    const connectGeneratedEntries = generatedEntries.filter((entry) =>
-      isConnectGeneratedModule(entry.filePath, entry.text)
-    );
-    const grpcWebGeneratedEntries = generatedEntries.filter((entry) =>
-      isGrpcWebGeneratedModule(entry.filePath, entry.text)
-    );
-    const runtimeEntries = relativeEntries.filter(
-      (entry) =>
-        !entry.filePath.endsWith('.proto') &&
-        !generatedEntries.some((generatedEntry) => generatedEntry.filePath === entry.filePath)
-    );
-    const connectRuntimeEntries = runtimeEntries.filter((entry) =>
-      isConnectRuntimeEntry(entry.text)
-    );
-    const grpcWebRuntimeEntries = runtimeEntries.filter((entry) =>
-      isGrpcWebRuntimeEntry(entry.text)
-    );
 
-    const relationships: StackStructuralRelationship[] = [
-      ...configFiles.flatMap((configFile) =>
-        protoEntries.map((protoEntry) =>
-          createRelationship(configFile, protoEntry.filePath, 'build', 'protobuf_config_schema')
-        )
+    const relationships = [
+      ...fanOutLinks(
+        configFiles,
+        protoEntries.map((proto) => proto.filePath),
+        'protobuf_config_schema'
       ),
-      ...configFiles.flatMap((configFile) =>
-        bufOutputDirs.flatMap((outputDir) =>
-          generatedEntries
-            .filter((generatedEntry) =>
-              generatedEntry.filePath.startsWith(`${outputDir.replace(/\/+$/, '')}/`)
-            )
-            .map((generatedEntry) =>
-              createRelationship(configFile, generatedEntry.filePath, 'build', 'buf_codegen_output')
-            )
-        )
+      ...bufOutputLinks(configFiles, bufOutputDirs, generatedEntries),
+      ...generatedModuleLinks(sources, protoEntries, generatedEntries, 'protobuf_generated_module'),
+      ...generatedModuleLinks(
+        sources,
+        protoEntries,
+        classified.connectGeneratedEntries,
+        'connectrpc_generated_module'
       ),
-      ...protoEntries.flatMap((protoEntry) => {
-        const protoStem = path.posix.basename(protoEntry.filePath, '.proto');
-        return generatedEntries.flatMap((generatedEntry) =>
-          normalizeProtoGeneratedStem(generatedEntry.filePath).toLowerCase() ===
-          protoStem.toLowerCase()
-            ? [
-                createRelationship(
-                  protoEntry.filePath,
-                  generatedEntry.filePath,
-                  'build',
-                  'protobuf_generated_module'
-                ),
-              ]
-            : []
-        );
-      }),
-      ...protoEntries.flatMap((protoEntry) => {
-        const protoStem = path.posix.basename(protoEntry.filePath, '.proto').toLowerCase();
-        return connectGeneratedEntries.flatMap((generatedEntry) =>
-          normalizeProtoGeneratedStem(generatedEntry.filePath).toLowerCase() === protoStem
-            ? [
-                createRelationship(
-                  protoEntry.filePath,
-                  generatedEntry.filePath,
-                  'build',
-                  'connectrpc_generated_module'
-                ),
-              ]
-            : []
-        );
-      }),
-      ...protoEntries.flatMap((protoEntry) => {
-        const protoStem = path.posix.basename(protoEntry.filePath, '.proto').toLowerCase();
-        const serviceNames = extractProtoServiceNames(protoEntry.text);
-        return grpcWebGeneratedEntries.flatMap((generatedEntry) =>
-          serviceNames.flatMap((serviceName) =>
-            normalizeProtoGeneratedStem(generatedEntry.filePath).toLowerCase() === protoStem
-              ? [
-                  createRelationship(
-                    protoEntry.filePath,
-                    generatedEntry.filePath,
-                    'build',
-                    'grpc_web_generated_module'
-                  ),
-                  createRelationship(
-                    protoEntry.filePath,
-                    resolveSymbolEndpoint(generatedEntry.filePath, graphSymbolIndex, {
-                      preferredSymbols: [serviceName],
-                    }),
-                    'build',
-                    'proto_service_symbol'
-                  ),
-                ]
-              : []
-          )
-        );
-      }),
-      ...protoEntries.flatMap((protoEntry) => {
-        const serviceNames = extractProtoServiceNames(protoEntry.text);
-        return grpcWebGeneratedEntries.flatMap((generatedEntry) =>
-          serviceNames.flatMap((serviceName) => {
-            const matchesService =
-              normalizeProtoGeneratedStem(generatedEntry.filePath).toLowerCase() ===
-              path.posix.basename(protoEntry.filePath, '.proto').toLowerCase();
-            return matchesService
-              ? [
-                  createRelationship(
-                    protoEntry.filePath,
-                    resolveSymbolEndpoint(generatedEntry.filePath, graphSymbolIndex, {
-                      preferredSymbols: [`${serviceName}PromiseClient`, serviceName],
-                    }),
-                    'build',
-                    'proto_client_symbol'
-                  ),
-                ]
-              : [];
-          })
-        );
-      }),
-      ...protoEntries.flatMap((protoEntry) => {
-        const serviceNames = extractProtoServiceNames(protoEntry.text);
-        return runtimeEntries.flatMap((runtimeEntry) =>
-          serviceNames.flatMap((serviceName) => {
-            const runtimeSymbols = extractProtoRuntimeSymbols(
-              runtimeEntry.filePath,
-              runtimeEntry.text,
-              serviceName
-            );
-            return matchesProtoRuntimeEntry(runtimeEntry.text, serviceName)
-              ? [
-                  createRelationship(
-                    protoEntry.filePath,
-                    runtimeEntry.filePath,
-                    'framework',
-                    'proto_service_runtime_binding'
-                  ),
-                  createRelationship(
-                    protoEntry.filePath,
-                    resolveSymbolEndpoint(runtimeEntry.filePath, graphSymbolIndex, {
-                      preferredSymbols: [
-                        ...runtimeSymbols,
-                        ...buildIdentifierVariants(serviceName),
-                      ],
-                    }),
-                    'framework',
-                    'proto_server_symbol'
-                  ),
-                ]
-              : [];
-          })
-        );
-      }),
-      ...protoEntries.flatMap((protoEntry) => {
-        const serviceNames = extractProtoServiceNames(protoEntry.text);
-        return connectRuntimeEntries.flatMap((runtimeEntry) =>
-          serviceNames.flatMap((serviceName) =>
-            containsIdentifierVariantInNormalizedText(runtimeEntry.text, serviceName) &&
-            (runtimeEntry.text.includes('createPromiseClient(') ||
-              runtimeEntry.text.includes('createConnectTransport(') ||
-              runtimeEntry.text.includes('connectNodeAdapter('))
-              ? [
-                  createRelationship(
-                    protoEntry.filePath,
-                    runtimeEntry.filePath,
-                    'framework',
-                    'connectrpc_runtime_binding'
-                  ),
-                  createRelationship(
-                    protoEntry.filePath,
-                    resolveSymbolEndpoint(runtimeEntry.filePath, graphSymbolIndex, {
-                      preferredSymbols: extractConnectRuntimeSymbols(runtimeEntry.text),
-                    }),
-                    'framework',
-                    'connectrpc_client_symbol'
-                  ),
-                ]
-              : []
-          )
-        );
-      }),
-      ...protoEntries.flatMap((protoEntry) => {
-        const serviceNames = extractProtoServiceNames(protoEntry.text);
-        return grpcWebRuntimeEntries.flatMap((runtimeEntry) =>
-          serviceNames.flatMap((serviceName) =>
-            containsIdentifierVariantInNormalizedText(runtimeEntry.text, serviceName) &&
-            (runtimeEntry.text.includes('GrpcWebFetchTransport(') ||
-              runtimeEntry.text.includes('grpc.unary(') ||
-              runtimeEntry.text.includes('grpc.invoke(') ||
-              runtimeEntry.text.includes('Client('))
-              ? [
-                  createRelationship(
-                    protoEntry.filePath,
-                    runtimeEntry.filePath,
-                    'framework',
-                    'grpc_web_runtime_binding'
-                  ),
-                  createRelationship(
-                    protoEntry.filePath,
-                    resolveSymbolEndpoint(runtimeEntry.filePath, graphSymbolIndex, {
-                      preferredSymbols: extractGrpcWebRuntimeSymbols(runtimeEntry.text),
-                    }),
-                    'framework',
-                    'grpc_web_client_symbol'
-                  ),
-                ]
-              : []
-          )
-        );
-      }),
+      ...grpcWebGeneratedLinks(sources, classified),
+      ...runtimeLinks(sources, classified),
     ];
 
-    return createInsight(
-      protobufAdapter.id,
-      protobufAdapter.displayName,
-      protobufAdapter.category,
-      `Detected ${protoEntries.length} proto schemas, ${generatedEntries.length} generated protobuf modules, ${bufOutputDirs.length} Buf output directories, and ${relationships.length} contract/runtime relationships.`,
-      {
-        evidence: context.getDetectedStack('protobuf')?.evidence || [],
+    return {
+      summary: `Detected ${protoEntries.length} proto schemas, ${generatedEntries.length} generated protobuf modules, ${bufOutputDirs.length} Buf output directories, and ${relationships.length} contract/runtime relationships.`,
+      details: {
         entryFiles: protoEntries.map((entry) => entry.filePath),
         configFiles,
         modules: generatedEntries.map((entry) => entry.filePath),
         relationships,
-      }
-    );
+      },
+    };
   },
-};
+});

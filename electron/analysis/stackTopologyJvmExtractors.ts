@@ -1,24 +1,39 @@
 import { extractMethodNames, uniqueCaptures } from './stackTopologyExtractorBase';
 
+const JVM_MODIFIERS = 'public|private|protected|static|final|synchronized|abstract';
+const DOTNET_MODIFIERS = 'public|private|protected|internal|async|static';
+
+/**
+ * A method declaration: `head` (an annotation, an attribute or a word boundary), then modifiers and
+ * a return type, with the method name captured before its parameter list.
+ */
+const methodDeclaration = (head: string, modifiers: string) =>
+  new RegExp(
+    String.raw`${head}(?:${modifiers}|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`,
+    'g'
+  );
+
+/** A method carrying one of the route annotations, e.g. `@GetMapping("/x") public Foo list(`. */
+const annotatedRouteMethod = (verbs: string) =>
+  methodDeclaration(String.raw`@(?:${verbs})\s*(?:\([^)]*\))?\s*`, JVM_MODIFIERS);
+
 export const extractSpringRouteMethods = (text: string) =>
   extractMethodNames(text, [
-    /@(?:GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*(?:\([^)]*\))?\s*(?:public|private|protected|static|final|synchronized|abstract|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
+    annotatedRouteMethod(
+      'GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping'
+    ),
   ]);
 
 export const extractMicronautRouteMethods = (text: string) =>
-  extractMethodNames(text, [
-    /@(?:Get|Post|Put|Patch|Delete|Head|Options)\s*(?:\([^)]*\))?\s*(?:public|private|protected|static|final|synchronized|abstract|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
-  ]);
+  extractMethodNames(text, [annotatedRouteMethod('Get|Post|Put|Patch|Delete|Head|Options')]);
 
 export const extractJakartaRouteMethods = (text: string) =>
-  extractMethodNames(text, [
-    /@(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*(?:\([^)]*\))?\s*(?:public|private|protected|static|final|synchronized|abstract|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
-  ]);
+  extractMethodNames(text, [annotatedRouteMethod('GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS')]);
 
 export const extractJvmFunctionNames = (text: string) =>
   uniqueCaptures(text, [
     /\b(?:public|private|protected|internal|open|final|abstract|suspend|inline|static|async|\s)*fun\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
-    /\b(?:public|private|protected|static|final|synchronized|abstract|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
+    methodDeclaration(String.raw`\b`, JVM_MODIFIERS),
   ]);
 
 export const extractKtorRouteFunctions = (text: string) =>
@@ -29,12 +44,15 @@ export const extractKtorRouteFunctions = (text: string) =>
 
 export const extractAspNetRouteMethods = (text: string) =>
   extractMethodNames(text, [
-    /\[(?:HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete|Route|AcceptVerbs)[^\]]*\]\s*(?:public|private|protected|internal|async|static|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
+    methodDeclaration(
+      String.raw`\[(?:HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete|Route|AcceptVerbs)[^\]]*\]\s*`,
+      DOTNET_MODIFIERS
+    ),
   ]);
 
 export const extractCSharpMethodNames = (text: string) =>
   uniqueCaptures(text, [
-    /\b(?:public|private|protected|internal|async|static|virtual|override|sealed|partial|\s)+[A-Za-z0-9_<>[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g,
+    methodDeclaration(String.raw`\b`, `${DOTNET_MODIFIERS}|virtual|override|sealed|partial`),
   ]);
 
 export const normalizeTypeName = (value: string) =>
