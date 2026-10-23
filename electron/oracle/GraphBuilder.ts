@@ -1,7 +1,8 @@
 import * as path from 'path';
 import { ParseResult } from '../parsing/types';
 import { GraphLink, oracleStore } from '../store';
-import { getParentDir, isLocalSpecifier, normalizePath } from './shared';
+import { getParentDir, normalizePath } from './shared';
+import { linkImports, resolveReExports } from './graphImportLinks';
 
 export class GraphBuilder {
   ensureDirectoryChainForFile(filePath: string, baseDir: string) {
@@ -118,54 +119,6 @@ export class GraphBuilder {
     }
   }
 
-  private resolveReExports(normalizedPath: string, reExports: ParseResult['reExports']) {
-    const resolved = (reExports ?? []).flatMap((record) => {
-      const target = record.resolvedPath
-        ? normalizePath(record.resolvedPath)
-        : isLocalSpecifier(record.path)
-          ? normalizePath(path.resolve(path.dirname(normalizedPath), record.path))
-          : undefined;
-      return target ? [{ target, entities: record.entities }] : [];
-    });
-    return resolved.length > 0 ? resolved : undefined;
-  }
-
-  private processImports(normalizedPath: string, imports: ParseResult['imports']) {
-    const store = oracleStore.getState();
-    for (const imp of imports) {
-      const resolvedPath = imp.resolvedPath
-        ? normalizePath(imp.resolvedPath)
-        : isLocalSpecifier(imp.path)
-          ? normalizePath(path.resolve(path.dirname(normalizedPath), imp.path))
-          : undefined;
-
-      if (!resolvedPath) continue;
-
-      if (imp.importedEntities.length > 0) {
-        for (const entityName of imp.importedEntities) {
-          if (entityName === '*') {
-            store.addLink({
-              source: normalizedPath,
-              target: resolvedPath,
-              value: 1,
-              type: 'import',
-            });
-            continue;
-          }
-
-          store.addLink({
-            source: normalizedPath,
-            target: `${resolvedPath}#${entityName}`,
-            value: 2,
-            type: 'import',
-          });
-        }
-      } else {
-        store.addLink({ source: normalizedPath, target: resolvedPath, value: 1, type: 'import' });
-      }
-    }
-  }
-
   private processEntities(
     normalizedPath: string,
     entities: ParseResult['entities'],
@@ -220,7 +173,7 @@ export class GraphBuilder {
       language: result.detectedLanguage,
       adr,
       exports,
-      reExports: this.resolveReExports(normalizedPath, reExports),
+      reExports: resolveReExports(normalizedPath, reExports),
       resolution: result.resolution,
       parentId,
     });
@@ -229,7 +182,7 @@ export class GraphBuilder {
       this.addADRLink(normalizedPath, adr);
     }
 
-    this.processImports(normalizedPath, imports);
+    linkImports(normalizedPath, imports);
     this.processEntities(normalizedPath, entities, churn, result.detectedLanguage);
   }
 }

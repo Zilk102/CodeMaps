@@ -52,6 +52,14 @@ export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
 
 const stemOf = (path: string) => baseName(path).replace(/\.rs$/, '');
 
+const moduleEdge = (target: string): ResolvedEdge => ({ target, value: 1, reason: 'rust:use' });
+
+const entityUseEdge = (module: string, name: string): ResolvedEdge => ({
+  target: entityTarget(module, name),
+  value: 2,
+  reason: 'rust:use',
+});
+
 export class RustResolver implements LanguageResolver {
   readonly languageId = 'rust';
   private index!: ProjectIndex;
@@ -127,6 +135,17 @@ export class RustResolver implements LanguageResolver {
     return crate ? (this.crateRoot.get(crate.name) ?? null) : null;
   }
 
+  /** `super::super::x`: climb one parent module per leading `super`. */
+  private startFromSuper(file: string, tail: string[]): { module: string; rest: string[] } | null {
+    let module: string | undefined = this.parentOf.get(file);
+    let rest = tail;
+    while (module && rest[0] === 'super') {
+      module = this.parentOf.get(module);
+      rest = rest.slice(1);
+    }
+    return module ? { module, rest } : null;
+  }
+
   /** The module an item path starts in, and the segments still to walk. */
   private start(file: string, segments: string[]): { module: string; rest: string[] } | null {
     const [first, ...tail] = segments;
@@ -135,15 +154,7 @@ export class RustResolver implements LanguageResolver {
       return root ? { module: root, rest: tail } : null;
     }
     if (first === 'self') return { module: file, rest: tail };
-    if (first === 'super') {
-      let module: string | undefined = this.parentOf.get(file);
-      let rest = tail;
-      while (module && rest[0] === 'super') {
-        module = this.parentOf.get(module);
-        rest = rest.slice(1);
-      }
-      return module ? { module, rest } : null;
-    }
+    if (first === 'super') return this.startFromSuper(file, tail);
     // Module in scope, then crate in the workspace, then the crate root (2015-style paths).
     if (this.childFile(file, first)) return { module: file, rest: segments };
     const crateRoot = this.crateRoot.get(first);
@@ -156,7 +167,7 @@ export class RustResolver implements LanguageResolver {
   /** Follows `pub use` re-exports so a name resolves to where it is declared. */
   private itemIn(module: string, name: string, depth = 0): ResolvedEdge | null {
     if (hasEntity(this.index, module, name)) {
-      return { target: entityTarget(module, name), value: 2, reason: 'rust:use' };
+      return entityUseEdge(module, name);
     }
     const entry = this.index.files.get(module);
     if (!entry || depth >= MAX_REEXPORT_DEPTH) return null;
@@ -178,18 +189,17 @@ export class RustResolver implements LanguageResolver {
     const origin = this.start(file, segments);
     if (!origin) return null;
     let current = origin.module;
-    for (let position = 0; position < origin.rest.length; position += 1) {
-      const segment = origin.rest[position];
+    for (const segment of origin.rest) {
       const child = this.childFile(current, segment);
       if (child) {
         current = child;
         continue;
       }
+      // The segment is an item (possibly re-exported) or unknown: stop at this module.
       const item = this.itemIn(current, segment, depth);
-      if (item) return { edge: item, module: null };
-      return { edge: { target: current, value: 1, reason: 'rust:use' }, module: null };
+      return { edge: item ?? moduleEdge(current), module: null };
     }
-    return { edge: { target: current, value: 1, reason: 'rust:use' }, module: current };
+    return { edge: moduleEdge(current), module: current };
   }
 
   resolve(file: FileEntry): ResolvedEdge[] {
@@ -197,13 +207,36 @@ export class RustResolver implements LanguageResolver {
     /** Names that refer to a module file, for `module::function` uses. */
     const moduleNames = new Map<string, string>();
 
+    this.resolveModuleDeclarations(file, edges, moduleNames);
+    this.resolveImports(file, edges, moduleNames);
+
+    for (const use of file.facts.qualifiedUses) {
+      const module = moduleNames.get(use.qualifier);
+      if (module && hasEntity(this.index, module, use.name)) {
+        edges.push(entityUseEdge(module, use.name));
+      }
+    }
+    return edges;
+  }
+
+  private resolveModuleDeclarations(
+    file: FileEntry,
+    edges: ResolvedEdge[],
+    moduleNames: Map<string, string>
+  ): void {
     for (const name of file.facts.moduleDeclarations ?? []) {
       const child = this.childFile(file.path, name);
       if (!child) continue;
       edges.push({ target: child, value: 1, reason: 'rust:mod' });
       moduleNames.set(name, child);
     }
+  }
 
+  private resolveImports(
+    file: FileEntry,
+    edges: ResolvedEdge[],
+    moduleNames: Map<string, string>
+  ): void {
     const used = new Set(file.facts.usedNames);
     for (const record of file.facts.imports) {
       const segments = record.path.split('::');
@@ -211,15 +244,7 @@ export class RustResolver implements LanguageResolver {
       if (!resolved || resolved.edge.target === file.path) continue;
 
       if (record.importedEntities.includes('*') && resolved.module) {
-        const module = resolved.module;
-        let matched = 0;
-        for (const name of this.index.entitiesByFile.get(module) ?? []) {
-          if (used.has(name) && !name.includes('::')) {
-            edges.push({ target: entityTarget(module, name), value: 2, reason: 'rust:use' });
-            matched += 1;
-          }
-        }
-        if (matched === 0) edges.push(resolved.edge);
+        this.addGlobImportEdges(resolved, used, edges);
         continue;
       }
 
@@ -228,13 +253,22 @@ export class RustResolver implements LanguageResolver {
         moduleNames.set(record.alias ?? segments[segments.length - 1], resolved.module);
       }
     }
+  }
 
-    for (const use of file.facts.qualifiedUses) {
-      const module = moduleNames.get(use.qualifier);
-      if (module && hasEntity(this.index, module, use.name)) {
-        edges.push({ target: entityTarget(module, use.name), value: 2, reason: 'rust:use' });
+  /** `use module::*`: link the used names that module declares, else the module itself. */
+  private addGlobImportEdges(
+    resolved: { edge: ResolvedEdge; module: string | null },
+    used: Set<string>,
+    edges: ResolvedEdge[]
+  ): void {
+    const module = resolved.module as string;
+    let matched = 0;
+    for (const name of this.index.entitiesByFile.get(module) ?? []) {
+      if (used.has(name) && !name.includes('::')) {
+        edges.push(entityUseEdge(module, name));
+        matched += 1;
       }
     }
-    return edges;
+    if (matched === 0) edges.push(resolved.edge);
   }
 }

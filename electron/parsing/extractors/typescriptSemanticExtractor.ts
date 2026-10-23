@@ -196,48 +196,61 @@ class TypeScriptASTVisitor {
     }
   }
 
-  visitImportsAndExports(node: ts.Node) {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      this.addImport(node.moduleSpecifier.text, collectImportedEntities(node.importClause));
-      if (node.importClause?.name) {
-        this.variables.add(node.importClause.name.text);
-      }
-      return true;
+  private addNamedExportElements(elements: readonly ts.ExportSpecifier[]) {
+    elements.forEach((element) => {
+      maybeAddExport(
+        this.exports,
+        this.exportKeys,
+        element.name.text,
+        element.propertyName?.text || element.name.text
+      );
+    });
+  }
+
+  private visitImportDeclaration(node: ts.Node): boolean {
+    if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) return false;
+    this.addImport(node.moduleSpecifier.text, collectImportedEntities(node.importClause));
+    if (node.importClause?.name) {
+      this.variables.add(node.importClause.name.text);
     }
+    return true;
+  }
+
+  private visitReExportDeclaration(node: ts.Node): boolean {
     if (
-      ts.isExportDeclaration(node) &&
-      node.moduleSpecifier &&
-      ts.isStringLiteral(node.moduleSpecifier)
+      !ts.isExportDeclaration(node) ||
+      !node.moduleSpecifier ||
+      !ts.isStringLiteral(node.moduleSpecifier)
     ) {
-      const exportedEntities = new Set<string>();
-      if (node.exportClause && ts.isNamedExports(node.exportClause)) {
-        node.exportClause.elements.forEach((element) => {
-          exportedEntities.add(element.propertyName?.text || element.name.text);
-          maybeAddExport(
-            this.exports,
-            this.exportKeys,
-            element.name.text,
-            element.propertyName?.text || element.name.text
-          );
-        });
-      } else {
-        exportedEntities.add('*');
-      }
-      this.addImport(node.moduleSpecifier.text, exportedEntities);
-      this.addReExport(node.moduleSpecifier.text, exportedEntities);
-      return true;
+      return false;
     }
-    if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+    const exportedEntities = new Set<string>();
+    if (node.exportClause && ts.isNamedExports(node.exportClause)) {
       node.exportClause.elements.forEach((element) => {
-        maybeAddExport(
-          this.exports,
-          this.exportKeys,
-          element.name.text,
-          element.propertyName?.text || element.name.text
-        );
+        exportedEntities.add(element.propertyName?.text || element.name.text);
       });
-      return true;
+      this.addNamedExportElements(node.exportClause.elements);
+    } else {
+      exportedEntities.add('*');
     }
+    this.addImport(node.moduleSpecifier.text, exportedEntities);
+    this.addReExport(node.moduleSpecifier.text, exportedEntities);
+    return true;
+  }
+
+  private visitLocalExportDeclaration(node: ts.Node): boolean {
+    if (
+      !ts.isExportDeclaration(node) ||
+      !node.exportClause ||
+      !ts.isNamedExports(node.exportClause)
+    ) {
+      return false;
+    }
+    this.addNamedExportElements(node.exportClause.elements);
+    return true;
+  }
+
+  private visitDynamicImportForms(node: ts.Node): boolean {
     if (
       ts.isImportEqualsDeclaration(node) &&
       ts.isExternalModuleReference(node.moduleReference) &&
@@ -254,15 +267,36 @@ class TypeScriptASTVisitor {
       this.addImport(node.argument.literal.text, new Set(['type']));
       return true;
     }
-    if (ts.isExportAssignment(node)) {
-      if (ts.isIdentifier(node.expression)) {
-        maybeAddExport(this.exports, this.exportKeys, 'default', node.expression.text, true);
-      } else {
-        maybeAddExport(this.exports, this.exportKeys, 'default', undefined, true);
-      }
-      return true;
-    }
     return false;
+  }
+
+  private visitExportAssignment(node: ts.Node): boolean {
+    if (!ts.isExportAssignment(node)) return false;
+    const localName = ts.isIdentifier(node.expression) ? node.expression.text : undefined;
+    maybeAddExport(this.exports, this.exportKeys, 'default', localName, true);
+    return true;
+  }
+
+  visitImportsAndExports(node: ts.Node) {
+    return (
+      this.visitImportDeclaration(node) ||
+      this.visitReExportDeclaration(node) ||
+      this.visitLocalExportDeclaration(node) ||
+      this.visitDynamicImportForms(node) ||
+      this.visitExportAssignment(node)
+    );
+  }
+
+  /** Registers `import('x')` and `require('x')` calls with a single string-literal argument. */
+  private registerRuntimeImport(node: ts.CallExpression) {
+    if (node.arguments.length !== 1 || !ts.isStringLiteral(node.arguments[0])) return;
+    const specifier = node.arguments[0].text;
+    if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      this.addImport(specifier, new Set(['*']));
+    }
+    if (ts.isIdentifier(node.expression) && node.expression.text === 'require') {
+      this.addImport(specifier, new Set());
+    }
   }
 
   visitCalls(node: ts.Node) {
@@ -270,92 +304,91 @@ class TypeScriptASTVisitor {
       const callName = getCallName(node.expression);
       if (callName) this.calls.add(callName);
 
-      if (
-        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-        node.arguments.length === 1 &&
-        ts.isStringLiteral(node.arguments[0])
-      ) {
-        this.addImport(node.arguments[0].text, new Set(['*']));
-      }
-
-      if (
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === 'require' &&
-        node.arguments.length === 1 &&
-        ts.isStringLiteral(node.arguments[0])
-      ) {
-        this.addImport(node.arguments[0].text, new Set());
-      }
+      this.registerRuntimeImport(node);
       return true;
     }
     return false;
   }
 
+  private addFunctionEntity(node: ts.Node, name?: string) {
+    maybeAddFunctionEntity(
+      this.entities,
+      this.entityKeys,
+      name,
+      getSourceLocation(this.sourceFile, node)
+    );
+  }
+
+  private visitFunctionDeclaration(node: ts.Node): boolean {
+    if (!ts.isFunctionDeclaration(node)) return false;
+    this.addFunctionEntity(node, node.name?.text);
+    this.registerDeclarationExport(node, node.name?.text);
+    return true;
+  }
+
+  private visitMethodLike(node: ts.Node): boolean {
+    if (
+      !ts.isMethodDeclaration(node) &&
+      !ts.isMethodSignature(node) &&
+      !ts.isGetAccessorDeclaration(node) &&
+      !ts.isSetAccessorDeclaration(node)
+    ) {
+      return false;
+    }
+    this.addFunctionEntity(node, getPropertyNameText(node.name));
+    return true;
+  }
+
+  private visitTypeDeclaration(node: ts.Node): boolean {
+    if (
+      !ts.isClassDeclaration(node) &&
+      !ts.isInterfaceDeclaration(node) &&
+      !ts.isEnumDeclaration(node) &&
+      !ts.isTypeAliasDeclaration(node)
+    ) {
+      return false;
+    }
+    maybeAddClassEntity(
+      this.entities,
+      this.entityKeys,
+      node.name?.text,
+      getSourceLocation(this.sourceFile, node)
+    );
+    this.registerDeclarationExport(node, node.name?.text);
+    return true;
+  }
+
+  private visitVariableDeclaration(node: ts.Node): boolean {
+    if (!ts.isVariableDeclaration(node)) return false;
+    const variableName = node.name.getText(this.sourceFile).trim();
+    if (variableName) this.variables.add(variableName);
+    if (ts.isIdentifier(node.name) && isFunctionLikeInitializer(node.initializer)) {
+      this.addFunctionEntity(node, node.name.text);
+    }
+    if (ts.isVariableDeclarationList(node.parent) && ts.isVariableStatement(node.parent.parent)) {
+      this.registerDeclarationExport(
+        node.parent.parent,
+        ts.isIdentifier(node.name) ? node.name.text : undefined
+      );
+    }
+    return true;
+  }
+
+  private visitPropertyDeclaration(node: ts.Node): boolean {
+    if (!ts.isPropertyDeclaration(node)) return false;
+    const propertyName = getPropertyNameText(node.name);
+    if (propertyName) this.variables.add(propertyName);
+    return true;
+  }
+
   visitDeclarations(node: ts.Node) {
-    if (ts.isFunctionDeclaration(node)) {
-      maybeAddFunctionEntity(
-        this.entities,
-        this.entityKeys,
-        node.name?.text,
-        getSourceLocation(this.sourceFile, node)
-      );
-      this.registerDeclarationExport(node, node.name?.text);
-      return true;
-    }
-    if (
-      ts.isMethodDeclaration(node) ||
-      ts.isMethodSignature(node) ||
-      ts.isGetAccessorDeclaration(node) ||
-      ts.isSetAccessorDeclaration(node)
-    ) {
-      maybeAddFunctionEntity(
-        this.entities,
-        this.entityKeys,
-        getPropertyNameText(node.name),
-        getSourceLocation(this.sourceFile, node)
-      );
-      return true;
-    }
-    if (
-      ts.isClassDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isEnumDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node)
-    ) {
-      maybeAddClassEntity(
-        this.entities,
-        this.entityKeys,
-        node.name?.text,
-        getSourceLocation(this.sourceFile, node)
-      );
-      this.registerDeclarationExport(node, node.name?.text);
-      return true;
-    }
-    if (ts.isVariableDeclaration(node)) {
-      const variableName = node.name.getText(this.sourceFile).trim();
-      if (variableName) this.variables.add(variableName);
-      if (ts.isIdentifier(node.name) && isFunctionLikeInitializer(node.initializer)) {
-        maybeAddFunctionEntity(
-          this.entities,
-          this.entityKeys,
-          node.name.text,
-          getSourceLocation(this.sourceFile, node)
-        );
-      }
-      if (ts.isVariableDeclarationList(node.parent) && ts.isVariableStatement(node.parent.parent)) {
-        this.registerDeclarationExport(
-          node.parent.parent,
-          ts.isIdentifier(node.name) ? node.name.text : undefined
-        );
-      }
-      return true;
-    }
-    if (ts.isPropertyDeclaration(node)) {
-      const propertyName = getPropertyNameText(node.name);
-      if (propertyName) this.variables.add(propertyName);
-      return true;
-    }
-    return false;
+    return (
+      this.visitFunctionDeclaration(node) ||
+      this.visitMethodLike(node) ||
+      this.visitTypeDeclaration(node) ||
+      this.visitVariableDeclaration(node) ||
+      this.visitPropertyDeclaration(node)
+    );
   }
 
   walk = (node: ts.Node) => {
