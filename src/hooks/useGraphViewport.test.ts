@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeFitTransform, computeFocusTransform } from './useGraphViewport';
+import {
+  chooseFrameStrategy,
+  computeFitTransform,
+  computeFocusTransform,
+  computeZoomTransform,
+} from './useGraphViewport';
 
 describe('computeFitTransform', () => {
   it('shrinks a large layout so all of it is visible and centres it', () => {
@@ -55,5 +60,49 @@ describe('computeFocusTransform', () => {
       0.1
     );
     expect(scale).toBeGreaterThanOrEqual(0.85);
+  });
+});
+
+describe('computeZoomTransform', () => {
+  const container = { width: 1000, height: 800 };
+
+  it('keeps the centre of the usable area fixed while zooming', () => {
+    const current = { scale: 1, positionX: 0, positionY: 0 };
+    const next = computeZoomTransform(container, current, 2);
+    expect(next.scale).toBe(2);
+    // Point at the centre (500, 400) in content space stays at the centre on screen.
+    expect(500 * next.scale + next.x).toBe(500);
+    expect(400 * next.scale + next.y).toBe(400);
+  });
+
+  it('centres on the area left of the reserved panel', () => {
+    const next = computeZoomTransform(container, { scale: 1, positionX: 0, positionY: 0 }, 2, 200);
+    expect(400 * next.scale + next.x).toBe(400);
+  });
+
+  it('clamps to the allowed scale range', () => {
+    const zoomedIn = computeZoomTransform(container, { scale: 4, positionX: 0, positionY: 0 }, 10);
+    const zoomedOut = computeZoomTransform(
+      container,
+      { scale: 0.06, positionX: 0, positionY: 0 },
+      0.001
+    );
+    expect(zoomedIn.scale).toBe(5);
+    expect(zoomedOut.scale).toBe(0.05);
+  });
+});
+
+describe('chooseFrameStrategy', () => {
+  it('focuses the selected node in the hierarchy view', () => {
+    expect(chooseFrameStrategy(false, 'n')).toEqual({ kind: 'focus', nodeId: 'n' });
+  });
+
+  it('fits everything without a selection', () => {
+    expect(chooseFrameStrategy(false, null)).toEqual({ kind: 'fit', options: {} });
+    expect(chooseFrameStrategy(true, null)).toEqual({ kind: 'fit', options: {} });
+  });
+
+  it('allows a smaller minimum scale when framing a selected dependency layout', () => {
+    expect(chooseFrameStrategy(true, 'n')).toEqual({ kind: 'fit', options: { minScale: 0.2 } });
   });
 });

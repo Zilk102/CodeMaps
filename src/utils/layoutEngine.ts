@@ -301,11 +301,17 @@ const buildRenderedEdges = (
   return renderedEdges;
 };
 
-const runHierarchyLayout = async (
-  graphData: GraphData,
-  filters: GraphFilters
-): Promise<LayoutResult> => {
-  const { nodeIndex, validNodes } = buildVisibleContext(graphData, filters, true);
+const sortElkChildren = (children: ElkNode[], validNodes: Map<string, GraphNode>) => {
+  children.sort((a: ElkNode, b: ElkNode) =>
+    sortNodesForLayout(validNodes.get(a.id)!, validNodes.get(b.id)!)
+  );
+};
+
+/** Nests every visible node under its nearest visible ancestor; the rest become roots. */
+export const buildElkHierarchy = (
+  validNodes: Map<string, GraphNode>,
+  nodeIndex: Map<string, GraphNode>
+) => {
   const elkNodesMap = new Map<string, ElkNode>();
   validNodes.forEach((node) => {
     elkNodesMap.set(node.id, createElkNode(node, 'hierarchy'));
@@ -332,6 +338,15 @@ const runHierarchyLayout = async (
     }
   });
 
+  return { elkNodesMap, rootChildren };
+};
+
+/** Gives the project root and every container the box algorithm and a stable child order. */
+const configureHierarchyContainers = (
+  elkNodesMap: Map<string, ElkNode>,
+  rootChildren: ElkNode[],
+  validNodes: Map<string, GraphNode>
+) => {
   const projectRootElkNode = elkNodesMap.get(PROJECT_ROOT_ID);
   if (projectRootElkNode) {
     projectRootElkNode.children = rootChildren;
@@ -346,11 +361,7 @@ const runHierarchyLayout = async (
   // Stabilize the order of children inside containers so that layout doesn't depend on the set of visible edges.
   elkNodesMap.forEach((elkNode) => {
     if (!elkNode.children?.length) return;
-    elkNode.children.sort((a: ElkNode, b: ElkNode) => {
-      const nodeA = validNodes.get(a.id)!;
-      const nodeB = validNodes.get(b.id)!;
-      return sortNodesForLayout(nodeA, nodeB);
-    });
+    sortElkChildren(elkNode.children, validNodes);
 
     elkNode.layoutOptions = {
       ...elkNode.layoutOptions,
@@ -359,39 +370,29 @@ const runHierarchyLayout = async (
       'elk.padding': '[top=48,left=20,bottom=20,right=20]',
     };
   });
-  rootChildren.sort((a, b) => {
-    const nodeA = validNodes.get(a.id)!;
-    const nodeB = validNodes.get(b.id)!;
-    return sortNodesForLayout(nodeA, nodeB);
-  });
+  sortElkChildren(rootChildren, validNodes);
 
-  const assignDimensions = (node: ElkNode) => {
-    if (!node.children || (node.children as ElkNode[]).length === 0) {
-      const sourceNode = validNodes.get(node.id);
-      if (sourceNode) {
-        const dimensions = getNodeDimensions(sourceNode, 'hierarchy');
-        node.width = dimensions.width;
-        node.height = dimensions.height;
-      }
-    } else {
-      node.children.forEach(assignDimensions);
+  return projectRootElkNode;
+};
+
+const assignLeafDimensions = (node: ElkNode, validNodes: Map<string, GraphNode>) => {
+  if (!node.children || (node.children as ElkNode[]).length === 0) {
+    const sourceNode = validNodes.get(node.id);
+    if (sourceNode) {
+      const dimensions = getNodeDimensions(sourceNode, 'hierarchy');
+      node.width = dimensions.width;
+      node.height = dimensions.height;
     }
-  };
-  rootChildren.forEach(assignDimensions);
+  } else {
+    node.children.forEach((child) => assignLeafDimensions(child, validNodes));
+  }
+};
 
-  const graph = {
-    id: 'root',
-    layoutOptions: {
-      'elk.algorithm': 'box',
-      'elk.spacing.nodeNode': '56',
-      'elk.spacing.componentComponent': '72',
-      'elk.padding': '[top=24,left=24,bottom=24,right=24]',
-    },
-    children: projectRootElkNode ? [projectRootElkNode] : [],
-    edges: [],
-  };
-
-  const layouted: ElkNode = await elk.layout(graph as ElkNode);
+/** Walks the laid-out ELK tree and returns every visible node with absolute coordinates. */
+export const flattenElkTree = (
+  layouted: ElkNode,
+  validNodes: Map<string, GraphNode>
+): LayoutNode[] => {
   const flatNodes: LayoutNode[] = [];
   const computeAbsolute = (node: ElkNode, absX: number, absY: number) => {
     const x = absX + (node.x || 0);
@@ -415,6 +416,48 @@ const runHierarchyLayout = async (
   };
 
   layouted.children?.forEach((c: ElkNode) => computeAbsolute(c, 0, 0));
+  return flatNodes;
+};
+
+/** Canvas size: the larger of what ELK reported and the nodes' extent plus margin. */
+const buildLayoutResult = (
+  nodes: LayoutNode[],
+  edges: LayoutEdge[],
+  layouted: ElkNode
+): LayoutResult => {
+  const canvasBounds = computeCanvasBounds(nodes);
+
+  return {
+    nodes,
+    edges,
+    width: Math.max(layouted.width || 0, canvasBounds.width),
+    height: Math.max(layouted.height || 0, canvasBounds.height),
+  };
+};
+
+const runHierarchyLayout = async (
+  graphData: GraphData,
+  filters: GraphFilters
+): Promise<LayoutResult> => {
+  const { nodeIndex, validNodes } = buildVisibleContext(graphData, filters, true);
+  const { elkNodesMap, rootChildren } = buildElkHierarchy(validNodes, nodeIndex);
+  const projectRootElkNode = configureHierarchyContainers(elkNodesMap, rootChildren, validNodes);
+  rootChildren.forEach((child) => assignLeafDimensions(child, validNodes));
+
+  const graph = {
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'box',
+      'elk.spacing.nodeNode': '56',
+      'elk.spacing.componentComponent': '72',
+      'elk.padding': '[top=24,left=24,bottom=24,right=24]',
+    },
+    children: projectRootElkNode ? [projectRootElkNode] : [],
+    edges: [],
+  };
+
+  const layouted: ElkNode = await elk.layout(graph as ElkNode);
+  const flatNodes = flattenElkTree(layouted, validNodes);
   normalizeFlatNodes(flatNodes);
 
   const nodeLayoutIndex = new Map(flatNodes.map((node) => [node.id, node]));
@@ -422,14 +465,7 @@ const runHierarchyLayout = async (
     ? buildRenderedEdges(graphData, validNodes, nodeIndex, nodeLayoutIndex, true)
     : [];
 
-  const canvasBounds = computeCanvasBounds(flatNodes);
-
-  return {
-    nodes: flatNodes,
-    edges: flatEdges,
-    width: Math.max(layouted.width || 0, canvasBounds.width),
-    height: Math.max(layouted.height || 0, canvasBounds.height),
-  };
+  return buildLayoutResult(flatNodes, flatEdges, layouted);
 };
 
 const buildDependencyLayoutEdges = (
@@ -497,40 +533,33 @@ const buildDependencyLayoutEdges = (
 // Above this many nodes the layered layout trades a little polish for speed.
 const LARGE_DEPENDENCY_GRAPH = 80;
 
-const runDependencyLayout = async (
-  graphData: GraphData,
-  filters: GraphFilters,
-  selectedNodeId?: string
-): Promise<LayoutResult> => {
-  const nodeIndex = new Map(graphData.nodes.map((node) => [node.id, node]));
+const collectDependencyNodes = (graphData: GraphData, filters: GraphFilters) => {
   const validNodes = new Map<string, GraphNode>();
   graphData.nodes.forEach((node) => {
     if ((node.type === 'file' && filters.showFiles) || (node.type === 'adr' && filters.showADR)) {
       validNodes.set(node.id, node);
     }
   });
+  return validNodes;
+};
 
-  const { dependencyEdges, focusedNodeIds, collapsedSelectedId } = buildDependencyLayoutEdges(
-    graphData,
-    validNodes,
-    nodeIndex,
-    selectedNodeId
-  );
+type DependencyLayoutEdge = ReturnType<
+  typeof buildDependencyLayoutEdges
+>['dependencyEdges'][number];
 
-  const hasFocusedSelection = Boolean(collapsedSelectedId && focusedNodeIds.size > 1);
-
+/** ELK input for the dependency view; a focused selection narrows it to the selection's neighbourhood. */
+export const buildDependencyElkGraph = (
+  validNodes: Map<string, GraphNode>,
+  dependencyEdges: DependencyLayoutEdge[],
+  focusedNodeIds: Set<string>,
+  hasFocusedSelection: boolean
+) => {
   const dependencyNodes = Array.from(validNodes.values())
-    .filter((node) => {
-      if (!hasFocusedSelection) {
-        return true;
-      }
-
-      return focusedNodeIds.has(node.id);
-    })
+    .filter((node) => !hasFocusedSelection || focusedNodeIds.has(node.id))
     .sort(sortNodesForLayout)
     .map((node) => createElkNode(node, 'dependencies'));
 
-  const graph = {
+  return {
     id: 'dependency-root',
     layoutOptions: {
       'elk.algorithm': dependencyEdges.length > 0 ? 'layered' : 'box',
@@ -549,22 +578,24 @@ const runDependencyLayout = async (
     },
     children: dependencyNodes,
     edges: dependencyEdges
-      .filter((edge) => {
-        if (!hasFocusedSelection) {
-          return true;
-        }
-
-        return focusedNodeIds.has(edge.sources[0]) && focusedNodeIds.has(edge.targets[0]);
-      })
+      .filter(
+        (edge) =>
+          !hasFocusedSelection ||
+          (focusedNodeIds.has(edge.sources[0]) && focusedNodeIds.has(edge.targets[0]))
+      )
       .map((edge) => ({
         id: edge.id,
         sources: edge.sources,
         targets: edge.targets,
       })),
   };
+};
 
-  const layouted: ElkNode = await elk.layout(graph as ElkNode);
-  const flatNodes: LayoutNode[] = (layouted.children || []).map((node: ElkNode) => ({
+const toDependencyLayoutNodes = (
+  layouted: ElkNode,
+  validNodes: Map<string, GraphNode>
+): LayoutNode[] =>
+  (layouted.children || []).map((node: ElkNode) => ({
     id: node.id || '',
     x: node.x || 0,
     y: node.y || 0,
@@ -573,43 +604,69 @@ const runDependencyLayout = async (
     data: validNodes.get(node.id || '')!,
     isContainer: false,
   }));
+
+const toDependencyLayoutEdges = (
+  layouted: ElkNode,
+  nodeLayoutIndex: Map<string, LayoutNode>,
+  edgeDataById: Map<string, GraphLink>
+): LayoutEdge[] =>
+  (layouted.edges || []).flatMap(
+    (edge: NonNullable<ElkNode['edges']>[0] & { sources?: string[]; targets?: string[] }) => {
+      const sourceId = edge.sources?.[0];
+      const targetId = edge.targets?.[0];
+      const sourceNode = nodeLayoutIndex.get(sourceId);
+      const targetNode = nodeLayoutIndex.get(targetId);
+      const edgeData = edgeDataById.get(edge.id);
+      if (!sourceNode || !targetNode || !edgeData) {
+        return [];
+      }
+
+      return [
+        {
+          id: edge.id,
+          sections: buildOrthogonalSections(sourceNode, targetNode),
+          data: edgeData,
+          sourceId,
+          targetId,
+        },
+      ];
+    }
+  );
+
+const runDependencyLayout = async (
+  graphData: GraphData,
+  filters: GraphFilters,
+  selectedNodeId?: string
+): Promise<LayoutResult> => {
+  const nodeIndex = new Map(graphData.nodes.map((node) => [node.id, node]));
+  const validNodes = collectDependencyNodes(graphData, filters);
+
+  const { dependencyEdges, focusedNodeIds, collapsedSelectedId } = buildDependencyLayoutEdges(
+    graphData,
+    validNodes,
+    nodeIndex,
+    selectedNodeId
+  );
+
+  const hasFocusedSelection = Boolean(collapsedSelectedId && focusedNodeIds.size > 1);
+  const graph = buildDependencyElkGraph(
+    validNodes,
+    dependencyEdges,
+    focusedNodeIds,
+    hasFocusedSelection
+  );
+
+  const layouted: ElkNode = await elk.layout(graph as ElkNode);
+  const flatNodes = toDependencyLayoutNodes(layouted, validNodes);
   normalizeFlatNodes(flatNodes);
 
   const nodeLayoutIndex = new Map(flatNodes.map((node) => [node.id, node]));
   const edgeDataById = new Map(dependencyEdges.map((edge) => [edge.id, edge.data]));
-  const flatEdges: LayoutEdge[] = filters.showEdges
-    ? (layouted.edges || []).flatMap(
-        (edge: NonNullable<ElkNode['edges']>[0] & { sources?: string[]; targets?: string[] }) => {
-          const sourceId = edge.sources?.[0];
-          const targetId = edge.targets?.[0];
-          const sourceNode = nodeLayoutIndex.get(sourceId);
-          const targetNode = nodeLayoutIndex.get(targetId);
-          const edgeData = edgeDataById.get(edge.id);
-          if (!sourceNode || !targetNode || !edgeData) {
-            return [];
-          }
-
-          return [
-            {
-              id: edge.id,
-              sections: buildOrthogonalSections(sourceNode, targetNode),
-              data: edgeData,
-              sourceId,
-              targetId,
-            },
-          ];
-        }
-      )
+  const flatEdges = filters.showEdges
+    ? toDependencyLayoutEdges(layouted, nodeLayoutIndex, edgeDataById)
     : [];
 
-  const canvasBounds = computeCanvasBounds(flatNodes);
-
-  return {
-    nodes: flatNodes,
-    edges: flatEdges,
-    width: Math.max(layouted.width || 0, canvasBounds.width),
-    height: Math.max(layouted.height || 0, canvasBounds.height),
-  };
+  return buildLayoutResult(flatNodes, flatEdges, layouted);
 };
 
 export const runLayout = async (

@@ -1,18 +1,27 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { ElkPoint } from 'elkjs/lib/elk.bundled';
 import { useGraphStore, useUIStore } from '../store/useStore';
 import { useGraphLayout } from '../hooks/useGraphLayout';
-import { GraphNodeComponent } from './GraphNodeComponent';
 import { GraphControls, GraphHint } from './graph/GraphControls';
 import { GraphToolbar } from './graph/GraphToolbar';
 import { GraphLegend } from './graph/GraphLegend';
 import { NodeDetailsPanel } from './graph/NodeDetailsPanel';
+import { GraphEdgeLayer, GraphNodeLayer } from './graph/GraphLayers';
+import { getModeDescriptionKey } from './graph/edgeStyle';
 import { useGraphViewport } from '../hooks/useGraphViewport';
 
 // Width taken by the node details panel (320px + margins) when a node is selected.
 const DETAILS_PANEL_RESERVE = 344;
+
+const CenteredMessage: React.FC<{ className: string; children: React.ReactNode }> = ({
+  className,
+  children,
+}) => (
+  <div className={`w-full h-full bg-(--bg0) flex items-center justify-center ${className}`}>
+    {children}
+  </div>
+);
 
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
@@ -37,132 +46,24 @@ export const GraphView: React.FC = () => {
     reserveRight: selectedNode ? DETAILS_PANEL_RESERVE : 0,
   });
 
-  const modeDescription =
-    layoutMode === 'hierarchy'
-      ? graphInsights?.selectedVisibleId
-        ? t('graphView.hierarchySelectedDescription', {
-            incomingCount: graphInsights.incomingCount,
-            outgoingCount: graphInsights.outgoingCount,
-          })
-        : t('graphView.hierarchyDefaultDescription')
-      : graphInsights?.selectedVisibleId
-        ? t('graphView.dependenciesSelectedDescription', {
-            incomingCount: graphInsights.incomingCount,
-            outgoingCount: graphInsights.outgoingCount,
-          })
-        : t('graphView.dependenciesDefaultDescription');
-
-  const edgeElements = useMemo(() => {
-    if (!layoutData?.edges) return null;
-    return layoutData.edges.map((edge) => {
-      const isConnectedToSelection = graphInsights?.selectedVisibleId
-        ? edge.sourceId === graphInsights.selectedVisibleId ||
-          edge.targetId === graphInsights.selectedVisibleId
-        : false;
-      if (
-        layoutMode === 'hierarchy' &&
-        graphInsights?.selectedVisibleId &&
-        !isConnectedToSelection
-      ) {
-        return null;
-      }
-
-      const isAdr = edge.data.type === 'adr';
-      const isImport = edge.data.type === 'import';
-      const isFramework = edge.data.type === 'framework';
-      const isBuild = edge.data.type === 'build';
-      const strokeColor = isAdr
-        ? 'var(--purple)'
-        : isFramework
-          ? 'rgba(92, 207, 230, 0.85)'
-          : isBuild
-            ? 'rgba(255, 195, 113, 0.85)'
-            : isImport
-              ? 'rgba(255,255,255,0.75)'
-              : 'var(--t3)';
-      const strokeWidth = isConnectedToSelection
-        ? isAdr
-          ? 3.5
-          : isFramework || isBuild
-            ? 2.8
-            : 2.4
-        : isAdr
-          ? 2.4
-          : isFramework || isBuild
-            ? 1.8
-            : 1.2;
-      const strokeDasharray = isAdr ? '5,5' : isBuild ? '7,4' : isFramework ? '3,4' : 'none';
-      const marker = isAdr ? 'url(#arrowhead-adr)' : 'url(#arrowhead)';
-
-      const d = edge.sections
-        .map((sec) => {
-          let pathData = `M ${sec.startPoint.x} ${sec.startPoint.y} `;
-          if (sec.bendPoints) {
-            pathData += sec.bendPoints.map((b: ElkPoint) => `L ${b.x} ${b.y} `).join('');
-          }
-          pathData += `L ${sec.endPoint.x} ${sec.endPoint.y}`;
-          return pathData;
-        })
-        .join(' ');
-
-      return (
-        <path
-          key={edge.id}
-          d={d}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
-          strokeDasharray={strokeDasharray}
-          markerEnd={marker}
-          opacity={
-            graphInsights?.selectedVisibleId
-              ? isConnectedToSelection
-                ? 0.95
-                : 0.08
-              : layoutMode === 'dependencies'
-                ? 0.5
-                : 0.18
-          }
-        />
-      );
-    });
-  }, [layoutData, layoutMode, graphInsights]);
-
-  const nodeElements = useMemo(() => {
-    if (!layoutData?.nodes) return null;
-    return layoutData.nodes.map((node) => (
-      <GraphNodeComponent
-        key={node.id}
-        node={node}
-        layoutMode={layoutMode}
-        emphasis={
-          graphInsights?.selectedVisibleId
-            ? selectedNode?.id === node.id || graphInsights.selectedVisibleId === node.id
-              ? 'selected'
-              : graphInsights.relatedNodeIds.has(node.id)
-                ? 'related'
-                : 'muted'
-            : 'default'
-        }
-        isSelected={selectedNode?.id === node.id}
-        onClick={() => setSelectedNode(node.data)}
-      />
-    ));
-  }, [layoutData, layoutMode, graphInsights, selectedNode, setSelectedNode]);
+  const description = getModeDescriptionKey(layoutMode, graphInsights);
+  const modeDescription = description.params
+    ? t(description.key, description.params)
+    : t(description.key);
 
   if (error) {
     return (
-      <div className="w-full h-full bg-(--bg0) flex items-center justify-center text-(--red)">
+      <CenteredMessage className="text-(--red)">
         {t('graphView.error')}: {error}
-      </div>
+      </CenteredMessage>
     );
   }
 
   if (!graphData) {
     return (
-      <div className="w-full h-full bg-(--bg0) flex items-center justify-center text-(--t1)">
+      <CenteredMessage className="text-(--t1)">
         {t('graphView.openProjectToAnalyze')}
-      </div>
+      </CenteredMessage>
     );
   }
 
@@ -218,34 +119,20 @@ export const GraphView: React.FC = () => {
                 }}
               >
                 {/* Edge layer */}
-                <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-1">
-                  <defs>
-                    <marker
-                      id="arrowhead"
-                      markerWidth="10"
-                      markerHeight="7"
-                      refX="9"
-                      refY="3.5"
-                      orient="auto"
-                    >
-                      <polygon points="0 0, 10 3.5, 0 7" fill="var(--t3)" />
-                    </marker>
-                    <marker
-                      id="arrowhead-adr"
-                      markerWidth="10"
-                      markerHeight="7"
-                      refX="9"
-                      refY="3.5"
-                      orient="auto"
-                    >
-                      <polygon points="0 0, 10 3.5, 0 7" fill="var(--purple)" />
-                    </marker>
-                  </defs>
-                  {edgeElements}
-                </svg>
+                <GraphEdgeLayer
+                  layoutData={layoutData}
+                  layoutMode={layoutMode}
+                  graphInsights={graphInsights}
+                />
 
                 {/* Node layer */}
-                {nodeElements}
+                <GraphNodeLayer
+                  layoutData={layoutData}
+                  layoutMode={layoutMode}
+                  graphInsights={graphInsights}
+                  selectedNode={selectedNode}
+                  onSelectNode={setSelectedNode}
+                />
               </div>
             )}
           </TransformComponent>

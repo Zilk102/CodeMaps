@@ -1,6 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
+import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
+import {
+  ErrorBanner,
+  PanelCard,
+  PanelHeader,
+  SelectedNodeBar,
+  StatTile,
+} from './panels/PanelParts';
+import { describeNode, unwrapResponse } from './panels/panelUtils';
 
 interface BlastRadiusV2PanelProps {
   projectPath: string;
@@ -13,91 +22,84 @@ interface BlastRadiusResult {
   riskPaths: string[][];
 }
 
+const BlastRadiusResultView: React.FC<{ result: BlastRadiusResult }> = ({ result }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <StatTile label={t('blastRadius.totalAffected')} value={result.totalAffected} />
+        <StatTile label={t('blastRadius.direct')} value={result.directDependencies.length} />
+        <StatTile
+          label={t('blastRadius.transitive')}
+          value={result.transitiveDependencies.length}
+        />
+      </div>
+
+      <PanelCard className="p-4">
+        <h4 className="text-[13px] font-semibold text-(--t0)">{t('blastRadius.riskPaths')}</h4>
+        {result.riskPaths.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {result.riskPaths.map((path: string[]) => (
+              <li
+                key={path.join('>')}
+                className="overflow-x-auto rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-xs font-mono text-(--t1)"
+              >
+                {path.join(' → ')}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="mt-3 text-[13px] text-(--t2)">{t('blastRadius.noRiskPaths')}</div>
+        )}
+      </PanelCard>
+    </div>
+  );
+};
+
 export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { selectedNode } = useGraphStore();
   const [nodeId, setNodeId] = useState('');
   const [maxDepth, setMaxDepth] = useState(5);
-  const [isCalculating, setIsCalculating] = useState(false);
-  const [result, setResult] = useState<BlastRadiusResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { isRunning: isCalculating, result, error, run } = useAnalysisRunner<BlastRadiusResult>();
   const effectiveNodeId = nodeId.trim() || selectedNode?.id || '';
 
-  const selectedNodeSummary = useMemo(() => {
-    if (!selectedNode) {
-      return null;
-    }
+  const selectedNodeSummary = useMemo(() => describeNode(selectedNode), [selectedNode]);
 
-    return `${selectedNode.label} · ${selectedNode.type}`;
-  }, [selectedNode]);
-
-  const handleCalculate = async () => {
+  const handleCalculate = () => {
     if (!effectiveNodeId) return;
 
-    setIsCalculating(true);
-    setError(null);
-
-    try {
-      if (window.api?.calculateBlastRadius) {
-        const response = await window.api.calculateBlastRadius(
-          projectPath,
-          effectiveNodeId,
-          maxDepth
-        );
-        if (response.success && response.data) {
-          setResult(response.data as BlastRadiusResult);
-        } else {
-          throw new Error(response.error || 'Unknown error');
-        }
-      } else {
+    return run(async () => {
+      if (!window.api?.calculateBlastRadius) {
         throw new Error('Blast Radius v2 not available');
       }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || t('blastRadius.error'));
-      } else {
-        setError(t('blastRadius.error'));
-      }
-    } finally {
-      setIsCalculating(false);
-    }
+      const response = await window.api.calculateBlastRadius(
+        projectPath,
+        effectiveNodeId,
+        maxDepth
+      );
+      return unwrapResponse<BlastRadiusResult>(response);
+    }, t('blastRadius.error'));
   };
 
   return (
     <div className="space-y-4 p-4">
-      <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-          {t('tools.quickActions.highRisk')}
-        </div>
-        <h3 className="mt-2 text-[16px] font-semibold text-(--t0)">{t('blastRadius.title')}</h3>
-        <p className="mt-2 text-[13px] leading-6 text-(--t2)">
-          {t('tools.quickActions.blastDescription')}
-        </p>
-      </div>
+      <PanelHeader
+        eyebrow={t('tools.quickActions.highRisk')}
+        title={t('blastRadius.title')}
+        description={t('tools.quickActions.blastDescription')}
+      />
 
-      <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
+      <PanelCard className="p-4">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-              {t('blastRadius.targetNode')}
-            </div>
-            {selectedNode && (
-              <button
-                type="button"
-                onClick={() => setNodeId(selectedNode.id)}
-                className="rounded-lg border border-(--border) bg-(--bg1) px-3 py-1.5 text-[12px] font-medium text-(--t1) transition-colors hover:border-(--acc) hover:text-(--acc)"
-              >
-                {t('blastRadius.useSelected')}
-              </button>
-            )}
-          </div>
-
-          {selectedNodeSummary && (
-            <div className="rounded-xl border border-(--border) bg-(--bg1) px-3 py-2">
-              <div className="text-[11px] text-(--t3)">{t('blastRadius.selectedNode')}</div>
-              <div className="mt-1 text-[13px] font-medium text-(--t0)">{selectedNodeSummary}</div>
-            </div>
-          )}
+          <SelectedNodeBar
+            label={t('blastRadius.targetNode')}
+            selectedLabel={t('blastRadius.selectedNode')}
+            useSelectedLabel={t('blastRadius.useSelected')}
+            hasSelection={!!selectedNode}
+            summary={selectedNodeSummary}
+            onUseSelected={() => selectedNode && setNodeId(selectedNode.id)}
+          />
 
           <div className="flex flex-col gap-2 xl:flex-row">
             <input
@@ -126,62 +128,11 @@ export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectP
             </button>
           </div>
         </div>
-      </div>
+      </PanelCard>
 
-      {error && (
-        <div className="rounded-2xl border border-[rgba(255,107,107,0.35)] bg-[rgba(255,107,107,0.08)] px-4 py-3 text-sm text-(--red)">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner className="px-4 py-3 text-sm text-(--red)">{error}</ErrorBanner>}
 
-      {result && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
-                {t('blastRadius.totalAffected')}
-              </div>
-              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
-                {result.totalAffected}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
-                {t('blastRadius.direct')}
-              </div>
-              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
-                {result.directDependencies.length}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-(--t3)">
-                {t('blastRadius.transitive')}
-              </div>
-              <div className="mt-2 text-[24px] font-semibold text-(--t0)">
-                {result.transitiveDependencies.length}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-(--border) bg-(--bg2) p-4">
-            <h4 className="text-[13px] font-semibold text-(--t0)">{t('blastRadius.riskPaths')}</h4>
-            {result.riskPaths.length > 0 ? (
-              <ul className="mt-3 space-y-2">
-                {result.riskPaths.map((path: string[]) => (
-                  <li
-                    key={path.join('>')}
-                    className="overflow-x-auto rounded-xl border border-(--border) bg-(--bg1) px-3 py-2 text-xs font-mono text-(--t1)"
-                  >
-                    {path.join(' → ')}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="mt-3 text-[13px] text-(--t2)">{t('blastRadius.noRiskPaths')}</div>
-            )}
-          </div>
-        </div>
-      )}
+      {result && <BlastRadiusResultView result={result} />}
     </div>
   );
 };
