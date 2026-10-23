@@ -20,14 +20,9 @@ import {
 } from './QualityGovernanceService';
 import { buildQualityArtifacts } from './contextSupport';
 import { AnalysisSnapshotService } from './AnalysisSnapshotService';
-import { createGraphSummary, unique } from './AgentContextUtils';
+import { unique } from './AgentContextUtils';
 import {
   buildChangeCampaignBlastRadius,
-  buildChangeCampaignNextSteps,
-  buildChangeCampaignRisks,
-  buildCampaignSecurityView,
-  buildExecutionWaves,
-  buildLayersInvolved,
   collectCampaignPatterns,
   collectCampaignSecurityFindings,
   collectCampaignViolations,
@@ -35,10 +30,9 @@ import {
   collectRuntimeCompositionRoots,
   collectStructuralNodeIds,
   expandAffectedFiles,
-  getCampaignBreadth,
-  getCampaignNodeTypePriority,
-  scoreCampaignNodeMatch,
 } from './changeCampaignSupport';
+import { assembleCampaignResult, CampaignFileScope } from './changeCampaignAssembly';
+import { resolveCampaignSeedTargets } from './changeCampaignSeeds';
 
 export interface PrepareChangeCampaignInput {
   userRequest: string;
@@ -113,7 +107,6 @@ export interface ChangeCampaignResult {
 
 const DEFAULT_MAX_SEEDS = 8;
 const DEFAULT_MAX_FILES = 30;
-const CAMPAIGN_NODE_TYPES = ['file', 'class', 'function'];
 
 export class ChangeCampaignService {
   constructor(
@@ -140,11 +133,55 @@ export class ChangeCampaignService {
       includeHealth: true,
       includeSecurityFindings: input.includeSecurityFindings,
     });
-    const resolvedHealth = health!;
     const layerByNodeId = new Map(
       architecture.classifications.map((record) => [record.nodeId, record])
     );
-    const seedTargets = this.resolveSeedTargets(graph, input, architecture, maxSeeds);
+    const seedTargets = resolveCampaignSeedTargets(graph, input, architecture, maxSeeds);
+    const scope = this.resolveFileScope(graph, input, seedTargets, depth, maxFiles, maxSeeds);
+    const campaignStructuralIds = collectStructuralNodeIds(scope.affectedFiles);
+    const patterns = collectCampaignPatterns(snapshotPatterns, campaignStructuralIds);
+    const securityFindings = collectCampaignSecurityFindings(
+      securityScan.findings,
+      campaignStructuralIds
+    );
+    const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
+      limit: 12,
+      focusNodeIds: Array.from(campaignStructuralIds),
+    });
+    const quality = buildQualityArtifacts(
+      graph,
+      health!,
+      patterns,
+      decompositionGuidance,
+      this.qualityGovernanceService,
+      4
+    );
+
+    return assembleCampaignResult({
+      graph,
+      input,
+      taskMode,
+      architecture,
+      layerByNodeId,
+      seedTargets,
+      scope,
+      campaignViolations: collectCampaignViolations(architecture.violations, campaignStructuralIds),
+      patterns,
+      securityFindings,
+      decompositionGuidance,
+      quality,
+      qualityGovernanceService: this.qualityGovernanceService,
+    });
+  }
+
+  private resolveFileScope(
+    graph: GraphData,
+    input: PrepareChangeCampaignInput,
+    seedTargets: GraphNode[],
+    depth: number,
+    maxFiles: number,
+    maxSeeds: number
+  ): CampaignFileScope {
     const directlyMatchedFiles = collectMatchedFiles(
       graph,
       seedTargets,
@@ -153,159 +190,17 @@ export class ChangeCampaignService {
     );
     const runtimeCompositionRoots = collectRuntimeCompositionRoots(graph, directlyMatchedFiles);
     const scopedFiles = unique([...directlyMatchedFiles, ...runtimeCompositionRoots]);
-    const affectedFiles = expandAffectedFiles(graph, scopedFiles, depth, maxFiles);
-    const blastRadius = buildChangeCampaignBlastRadius(
-      graph,
-      scopedFiles,
-      depth,
-      maxFiles,
-      this.blastRadiusAnalyzer
-    );
-    const campaignStructuralIds = collectStructuralNodeIds(affectedFiles);
-    const patterns = collectCampaignPatterns(snapshotPatterns, campaignStructuralIds);
-    const securityFindings = collectCampaignSecurityFindings(
-      securityScan.findings,
-      campaignStructuralIds
-    );
-    const layersInvolved = buildLayersInvolved(affectedFiles, layerByNodeId);
-    const campaignViolations = collectCampaignViolations(
-      architecture.violations,
-      campaignStructuralIds
-    );
-    const waves = buildExecutionWaves(affectedFiles, layerByNodeId, runtimeCompositionRoots);
-    const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
-      limit: 12,
-      focusNodeIds: Array.from(campaignStructuralIds),
-    });
-    const { qualityBudget, qualityDashboard, refactoringWaves } = buildQualityArtifacts(
-      graph,
-      resolvedHealth,
-      patterns,
-      decompositionGuidance,
-      this.qualityGovernanceService,
-      4
-    );
-
     return {
-      graphSummary: createGraphSummary(graph),
-      taskMode,
-      userRequest: input.userRequest,
-      scope: this.buildScope(
-        input.candidateQueries,
-        seedTargets,
-        directlyMatchedFiles,
-        runtimeCompositionRoots,
-        affectedFiles
-      ),
-      architecture: {
-        summary: architecture.summary,
-        layersInvolved,
-        campaignViolations,
-      },
-      blastRadius,
-      patterns,
-      security: buildCampaignSecurityView(securityFindings),
-      qualityBudget,
-      qualityDashboard,
-      decompositionGuidance,
-      executionPlan: {
-        preferredExecutionMode: 'multi_target_campaign',
-        waves,
-        refactoringWaves,
-        shouldFallbackToLowLevelTools:
-          directlyMatchedFiles.length === 0 && runtimeCompositionRoots.length === 0,
-      },
-      risks: buildChangeCampaignRisks(
-        affectedFiles,
-        runtimeCompositionRoots,
-        layersInvolved,
-        campaignViolations,
-        patterns,
-        securityFindings
-      ),
-      nextSteps: buildChangeCampaignNextSteps({
-        taskMode,
-        directlyMatchedFiles,
-        affectedFiles,
-        runtimeCompositionRoots,
-        waves,
-        hasSecurityFindings: securityFindings.length > 0,
-        qualityBudget,
-        refactoringWaves,
-        qualityGovernanceService: this.qualityGovernanceService,
-      }),
-    };
-  }
-
-  private resolveSeedTargets(
-    graph: GraphData,
-    input: PrepareChangeCampaignInput,
-    architecture: ArchitectureOverview,
-    maxSeeds: number
-  ) {
-    const seedNodes = new Map<string, GraphNode>();
-
-    for (const seedNodeId of input.seedNodeIds || []) {
-      const exact = graph.nodes.find((node) => node.id === seedNodeId);
-      if (exact) {
-        seedNodes.set(exact.id, exact);
-      }
-    }
-
-    const candidates = graph.nodes
-      .filter((node) => CAMPAIGN_NODE_TYPES.includes(node.type))
-      .map((node) => ({
-        node,
-        score: input.candidateQueries.reduce(
-          (max, query) => Math.max(max, scoreCampaignNodeMatch(node, query)),
-          0
-        ),
-      }))
-      .filter(({ score }) => score > 0)
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          getCampaignNodeTypePriority(b.node.type) - getCampaignNodeTypePriority(a.node.type) ||
-          a.node.label.localeCompare(b.node.label)
-      )
-      .slice(0, maxSeeds * 3);
-
-    for (const { node } of candidates) {
-      seedNodes.set(node.id, node);
-      if (seedNodes.size >= maxSeeds) {
-        break;
-      }
-    }
-
-    // If no explicit file-level matches were found, include top orchestrators from likely impacted layers
-    if (seedNodes.size === 0) {
-      const fallback = architecture.classifications
-        .filter((record) => ['application', 'integration', 'analysis'].includes(record.layer))
-        .slice(0, maxSeeds)
-        .map((record) => graph.nodes.find((node) => node.id === record.nodeId))
-        .filter((node): node is GraphNode => Boolean(node));
-      for (const node of fallback) {
-        seedNodes.set(node.id, node);
-      }
-    }
-
-    return Array.from(seedNodes.values()).slice(0, maxSeeds);
-  }
-
-  private buildScope(
-    candidateQueries: string[],
-    seedTargets: GraphNode[],
-    directlyMatchedFiles: GraphNode[],
-    runtimeCompositionRoots: GraphNode[],
-    affectedFiles: GraphNode[]
-  ): ChangeCampaignResult['scope'] {
-    return {
-      candidateQueries,
-      seedTargets,
       directlyMatchedFiles,
       runtimeCompositionRoots,
-      affectedFiles,
-      breadth: getCampaignBreadth(affectedFiles.length),
+      affectedFiles: expandAffectedFiles(graph, scopedFiles, depth, maxFiles),
+      blastRadius: buildChangeCampaignBlastRadius(
+        graph,
+        scopedFiles,
+        depth,
+        maxFiles,
+        this.blastRadiusAnalyzer
+      ),
     };
   }
 }

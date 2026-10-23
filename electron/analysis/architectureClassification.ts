@@ -63,16 +63,16 @@ export const classifyNodeByRules = (
   return createUnknownClassification(node.id);
 };
 
-export const refineDirectoryClassifications = (
-  graph: GraphData,
-  initialClassifications: ArchitectureNodeClassification[],
+const createDescendantVoteCollector = (
+  initialByNodeId: Map<string, ArchitectureNodeClassification>,
   childrenByParentId: Map<string, GraphNode[]>
 ) => {
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const initialByNodeId = new Map(initialClassifications.map((record) => [record.nodeId, record]));
   const descendantVotesByNodeId = new Map<string, Map<ArchitectureLayer, number>>();
 
-  const collectDescendantVotes = (nodeId: string, visited = new Set<string>()) => {
+  const collectDescendantVotes = (
+    nodeId: string,
+    visited = new Set<string>()
+  ): Map<ArchitectureLayer, number> => {
     const cached = descendantVotesByNodeId.get(nodeId);
     if (cached) {
       return cached;
@@ -102,14 +102,35 @@ export const refineDirectoryClassifications = (
     return counts;
   };
 
-  return graph.nodes.map((node) => {
+  return collectDescendantVotes;
+};
+
+const pickDominantLayer = (votes: Map<ArchitectureLayer, number>) =>
+  Array.from(votes.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+
+const isRefinableDirectory = (
+  graph: GraphData,
+  node: GraphNode,
+  base: ArchitectureNodeClassification,
+  nodeById: Map<string, GraphNode>
+) =>
+  node.type === 'directory' &&
+  base.layer === 'unknown' &&
+  node.id !== graph.projectRoot &&
+  nodeById.has(node.id);
+
+export const refineDirectoryClassifications = (
+  graph: GraphData,
+  initialClassifications: ArchitectureNodeClassification[],
+  childrenByParentId: Map<string, GraphNode[]>
+) => {
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const initialByNodeId = new Map(initialClassifications.map((record) => [record.nodeId, record]));
+  const collectDescendantVotes = createDescendantVoteCollector(initialByNodeId, childrenByParentId);
+
+  return graph.nodes.map((node): ArchitectureNodeClassification => {
     const base = initialByNodeId.get(node.id) || createUnknownClassification(node.id);
-    if (
-      node.type !== 'directory' ||
-      base.layer !== 'unknown' ||
-      node.id === graph.projectRoot ||
-      !nodeById.has(node.id)
-    ) {
+    if (!isRefinableDirectory(graph, node, base, nodeById)) {
       return base;
     }
 
@@ -118,18 +139,9 @@ export const refineDirectoryClassifications = (
       return base;
     }
 
-    const dominant = Array.from(descendantVotes.entries()).sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
-    )[0];
-
-    if (!dominant) {
-      return base;
-    }
-
-    return {
-      nodeId: node.id,
-      layer: dominant[0],
-      reason: 'dominant_descendant_layer',
-    };
+    const dominant = pickDominantLayer(descendantVotes);
+    return dominant
+      ? { nodeId: node.id, layer: dominant[0], reason: 'dominant_descendant_layer' }
+      : base;
   });
 };

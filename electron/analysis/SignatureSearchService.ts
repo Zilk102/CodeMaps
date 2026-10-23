@@ -28,18 +28,45 @@ const DECLARATION_PATTERNS = [
 const KIND_PATTERN =
   /\b(class|interface|type|enum|struct|trait|impl|function|def|func|fn|module|namespace)\b/;
 
+interface FileSymbol {
+  id: string;
+  label: string;
+  type: string;
+}
+
+interface SignatureSearchOptions {
+  type?: string;
+  limit?: number;
+  caseSensitive?: boolean;
+  regex?: boolean;
+  /** Only search files whose path contains this text (case-insensitive). */
+  filePath?: string;
+}
+
+const groupSymbolsByFile = (graph: GraphData) => {
+  const symbolByFile = new Map<string, FileSymbol[]>();
+  for (const node of graph.nodes) {
+    if (!node.id.includes('#')) continue;
+    const [fileId] = node.id.split('#');
+    const bucket = symbolByFile.get(fileId) || [];
+    bucket.push({ id: node.id, label: node.label, type: node.type });
+    symbolByFile.set(fileId, bucket);
+  }
+  return symbolByFile;
+};
+
+const selectFileNodes = (graph: GraphData, filePath?: string) => {
+  const fileFilter = filePath?.trim().toLowerCase().replace(/\\/g, '/');
+  return graph.nodes.filter(
+    (node) => node.type === 'file' && (!fileFilter || node.id.toLowerCase().includes(fileFilter))
+  );
+};
+
 export class SignatureSearchService {
   async search(
     graph: GraphData,
     query: string,
-    options?: {
-      type?: string;
-      limit?: number;
-      caseSensitive?: boolean;
-      regex?: boolean;
-      /** Only search files whose path contains this text (case-insensitive). */
-      filePath?: string;
-    }
+    options?: SignatureSearchOptions
   ): Promise<SignatureSearchResult> {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
@@ -48,51 +75,24 @@ export class SignatureSearchService {
 
     const limit = options?.limit ?? 20;
     const pattern = this.createPattern(trimmedQuery, !!options?.regex, !!options?.caseSensitive);
-    const symbolByFile = new Map<string, Array<{ id: string; label: string; type: string }>>();
-
-    for (const node of graph.nodes) {
-      if (!node.id.includes('#')) continue;
-      const [fileId] = node.id.split('#');
-      const bucket = symbolByFile.get(fileId) || [];
-      bucket.push({ id: node.id, label: node.label, type: node.type });
-      symbolByFile.set(fileId, bucket);
-    }
-
+    const symbolByFile = groupSymbolsByFile(graph);
     const matches: SignatureSearchMatch[] = [];
-    const fileFilter = options?.filePath?.trim().toLowerCase().replace(/\\/g, '/');
-    const fileNodes = graph.nodes.filter(
-      (node) => node.type === 'file' && (!fileFilter || node.id.toLowerCase().includes(fileFilter))
-    );
 
-    for (const fileNode of fileNodes) {
+    for (const fileNode of selectFileNodes(graph, options?.filePath)) {
       if (matches.length >= limit) break;
 
       try {
         const content = await readFileWithinLimit(fileNode.id);
         if (content === null) continue;
-
-        const lines = content.split(/\r?\n/);
-        const fileSymbols = symbolByFile.get(fileNode.id) || [];
-
-        for (let index = 0; index < lines.length && matches.length < limit; index += 1) {
-          const line = lines[index];
-          if (!this.isDeclarationLike(line)) continue;
-          if (!pattern.test(line)) continue;
-
-          const symbol = fileSymbols.find((candidate) => line.includes(candidate.label));
-          if (options?.type && symbol?.type !== options.type) {
-            continue;
-          }
-
-          matches.push({
-            nodeId: fileNode.id,
-            symbolId: symbol?.id,
-            symbolType: symbol?.type,
-            kind: KIND_PATTERN.exec(line)?.[1],
-            line: index + 1,
-            preview: line.trim(),
-          });
-        }
+        this.collectFileMatches({
+          fileId: fileNode.id,
+          lines: content.split(/\r?\n/),
+          fileSymbols: symbolByFile.get(fileNode.id) || [],
+          pattern,
+          type: options?.type,
+          limit,
+          matches,
+        });
       } catch {
         // Skip unreadable files.
       }
@@ -102,6 +102,35 @@ export class SignatureSearchService {
       count: matches.length,
       matches,
     };
+  }
+
+  private collectFileMatches(input: {
+    fileId: string;
+    lines: string[];
+    fileSymbols: FileSymbol[];
+    pattern: RegExp;
+    type?: string;
+    limit: number;
+    matches: SignatureSearchMatch[];
+  }) {
+    const { fileId, lines, fileSymbols, pattern, type, limit, matches } = input;
+    for (let index = 0; index < lines.length && matches.length < limit; index += 1) {
+      const line = lines[index];
+      if (!this.isDeclarationLike(line)) continue;
+      if (!pattern.test(line)) continue;
+
+      const symbol = fileSymbols.find((candidate) => line.includes(candidate.label));
+      if (type && symbol?.type !== type) continue;
+
+      matches.push({
+        nodeId: fileId,
+        symbolId: symbol?.id,
+        symbolType: symbol?.type,
+        kind: KIND_PATTERN.exec(line)?.[1],
+        line: index + 1,
+        preview: line.trim(),
+      });
+    }
   }
 
   private createPattern(query: string, regex: boolean, caseSensitive: boolean) {

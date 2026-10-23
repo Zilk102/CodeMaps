@@ -1,8 +1,6 @@
-import * as path from 'path';
 import { KuzuGraphService } from './KuzuGraphService';
 import { GitService } from './GitService';
-
-const COMMIT_PREFIX = 'COMMIT:';
+import { COMMIT_PREFIX, GitChurnAccumulator } from './gitChurnParser';
 
 export interface FileChurn {
   filePath: string;
@@ -48,60 +46,12 @@ export class GitActivityService {
         '.',
       ]) || '';
 
-    const fileMap = new Map<string, FileChurn>();
-    const commitsPerFile = new Map<string, Set<string>>();
-    let currentCommit = '';
-    let currentAuthor = '';
-    let currentDate = new Date();
-
+    const accumulator = new GitChurnAccumulator(this.projectPath);
     for (const line of logOutput.split('\n')) {
-      if (line.startsWith(COMMIT_PREFIX)) {
-        const [hash, author, timestamp] = line.slice(COMMIT_PREFIX.length).split('|');
-        currentCommit = hash;
-        currentAuthor = author;
-        const seconds = parseInt(timestamp, 10);
-        currentDate = Number.isNaN(seconds) ? new Date(0) : new Date(seconds * 1000);
-      } else if (line.trim()) {
-        const [additions, deletions, filePath] = line.split('\t');
-
-        if (!filePath) continue;
-
-        const absPath = path.resolve(this.projectPath, filePath);
-
-        let churn = fileMap.get(absPath);
-        if (!churn) {
-          churn = {
-            filePath: absPath,
-            commits: 0,
-            additions: 0,
-            deletions: 0,
-            lastModified: currentDate,
-            authors: [],
-          };
-          fileMap.set(absPath, churn);
-          commitsPerFile.set(absPath, new Set());
-        }
-
-        const seenCommits = commitsPerFile.get(absPath)!;
-        if (!seenCommits.has(currentCommit)) {
-          seenCommits.add(currentCommit);
-          churn.commits++;
-        }
-
-        churn.additions += parseInt(additions, 10) || 0;
-        churn.deletions += parseInt(deletions, 10) || 0;
-
-        if (currentDate > churn.lastModified) {
-          churn.lastModified = currentDate;
-        }
-
-        if (currentAuthor && !churn.authors.includes(currentAuthor)) {
-          churn.authors.push(currentAuthor);
-        }
-      }
+      accumulator.addLine(line);
     }
 
-    const files = Array.from(fileMap.values());
+    const files: FileChurn[] = accumulator.result();
     const maxCommits = Math.max(...files.map((f) => f.commits), 1);
     const maxChanges = Math.max(...files.map((f) => f.additions + f.deletions), 1);
 

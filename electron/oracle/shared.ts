@@ -64,26 +64,34 @@ export const ORACLE_IGNORE_GLOBS = [
 
 export const normalizePath = (value: string) => value.replace(/\\/g, '/');
 
+const IGNORED_DIRECTORY_SEGMENTS = [
+  '/node_modules/',
+  '/.git/',
+  '/dist/',
+  '/dist-electron/',
+  '/dist-renderer/',
+  '/release/',
+  '/build/',
+  '/coverage/',
+  '/out/',
+];
+
+const IGNORED_FILE_SUFFIXES = [
+  '.asar',
+  '.dat',
+  '.pak',
+  '.bin',
+  '.db',
+  '.sqlite',
+  '.sqlite3',
+  '.log',
+];
+
 export const shouldIgnorePath = (filePath: string) => {
   const normalized = normalizePath(filePath).toLowerCase();
   return (
-    normalized.includes('/node_modules/') ||
-    normalized.includes('/.git/') ||
-    normalized.includes('/dist/') ||
-    normalized.includes('/dist-electron/') ||
-    normalized.includes('/dist-renderer/') ||
-    normalized.includes('/release/') ||
-    normalized.includes('/build/') ||
-    normalized.includes('/coverage/') ||
-    normalized.includes('/out/') ||
-    normalized.endsWith('.asar') ||
-    normalized.endsWith('.dat') ||
-    normalized.endsWith('.pak') ||
-    normalized.endsWith('.bin') ||
-    normalized.endsWith('.db') ||
-    normalized.endsWith('.sqlite') ||
-    normalized.endsWith('.sqlite3') ||
-    normalized.endsWith('.log') ||
+    IGNORED_DIRECTORY_SEGMENTS.some((segment) => normalized.includes(segment)) ||
+    IGNORED_FILE_SUFFIXES.some((suffix) => normalized.endsWith(suffix)) ||
     normalized.includes('licenses.chromium.html')
   );
 };

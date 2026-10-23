@@ -80,6 +80,73 @@ export function buildProjectAutopilotPlan(
   };
 }
 
+interface NextStepInput {
+  health: HealthScoreResult;
+  architecture: ArchitectureOverview;
+  patterns: DetectedPattern[];
+  mentalModel: ProjectInsightResult['mentalModel'];
+  operationalTelemetry: ProjectInsightResult['operationalTelemetry'];
+  decompositionGuidance: DecompositionGuidance;
+  refactoringWaves: RefactoringWave[];
+  budgetStep: string;
+}
+
+const hasArchitecturalGaps = (architecture: ArchitectureOverview) =>
+  architecture.summary.violationCount > 0 || architecture.summary.unknownNodes > 0;
+
+/** Applied in order; each rule yields a step or null when it does not apply. */
+const NEXT_STEP_RULES: Array<(input: NextStepInput) => string | null> = [
+  (i) =>
+    i.mentalModel.sharedFoundations.length > 0
+      ? 'Separately check shared foundations: these are nodes with high reuse and potentially wide blast radius.'
+      : null,
+  (i) =>
+    i.mentalModel.runtimeCompositionRoots.length > 0
+      ? 'Review runtime composition roots separately: these files wire provider bindings, bean factories, or service registrations and often hide non-import architectural coupling.'
+      : null,
+  (i) =>
+    i.mentalModel.contractSurfaces.length > 0
+      ? 'Inspect API contract surfaces separately: schema roots and generated/runtime bindings often widen impact beyond direct imports and file-local edits.'
+      : null,
+  (i) =>
+    i.operationalTelemetry.watcher.coalescedFlushes > 0
+      ? 'Validate watcher batching metrics and keep hot edit bursts coalesced, otherwise incremental refresh will waste cycles on repeated graph updates.'
+      : null,
+  (i) =>
+    i.operationalTelemetry.enrichment.runtimePriorityRebuilds > 0
+      ? 'Inspect runtime-priority rebuild paths and keep composition roots explicit, because they dominate incremental stack enrichment cost.'
+      : null,
+  (i) =>
+    i.patterns.length > 0
+      ? 'Analyze hotspot patterns and understand which are real architectural risks and which are acceptable coordination centers.'
+      : null,
+  (i) =>
+    i.patterns.some(isDesignSmellPattern)
+      ? 'Prioritize decomposition of design-smell hotspots: split oversized modules, extract god classes, shorten long methods, and separate orchestration from contracts/helpers before adding more responsibilities.'
+      : null,
+  (i) =>
+    i.decompositionGuidance.candidates.length > 0
+      ? 'Use decomposition guidance as a concrete extraction queue: start with the highest-score class/method candidates instead of growing already overloaded hotspots.'
+      : null,
+  (i) =>
+    i.refactoringWaves.length > 0
+      ? `Execute architectural cleanup in waves: start with "${i.refactoringWaves[0].title}" before deeper class/method simplification.`
+      : null,
+  (i) => i.budgetStep,
+  (i) =>
+    i.health.issues.length > 0
+      ? 'Compare health issues with the actual project structure and adjust heuristics where they are noisy.'
+      : null,
+  (i) =>
+    i.health.summary.maintainabilityScore < 85 || i.health.summary.solidScore < 85
+      ? `Treat design debt as delivery risk: maintainability=${i.health.summary.maintainabilityScore.toFixed(1)}, solid=${i.health.summary.solidScore.toFixed(1)}. Prefer extraction and boundary cleanup before adding more orchestration logic.`
+      : null,
+  (i) =>
+    hasArchitecturalGaps(i.architecture)
+      ? 'Close architectural gaps in layer classification and boundary rules, otherwise the agent autopilot will be less accurate.'
+      : null,
+];
+
 export function buildProjectNextSteps(
   health: HealthScoreResult,
   architecture: ArchitectureOverview,
@@ -92,88 +159,25 @@ export function buildProjectNextSteps(
   refactoringWaves: RefactoringWave[],
   summarizeBudgetForStep: (budget: QualityBudget) => string
 ) {
+  const input: NextStepInput = {
+    health,
+    architecture,
+    patterns,
+    mentalModel,
+    operationalTelemetry,
+    decompositionGuidance,
+    refactoringWaves,
+    budgetStep: summarizeBudgetForStep(qualityBudget),
+  };
   const nextSteps = [
     'First read entry points and core orchestrators to fix real control flows across the project.',
     'After a general overview, use prepare_change_context for any non-trivial change and prepare_review_context for audit/validation.',
+    ...NEXT_STEP_RULES.map((rule) => rule(input)).filter((step): step is string => step !== null),
   ];
-
-  if (mentalModel.sharedFoundations.length > 0) {
-    nextSteps.push(
-      'Separately check shared foundations: these are nodes with high reuse and potentially wide blast radius.'
-    );
-  }
-
-  if (mentalModel.runtimeCompositionRoots.length > 0) {
-    nextSteps.push(
-      'Review runtime composition roots separately: these files wire provider bindings, bean factories, or service registrations and often hide non-import architectural coupling.'
-    );
-  }
-
-  if (mentalModel.contractSurfaces.length > 0) {
-    nextSteps.push(
-      'Inspect API contract surfaces separately: schema roots and generated/runtime bindings often widen impact beyond direct imports and file-local edits.'
-    );
-  }
-
-  if (operationalTelemetry.watcher.coalescedFlushes > 0) {
-    nextSteps.push(
-      'Validate watcher batching metrics and keep hot edit bursts coalesced, otherwise incremental refresh will waste cycles on repeated graph updates.'
-    );
-  }
-
-  if (operationalTelemetry.enrichment.runtimePriorityRebuilds > 0) {
-    nextSteps.push(
-      'Inspect runtime-priority rebuild paths and keep composition roots explicit, because they dominate incremental stack enrichment cost.'
-    );
-  }
-
-  if (patterns.length > 0) {
-    nextSteps.push(
-      'Analyze hotspot patterns and understand which are real architectural risks and which are acceptable coordination centers.'
-    );
-  }
-
-  if (patterns.some(isDesignSmellPattern)) {
-    nextSteps.push(
-      'Prioritize decomposition of design-smell hotspots: split oversized modules, extract god classes, shorten long methods, and separate orchestration from contracts/helpers before adding more responsibilities.'
-    );
-  }
-
-  if (decompositionGuidance.candidates.length > 0) {
-    nextSteps.push(
-      'Use decomposition guidance as a concrete extraction queue: start with the highest-score class/method candidates instead of growing already overloaded hotspots.'
-    );
-  }
-
-  if (refactoringWaves.length > 0) {
-    nextSteps.push(
-      `Execute architectural cleanup in waves: start with "${refactoringWaves[0].title}" before deeper class/method simplification.`
-    );
-  }
-
-  nextSteps.push(summarizeBudgetForStep(qualityBudget));
 
   if (securityFindings.length > 0) {
     nextSteps.unshift(
       'Before making changes, review security findings and eliminate unsafe practices with processes, files, and user input.'
-    );
-  }
-
-  if (health.issues.length > 0) {
-    nextSteps.push(
-      'Compare health issues with the actual project structure and adjust heuristics where they are noisy.'
-    );
-  }
-
-  if (health.summary.maintainabilityScore < 85 || health.summary.solidScore < 85) {
-    nextSteps.push(
-      `Treat design debt as delivery risk: maintainability=${health.summary.maintainabilityScore.toFixed(1)}, solid=${health.summary.solidScore.toFixed(1)}. Prefer extraction and boundary cleanup before adding more orchestration logic.`
-    );
-  }
-
-  if (architecture.summary.violationCount > 0 || architecture.summary.unknownNodes > 0) {
-    nextSteps.push(
-      'Close architectural gaps in layer classification and boundary rules, otherwise the agent autopilot will be less accurate.'
     );
   }
 

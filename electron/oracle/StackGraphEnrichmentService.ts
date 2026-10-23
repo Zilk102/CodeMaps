@@ -30,6 +30,20 @@ export interface StackEnrichmentRefreshResult {
   linksAdded: number;
 }
 
+const linkKey = (link: GraphLink) =>
+  `${link.source}->${link.target}:${link.type}:${link.reason || ''}`;
+
+/** Keeps the first link of every source/target/type/reason combination. */
+const dedupeLinks = (links: GraphLink[]) => {
+  const seen = new Set<string>();
+  return links.filter((link) => {
+    const key = linkKey(link);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export class StackGraphEnrichmentService {
   constructor(
     private readonly graphBuilder: GraphBuilder,
@@ -40,58 +54,7 @@ export class StackGraphEnrichmentService {
   async rebuild(graph: GraphData) {
     const stackProfile = await this.stackInsightService.analyze(graph);
     const stackTopology = await this.stackTopologyService.analyze(graph, stackProfile);
-    const nodeIds = new Set(graph.nodes.map((node) => node.id));
-
-    const links = [...stackTopology.frameworkInsights, ...stackTopology.buildInsights]
-      .flatMap((insight) => insight.relationships)
-      .map((relationship) => {
-        const sourceId = this.resolveNodeId(relationship.source, graph.projectRoot, nodeIds);
-        const targetId = this.resolveNodeId(
-          relationship.target,
-          graph.projectRoot,
-          nodeIds,
-          sourceId
-        );
-
-        if (!sourceId || !targetId || sourceId === targetId) {
-          return null;
-        }
-
-        return {
-          source: sourceId,
-          target: targetId,
-          type: relationship.type,
-          reason: relationship.reason,
-        };
-      })
-      .filter(
-        (
-          relationship
-        ): relationship is {
-          source: string;
-          target: string;
-          type: 'framework' | 'build';
-          reason: string;
-        } => !!relationship
-      )
-      .map<GraphLink>((relationship) => ({
-        source: relationship.source,
-        target: relationship.target,
-        value: 1,
-        type: relationship.type,
-        reason: relationship.reason,
-      }));
-
-    const dedupedLinks = links.filter((link, index, all) => {
-      const key = `${link.source}->${link.target}:${link.type}:${link.reason || ''}`;
-      return (
-        all.findIndex(
-          (candidate) =>
-            `${candidate.source}->${candidate.target}:${candidate.type}:${candidate.reason || ''}` ===
-            key
-        ) === index
-      );
-    });
+    const dedupedLinks = dedupeLinks(this.buildEnrichmentLinks(graph, stackTopology));
 
     this.graphBuilder.removeLinksByTypes([...STACK_ENRICHMENT_LINK_TYPES]);
     this.graphBuilder.applyEnrichmentLinks(dedupedLinks);
@@ -101,6 +64,37 @@ export class StackGraphEnrichmentService {
       stackTopology,
       linksAdded: dedupedLinks.length,
     };
+  }
+
+  private buildEnrichmentLinks(
+    graph: GraphData,
+    stackTopology: Awaited<ReturnType<StackTopologyService['analyze']>>
+  ): GraphLink[] {
+    const nodeIds = new Set(graph.nodes.map((node) => node.id));
+    const links: GraphLink[] = [];
+
+    for (const insight of [...stackTopology.frameworkInsights, ...stackTopology.buildInsights]) {
+      for (const relationship of insight.relationships) {
+        const sourceId = this.resolveNodeId(relationship.source, graph.projectRoot, nodeIds);
+        const targetId = this.resolveNodeId(
+          relationship.target,
+          graph.projectRoot,
+          nodeIds,
+          sourceId
+        );
+        if (!sourceId || !targetId || sourceId === targetId) continue;
+
+        links.push({
+          source: sourceId,
+          target: targetId,
+          value: 1,
+          type: relationship.type,
+          reason: relationship.reason,
+        });
+      }
+    }
+
+    return links;
   }
 
   async rebuildForChangedPaths(

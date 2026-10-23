@@ -8,54 +8,67 @@ import {
   LayerDependencySummary,
 } from './architectureTypes';
 
+interface LayerRule {
+  source: ArchitectureLayer;
+  /** Targets the source may depend on; every other target is a violation. */
+  allowed?: ArchitectureLayer[];
+  /** Targets the source must not depend on. */
+  forbidden?: ArchitectureLayer[];
+  reason: string;
+}
+
+/** Checked in order; the first matching rule wins. */
+const LAYER_RULES: LayerRule[] = [
+  {
+    source: 'domain',
+    allowed: ['domain', 'shared', 'configuration'],
+    reason: 'Domain-слой не должен зависеть от инфраструктурных или orchestration-слоёв.',
+  },
+  {
+    source: 'shared',
+    allowed: ['shared', 'configuration', 'domain'],
+    reason: 'Shared-слой должен оставаться низкоуровневым и не зависеть от верхних слоёв.',
+  },
+  {
+    source: 'state',
+    allowed: ['state', 'shared', 'configuration', 'domain'],
+    reason: 'State-слой не должен тянуть presentation/application/integration детали напрямую.',
+  },
+  {
+    source: 'analysis',
+    forbidden: ['presentation', 'integration'],
+    reason: 'Analysis-слой не должен зависеть от presentation/integration.',
+  },
+  {
+    source: 'parsing',
+    forbidden: ['presentation', 'integration'],
+    reason: 'Parsing-слой не должен зависеть от presentation/integration.',
+  },
+  {
+    source: 'application',
+    forbidden: ['presentation'],
+    reason: 'Application-слой не должен зависеть от presentation.',
+  },
+];
+
+const violatesRule = (rule: LayerRule, targetLayer: ArchitectureLayer) =>
+  rule.allowed ? !rule.allowed.includes(targetLayer) : !!rule.forbidden?.includes(targetLayer);
+
 export const getArchitectureViolationReason = (
   sourceLayer: ArchitectureLayer,
   targetLayer: ArchitectureLayer
 ) => {
-  if (sourceLayer === 'unknown' || targetLayer === 'unknown') {
-    return null;
-  }
+  if (sourceLayer === 'unknown' || targetLayer === 'unknown') return null;
+  if (sourceLayer === targetLayer || sourceLayer === 'configuration') return null;
 
-  if (sourceLayer === targetLayer) {
-    return null;
-  }
-
-  if (sourceLayer === 'configuration') {
-    return null;
-  }
-
-  if (targetLayer === 'presentation' && sourceLayer !== 'presentation') {
+  if (targetLayer === 'presentation') {
     return 'Внутренний слой зависит от presentation-слоя.';
   }
 
-  if (sourceLayer === 'domain' && !['domain', 'shared', 'configuration'].includes(targetLayer)) {
-    return 'Domain-слой не должен зависеть от инфраструктурных или orchestration-слоёв.';
-  }
-
-  if (sourceLayer === 'shared' && !['shared', 'configuration', 'domain'].includes(targetLayer)) {
-    return 'Shared-слой должен оставаться низкоуровневым и не зависеть от верхних слоёв.';
-  }
-
-  if (
-    sourceLayer === 'state' &&
-    !['state', 'shared', 'configuration', 'domain'].includes(targetLayer)
-  ) {
-    return 'State-слой не должен тянуть presentation/application/integration детали напрямую.';
-  }
-
-  if (sourceLayer === 'analysis' && ['presentation', 'integration'].includes(targetLayer)) {
-    return 'Analysis-слой не должен зависеть от presentation/integration.';
-  }
-
-  if (sourceLayer === 'parsing' && ['presentation', 'integration'].includes(targetLayer)) {
-    return 'Parsing-слой не должен зависеть от presentation/integration.';
-  }
-
-  if (sourceLayer === 'application' && targetLayer === 'presentation') {
-    return 'Application-слой не должен зависеть от presentation.';
-  }
-
-  return null;
+  const rule = LAYER_RULES.find(
+    (candidate) => candidate.source === sourceLayer && violatesRule(candidate, targetLayer)
+  );
+  return rule ? rule.reason : null;
 };
 
 export const summarizeArchitectureDependencies = (
