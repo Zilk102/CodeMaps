@@ -50,6 +50,8 @@ const CLASS_REGEX = /\bclass\s+([A-Za-z_$][\w$]*)/gu;
 const METHOD_REGEX =
   /(?:^|\n)\s*(?:(public|protected|private)\s+)?(?:(?:static|abstract|override|readonly|async|get|set)\s+)*(?!if\b|for\b|while\b|switch\b|catch\b|else\b|do\b|try\b)([A-Za-z_$][\w$]*)\s*(?:=\s*(?:async\s*)?\([^)]*\)\s*=>|\([^;=\n]*\)\s*(?::[^{=\n]+)?\s*)\{/gmu;
 
+const LONG_METHOD_LINES = 70;
+
 function getScriptKind(filePath: string): ts.ScriptKind {
   const normalized = filePath.toLowerCase();
   if (normalized.endsWith('.tsx')) return ts.ScriptKind.TSX;
@@ -81,87 +83,54 @@ function findNextOpenBrace(text: string, startIndex: number): number {
   return -1;
 }
 
+type ScanMode = 'code' | 'lineComment' | 'blockComment' | 'single' | 'double' | 'template';
+
+const QUOTE_MODES: Record<string, ScanMode> = { "'": 'single', '"': 'double', '`': 'template' };
+const QUOTE_CHARS: Partial<Record<ScanMode, string>> = {
+  single: "'",
+  double: '"',
+  template: '`',
+};
+
+/** Whether `char` (preceded by `prevChar`) ends the non-code region `mode`. */
+function endsScanMode(mode: ScanMode, char: string, prevChar: string | undefined): boolean {
+  if (mode === 'lineComment') return char === '\n';
+  if (mode === 'blockComment') return prevChar === '*' && char === '/';
+  return char === QUOTE_CHARS[mode] && prevChar !== '\\';
+}
+
+/** The non-code region started at `char`, with how many extra characters it consumes. */
+function startsScanMode(
+  char: string,
+  nextChar: string | undefined
+): { mode: ScanMode; skip: number } | null {
+  if (char === '/' && nextChar === '/') return { mode: 'lineComment', skip: 1 };
+  if (char === '/' && nextChar === '*') return { mode: 'blockComment', skip: 1 };
+  const quoteMode = QUOTE_MODES[char];
+  return quoteMode ? { mode: quoteMode, skip: 0 } : null;
+}
+
 function findMatchingBrace(text: string, openBraceIndex: number): number {
   let depth = 0;
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inTemplate = false;
-  let inLineComment = false;
-  let inBlockComment = false;
+  let mode: ScanMode = 'code';
 
   for (let index = openBraceIndex; index < text.length; index += 1) {
     const char = text[index];
-    const nextChar = text[index + 1];
-    const prevChar = text[index - 1];
 
-    if (inLineComment) {
-      if (char === '\n') {
-        inLineComment = false;
+    if (mode !== 'code') {
+      if (endsScanMode(mode, char, text[index - 1])) {
+        mode = 'code';
       }
       continue;
     }
 
-    if (inBlockComment) {
-      if (prevChar === '*' && char === '/') {
-        inBlockComment = false;
-      }
-      continue;
-    }
-
-    if (inSingleQuote) {
-      if (char === "'" && prevChar !== '\\') {
-        inSingleQuote = false;
-      }
-      continue;
-    }
-
-    if (inDoubleQuote) {
-      if (char === '"' && prevChar !== '\\') {
-        inDoubleQuote = false;
-      }
-      continue;
-    }
-
-    if (inTemplate) {
-      if (char === '`' && prevChar !== '\\') {
-        inTemplate = false;
-      }
-      continue;
-    }
-
-    if (char === '/' && nextChar === '/') {
-      inLineComment = true;
-      index += 1;
-      continue;
-    }
-
-    if (char === '/' && nextChar === '*') {
-      inBlockComment = true;
-      index += 1;
-      continue;
-    }
-
-    if (char === "'") {
-      inSingleQuote = true;
-      continue;
-    }
-
-    if (char === '"') {
-      inDoubleQuote = true;
-      continue;
-    }
-
-    if (char === '`') {
-      inTemplate = true;
-      continue;
-    }
-
-    if (char === '{') {
+    const started = startsScanMode(char, text[index + 1]);
+    if (started) {
+      mode = started.mode;
+      index += started.skip;
+    } else if (char === '{') {
       depth += 1;
-      continue;
-    }
-
-    if (char === '}') {
+    } else if (char === '}') {
       depth -= 1;
       if (depth === 0) {
         return index;
@@ -178,6 +147,45 @@ function getLineCountForRange(text: string, start: number, end: number): number 
 
 function isInsideRanges(index: number, ranges: Array<{ start: number; end: number }>): boolean {
   return ranges.some((range) => index >= range.start && index <= range.end);
+}
+
+function hashBody(body: string): string {
+  return crypto.createHash('md5').update(body.replace(/\s+/g, '')).digest('hex');
+}
+
+function maxOf(
+  items: SourceFunctionMetric[],
+  pick: (item: SourceFunctionMetric) => number
+): number {
+  return items.reduce((max, item) => Math.max(max, pick(item)), 0);
+}
+
+function emptyMetrics(): SourceFileMetrics {
+  return {
+    classCount: 0,
+    topLevelFunctionCount: 0,
+    publicMethodCount: 0,
+    maxMethodLineCount: 0,
+    godClasses: [],
+    longMethods: [],
+    complexMethods: [],
+    allFunctions: [],
+  };
+}
+
+function isGodClassBySize(classMetric: SourceClassMetric): boolean {
+  return (
+    classMetric.lineCount >= 220 ||
+    classMetric.methodCount >= 10 ||
+    (classMetric.publicMethodCount >= 8 && classMetric.lineCount >= 140) ||
+    (classMetric.publicMethodCount >= 6 &&
+      classMetric.lineCount >= 120 &&
+      classMetric.longMethodCount >= 1)
+  );
+}
+
+function isGodClassByComplexity(classMetric: SourceClassMetric): boolean {
+  return classMetric.maxMethodComplexity >= 12 || classMetric.complexMethodCount >= 2;
 }
 
 function analyzeClassBody(bodyText: string): {
@@ -204,20 +212,7 @@ function analyzeClassBody(bodyText: string): {
       continue;
     }
 
-    const methodBody = bodyText.slice(openBraceIndex, closeBraceIndex + 1);
-    const bodyHash = crypto.createHash('md5').update(methodBody.replace(/\s+/g, '')).digest('hex');
-
-    const lineCount = getLineCountForRange(bodyText, openBraceIndex, closeBraceIndex + 1);
-    methods.push({
-      name: methodName,
-      lineCount,
-      startLine: 0,
-      endLine: 0,
-      complexity: 1,
-      branchCount: 0,
-      maxNesting: 0,
-      bodyHash,
-    });
+    methods.push(createRegexFunctionMetric(methodName, bodyText, openBraceIndex, closeBraceIndex));
 
     if (!visibility || visibility === 'public') {
       publicMethodCount += 1;
@@ -229,6 +224,24 @@ function analyzeClassBody(bodyText: string): {
   return {
     methods,
     publicMethodCount,
+  };
+}
+
+function createRegexFunctionMetric(
+  name: string,
+  text: string,
+  openBraceIndex: number,
+  closeBraceIndex: number
+): SourceFunctionMetric {
+  return {
+    name,
+    lineCount: getLineCountForRange(text, openBraceIndex, closeBraceIndex + 1),
+    startLine: 0,
+    endLine: 0,
+    complexity: 1,
+    branchCount: 0,
+    maxNesting: 0,
+    bodyHash: hashBody(text.slice(openBraceIndex, closeBraceIndex + 1)),
   };
 }
 
@@ -269,10 +282,30 @@ function getLineRange(
   };
 }
 
-function analyzeControlFlowComplexity(
-  sourceFile: ts.SourceFile,
-  body: ts.Node
-): {
+function isBranchingNode(node: ts.Node): boolean {
+  return (
+    ts.isIfStatement(node) ||
+    ts.isForStatement(node) ||
+    ts.isForInStatement(node) ||
+    ts.isForOfStatement(node) ||
+    ts.isWhileStatement(node) ||
+    ts.isDoStatement(node) ||
+    ts.isConditionalExpression(node) ||
+    ts.isCaseClause(node) ||
+    ts.isCatchClause(node)
+  );
+}
+
+function isShortCircuitOperator(node: ts.Node): boolean {
+  return (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  );
+}
+
+function analyzeControlFlowComplexity(body: ts.Node): {
   complexity: number;
   branchCount: number;
   maxNesting: number;
@@ -283,30 +316,15 @@ function analyzeControlFlowComplexity(
 
   const visit = (node: ts.Node, nesting: number) => {
     let nextNesting = nesting;
-    const isBranchingNode =
-      ts.isIfStatement(node) ||
-      ts.isForStatement(node) ||
-      ts.isForInStatement(node) ||
-      ts.isForOfStatement(node) ||
-      ts.isWhileStatement(node) ||
-      ts.isDoStatement(node) ||
-      ts.isConditionalExpression(node) ||
-      ts.isCaseClause(node) ||
-      ts.isCatchClause(node);
 
-    if (isBranchingNode) {
+    if (isBranchingNode(node)) {
       complexity += 1;
       branchCount += 1;
       nextNesting = nesting + 1;
       maxNesting = Math.max(maxNesting, nextNesting);
     }
 
-    if (
-      ts.isBinaryExpression(node) &&
-      (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
-        node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
-        node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
-    ) {
+    if (isShortCircuitOperator(node)) {
       complexity += 1;
       branchCount += 1;
     }
@@ -328,6 +346,151 @@ function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
   return Boolean(modifiers?.some((modifier: ts.Modifier) => modifier.kind === kind));
 }
 
+/** Accumulates metrics while walking the top-level statements of one TypeScript file. */
+class TypeScriptStructureCollector {
+  private readonly classMetrics: SourceClassMetric[] = [];
+  private readonly topLevelFunctions: SourceFunctionMetric[] = [];
+  private readonly classMethodMetrics: SourceFunctionMetric[] = [];
+  private publicMethodCount = 0;
+  private classCount = 0;
+  private maxMethodLineCount = 0;
+
+  constructor(private readonly sourceFile: ts.SourceFile) {}
+
+  collect(): SourceFileMetrics {
+    this.sourceFile.forEachChild((node) => this.visitTopLevel(node));
+    return this.toMetrics();
+  }
+
+  private visitTopLevel(node: ts.Node): void {
+    if (ts.isClassDeclaration(node) && node.name) {
+      this.collectClass(node, node.name.text);
+      return;
+    }
+
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      this.registerTopLevelFunction(node.name.text, node.body);
+      return;
+    }
+
+    if (ts.isVariableStatement(node)) {
+      this.collectVariableFunctions(node);
+    }
+  }
+
+  private collectVariableFunctions(statement: ts.VariableStatement): void {
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
+        continue;
+      }
+
+      if (
+        ts.isArrowFunction(declaration.initializer) ||
+        ts.isFunctionExpression(declaration.initializer)
+      ) {
+        this.registerTopLevelFunction(declaration.name.text, declaration.initializer.body);
+      }
+    }
+  }
+
+  private registerTopLevelFunction(name: string, body: ts.Node): void {
+    this.topLevelFunctions.push(this.analyzeFunctionLikeNode(name, body));
+  }
+
+  private analyzeFunctionLikeNode(name: string, body: ts.Node): SourceFunctionMetric {
+    const lineCount = getLineSpan(this.sourceFile, body);
+    const range = getLineRange(this.sourceFile, body);
+    const flow = analyzeControlFlowComplexity(body);
+    this.maxMethodLineCount = Math.max(this.maxMethodLineCount, lineCount);
+
+    return {
+      name,
+      lineCount,
+      startLine: range.startLine,
+      endLine: range.endLine,
+      complexity: flow.complexity,
+      branchCount: flow.branchCount,
+      maxNesting: flow.maxNesting,
+      bodyHash: hashBody(body.getText(this.sourceFile)),
+    };
+  }
+
+  private collectClass(node: ts.ClassDeclaration, className: string): void {
+    this.classCount += 1;
+    const methodMetrics: SourceFunctionMetric[] = [];
+    let classPublicMethodCount = 0;
+
+    for (const member of node.members) {
+      if (
+        (!ts.isMethodDeclaration(member) &&
+          !ts.isGetAccessorDeclaration(member) &&
+          !ts.isSetAccessorDeclaration(member)) ||
+        !member.body
+      ) {
+        continue;
+      }
+
+      const metric = this.analyzeFunctionLikeNode(
+        getNodeName(member) || `${className}::*`,
+        member.body
+      );
+      methodMetrics.push(metric);
+      this.classMethodMetrics.push({ ...metric, name: `${className}.${metric.name}` });
+
+      if (
+        !hasModifier(member, ts.SyntaxKind.PrivateKeyword) &&
+        !hasModifier(member, ts.SyntaxKind.ProtectedKeyword)
+      ) {
+        classPublicMethodCount += 1;
+        this.publicMethodCount += 1;
+      }
+    }
+
+    this.classMetrics.push(
+      this.buildClassMetric(node, className, methodMetrics, classPublicMethodCount)
+    );
+  }
+
+  private buildClassMetric(
+    node: ts.ClassDeclaration,
+    className: string,
+    methodMetrics: SourceFunctionMetric[],
+    publicMethodCount: number
+  ): SourceClassMetric {
+    return {
+      name: className,
+      lineCount: getLineSpan(this.sourceFile, node),
+      ...getLineRange(this.sourceFile, node),
+      methodCount: methodMetrics.length,
+      publicMethodCount,
+      longMethodCount: methodMetrics.filter((item) => item.lineCount >= LONG_METHOD_LINES).length,
+      complexMethodCount: methodMetrics.filter(isComplexFunction).length,
+      maxMethodLineCount: maxOf(methodMetrics, (item) => item.lineCount),
+      maxMethodComplexity: maxOf(methodMetrics, (item) => item.complexity),
+    };
+  }
+
+  private toMetrics(): SourceFileMetrics {
+    const allFunctions = [...this.topLevelFunctions, ...this.classMethodMetrics];
+    return {
+      classCount: this.classCount,
+      topLevelFunctionCount: this.topLevelFunctions.length,
+      publicMethodCount: this.publicMethodCount,
+      maxMethodLineCount: this.maxMethodLineCount,
+      godClasses: this.classMetrics.filter(
+        (classMetric) => isGodClassBySize(classMetric) || isGodClassByComplexity(classMetric)
+      ),
+      longMethods: allFunctions.filter((item) => item.lineCount >= LONG_METHOD_LINES),
+      complexMethods: allFunctions.filter(isComplexFunction),
+      allFunctions,
+    };
+  }
+}
+
+function isComplexFunction(item: SourceFunctionMetric): boolean {
+  return item.complexity >= 10 || item.maxNesting >= 4;
+}
+
 function analyzeSourceFileStructureWithTypeScript(
   filePath: string,
   text: string
@@ -344,172 +507,27 @@ function analyzeSourceFileStructureWithTypeScript(
     getScriptKind(filePath)
   );
 
-  const classMetrics: SourceClassMetric[] = [];
-  const topLevelFunctions: SourceFunctionMetric[] = [];
-  const classMethodMetrics: SourceFunctionMetric[] = [];
-  let publicMethodCount = 0;
-  let classCount = 0;
-  let topLevelFunctionCount = 0;
-  let maxMethodLineCount = 0;
-
-  const analyzeFunctionLikeNode = (name: string, body: ts.Node): SourceFunctionMetric => {
-    const lineCount = getLineSpan(sourceFile, body);
-    const range = getLineRange(sourceFile, body);
-    const flow = analyzeControlFlowComplexity(sourceFile, body);
-    maxMethodLineCount = Math.max(maxMethodLineCount, lineCount);
-    const bodyHash = crypto
-      .createHash('md5')
-      .update(body.getText(sourceFile).replace(/\s+/g, ''))
-      .digest('hex');
-
-    return {
-      name,
-      lineCount,
-      startLine: range.startLine,
-      endLine: range.endLine,
-      complexity: flow.complexity,
-      branchCount: flow.branchCount,
-      maxNesting: flow.maxNesting,
-      bodyHash,
-    };
-  };
-
-  sourceFile.forEachChild((node) => {
-    if (ts.isClassDeclaration(node) && node.name) {
-      classCount += 1;
-      const methodMetrics: SourceFunctionMetric[] = [];
-      let classPublicMethodCount = 0;
-
-      for (const member of node.members) {
-        if (
-          !ts.isMethodDeclaration(member) &&
-          !ts.isGetAccessorDeclaration(member) &&
-          !ts.isSetAccessorDeclaration(member)
-        ) {
-          continue;
-        }
-
-        if (!member.body) {
-          continue;
-        }
-
-        const methodName = getNodeName(member) || `${node.name.text}::*`;
-        const metric = analyzeFunctionLikeNode(methodName, member.body);
-        methodMetrics.push(metric);
-        classMethodMetrics.push({
-          ...metric,
-          name: `${node.name.text}.${metric.name}`,
-        });
-
-        if (
-          !hasModifier(member, ts.SyntaxKind.PrivateKeyword) &&
-          !hasModifier(member, ts.SyntaxKind.ProtectedKeyword)
-        ) {
-          classPublicMethodCount += 1;
-          publicMethodCount += 1;
-        }
-      }
-
-      const longMethodCount = methodMetrics.filter((item) => item.lineCount >= 70).length;
-      const complexMethodCount = methodMetrics.filter(
-        (item) => item.complexity >= 10 || item.maxNesting >= 4
-      ).length;
-      const maxMethodComplexity = methodMetrics.reduce(
-        (max, item) => Math.max(max, item.complexity),
-        0
-      );
-
-      classMetrics.push({
-        name: node.name.text,
-        lineCount: getLineSpan(sourceFile, node),
-        ...getLineRange(sourceFile, node),
-        methodCount: methodMetrics.length,
-        publicMethodCount: classPublicMethodCount,
-        longMethodCount,
-        complexMethodCount,
-        maxMethodLineCount: methodMetrics.reduce((max, item) => Math.max(max, item.lineCount), 0),
-        maxMethodComplexity,
-      });
-
-      return;
-    }
-
-    const registerTopLevelFunction = (name: string, body: ts.Node) => {
-      topLevelFunctionCount += 1;
-      topLevelFunctions.push(analyzeFunctionLikeNode(name, body));
-    };
-
-    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      registerTopLevelFunction(node.name.text, node.body);
-      return;
-    }
-
-    if (ts.isVariableStatement(node)) {
-      for (const declaration of node.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
-          continue;
-        }
-
-        if (
-          ts.isArrowFunction(declaration.initializer) ||
-          ts.isFunctionExpression(declaration.initializer)
-        ) {
-          registerTopLevelFunction(declaration.name.text, declaration.initializer.body);
-        }
-      }
-    }
-  });
-
-  return {
-    classCount,
-    topLevelFunctionCount,
-    publicMethodCount,
-    maxMethodLineCount,
-    godClasses: classMetrics.filter(
-      (classMetric) =>
-        classMetric.lineCount >= 220 ||
-        classMetric.methodCount >= 10 ||
-        classMetric.maxMethodComplexity >= 12 ||
-        classMetric.complexMethodCount >= 2 ||
-        (classMetric.publicMethodCount >= 8 && classMetric.lineCount >= 140) ||
-        (classMetric.publicMethodCount >= 6 &&
-          classMetric.lineCount >= 120 &&
-          classMetric.longMethodCount >= 1)
-    ),
-    longMethods: [...topLevelFunctions, ...classMethodMetrics].filter(
-      (item) => item.lineCount >= 70
-    ),
-    complexMethods: [...topLevelFunctions, ...classMethodMetrics].filter(
-      (item) => item.complexity >= 10 || item.maxNesting >= 4
-    ),
-    allFunctions: [...topLevelFunctions, ...classMethodMetrics],
-  };
+  return new TypeScriptStructureCollector(sourceFile).collect();
 }
 
-function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetrics {
-  const text = readText(filePath);
-  if (!text) {
-    return {
-      classCount: 0,
-      topLevelFunctionCount: 0,
-      publicMethodCount: 0,
-      maxMethodLineCount: 0,
-      godClasses: [],
-      longMethods: [],
-      complexMethods: [],
-      allFunctions: [],
-    };
-  }
+interface RegexClassScan {
+  ranges: Array<{ start: number; end: number }>;
+  metrics: SourceClassMetric[];
+  publicMethodCount: number;
+  maxMethodLineCount: number;
+}
 
-  const classRanges: Array<{ start: number; end: number }> = [];
-  const classMetrics: SourceClassMetric[] = [];
-  let publicMethodCount = 0;
-  let maxMethodLineCount = 0;
+function scanClassesWithRegex(text: string): RegexClassScan {
+  const scan: RegexClassScan = {
+    ranges: [],
+    metrics: [],
+    publicMethodCount: 0,
+    maxMethodLineCount: 0,
+  };
   let match: RegExpExecArray | null;
 
   CLASS_REGEX.lastIndex = 0;
   while ((match = CLASS_REGEX.exec(text)) !== null) {
-    const className = match[1];
     const openBraceIndex = findNextOpenBrace(text, match.index + match[0].length);
     if (openBraceIndex === -1) {
       continue;
@@ -520,24 +538,21 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
       continue;
     }
 
-    classRanges.push({ start: match.index, end: closeBraceIndex });
-    const bodyText = text.slice(openBraceIndex + 1, closeBraceIndex);
-    const classLineCount = getLineCountForRange(text, openBraceIndex, closeBraceIndex + 1);
-    const { methods, publicMethodCount: classPublicMethodCount } = analyzeClassBody(bodyText);
-    const longMethodCount = methods.filter((item) => item.lineCount >= 70).length;
-    const classMaxMethodLineCount = methods.reduce((max, item) => Math.max(max, item.lineCount), 0);
+    scan.ranges.push({ start: match.index, end: closeBraceIndex });
+    const classBody = text.slice(openBraceIndex + 1, closeBraceIndex);
+    const { methods, publicMethodCount } = analyzeClassBody(classBody);
+    const classMaxMethodLineCount = maxOf(methods, (item) => item.lineCount);
 
-    publicMethodCount += classPublicMethodCount;
-    maxMethodLineCount = Math.max(maxMethodLineCount, classMaxMethodLineCount);
-
-    classMetrics.push({
-      name: className,
-      lineCount: classLineCount,
+    scan.publicMethodCount += publicMethodCount;
+    scan.maxMethodLineCount = Math.max(scan.maxMethodLineCount, classMaxMethodLineCount);
+    scan.metrics.push({
+      name: match[1],
+      lineCount: getLineCountForRange(text, openBraceIndex, closeBraceIndex + 1),
       startLine: 0,
       endLine: 0,
       methodCount: methods.length,
-      publicMethodCount: classPublicMethodCount,
-      longMethodCount,
+      publicMethodCount,
+      longMethodCount: methods.filter((item) => item.lineCount >= LONG_METHOD_LINES).length,
       complexMethodCount: 0,
       maxMethodLineCount: classMaxMethodLineCount,
       maxMethodComplexity: 1,
@@ -546,7 +561,16 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
     CLASS_REGEX.lastIndex = closeBraceIndex + 1;
   }
 
+  return scan;
+}
+
+function scanTopLevelFunctionsWithRegex(
+  text: string,
+  classRanges: Array<{ start: number; end: number }>
+): SourceFunctionMetric[] {
   const topLevelFunctions: SourceFunctionMetric[] = [];
+  let match: RegExpExecArray | null;
+
   TOP_LEVEL_FUNCTION_REGEX.lastIndex = 0;
   while ((match = TOP_LEVEL_FUNCTION_REGEX.exec(text)) !== null) {
     const functionName = match[1] || match[2];
@@ -565,58 +589,51 @@ function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetric
       continue;
     }
 
-    const funcBody = text.slice(openBraceIndex, closeBraceIndex + 1);
-    const bodyHash = crypto.createHash('md5').update(funcBody.replace(/\s+/g, '')).digest('hex');
-
-    const lineCount = getLineCountForRange(text, openBraceIndex, closeBraceIndex + 1);
-    topLevelFunctions.push({
-      name: functionName,
-      lineCount,
-      startLine: 0,
-      endLine: 0,
-      complexity: 1,
-      branchCount: 0,
-      maxNesting: 0,
-      bodyHash,
-    });
-    maxMethodLineCount = Math.max(maxMethodLineCount, lineCount);
-
+    topLevelFunctions.push(
+      createRegexFunctionMetric(functionName, text, openBraceIndex, closeBraceIndex)
+    );
     TOP_LEVEL_FUNCTION_REGEX.lastIndex = closeBraceIndex + 1;
   }
 
+  return topLevelFunctions;
+}
+
+function longClassMethodPlaceholders(classMetrics: SourceClassMetric[]): SourceFunctionMetric[] {
+  return classMetrics
+    .filter((classMetric) => classMetric.maxMethodLineCount >= LONG_METHOD_LINES)
+    .map((classMetric) => ({
+      name: `${classMetric.name}::*`,
+      lineCount: classMetric.maxMethodLineCount,
+      startLine: classMetric.startLine,
+      endLine: classMetric.endLine,
+      complexity: 1,
+      branchCount: 0,
+      maxNesting: 0,
+    }));
+}
+
+function analyzeSourceFileStructureWithRegex(filePath: string): SourceFileMetrics {
+  const text = readText(filePath);
+  if (!text) {
+    return emptyMetrics();
+  }
+
+  const classes = scanClassesWithRegex(text);
+  const topLevelFunctions = scanTopLevelFunctionsWithRegex(text, classes.ranges);
+  const maxMethodLineCount = Math.max(
+    classes.maxMethodLineCount,
+    maxOf(topLevelFunctions, (item) => item.lineCount)
+  );
+
   return {
-    classCount: classRanges.length,
+    classCount: classes.ranges.length,
     topLevelFunctionCount: topLevelFunctions.length,
-    publicMethodCount,
+    publicMethodCount: classes.publicMethodCount,
     maxMethodLineCount,
-    godClasses: classMetrics.filter(
-      (classMetric) =>
-        classMetric.lineCount >= 220 ||
-        classMetric.methodCount >= 10 ||
-        (classMetric.publicMethodCount >= 8 && classMetric.lineCount >= 140) ||
-        (classMetric.publicMethodCount >= 6 &&
-          classMetric.lineCount >= 120 &&
-          classMetric.longMethodCount >= 1)
-    ),
+    godClasses: classes.metrics.filter(isGodClassBySize),
     longMethods: topLevelFunctions
-      .filter((item) => item.lineCount >= 70)
-      .concat(
-        classMetrics.flatMap((classMetric) =>
-          classMetric.maxMethodLineCount >= 70
-            ? [
-                {
-                  name: `${classMetric.name}::*`,
-                  lineCount: classMetric.maxMethodLineCount,
-                  startLine: classMetric.startLine,
-                  endLine: classMetric.endLine,
-                  complexity: 1,
-                  branchCount: 0,
-                  maxNesting: 0,
-                },
-              ]
-            : []
-        )
-      ),
+      .filter((item) => item.lineCount >= LONG_METHOD_LINES)
+      .concat(longClassMethodPlaceholders(classes.metrics)),
     complexMethods: [],
     allFunctions: topLevelFunctions,
   };
