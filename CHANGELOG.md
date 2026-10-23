@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## v1.1.55 (2026-10-24)
+
+### Changed
+
+- **CodeMaps no longer duplicates itself:** the clone detector reports 0 groups on its own code (it was 40), and `npm run quality` is empty (no function over 60 lines or complexity 15, no god classes). Shared parts moved into small modules: risk rules, stack adapters, UI panels, main-process bindings. Behavior and tool output are unchanged.
+- **New `npm run quality` and `npm run duplicates` commands** run the same CodeMaps measurements on any folder; they are listed in CLAUDE.md so new code adds no findings. Tests: 467 -> 519.
+
 ## v1.1.54 (2026-10-23)
 
 ### Added
