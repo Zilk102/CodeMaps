@@ -26,6 +26,10 @@ export const isDesignSmellPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
 export const isChangeRiskPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
   changeRiskPatternIdSet.has(pattern.id);
 
+/** Coupling hotspots plus every change-risk pattern: a change near them has a wider reach. */
+export const isHotspotChangeRiskPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
+  pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files' || isChangeRiskPattern(pattern);
+
 export const collectPatternNodeIds = (
   patterns: DetectedPattern[],
   predicate: (pattern: DetectedPattern) => boolean

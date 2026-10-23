@@ -11,7 +11,7 @@ import type {
 } from './ChangeContextService';
 import type { DecompositionCandidate } from './DecompositionGuidanceService';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
-import { isChangeRiskPattern, isDesignSmellPattern } from './patternPolicies';
+import { isDesignSmellPattern, isHotspotChangeRiskPattern } from './patternPolicies';
 import type { SecurityFinding } from './SecurityScanner';
 
 export function buildChangeAutopilotPlan(args: {
@@ -51,7 +51,7 @@ export function buildChangeAutopilotPlan(args: {
   };
 }
 
-export function buildChangeRisks(args: {
+type ChangeRiskArgs = {
   target: GraphNode;
   targetClassification: ArchitectureNodeClassification;
   blastRadius: BlastRadiusResult;
@@ -60,66 +60,50 @@ export function buildChangeRisks(args: {
   targetViolations: ArchitectureViolation[];
   relevantPatterns: DetectedPattern[];
   securityFindings: SecurityFinding[];
-}) {
-  const risks: string[] = [];
+};
 
-  if (args.blastRadius.confidence === 'high' && args.blastRadius.affectedNodes.length > 0) {
-    risks.push(
-      `The change has a confirmed impact on ${args.blastRadius.affectedNodes.length} dependent nodes.`
-    );
-  }
+const isWideImpactLayer = (layer: string) => layer === 'shared' || layer === 'domain';
 
-  if (args.targetViolations.length > 0) {
-    risks.push(
-      'The target area is already involved in layer violations; a local fix may solidify the architectural smell.'
-    );
-  }
+/** Applied in order; each rule yields a risk message, or null when it does not apply. */
+const CHANGE_RISK_RULES: Array<(args: ChangeRiskArgs) => string | null> = [
+  (a) =>
+    a.blastRadius.confidence === 'high' && a.blastRadius.affectedNodes.length > 0
+      ? `The change has a confirmed impact on ${a.blastRadius.affectedNodes.length} dependent nodes.`
+      : null,
+  (a) =>
+    a.targetViolations.length > 0
+      ? 'The target area is already involved in layer violations; a local fix may solidify the architectural smell.'
+      : null,
+  (a) =>
+    a.relevantPatterns.some(isHotspotChangeRiskPattern)
+      ? 'The target lies near high-coupling hotspot nodes; caution is needed with new dependencies.'
+      : null,
+  (a) =>
+    a.relevantPatterns.some(isDesignSmellPattern)
+      ? 'The target sits in an oversized or responsibility-dense module; extending it may entrench SRP violations, long/complex methods, or god-object behavior and make future decomposition harder.'
+      : null,
+  (a) =>
+    a.securityFindings.length > 0
+      ? 'There are already security findings in adjacent files; the change must be verified against data and API security.'
+      : null,
+  (a) =>
+    isWideImpactLayer(a.targetClassification.layer)
+      ? `The target is in the ${a.targetClassification.layer} layer, so the blast radius may extend far beyond the local module.`
+      : null,
+  (a) =>
+    a.runtimeContractNodes.length > 0
+      ? 'The target participates in runtime DI wiring; provider tokens, bean factories, or service registrations may expand impact beyond explicit imports.'
+      : null,
+  (a) =>
+    a.contractBindingNodes.length > 0
+      ? 'The target participates in API contract/runtime bindings; schema roots, generated clients, handlers, or servers may widen impact beyond direct imports.'
+      : null,
+];
 
-  if (
-    args.relevantPatterns.some(
-      (pattern) =>
-        pattern.id === 'hub_nodes' ||
-        pattern.id === 'high_fan_out_files' ||
-        isChangeRiskPattern(pattern)
-    )
-  ) {
-    risks.push(
-      'The target lies near high-coupling hotspot nodes; caution is needed with new dependencies.'
-    );
-  }
-
-  if (args.relevantPatterns.some(isDesignSmellPattern)) {
-    risks.push(
-      'The target sits in an oversized or responsibility-dense module; extending it may entrench SRP violations, long/complex methods, or god-object behavior and make future decomposition harder.'
-    );
-  }
-
-  if (args.securityFindings.length > 0) {
-    risks.push(
-      'There are already security findings in adjacent files; the change must be verified against data and API security.'
-    );
-  }
-
-  if (
-    args.targetClassification.layer === 'shared' ||
-    args.targetClassification.layer === 'domain'
-  ) {
-    risks.push(
-      `The target is in the ${args.targetClassification.layer} layer, so the blast radius may extend far beyond the local module.`
-    );
-  }
-
-  if (args.runtimeContractNodes.length > 0) {
-    risks.push(
-      'The target participates in runtime DI wiring; provider tokens, bean factories, or service registrations may expand impact beyond explicit imports.'
-    );
-  }
-
-  if (args.contractBindingNodes.length > 0) {
-    risks.push(
-      'The target participates in API contract/runtime bindings; schema roots, generated clients, handlers, or servers may widen impact beyond direct imports.'
-    );
-  }
+export function buildChangeRisks(args: ChangeRiskArgs) {
+  const risks = CHANGE_RISK_RULES.map((rule) => rule(args)).filter(
+    (risk): risk is string => risk !== null
+  );
 
   if (risks.length === 0) {
     risks.push(

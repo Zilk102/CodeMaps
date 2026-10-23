@@ -1,21 +1,25 @@
-import { GraphData, GraphNode } from '../store/types';
+import { GraphData, GraphLink, GraphNode } from '../store/types';
 import type { ArchitectureLayer, ArchitectureOverview } from './ArchitectureInsightService';
 import { buildGraphAdjacency, isContractSemanticLink, isDiRuntimeLink } from './graphAnalysisUtils';
 import type { ProjectInsightResult } from './ProjectInsightService';
 
 const FILE_LIMIT = 8;
 
-export function buildProjectMentalModel(
-  graph: GraphData,
-  architecture: ArchitectureOverview
-): ProjectInsightResult['mentalModel'] {
-  const { incomingByTarget, outgoingBySource } = buildGraphAdjacency(graph);
-  const layerByNodeId = new Map(
-    architecture.classifications.map((record) => [record.nodeId, record.layer])
-  );
-  const fileNodes = graph.nodes.filter((node) => node.type === 'file');
+type GraphAdjacency = ReturnType<typeof buildGraphAdjacency>;
 
-  const entryPoints = collectRankedFiles(fileNodes, (node) => {
+interface MentalModelContext {
+  fileNodes: GraphNode[];
+  layerByNodeId: Map<string, ArchitectureLayer>;
+  incomingByTarget: GraphAdjacency['incomingByTarget'];
+  outgoingBySource: GraphAdjacency['outgoingBySource'];
+}
+
+const ORCHESTRATOR_LAYERS: string[] = ['application', 'analysis', 'integration'];
+const FOUNDATION_LAYERS: string[] = ['shared', 'state'];
+
+function rankEntryPoints(context: MentalModelContext) {
+  const { fileNodes, layerByNodeId, incomingByTarget, outgoingBySource } = context;
+  return collectRankedFiles(fileNodes, (node) => {
     const fanIn = incomingByTarget.get(node.id)?.length || 0;
     if (!isEntryPointCandidate(node, layerByNodeId.get(node.id), fanIn)) {
       return null;
@@ -28,9 +32,12 @@ export function buildProjectMentalModel(
       outgoingBySource.get(node.id)?.length || 0
     );
   });
+}
 
-  const coreOrchestrators = collectRankedFiles(fileNodes, (node) => {
-    if (!['application', 'analysis', 'integration'].includes(layerByNodeId.get(node.id) || '')) {
+function rankCoreOrchestrators(context: MentalModelContext) {
+  const { fileNodes, layerByNodeId, incomingByTarget, outgoingBySource } = context;
+  return collectRankedFiles(fileNodes, (node) => {
+    if (!ORCHESTRATOR_LAYERS.includes(layerByNodeId.get(node.id) || '')) {
       return null;
     }
 
@@ -38,38 +45,55 @@ export function buildProjectMentalModel(
     const fanIn = incomingByTarget.get(node.id)?.length || 0;
     return fanOut > 0 || fanIn > 0 ? fanOut + fanIn : null;
   });
+}
 
-  const runtimeCompositionRoots = collectRankedFiles(
+function rankByOutgoingLinks(context: MentalModelContext, matches: (link: GraphLink) => boolean) {
+  const { fileNodes, outgoingBySource } = context;
+  return collectRankedFiles(
     fileNodes,
-    (node) => (outgoingBySource.get(node.id) || []).filter((link) => isDiRuntimeLink(link)).length
+    (node) => (outgoingBySource.get(node.id) || []).filter(matches).length
   );
+}
 
-  const contractSurfaces = collectRankedFiles(
-    fileNodes,
-    (node) =>
-      (outgoingBySource.get(node.id) || []).filter((link) => isContractSemanticLink(link)).length
-  );
-
-  const sharedFoundations = collectRankedFiles(fileNodes, (node) => {
-    if (!['shared', 'state'].includes(layerByNodeId.get(node.id) || '')) {
+function rankSharedFoundations(context: MentalModelContext) {
+  const { fileNodes, layerByNodeId, incomingByTarget } = context;
+  return collectRankedFiles(fileNodes, (node) => {
+    if (!FOUNDATION_LAYERS.includes(layerByNodeId.get(node.id) || '')) {
       return null;
     }
 
     return incomingByTarget.get(node.id)?.length || 0;
   });
+}
 
-  const keyBoundaries = architecture.dependencies
+function describeKeyBoundaries(architecture: ArchitectureOverview) {
+  return architecture.dependencies
     .filter((entry) => entry.sourceLayer !== entry.targetLayer)
     .slice(0, 6)
     .map((entry) => `${entry.sourceLayer} -> ${entry.targetLayer} (${entry.count})`);
+}
+
+export function buildProjectMentalModel(
+  graph: GraphData,
+  architecture: ArchitectureOverview
+): ProjectInsightResult['mentalModel'] {
+  const { incomingByTarget, outgoingBySource } = buildGraphAdjacency(graph);
+  const context: MentalModelContext = {
+    fileNodes: graph.nodes.filter((node) => node.type === 'file'),
+    layerByNodeId: new Map(
+      architecture.classifications.map((record) => [record.nodeId, record.layer])
+    ),
+    incomingByTarget,
+    outgoingBySource,
+  };
 
   return {
-    entryPoints,
-    coreOrchestrators,
-    runtimeCompositionRoots,
-    contractSurfaces,
-    sharedFoundations,
-    keyBoundaries,
+    entryPoints: rankEntryPoints(context),
+    coreOrchestrators: rankCoreOrchestrators(context),
+    runtimeCompositionRoots: rankByOutgoingLinks(context, (link) => isDiRuntimeLink(link)),
+    contractSurfaces: rankByOutgoingLinks(context, (link) => isContractSemanticLink(link)),
+    sharedFoundations: rankSharedFoundations(context),
+    keyBoundaries: describeKeyBoundaries(architecture),
     likelyWorkflows: buildLikelyWorkflows(architecture, graph),
   };
 }

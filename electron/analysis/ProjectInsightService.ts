@@ -144,6 +144,21 @@ export interface ProjectInsightResult {
   nextSteps: string[];
 }
 
+interface ProjectAssemblyContext {
+  graph: GraphData;
+  input: PrepareProjectContextInput;
+  limit: number;
+  architecture: ArchitectureOverview;
+  health: HealthScoreResult;
+  patterns: DetectedPattern[];
+  security: Awaited<ReturnType<AnalysisSnapshotService['analyze']>>['security'];
+  mentalModel: ProjectInsightResult['mentalModel'];
+  stackProfile: Awaited<ReturnType<StackInsightService['analyze']>>;
+  stackTopology: Awaited<ReturnType<StackTopologyService['analyze']>>;
+  decompositionGuidance: DecompositionGuidance;
+  quality: ReturnType<typeof buildQualityArtifacts>;
+}
+
 export class ProjectInsightService {
   constructor(
     private readonly analysisSnapshotService = new AnalysisSnapshotService(),
@@ -167,20 +182,39 @@ export class ProjectInsightService {
       }
     );
     const resolvedHealth = health!;
-    const mentalModel = buildProjectMentalModel(graph, architecture);
     const stackProfile = await this.stackInsightService.analyze(graph);
     const stackTopology = await this.stackTopologyService.analyze(graph, stackProfile);
     const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
       limit,
     });
-    const { qualityBudget, qualityDashboard, refactoringWaves } = buildQualityArtifacts(
+
+    return this.assembleResult({
       graph,
-      resolvedHealth,
+      input,
+      limit,
+      architecture,
+      health: resolvedHealth,
       patterns,
+      security,
+      mentalModel: buildProjectMentalModel(graph, architecture),
+      stackProfile,
+      stackTopology,
       decompositionGuidance,
-      this.qualityGovernanceService,
-      4
-    );
+      quality: buildQualityArtifacts(
+        graph,
+        resolvedHealth,
+        patterns,
+        decompositionGuidance,
+        this.qualityGovernanceService,
+        4
+      ),
+    });
+  }
+
+  private assembleResult(ctx: ProjectAssemblyContext): ProjectInsightResult {
+    const { graph, input, limit, architecture, health, patterns, security, mentalModel } = ctx;
+    const { decompositionGuidance } = ctx;
+    const { qualityBudget, qualityDashboard, refactoringWaves } = ctx.quality;
     const operationalTelemetry = getOperationalTelemetry(graph);
 
     return {
@@ -188,23 +222,23 @@ export class ProjectInsightService {
       projectProfile: buildProjectProfile(
         graph,
         architecture,
-        resolvedHealth,
-        stackProfile,
-        stackTopology
+        health,
+        ctx.stackProfile,
+        ctx.stackTopology
       ),
       architecture: buildProjectArchitectureView(architecture, input.includeClassifications, limit),
-      health: resolvedHealth,
+      health,
       operationalTelemetry,
       patterns,
       security: buildProjectSecurityView(security.findings, security.summary),
       mentalModel,
-      autopilotPlan: buildProjectAutopilotPlan(architecture, resolvedHealth, patterns, mentalModel),
+      autopilotPlan: buildProjectAutopilotPlan(architecture, health, patterns, mentalModel),
       qualityBudget,
       qualityDashboard,
       decompositionGuidance,
       refactoringWaves,
       nextSteps: buildProjectNextSteps(
-        resolvedHealth,
+        health,
         architecture,
         patterns,
         security.findings,

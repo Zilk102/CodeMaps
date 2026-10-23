@@ -24,6 +24,7 @@ import {
   buildReviewAutopilotPlan,
   buildReviewNextSteps,
   buildReviewPriorities,
+  hasRefreshPressure,
 } from './reviewContextPolicies';
 import {
   buildReviewSecurityView,
@@ -100,6 +101,19 @@ export interface ReviewContextResult {
 
 const MAX_REVIEW_PATTERNS = 12;
 
+interface ReviewAssemblyContext {
+  graph: GraphData;
+  input: PrepareReviewContextInput;
+  taskMode: ReviewTaskMode;
+  architecture: ArchitectureOverview;
+  health: HealthScoreResult;
+  patterns: DetectedPattern[];
+  securityFindings: SecurityFinding[];
+  focus: ReviewContextResult['focus'];
+  decompositionGuidance: DecompositionGuidance;
+  quality: ReturnType<typeof buildQualityArtifacts>;
+}
+
 export class ReviewContextService {
   constructor(
     private readonly analysisSnapshotService = new AnalysisSnapshotService(),
@@ -132,7 +146,7 @@ export class ReviewContextService {
       limit: input.limit || MAX_REVIEW_PATTERNS,
       focusNodeIds: focus?.matches.map((node) => node.id),
     });
-    const { qualityBudget, qualityDashboard, refactoringWaves } = buildQualityArtifacts(
+    const quality = buildQualityArtifacts(
       graph,
       resolvedHealth,
       patterns,
@@ -141,19 +155,38 @@ export class ReviewContextService {
       4
     );
 
+    return this.assembleResult({
+      graph,
+      input,
+      taskMode,
+      architecture,
+      health: resolvedHealth,
+      patterns,
+      securityFindings: security.findings,
+      focus,
+      decompositionGuidance,
+      quality,
+    });
+  }
+
+  private assembleResult(ctx: ReviewAssemblyContext): ReviewContextResult {
+    const { graph, input, architecture, health, patterns, focus, decompositionGuidance } = ctx;
+    const { qualityBudget, qualityDashboard, refactoringWaves } = ctx.quality;
+    const limit = input.limit || MAX_REVIEW_PATTERNS;
+
     return {
       graphSummary: createGraphSummary(graph),
-      taskMode,
-      health: resolvedHealth,
+      taskMode: ctx.taskMode,
+      health,
       architecture: {
         summary: architecture.summary,
         layers: architecture.layers,
-        dependencies: architecture.dependencies.slice(0, input.limit || MAX_REVIEW_PATTERNS),
-        violations: architecture.violations.slice(0, input.limit || MAX_REVIEW_PATTERNS),
+        dependencies: architecture.dependencies.slice(0, limit),
+        violations: architecture.violations.slice(0, limit),
         classifications: input.includeClassifications ? architecture.classifications : undefined,
       },
       patterns,
-      security: buildReviewSecurityView(security.findings),
+      security: buildReviewSecurityView(ctx.securityFindings),
       focus,
       qualityBudget,
       qualityDashboard,
@@ -161,29 +194,27 @@ export class ReviewContextService {
       refactoringWaves,
       reviewPriorities: buildReviewPriorities(
         graph,
-        resolvedHealth,
+        health,
         architecture,
         patterns,
-        security.findings,
+        ctx.securityFindings,
         focus,
         decompositionGuidance,
         qualityBudget
       ),
       autopilotPlan: buildReviewAutopilotPlan(
-        taskMode,
-        security.findings,
+        ctx.taskMode,
+        ctx.securityFindings,
         architecture,
         focus,
-        resolvedHealth.summary.stackAwareLinks > 0,
-        resolvedHealth.summary.refreshPipelineDegraded ||
-          resolvedHealth.summary.avgRefreshLatencyMs >= 20 ||
-          resolvedHealth.summary.runtimePriorityRebuilds > 0
+        health.summary.stackAwareLinks > 0,
+        hasRefreshPressure(health)
       ),
       nextSteps: buildReviewNextSteps(
-        resolvedHealth,
+        health,
         architecture,
         patterns,
-        security.findings,
+        ctx.securityFindings,
         Boolean(focus),
         decompositionGuidance
       ),

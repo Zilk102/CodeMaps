@@ -1,28 +1,30 @@
 import { KuzuGraphService } from './KuzuGraphService';
 import { GitService } from './GitService';
+import {
+  buildSummaryRecommendations,
+  calculateRiskScore,
+  ChangedFile,
+  ChangedFileStatus,
+  describeDeletionRisk,
+  parseNumstat,
+  PRRiskScore,
+} from './prImpactSupport';
+
+export type { ChangedFile } from './prImpactSupport';
 
 export interface PRImpactResult {
   changedFiles: ChangedFile[];
   affectedNodes: string[];
   blastRadius: number;
-  riskScore: 'low' | 'medium' | 'high' | 'critical';
+  riskScore: PRRiskScore;
   recommendations: string[];
-}
-
-export interface ChangedFile {
-  path: string;
-  status: 'added' | 'modified' | 'deleted';
-  additions: number;
-  deletions: number;
 }
 
 export class PRImpactAnalyzer {
   private graphService: KuzuGraphService;
   private gitService: GitService;
-  private projectPath: string;
 
   constructor(projectPath: string) {
-    this.projectPath = projectPath;
     this.graphService = new KuzuGraphService(projectPath);
     this.gitService = new GitService(projectPath);
   }
@@ -54,6 +56,22 @@ export class PRImpactAnalyzer {
       };
     }
 
+    const { affectedNodes, totalBlastRadius, recommendations } =
+      await this.collectGraphImpact(changedFiles);
+
+    return {
+      changedFiles,
+      affectedNodes,
+      blastRadius: totalBlastRadius,
+      riskScore: calculateRiskScore(changedFiles, affectedNodes.length, totalBlastRadius),
+      recommendations: [
+        ...recommendations,
+        ...buildSummaryRecommendations(changedFiles, affectedNodes.length),
+      ],
+    };
+  }
+
+  private async collectGraphImpact(changedFiles: ChangedFile[]) {
     const affectedNodes: string[] = [];
     const recommendations: string[] = [];
     let totalBlastRadius = 0;
@@ -71,34 +89,12 @@ export class PRImpactAnalyzer {
         totalBlastRadius += neighbors.length;
 
         if (file.status === 'deleted' && neighbors.length > 5) {
-          recommendations.push(
-            `⚠️ Deleting ${file.path} affects ${neighbors.length} dependent nodes. Consider refactoring instead.`
-          );
+          recommendations.push(describeDeletionRisk(file.path, neighbors.length));
         }
       }
     }
 
-    const riskScore = this.calculateRiskScore(changedFiles, affectedNodes, totalBlastRadius);
-
-    if (affectedNodes.length > 10) {
-      recommendations.push(
-        `📊 Large impact: ${affectedNodes.length} nodes affected. Consider breaking into smaller PRs.`
-      );
-    }
-
-    if (changedFiles.some((f) => f.path.includes('test'))) {
-      recommendations.push('✅ Tests updated — good practice!');
-    } else if (affectedNodes.length > 0) {
-      recommendations.push('💡 Consider adding tests for the affected nodes.');
-    }
-
-    return {
-      changedFiles,
-      affectedNodes,
-      blastRadius: totalBlastRadius,
-      riskScore,
-      recommendations,
-    };
+    return { affectedNodes, totalBlastRadius, recommendations };
   }
 
   private getChangedFiles(baseBranch: string, headBranch: string): ChangedFile[] {
@@ -107,51 +103,20 @@ export class PRImpactAnalyzer {
       return [];
     }
 
-    return output
-      .trim()
-      .split('\n')
-      .filter((line) => line.trim())
-      .map((line) => {
-        const [additions, deletions, filePath] = line.split('\t');
-        return {
-          path: filePath,
-          status: this.getFileStatus(filePath, baseBranch, headBranch),
-          additions: parseInt(additions) || 0,
-          deletions: parseInt(deletions) || 0,
-        };
-      });
+    return parseNumstat(output, (filePath) => this.getFileStatus(filePath, baseBranch, headBranch));
   }
 
   private getFileStatus(
     filePath: string,
     baseBranch: string,
     headBranch: string
-  ): 'added' | 'modified' | 'deleted' {
+  ): ChangedFileStatus {
     const existsInBase = this.gitService.execGit(['ls-tree', baseBranch, '--', filePath])?.trim();
     const existsInHead = this.gitService.execGit(['ls-tree', headBranch, '--', filePath])?.trim();
 
     if (!existsInBase && existsInHead) return 'added';
     if (existsInBase && !existsInHead) return 'deleted';
     return 'modified';
-  }
-
-  private calculateRiskScore(
-    changedFiles: ChangedFile[],
-    affectedNodes: string[],
-    blastRadius: number
-  ): 'low' | 'medium' | 'high' | 'critical' {
-    const totalChanges = changedFiles.reduce((sum, f) => sum + f.additions + f.deletions, 0);
-
-    if (totalChanges > 500 || blastRadius > 50 || affectedNodes.length > 20) {
-      return 'critical';
-    }
-    if (totalChanges > 200 || blastRadius > 20 || affectedNodes.length > 10) {
-      return 'high';
-    }
-    if (totalChanges > 50 || blastRadius > 5 || affectedNodes.length > 5) {
-      return 'medium';
-    }
-    return 'low';
   }
 
   async close(): Promise<void> {

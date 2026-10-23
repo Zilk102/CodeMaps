@@ -107,6 +107,20 @@ const MAX_RELATED_NODES = 12;
 const MAX_RELATED_PATTERNS = 8;
 const MAX_RELATED_FINDINGS = 10;
 
+interface ChangeAssemblyContext {
+  taskMode: ChangeTaskMode;
+  resolvedTarget: ResolvedTargetContext;
+  architecture: ArchitectureOverview;
+  targetClassification: ArchitectureNodeClassification;
+  dependencies: ReturnType<typeof getNodeDependencies>;
+  blastRadius: BlastRadiusResult;
+  relevantPatterns: DetectedPattern[];
+  securityFindings: SecurityFinding[];
+  targetViolations: ArchitectureViolation[];
+  recommendedFilesToInspect: string[];
+  decompositionCandidates: DecompositionCandidate[];
+}
+
 export class ChangeContextService {
   constructor(
     private readonly architectureInsightService = new ArchitectureInsightService(),
@@ -129,6 +143,23 @@ export class ChangeContextService {
       graphProjectRoot: graph.projectRoot,
       architectureInsightService: this.architectureInsightService,
     });
+    const evidence = await this.collectEvidence(graph, input, resolvedTarget, architecture);
+
+    return this.assembleResult(graph, input, {
+      taskMode,
+      resolvedTarget,
+      architecture,
+      targetClassification,
+      ...evidence,
+    });
+  }
+
+  private async collectEvidence(
+    graph: GraphData,
+    input: PrepareChangeContextInput,
+    resolvedTarget: ResolvedTargetContext,
+    architecture: ArchitectureOverview
+  ) {
     const dependencies = getNodeDependencies(graph, resolvedTarget.node.id);
     const blastRadius = this.blastRadiusAnalyzer.analyze(
       graph,
@@ -151,16 +182,32 @@ export class ChangeContextService {
       securityScanner: this.securityScanner,
     });
 
-    const targetViolations = collectTargetViolations(architecture, resolvedTarget.node.id);
-    const recommendedFilesToInspect = collectRecommendedFilesToInspect(
-      resolvedTarget.node.id,
+    return {
       dependencies,
-      blastRadius
-    );
-    const decompositionCandidates = this.decompositionGuidanceService.prepareGuidance(graph, {
-      limit: 8,
-      focusNodeIds: Array.from(structuralNodeIds),
-    }).candidates;
+      blastRadius,
+      relevantPatterns,
+      securityFindings,
+      targetViolations: collectTargetViolations(architecture, resolvedTarget.node.id),
+      recommendedFilesToInspect: collectRecommendedFilesToInspect(
+        resolvedTarget.node.id,
+        dependencies,
+        blastRadius
+      ),
+      decompositionCandidates: this.decompositionGuidanceService.prepareGuidance(graph, {
+        limit: 8,
+        focusNodeIds: Array.from(structuralNodeIds),
+      }).candidates,
+    };
+  }
+
+  private assembleResult(
+    graph: GraphData,
+    input: PrepareChangeContextInput,
+    ctx: ChangeAssemblyContext
+  ): ChangeContextResult {
+    const { taskMode, resolvedTarget, architecture, targetClassification, dependencies } = ctx;
+    const { blastRadius, relevantPatterns, securityFindings, targetViolations } = ctx;
+    const { recommendedFilesToInspect, decompositionCandidates } = ctx;
 
     return {
       graphSummary: createGraphSummary(graph),

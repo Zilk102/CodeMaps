@@ -450,7 +450,10 @@ const laravelAdapter: StackAdapter = {
   },
 };
 
-const createGoWebAdapter = (options: {
+type AdapterContext = Parameters<StackAdapter['analyze']>[0];
+type RelativeContentEntry = { filePath: string; text: string };
+
+interface GoWebOptions {
   stackId: string;
   adapterId: string;
   displayName: string;
@@ -459,7 +462,48 @@ const createGoWebAdapter = (options: {
   entryReason: string;
   handlerReason: string;
   configReason: string;
-}) =>
+}
+
+const readGoSources = async (context: AdapterContext) => {
+  const candidateFiles = context.getAllFilePaths().filter((filePath) => /\.go$/i.test(filePath));
+  const contents = await context.readTexts(candidateFiles);
+  const relativeContentEntries: RelativeContentEntry[] = contents.map((entry) => ({
+    filePath: context.getProjectRelativePath(entry.filePath),
+    text: entry.text,
+  }));
+  const configFiles = context
+    .getAllFilePaths()
+    .filter((filePath) => context.getProjectRelativePath(filePath) === 'go.mod');
+  return { relativeContentEntries, configFiles };
+};
+
+const filesMatching = (entries: RelativeContentEntry[], pattern: RegExp) =>
+  entries.filter(({ text }) => pattern.test(text)).map(({ filePath }) => filePath);
+
+const buildGoRouteHandlerLinks = (
+  routeFiles: string[],
+  entries: RelativeContentEntry[],
+  graphSymbolIndex: ReturnType<typeof buildGraphSymbolIndex>,
+  handlerReason: string
+) => {
+  const contentByRelativePath = getContentByRelativePath(entries);
+  const functionSymbols = buildNamedSymbolToFileMap(entries, extractGoFunctionNames);
+
+  return routeFiles.flatMap((routeFile) =>
+    extractGoRouteHandlers(contentByRelativePath.get(routeFile) || '').map((handlerName) =>
+      createRelationship(
+        resolveSymbolEndpoint(routeFile, graphSymbolIndex),
+        resolveSymbolEndpoint(functionSymbols.get(handlerName) || routeFile, graphSymbolIndex, {
+          preferredSymbols: [handlerName],
+        }),
+        'framework',
+        handlerReason
+      )
+    )
+  );
+};
+
+const createGoWebAdapter = (options: GoWebOptions) =>
   ({
     id: options.adapterId,
     displayName: options.displayName,
@@ -467,46 +511,9 @@ const createGoWebAdapter = (options: {
     supports: (context) => !!context.getDetectedStack(options.stackId),
     analyze: async (context) => {
       const graphSymbolIndex = buildGraphSymbolIndex(context.graph);
-      const candidateFiles = context
-        .getAllFilePaths()
-        .filter((filePath) => /\.go$/i.test(filePath));
-      const contents = await context.readTexts(candidateFiles);
-      const relativeContentEntries = contents.map((entry) => ({
-        filePath: context.getProjectRelativePath(entry.filePath),
-        text: entry.text,
-      }));
-      const contentByRelativePath = getContentByRelativePath(relativeContentEntries);
-      const functionSymbols = buildNamedSymbolToFileMap(
-        relativeContentEntries,
-        extractGoFunctionNames
-      );
-      const configFiles = context
-        .getAllFilePaths()
-        .filter((filePath) => context.getProjectRelativePath(filePath) === 'go.mod');
-      const entryFiles = relativeContentEntries
-        .filter(({ text }) => options.entryPattern.test(text))
-        .map(({ filePath }) => filePath);
-      const routeFiles = relativeContentEntries
-        .filter(({ text }) => options.routePattern.test(text))
-        .map(({ filePath }) => filePath);
-
-      const routeHandlerLinks = routeFiles.flatMap((routeFile) =>
-        extractGoRouteHandlers(contentByRelativePath.get(routeFile) || '')
-          .map((handlerName) => ({
-            handlerName,
-            filePath: functionSymbols.get(handlerName) || routeFile,
-          }))
-          .map(({ handlerName, filePath }) =>
-            createRelationship(
-              resolveSymbolEndpoint(routeFile, graphSymbolIndex),
-              resolveSymbolEndpoint(filePath, graphSymbolIndex, {
-                preferredSymbols: [handlerName],
-              }),
-              'framework',
-              options.handlerReason
-            )
-          )
-      );
+      const { relativeContentEntries, configFiles } = await readGoSources(context);
+      const entryFiles = filesMatching(relativeContentEntries, options.entryPattern);
+      const routeFiles = filesMatching(relativeContentEntries, options.routePattern);
 
       return createInsight(
         options.adapterId,
@@ -529,7 +536,12 @@ const createGoWebAdapter = (options: {
                 )
               )
             ),
-            ...routeHandlerLinks,
+            ...buildGoRouteHandlerLinks(
+              routeFiles,
+              relativeContentEntries,
+              graphSymbolIndex,
+              options.handlerReason
+            ),
             ...configFiles.flatMap((configFile) =>
               entryFiles.map((entryFile) => ({
                 source: context.getProjectRelativePath(configFile),

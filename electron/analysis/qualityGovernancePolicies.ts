@@ -16,40 +16,43 @@ function toStatus(score: number, warningThreshold: number, criticalThreshold: nu
   return 'healthy' as const;
 }
 
-export function buildQualityBudget(input: BuildQualityGovernanceInput): QualityBudget {
-  const architectureScore = Math.max(
-    0,
-    Math.min(
-      100,
-      100 -
-        input.health.summary.architectureViolations * 8 -
-        input.health.summary.unknownLayerNodes * 0.2 -
-        input.patterns.filter((pattern) => pattern.id === 'layer_violations').length * 15
-    )
-  );
-  const operabilityScore = Math.max(
-    0,
-    Math.min(
-      100,
-      100 -
-        (input.health.summary.refreshPipelineDegraded ? 25 : 0) -
-        input.health.summary.avgRefreshLatencyMs * 0.4 -
-        input.health.summary.refreshSkipRate * 30
-    )
-  );
+const clampScore = (value: number) => Math.max(0, Math.min(100, value));
 
-  const dimensions: QualityBudgetDimension[] = [
+function computeArchitectureScore(input: BuildQualityGovernanceInput) {
+  return clampScore(
+    100 -
+      input.health.summary.architectureViolations * 8 -
+      input.health.summary.unknownLayerNodes * 0.2 -
+      input.patterns.filter((pattern) => pattern.id === 'layer_violations').length * 15
+  );
+}
+
+function computeOperabilityScore(input: BuildQualityGovernanceInput) {
+  return clampScore(
+    100 -
+      (input.health.summary.refreshPipelineDegraded ? 25 : 0) -
+      input.health.summary.avgRefreshLatencyMs * 0.4 -
+      input.health.summary.refreshSkipRate * 30
+  );
+}
+
+function buildBudgetDimensions(input: BuildQualityGovernanceInput): QualityBudgetDimension[] {
+  const { maintainabilityScore, solidScore } = input.health.summary;
+  const architectureScore = computeArchitectureScore(input);
+  const operabilityScore = computeOperabilityScore(input);
+
+  return [
     {
       name: 'maintainability',
-      score: input.health.summary.maintainabilityScore,
-      status: toStatus(input.health.summary.maintainabilityScore, 75, 55),
+      score: maintainabilityScore,
+      status: toStatus(maintainabilityScore, 75, 55),
       rationale:
         'Reflects oversized modules, long/complex methods, design smell density, and safe refactoring cost.',
     },
     {
       name: 'solid',
-      score: input.health.summary.solidScore,
-      status: toStatus(input.health.summary.solidScore, 80, 60),
+      score: solidScore,
+      status: toStatus(solidScore, 80, 60),
       rationale:
         'Reflects SRP pressure, responsibility concentration, and architectural boundary erosion.',
     },
@@ -68,7 +71,35 @@ export function buildQualityBudget(input: BuildQualityGovernanceInput): QualityB
         'Reflects refresh-pipeline stability, latency, skip rate, and operational resilience of the graph pipeline.',
     },
   ];
+}
 
+function deriveOverallStatus(
+  dimensions: QualityBudgetDimension[],
+  decompositionPressure: number,
+  blockingIssueCount: number
+): QualityBudget['overallStatus'] {
+  if (
+    dimensions.some((dimension) => dimension.status === 'critical') ||
+    decompositionPressure >= 3 ||
+    blockingIssueCount >= 4
+  ) {
+    return 'critical';
+  }
+  if (dimensions.some((dimension) => dimension.status === 'warning') || blockingIssueCount > 0) {
+    return 'warning';
+  }
+  return 'healthy';
+}
+
+const POLICY_BY_STATUS: Record<QualityBudget['overallStatus'], QualityBudget['recommendedPolicy']> =
+  {
+    critical: 'freeze_growth',
+    warning: 'refactor_before_growth',
+    healthy: 'allow_targeted_changes',
+  };
+
+export function buildQualityBudget(input: BuildQualityGovernanceInput): QualityBudget {
+  const dimensions = buildBudgetDimensions(input);
   const overallScore = Math.round(
     dimensions.reduce((sum, dimension) => sum + dimension.score, 0) / dimensions.length
   );
@@ -78,32 +109,79 @@ export function buildQualityBudget(input: BuildQualityGovernanceInput): QualityB
   const severePatterns = input.patterns
     .filter((pattern) => pattern.severity === 'high')
     .map((pattern) => pattern.id);
-  const decompositionPressure = input.decompositionGuidance.summary.highPriorityCount;
   const blockingIssueCodes = unique([...highSeverityIssues, ...severePatterns]).slice(0, 12);
 
-  const overallStatus =
-    dimensions.some((dimension) => dimension.status === 'critical') ||
-    decompositionPressure >= 3 ||
-    blockingIssueCodes.length >= 4
-      ? 'critical'
-      : dimensions.some((dimension) => dimension.status === 'warning') ||
-          blockingIssueCodes.length > 0
-        ? 'warning'
-        : 'healthy';
-
-  const recommendedPolicy =
-    overallStatus === 'critical'
-      ? 'freeze_growth'
-      : overallStatus === 'warning'
-        ? 'refactor_before_growth'
-        : 'allow_targeted_changes';
+  const overallStatus = deriveOverallStatus(
+    dimensions,
+    input.decompositionGuidance.summary.highPriorityCount,
+    blockingIssueCodes.length
+  );
 
   return {
     overallScore,
     overallStatus,
-    recommendedPolicy,
+    recommendedPolicy: POLICY_BY_STATUS[overallStatus],
     blockingIssueCodes,
     dimensions,
+  };
+}
+
+interface WaveSpec {
+  id: string;
+  title: string;
+  goal: string;
+  include: (candidate: DecompositionCandidate) => boolean;
+}
+
+const WAVE_SPECS: WaveSpec[] = [
+  {
+    id: 'wave-boundaries',
+    title: 'Wave 1: Boundary Split',
+    goal: 'Split mixed-responsibility modules first so later extractions happen inside clearer seams.',
+    include: (candidate) =>
+      candidate.targetType === 'module' ||
+      candidate.action === 'split_responsibilities' ||
+      candidate.action === 'extract_module',
+  },
+  {
+    id: 'wave-classes',
+    title: 'Wave 2: Class Extraction',
+    goal: 'Extract god classes into narrower collaborators before touching downstream orchestration logic.',
+    include: (candidate) => candidate.targetType === 'class',
+  },
+  {
+    id: 'wave-methods',
+    title: 'Wave 3: Method Simplification',
+    goal: 'Reduce long/complex methods last, once module and class boundaries are stable enough to reveal clean helper seams.',
+    include: (candidate) => candidate.targetType === 'method',
+  },
+];
+
+type CollapsedFileGraph = ReturnType<typeof buildCollapsedFileGraph>;
+
+function buildWave(
+  spec: WaveSpec,
+  candidates: DecompositionCandidate[],
+  previousWaves: RefactoringWave[],
+  collapsed: CollapsedFileGraph
+): RefactoringWave {
+  const previousWaveFiles = previousWaves.flatMap((item) => item.fileIds);
+  return {
+    id: spec.id,
+    title: spec.title,
+    goal: spec.goal,
+    candidateIds: candidates.map((candidate) => candidate.targetNodeId),
+    targetLabels: candidates.map((candidate) => candidate.targetLabel),
+    fileIds: unique(candidates.map((candidate) => candidate.fileNodeId)),
+    blockingFileIds: unique(previousWaveFiles).slice(0, 12),
+    priorityScore: Math.round(
+      candidates.reduce(
+        (sum, candidate) =>
+          sum + candidate.score + scoreCandidateDependencyPressure(candidate, collapsed),
+        0
+      ) / candidates.length
+    ),
+    exitCriteria: createExitCriteria(spec.id, candidates),
   };
 }
 
@@ -112,41 +190,12 @@ export function buildRefactoringWaves(
   decompositionGuidance: DecompositionGuidance,
   limitPerWave = 5
 ): RefactoringWave[] {
-  const waveSpecs: Array<{
-    id: string;
-    title: string;
-    goal: string;
-    include: (candidate: DecompositionCandidate) => boolean;
-  }> = [
-    {
-      id: 'wave-boundaries',
-      title: 'Wave 1: Boundary Split',
-      goal: 'Split mixed-responsibility modules first so later extractions happen inside clearer seams.',
-      include: (candidate) =>
-        candidate.targetType === 'module' ||
-        candidate.action === 'split_responsibilities' ||
-        candidate.action === 'extract_module',
-    },
-    {
-      id: 'wave-classes',
-      title: 'Wave 2: Class Extraction',
-      goal: 'Extract god classes into narrower collaborators before touching downstream orchestration logic.',
-      include: (candidate) => candidate.targetType === 'class',
-    },
-    {
-      id: 'wave-methods',
-      title: 'Wave 3: Method Simplification',
-      goal: 'Reduce long/complex methods last, once module and class boundaries are stable enough to reveal clean helper seams.',
-      include: (candidate) => candidate.targetType === 'method',
-    },
-  ];
-
   const collapsed = buildCollapsedFileGraph(graph);
   const producedWaves: RefactoringWave[] = [];
 
-  for (const wave of waveSpecs) {
+  for (const spec of WAVE_SPECS) {
     const candidates = decompositionGuidance.candidates
-      .filter(wave.include)
+      .filter(spec.include)
       .sort(
         (left, right) =>
           scoreCandidateDependencyPressure(right, collapsed) -
@@ -156,29 +205,9 @@ export function buildRefactoringWaves(
       )
       .slice(0, limitPerWave);
 
-    if (candidates.length === 0) {
-      continue;
+    if (candidates.length > 0) {
+      producedWaves.push(buildWave(spec, candidates, producedWaves, collapsed));
     }
-
-    const fileIds = unique(candidates.map((candidate) => candidate.fileNodeId));
-    const previousWaveFiles = producedWaves.flatMap((item) => item.fileIds);
-    producedWaves.push({
-      id: wave.id,
-      title: wave.title,
-      goal: wave.goal,
-      candidateIds: candidates.map((candidate) => candidate.targetNodeId),
-      targetLabels: candidates.map((candidate) => candidate.targetLabel),
-      fileIds,
-      blockingFileIds: unique(previousWaveFiles).slice(0, 12),
-      priorityScore: Math.round(
-        candidates.reduce(
-          (sum, candidate) =>
-            sum + candidate.score + scoreCandidateDependencyPressure(candidate, collapsed),
-          0
-        ) / candidates.length
-      ),
-      exitCriteria: createExitCriteria(wave.id, candidates),
-    });
   }
 
   return producedWaves;

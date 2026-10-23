@@ -79,19 +79,7 @@ const computeDepths = (result: BlastRadiusResult) => {
   return depths;
 };
 
-/**
- * Turns the raw node-level blast radius into what a person (or agent) actually reads:
- * files grouped by area, the direct dependents first, and only the nearest indirect ones.
- */
-export const summarizeBlastRadius = (
-  graph: GraphData,
-  result: BlastRadiusResult,
-  limit = 15
-): BlastRadiusSummary => {
-  const rootFile = fileOf(result.rootNodeId);
-  const root = graph.projectRoot ?? '';
-  const depths = computeDepths(result);
-
+const countDirectLinks = (result: BlastRadiusResult, rootFile: string) => {
   const seedIds = new Set(result.seedNodeIds ?? [result.rootNodeId]);
   const directLinks = new Map<string, number>();
   for (const link of result.affectedLinks) {
@@ -99,7 +87,15 @@ export const summarizeBlastRadius = (
     const file = fileOf(link.source);
     if (file !== rootFile) directLinks.set(file, (directLinks.get(file) ?? 0) + 1);
   }
+  return directLinks;
+};
 
+const nearestIndirectDepths = (
+  result: BlastRadiusResult,
+  rootFile: string,
+  directLinks: Map<string, number>
+) => {
+  const depths = computeDepths(result);
   const indirectDepth = new Map<string, number>();
   for (const node of result.affectedNodes) {
     const file = fileOf(node.id);
@@ -107,30 +103,22 @@ export const summarizeBlastRadius = (
     const depth = depths.get(node.id) ?? result.maxDepth;
     indirectDepth.set(file, Math.min(depth, indirectDepth.get(file) ?? Infinity));
   }
+  return indirectDepth;
+};
 
-  const toEntry = (file: string, extra: Partial<BlastRadiusFileEntry>): BlastRadiusFileEntry => {
-    const relative = relativeTo(root, file);
-    return { file: relative, test: isTestFile(relative), ...extra };
-  };
+const sortEntries = (
+  entries: BlastRadiusFileEntry[],
+  rank: (entry: BlastRadiusFileEntry) => number,
+  descending: boolean
+) =>
+  entries.sort(
+    (a, b) =>
+      Number(a.test) - Number(b.test) ||
+      (descending ? rank(b) - rank(a) : rank(a) - rank(b)) ||
+      a.file.localeCompare(b.file)
+  );
 
-  const direct = Array.from(directLinks.entries())
-    .map(([file, links]) => toEntry(file, { links }))
-    .sort(
-      (a, b) =>
-        Number(a.test) - Number(b.test) ||
-        (b.links ?? 0) - (a.links ?? 0) ||
-        a.file.localeCompare(b.file)
-    );
-
-  const transitive = Array.from(indirectDepth.entries())
-    .map(([file, depth]) => toEntry(file, { depth }))
-    .sort(
-      (a, b) =>
-        Number(a.test) - Number(b.test) ||
-        (a.depth ?? 0) - (b.depth ?? 0) ||
-        a.file.localeCompare(b.file)
-    );
-
+const summarizeAreas = (direct: BlastRadiusFileEntry[], transitive: BlastRadiusFileEntry[]) => {
   const areas = new Map<string, BlastRadiusAreaEntry>();
   const bump = (entry: BlastRadiusFileEntry, kind: 'direct' | 'transitive') => {
     const area = areaOf(entry.file);
@@ -142,9 +130,41 @@ export const summarizeBlastRadius = (
   direct.forEach((entry) => bump(entry, 'direct'));
   transitive.forEach((entry) => bump(entry, 'transitive'));
 
-  const sortedAreas = Array.from(areas.values()).sort(
+  return Array.from(areas.values()).sort(
     (a, b) => b.direct + b.transitive - (a.direct + a.transitive) || a.area.localeCompare(b.area)
   );
+};
+
+/**
+ * Turns the raw node-level blast radius into what a person (or agent) actually reads:
+ * files grouped by area, the direct dependents first, and only the nearest indirect ones.
+ */
+export const summarizeBlastRadius = (
+  graph: GraphData,
+  result: BlastRadiusResult,
+  limit = 15
+): BlastRadiusSummary => {
+  const rootFile = fileOf(result.rootNodeId);
+  const root = graph.projectRoot ?? '';
+  const directLinks = countDirectLinks(result, rootFile);
+  const indirectDepth = nearestIndirectDepths(result, rootFile, directLinks);
+
+  const toEntry = (file: string, extra: Partial<BlastRadiusFileEntry>): BlastRadiusFileEntry => {
+    const relative = relativeTo(root, file);
+    return { file: relative, test: isTestFile(relative), ...extra };
+  };
+
+  const direct = sortEntries(
+    Array.from(directLinks.entries()).map(([file, links]) => toEntry(file, { links })),
+    (entry) => entry.links ?? 0,
+    true
+  );
+  const transitive = sortEntries(
+    Array.from(indirectDepth.entries()).map(([file, depth]) => toEntry(file, { depth })),
+    (entry) => entry.depth ?? 0,
+    false
+  );
+  const sortedAreas = summarizeAreas(direct, transitive);
 
   return {
     nodeId: result.rootNodeId,

@@ -53,13 +53,7 @@ export class BlastRadiusV2 {
         if (visited.has(neighborId)) continue;
         visited.add(neighborId);
 
-        const node: BlastNode = {
-          id: neighborId,
-          label: neighbor['m.label'] || neighborId,
-          type: neighbor['m.type'] || 'unknown',
-          distance: current.depth + 1,
-          path: [...current.path, neighborId],
-        };
+        const node = this.toBlastNode(neighbor, current);
 
         if (current.depth === 0) {
           direct.push(node);
@@ -80,6 +74,29 @@ export class BlastRadiusV2 {
       }
     }
 
+    return this.toResult(nodeId, direct, transitive, riskPaths);
+  }
+
+  private toBlastNode(
+    neighbor: Record<string, string>,
+    current: { depth: number; path: string[] }
+  ): BlastNode {
+    const neighborId = neighbor['m.id'];
+    return {
+      id: neighborId,
+      label: neighbor['m.label'] || neighborId,
+      type: neighbor['m.type'] || 'unknown',
+      distance: current.depth + 1,
+      path: [...current.path, neighborId],
+    };
+  }
+
+  private toResult(
+    nodeId: string,
+    direct: BlastNode[],
+    transitive: BlastNode[],
+    riskPaths: string[][]
+  ): BlastRadiusResult {
     return {
       targetNode: nodeId,
       directDependencies: direct,

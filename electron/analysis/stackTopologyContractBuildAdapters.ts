@@ -140,74 +140,43 @@ const extractGrpcRuntimeSymbols = (text: string, serviceName: string) =>
     ])
   );
 
-const extractOpenApiRuntimeSymbols = (filePath: string, text: string) => {
-  const extension = path.posix.extname(filePath).toLowerCase();
+type SymbolExtractor = (text: string) => string[];
 
-  switch (extension) {
-    case '.ts':
-    case '.tsx':
-    case '.js':
-    case '.jsx':
-      return extractNamedJsTsSymbols(text);
-    case '.py':
-      return Array.from(
-        new Set([
-          ...extractFastApiRouteFunctions(text),
-          ...extractPythonFunctionNames(text),
-          ...inferClassSymbolsForFile(text),
-        ])
-      );
-    case '.java':
-      return Array.from(
-        new Set([
-          ...extractSpringRouteMethods(text),
-          ...extractMicronautRouteMethods(text),
-          ...extractJakartaRouteMethods(text),
-          ...extractJvmFunctionNames(text),
-          ...inferClassSymbolsForFile(text),
-        ])
-      );
-    case '.kt':
-      return Array.from(
-        new Set([
-          ...extractKtorRouteFunctions(text),
-          ...extractMicronautRouteMethods(text),
-          ...extractJakartaRouteMethods(text),
-          ...extractJvmFunctionNames(text),
-          ...inferClassSymbolsForFile(text),
-        ])
-      );
-    case '.cs':
-      return Array.from(
-        new Set([
-          ...extractAspNetRouteMethods(text),
-          ...extractCSharpMethodNames(text),
-          ...inferClassSymbolsForFile(text),
-        ])
-      );
-    case '.go':
-      return Array.from(
-        new Set([...extractGoRouteHandlers(text), ...extractGoFunctionNames(text)])
-      );
-    case '.rb':
-      return Array.from(
-        new Set([...extractRubyMethodNames(text), ...inferClassSymbolsForFile(text)])
-      );
-    case '.php':
-      return Array.from(
-        new Set([...extractPhpMethodNames(text), ...inferClassSymbolsForFile(text)])
-      );
-    case '.rs':
-      return Array.from(
-        new Set([
-          ...extractAxumHandlerNames(text),
-          ...extractActixHandlerNames(text),
-          ...extractRustFunctionNames(text),
-        ])
-      );
-    default:
-      return inferSymbolsForFile(filePath, text);
-  }
+const uniqueFrom = (...extractors: SymbolExtractor[]): SymbolExtractor => {
+  return (text) => Array.from(new Set(extractors.flatMap((extract) => extract(text))));
+};
+
+const JVM_ROUTE_SYMBOLS = [
+  extractMicronautRouteMethods,
+  extractJakartaRouteMethods,
+  extractJvmFunctionNames,
+  inferClassSymbolsForFile,
+];
+
+const RUNTIME_SYMBOL_EXTRACTORS = new Map<string, SymbolExtractor>([
+  ...['.ts', '.tsx', '.js', '.jsx'].map((ext): [string, SymbolExtractor] => [
+    ext,
+    extractNamedJsTsSymbols,
+  ]),
+  [
+    '.py',
+    uniqueFrom(extractFastApiRouteFunctions, extractPythonFunctionNames, inferClassSymbolsForFile),
+  ],
+  ['.java', uniqueFrom(extractSpringRouteMethods, ...JVM_ROUTE_SYMBOLS)],
+  ['.kt', uniqueFrom(extractKtorRouteFunctions, ...JVM_ROUTE_SYMBOLS)],
+  [
+    '.cs',
+    uniqueFrom(extractAspNetRouteMethods, extractCSharpMethodNames, inferClassSymbolsForFile),
+  ],
+  ['.go', uniqueFrom(extractGoRouteHandlers, extractGoFunctionNames)],
+  ['.rb', uniqueFrom(extractRubyMethodNames, inferClassSymbolsForFile)],
+  ['.php', uniqueFrom(extractPhpMethodNames, inferClassSymbolsForFile)],
+  ['.rs', uniqueFrom(extractAxumHandlerNames, extractActixHandlerNames, extractRustFunctionNames)],
+]);
+
+const extractOpenApiRuntimeSymbols = (filePath: string, text: string) => {
+  const extractor = RUNTIME_SYMBOL_EXTRACTORS.get(path.posix.extname(filePath).toLowerCase());
+  return extractor ? extractor(text) : inferSymbolsForFile(filePath, text);
 };
 
 const matchesProtoRuntimeEntry = (text: string, serviceName: string) =>
