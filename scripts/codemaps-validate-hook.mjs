@@ -204,6 +204,31 @@ const log = (message) => {
   if (process.env.CODEMAPS_HOOK_DEBUG === '1') process.stderr.write(`[codemaps-hook] ${message}\n`);
 };
 
+/** The project CodeMaps has open, and whether CodeMaps is running at all. */
+const fetchProjectRoot = async (endpoint) => {
+  try {
+    const status = await (
+      await fetch(`${endpoint}/status`, { signal: AbortSignal.timeout(1500) })
+    ).json();
+    return { running: true, projectRoot: status.projectRoot };
+  } catch {
+    return { running: false, projectRoot: null };
+  }
+};
+
+/** The validation result for one file, or null when the call failed. */
+const validateFile = async (endpoint, absoluteFile) => {
+  try {
+    return await callTool(endpoint, 'validate_architecture_changes', {
+      changedFiles: [absoluteFile],
+      scope: 'changed',
+    });
+  } catch (error) {
+    log(`validation failed: ${error.message}`);
+    return null;
+  }
+};
+
 export const run = async (rawInput, env = process.env) => {
   if (env.CODEMAPS_HOOK_DISABLED === '1') return { exitCode: 0 };
 
@@ -215,13 +240,8 @@ export const run = async (rawInput, env = process.env) => {
   }
 
   const endpoint = env.CODEMAPS_MCP_URL ?? 'http://127.0.0.1:3005/mcp';
-  let projectRoot = null;
-  try {
-    const status = await (
-      await fetch(`${endpoint}/status`, { signal: AbortSignal.timeout(1500) })
-    ).json();
-    projectRoot = status.projectRoot;
-  } catch {
+  const { running, projectRoot } = await fetchProjectRoot(endpoint);
+  if (!running) {
     log('CodeMaps is not running');
     return { exitCode: 0 };
   }
@@ -236,28 +256,12 @@ export const run = async (rawInput, env = process.env) => {
 
   await sleep(Number(env.CODEMAPS_HOOK_SETTLE_MS ?? 1200));
 
-  let validation;
-  try {
-    validation = await callTool(endpoint, 'validate_architecture_changes', {
-      changedFiles: [absoluteFile],
-      scope: 'changed',
-    });
-  } catch (error) {
-    log(`validation failed: ${error.message}`);
-    return { exitCode: 0 };
-  }
+  const validation = await validateFile(endpoint, absoluteFile);
+  if (validation === null) return { exitCode: 0 };
 
   const report = buildReport(validation, projectRoot, absoluteFile);
-  if (
-    !report ||
-    isRepeat(
-      stateFileFor(projectRoot, env.CODEMAPS_HOOK_STATE_DIR || os.tmpdir()),
-      absoluteFile,
-      report
-    )
-  ) {
-    return { exitCode: 0 };
-  }
+  const stateFile = stateFileFor(projectRoot, env.CODEMAPS_HOOK_STATE_DIR || os.tmpdir());
+  if (!report || isRepeat(stateFile, absoluteFile, report)) return { exitCode: 0 };
   // Exit code 2 on PostToolUse feeds stderr back to Claude.
   return { exitCode: 2, stderr: report };
 };

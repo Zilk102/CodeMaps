@@ -28,24 +28,20 @@ export const scoreNodeMatch = (node: GraphNode, normalizedQuery: string) => {
   const basename = structuralId.split('/').pop() || structuralId;
   const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
   const structuralLabel = normalizedLabel.replace(/\.[^.]+$/u, '');
-  let score = 0;
-
-  if (normalizedLabel === normalizedQuery) score += 140;
-  if (basename === normalizedQuery) score += 180;
-  if (basenameWithoutExtension === normalizedQuery) score += 220;
-  if (structuralLabel === normalizedQuery) score += 160;
-  if (
-    normalizedId.endsWith(`/${normalizedQuery}`) ||
-    normalizedId.endsWith(`/${normalizedQuery}.ts`) ||
-    normalizedId.endsWith(`/${normalizedQuery}.tsx`)
-  ) {
-    score += 160;
-  }
-  if (normalizedLabel.startsWith(normalizedQuery)) score += 60;
-  if (basename.startsWith(normalizedQuery)) score += 80;
-  if (basenameWithoutExtension.startsWith(normalizedQuery)) score += 100;
-  if (normalizedLabel.includes(normalizedQuery)) score += 25;
-  if (normalizedId.includes(`/${normalizedQuery}`)) score += 20;
+  const q = normalizedQuery;
+  const matches: Array<[boolean, number]> = [
+    [normalizedLabel === q, 140],
+    [basename === q, 180],
+    [basenameWithoutExtension === q, 220],
+    [structuralLabel === q, 160],
+    [[`/${q}`, `/${q}.ts`, `/${q}.tsx`].some((suffix) => normalizedId.endsWith(suffix)), 160],
+    [normalizedLabel.startsWith(q), 60],
+    [basename.startsWith(q), 80],
+    [basenameWithoutExtension.startsWith(q), 100],
+    [normalizedLabel.includes(q), 25],
+    [normalizedId.includes(`/${q}`), 20],
+  ];
+  let score = matches.reduce((sum, [matched, weight]) => sum + (matched ? weight : 0), 0);
 
   score += getNodeTypePriority(node.type) * 10;
   if (NORMALIZED_CODE_NODE_TYPES.includes(node.type)) {

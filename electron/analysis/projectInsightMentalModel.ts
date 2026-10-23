@@ -153,30 +153,35 @@ function scoreEntryPoint(
   return score;
 }
 
+const LAYER_WORKFLOWS: Array<{ from: ArchitectureLayer; to: ArchitectureLayer; text: string }> = [
+  {
+    from: 'presentation',
+    to: 'state',
+    text: 'UI -> state: User actions pass through presentation and are stored in the state layer.',
+  },
+  {
+    from: 'integration',
+    to: 'application',
+    text: 'Integration -> application: Input adapters and MCP/entrypoints coordinate backend orchestration.',
+  },
+  {
+    from: 'application',
+    to: 'parsing',
+    text: 'Application -> parsing: Orchestration layer triggers language parsing and project indexing.',
+  },
+  {
+    from: 'analysis',
+    to: 'state',
+    text: 'Analysis -> state: Analytics services rely on the normalized graph and store representation.',
+  },
+];
+
 function buildLikelyWorkflows(architecture: ArchitectureOverview, graph: GraphData) {
   const layers = new Set(architecture.layers.map((entry) => entry.layer));
-  const workflows: string[] = [];
+  const workflows: string[] = LAYER_WORKFLOWS.filter(
+    ({ from, to }) => layers.has(from) && layers.has(to)
+  ).map(({ text }) => text);
 
-  if (layers.has('presentation') && layers.has('state')) {
-    workflows.push(
-      'UI -> state: User actions pass through presentation and are stored in the state layer.'
-    );
-  }
-  if (layers.has('integration') && layers.has('application')) {
-    workflows.push(
-      'Integration -> application: Input adapters and MCP/entrypoints coordinate backend orchestration.'
-    );
-  }
-  if (layers.has('application') && layers.has('parsing')) {
-    workflows.push(
-      'Application -> parsing: Orchestration layer triggers language parsing and project indexing.'
-    );
-  }
-  if (layers.has('analysis') && layers.has('state')) {
-    workflows.push(
-      'Analysis -> state: Analytics services rely on the normalized graph and store representation.'
-    );
-  }
   if (graph.links.some((link) => isDiRuntimeLink(link))) {
     workflows.push(
       'Runtime DI contracts: Composition roots wire providers/services to concrete implementations beyond plain import dependencies.'
@@ -187,7 +192,6 @@ function buildLikelyWorkflows(architecture: ArchitectureOverview, graph: GraphDa
       'API contract -> generated/runtime: OpenAPI and protobuf schemas bind to generated clients, handlers, and servers beyond plain import edges.'
     );
   }
-
   if (workflows.length === 0) {
     workflows.push(
       'Explicit system workflows are partially recognized; consider expanding the entry points and runtime flow model.'

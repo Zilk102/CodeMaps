@@ -71,6 +71,20 @@ export const getArchitectureViolationReason = (
   return rule ? rule.reason : null;
 };
 
+/** Unique structural source->target pairs of the architectural dependency links. */
+const collectDependencyEdges = (graph: GraphData) => {
+  const edges = new Map<string, { sourceId: string; targetId: string }>();
+  for (const link of graph.links) {
+    if (!isArchitecturalDependencyLink(link)) continue;
+    const sourceId = toStructuralNodeId(link.source);
+    const targetId = toStructuralNodeId(link.target);
+    if (!sourceId || !targetId || sourceId === targetId) continue;
+    const dedupeKey = `${sourceId}->${targetId}`;
+    if (!edges.has(dedupeKey)) edges.set(dedupeKey, { sourceId, targetId });
+  }
+  return edges;
+};
+
 export const summarizeArchitectureDependencies = (
   graph: GraphData,
   layerByNodeId: Map<string, ArchitectureLayer>
@@ -79,24 +93,7 @@ export const summarizeArchitectureDependencies = (
   violations: ArchitectureViolation[];
 } => {
   const dependencyCounts = new Map<string, number>();
-  const dedupedDependencyEdges = new Map<string, { sourceId: string; targetId: string }>();
-
-  for (const link of graph.links) {
-    if (!isArchitecturalDependencyLink(link)) {
-      continue;
-    }
-
-    const sourceId = toStructuralNodeId(link.source);
-    const targetId = toStructuralNodeId(link.target);
-    if (!sourceId || !targetId || sourceId === targetId) {
-      continue;
-    }
-
-    const dedupeKey = `${sourceId}->${targetId}`;
-    if (!dedupedDependencyEdges.has(dedupeKey)) {
-      dedupedDependencyEdges.set(dedupeKey, { sourceId, targetId });
-    }
-  }
+  const dedupedDependencyEdges = collectDependencyEdges(graph);
 
   const violations: ArchitectureViolation[] = [];
 

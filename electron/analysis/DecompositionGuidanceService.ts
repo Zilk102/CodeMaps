@@ -126,30 +126,32 @@ function buildClassCandidates(metric: ModuleQualityMetric): DecompositionCandida
   }));
 }
 
-function buildMethodCandidates(metric: ModuleQualityMetric): DecompositionCandidate[] {
+const mergeMethodMetrics = (
+  existing: SourceFunctionMetric,
+  item: SourceFunctionMetric
+): SourceFunctionMetric => ({
+  ...existing,
+  lineCount: Math.max(existing.lineCount, item.lineCount),
+  startLine: existing.startLine || item.startLine,
+  endLine: Math.max(existing.endLine, item.endLine),
+  complexity: Math.max(existing.complexity, item.complexity),
+  branchCount: Math.max(existing.branchCount, item.branchCount),
+  maxNesting: Math.max(existing.maxNesting, item.maxNesting),
+});
+
+/** Long and complex methods of one module, a method that is both counted once. */
+const collectMethodsByName = (metric: ModuleQualityMetric) => {
   const byName = new Map<string, SourceFunctionMetric>();
-  for (const item of metric.sourceMetrics.longMethods) {
-    byName.set(item.name, item);
-  }
+  for (const item of metric.sourceMetrics.longMethods) byName.set(item.name, item);
   for (const item of metric.sourceMetrics.complexMethods) {
     const existing = byName.get(item.name);
-    if (!existing) {
-      byName.set(item.name, item);
-      continue;
-    }
-
-    byName.set(item.name, {
-      ...existing,
-      lineCount: Math.max(existing.lineCount, item.lineCount),
-      startLine: existing.startLine || item.startLine,
-      endLine: Math.max(existing.endLine, item.endLine),
-      complexity: Math.max(existing.complexity, item.complexity),
-      branchCount: Math.max(existing.branchCount, item.branchCount),
-      maxNesting: Math.max(existing.maxNesting, item.maxNesting),
-    });
+    byName.set(item.name, existing ? mergeMethodMetrics(existing, item) : item);
   }
+  return byName;
+};
 
-  return Array.from(byName.values()).map((item) => ({
+function buildMethodCandidates(metric: ModuleQualityMetric): DecompositionCandidate[] {
+  return Array.from(collectMethodsByName(metric).values()).map((item) => ({
     fileNodeId: metric.node.id,
     targetNodeId: `${metric.node.id}#${item.name}`,
     targetType: 'method' as const,
