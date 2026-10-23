@@ -90,45 +90,83 @@ const beanBindingLinks = (
     );
   });
 
-export const springBootAdapter = defineFrameworkAdapter({
+interface LayeredJvmSpec {
+  id: string;
+  displayName: string;
+  stackId: string;
+  /** Prefix of the relationship reasons, e.g. `springboot` -> `springboot_entry_controller`. */
+  prefix: string;
+  /** What the summary calls the entry files. */
+  entryLabel: string;
+  entry: RegExp;
+  controllers: RegExp;
+  services: RegExp;
+  routeMethods: (text: string) => string[];
+  /** Spring links the entry class to the controllers it scans; Micronaut links the file. */
+  entryKind: 'file' | 'class';
+  /** Extra links found from the application classes and the service symbols. */
+  extraLinks?: (
+    sources: AdapterSources,
+    applications: string[],
+    serviceSymbols: Map<string, string>
+  ) => ReturnType<typeof referenceLinks>;
+}
+
+/** Entry class -> controllers -> services -> repositories, as in Spring Boot and Micronaut. */
+const defineLayeredJvmAdapter = (spec: LayeredJvmSpec) =>
+  defineFrameworkAdapter({
+    id: spec.id,
+    displayName: spec.displayName,
+    stackId: spec.stackId,
+    extensions: JVM_SOURCES,
+    describe: (sources) => {
+      const { context, entries } = sources;
+      const entryFiles = filesMatching(entries, spec.entry);
+      const controllers = filesMatching(entries, spec.controllers);
+      const services = filesMatching(entries, spec.services);
+      const repositories = filesMatching(entries, /@Repository\b/);
+      const configs = configFilesNamed(context, SPRING_STYLE_CONFIG_FILES);
+      const layers = layeredLinks(sources, { controllers, services, repositories }, spec.prefix);
+
+      return {
+        summary: `Detected ${entryFiles.length} ${spec.entryLabel}, ${controllers.length} controllers, ${services.length} services, and ${repositories.length} repositories.`,
+        details: {
+          entryFiles,
+          configFiles: toRelativeList(context, configs),
+          components: controllers,
+          modules: [...services, ...repositories],
+          relationships: [
+            ...entryLinks(sources, entryFiles, controllers, `${spec.prefix}_entry_controller`, {
+              entry: spec.entryKind,
+              target: 'class',
+            }),
+            ...layers.links,
+            ...methodLinks(
+              sources,
+              controllers,
+              spec.routeMethods,
+              `${spec.prefix}_controller_method`
+            ),
+            ...(spec.extraLinks?.(sources, entryFiles, layers.serviceSymbols) ?? []),
+            ...configEntryLinks(sources, configs, entryFiles, `${spec.prefix}_config_entry`),
+          ],
+        },
+      };
+    },
+  });
+
+export const springBootAdapter = defineLayeredJvmAdapter({
   id: 'spring-boot-topology',
   displayName: 'Spring Boot Topology',
   stackId: 'spring-boot',
-  extensions: JVM_SOURCES,
-  describe: (sources) => {
-    const { context, entries } = sources;
-    const applications = filesMatching(entries, /@SpringBootApplication\b/);
-    const controllers = filesMatching(entries, /@(RestController|Controller)\b/);
-    const services = filesMatching(entries, /@Service\b/);
-    const repositories = filesMatching(entries, /@Repository\b/);
-    const configs = configFilesNamed(context, SPRING_STYLE_CONFIG_FILES);
-    const layers = layeredLinks(sources, { controllers, services, repositories }, 'springboot');
-
-    return {
-      summary: `Detected ${applications.length} application entrypoints, ${controllers.length} controllers, ${services.length} services, and ${repositories.length} repositories.`,
-      details: {
-        entryFiles: applications,
-        configFiles: toRelativeList(context, configs),
-        components: controllers,
-        modules: [...services, ...repositories],
-        relationships: [
-          ...entryLinks(sources, applications, controllers, 'springboot_entry_controller', {
-            entry: 'class',
-            target: 'class',
-          }),
-          ...layers.links,
-          ...methodLinks(
-            sources,
-            controllers,
-            extractSpringRouteMethods,
-            'springboot_controller_method'
-          ),
-          ...beanBindingLinks(sources, applications, layers.serviceSymbols),
-          ...configEntryLinks(sources, configs, applications, 'springboot_config_entry'),
-        ],
-      },
-    };
-  },
+  prefix: 'springboot',
+  entryLabel: 'application entrypoints',
+  entry: /@SpringBootApplication\b/,
+  controllers: /@(RestController|Controller)\b/,
+  services: /@Service\b/,
+  routeMethods: extractSpringRouteMethods,
+  entryKind: 'class',
+  extraLinks: beanBindingLinks,
 });
 
 export const ktorAdapter = defineFrameworkAdapter({
@@ -176,43 +214,17 @@ export const ktorAdapter = defineFrameworkAdapter({
   },
 });
 
-export const micronautAdapter = defineFrameworkAdapter({
+export const micronautAdapter = defineLayeredJvmAdapter({
   id: 'micronaut-topology',
   displayName: 'Micronaut Topology',
   stackId: 'micronaut',
-  extensions: JVM_SOURCES,
-  describe: (sources) => {
-    const { context, entries } = sources;
-    const entryFiles = filesMatching(entries, /\bMicronaut\.run\s*\(/);
-    const controllers = filesMatching(entries, /@Controller\b/);
-    const services = filesMatching(entries, /@(Singleton|Service)\b/);
-    const repositories = filesMatching(entries, /@Repository\b/);
-    const configFiles = configFilesNamed(context, SPRING_STYLE_CONFIG_FILES);
-    const layers = layeredLinks(sources, { controllers, services, repositories }, 'micronaut');
-
-    return {
-      summary: `Detected ${entryFiles.length} Micronaut entry files, ${controllers.length} controllers, ${services.length} services, and ${repositories.length} repositories.`,
-      details: {
-        entryFiles,
-        configFiles: toRelativeList(context, configFiles),
-        components: controllers,
-        modules: [...services, ...repositories],
-        relationships: [
-          ...entryLinks(sources, entryFiles, controllers, 'micronaut_entry_controller', {
-            target: 'class',
-          }),
-          ...layers.links,
-          ...methodLinks(
-            sources,
-            controllers,
-            extractMicronautRouteMethods,
-            'micronaut_controller_method'
-          ),
-          ...configEntryLinks(sources, configFiles, entryFiles, 'micronaut_config_entry'),
-        ],
-      },
-    };
-  },
+  prefix: 'micronaut',
+  entryLabel: 'Micronaut entry files',
+  entry: /\bMicronaut\.run\s*\(/,
+  controllers: /@Controller\b/,
+  services: /@(Singleton|Service)\b/,
+  routeMethods: extractMicronautRouteMethods,
+  entryKind: 'file',
 });
 
 export const quarkusAdapter = defineFrameworkAdapter({

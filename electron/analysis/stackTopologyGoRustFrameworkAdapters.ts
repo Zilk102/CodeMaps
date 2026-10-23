@@ -74,73 +74,64 @@ const createRouterAdapter = (options: RouterAdapterOptions) =>
     },
   });
 
+/** `.GET(path, handler)`-style route registration for the given verb names. */
+const goRoutePattern = (verbs: string) =>
+  new RegExp(String.raw`\.(?:${verbs})\s*\([^,]+,\s*[A-Za-z_][A-Za-z0-9_]*\s*\)`);
+
 interface GoWebOptions {
+  /** Lower-case stack id, which also names the adapter and its relationship reasons. */
   stackId: string;
-  adapterId: string;
   displayName: string;
   entryPattern: RegExp;
-  routePattern: RegExp;
-  entryReason: string;
-  handlerReason: string;
-  configReason: string;
+  /** The verb names the framework registers routes with, e.g. `GET|POST`. */
+  routeVerbs: string;
 }
 
 const createGoWebAdapter = (options: GoWebOptions) =>
   createRouterAdapter({
-    ...options,
+    stackId: options.stackId,
+    adapterId: `${options.stackId}-topology`,
+    displayName: options.displayName,
     label: options.displayName,
     extensions: /\.go$/i,
     manifest: 'go.mod',
+    entryPattern: options.entryPattern,
+    routePattern: goRoutePattern(options.routeVerbs),
     extractHandlers: extractGoRouteHandlers,
     extractFunctionNames: extractGoFunctionNames,
+    entryReason: `${options.stackId}_entry_router`,
+    handlerReason: `${options.stackId}_router_handler`,
+    configReason: `gomod_${options.stackId}_entry`,
   });
+
+const UPPERCASE_VERBS = 'GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Any';
 
 const ginAdapter = createGoWebAdapter({
   stackId: 'gin',
-  adapterId: 'gin-topology',
   displayName: 'Gin Topology',
   entryPattern: /\bgin\.(?:Default|New)\s*\(/,
-  routePattern:
-    /\.(?:GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Any)\s*\([^,]+,\s*[A-Za-z_][A-Za-z0-9_]*\s*\)/,
-  entryReason: 'gin_entry_router',
-  handlerReason: 'gin_router_handler',
-  configReason: 'gomod_gin_entry',
+  routeVerbs: UPPERCASE_VERBS,
 });
 
 const fiberAdapter = createGoWebAdapter({
   stackId: 'fiber',
-  adapterId: 'fiber-topology',
   displayName: 'Fiber Topology',
   entryPattern: /\bfiber\.New\s*\(/,
-  routePattern:
-    /\.(?:Get|Post|Put|Patch|Delete|Options|Head|All)\s*\([^,]+,\s*[A-Za-z_][A-Za-z0-9_]*\s*\)/,
-  entryReason: 'fiber_entry_router',
-  handlerReason: 'fiber_router_handler',
-  configReason: 'gomod_fiber_entry',
+  routeVerbs: 'Get|Post|Put|Patch|Delete|Options|Head|All',
 });
 
 const echoAdapter = createGoWebAdapter({
   stackId: 'echo',
-  adapterId: 'echo-topology',
   displayName: 'Echo Topology',
   entryPattern: /\becho\.New\s*\(/,
-  routePattern:
-    /\.(?:GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Any)\s*\([^,]+,\s*[A-Za-z_][A-Za-z0-9_]*\s*\)/,
-  entryReason: 'echo_entry_router',
-  handlerReason: 'echo_router_handler',
-  configReason: 'gomod_echo_entry',
+  routeVerbs: UPPERCASE_VERBS,
 });
 
 const chiAdapter = createGoWebAdapter({
   stackId: 'chi',
-  adapterId: 'chi-topology',
   displayName: 'Chi Topology',
   entryPattern: /\bchi\.NewRouter\s*\(/,
-  routePattern:
-    /\.(?:Get|Post|Put|Patch|Delete|Method|Handle|Mount)\s*\([^,]+,\s*[A-Za-z_][A-Za-z0-9_]*\s*\)/,
-  entryReason: 'chi_entry_router',
-  handlerReason: 'chi_router_handler',
-  configReason: 'gomod_chi_entry',
+  routeVerbs: 'Get|Post|Put|Patch|Delete|Method|Handle|Mount',
 });
 
 const grpcGoAdapter = defineFrameworkAdapter({

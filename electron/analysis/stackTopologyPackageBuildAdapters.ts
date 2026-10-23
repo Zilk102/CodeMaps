@@ -1,28 +1,37 @@
 import * as path from 'path';
 import {
-  createInsight,
   createRelationship,
-  StackAdapter,
+  FileContentEntry,
   StackAdapterContext,
   StackStructuralRelationship,
   toRelativeList,
 } from './stackTopologySupport';
+import { defineAdapter, readRelativeEntries } from './stackTopologyAdapterKit';
 
-export const mavenAdapter: StackAdapter = {
+/** Collects the links an adapter finds: each one is a relationship and a module of the build. */
+const createLinkCollector = () => {
+  const modules: string[] = [];
+  const relationships: StackStructuralRelationship[] = [];
+  return {
+    modules,
+    relationships,
+    link: (source: string, target: string, reason: string) => {
+      modules.push(target);
+      relationships.push(createRelationship(source, target, 'build', reason));
+    },
+  };
+};
+
+export const mavenAdapter = defineAdapter({
   id: 'maven-build-topology',
   displayName: 'Maven Build Topology',
   category: 'build',
-  supports: (context) => !!context.getDetectedStack('maven'),
-  analyze: async (context) => {
+  stackId: 'maven',
+  find: async (context) => {
     const pomFiles = context.findBySuffix('pom.xml');
-    const pomContents = await context.readTexts(pomFiles);
-    const relativeEntries = pomContents.map((entry) => ({
-      filePath: context.getProjectRelativePath(entry.filePath),
-      text: entry.text,
-    }));
+    const relativeEntries = await readRelativeEntries(context, pomFiles);
     const coordinatesToPom = new Map<string, string>();
-    const relationships: StackStructuralRelationship[] = [];
-    const modules: string[] = [];
+    const { modules, relationships, link } = createLinkCollector();
 
     for (const entry of relativeEntries) {
       const coordinates = extractMavenCoordinates(entry.text);
@@ -34,48 +43,32 @@ export const mavenAdapter: StackAdapter = {
     for (const entry of relativeEntries) {
       for (const moduleName of extractMavenModules(entry.text)) {
         const targetPom = toMavenPomPath(entry.filePath, moduleName);
-        if (!context.hasRelativePath(targetPom)) {
-          continue;
+        if (context.hasRelativePath(targetPom)) {
+          link(entry.filePath, targetPom, 'maven_module_descriptor');
         }
-        modules.push(targetPom);
-        relationships.push(
-          createRelationship(entry.filePath, targetPom, 'build', 'maven_module_descriptor')
-        );
       }
 
       for (const dependency of extractMavenDependencies(entry.text)) {
         const targetPom = coordinatesToPom.get(`${dependency.groupId}:${dependency.artifactId}`);
-        if (!targetPom || targetPom === entry.filePath) {
-          continue;
+        if (targetPom && targetPom !== entry.filePath) {
+          link(entry.filePath, targetPom, 'maven_module_dependency');
         }
-        modules.push(targetPom);
-        relationships.push(
-          createRelationship(entry.filePath, targetPom, 'build', 'maven_module_dependency')
-        );
       }
     }
 
-    return createInsight(
-      mavenAdapter.id,
-      mavenAdapter.displayName,
-      mavenAdapter.category,
-      `Detected ${pomFiles.length} Maven descriptors and ${relationships.length} reactor/module dependency relationships.`,
-      {
-        evidence: context.getDetectedStack('maven')?.evidence || [],
-        configFiles: toRelativeList(context, pomFiles),
-        modules,
-        relationships,
-      }
-    );
+    return {
+      summary: `Detected ${pomFiles.length} Maven descriptors and ${relationships.length} reactor/module dependency relationships.`,
+      details: { configFiles: toRelativeList(context, pomFiles), modules, relationships },
+    };
   },
-};
+});
 
-export const gradleBuildAdapter: StackAdapter = {
+export const gradleBuildAdapter = defineAdapter({
   id: 'gradle-build-topology',
   displayName: 'Gradle Build Topology',
   category: 'build',
-  supports: (context) => !!context.getDetectedStack('gradle'),
-  analyze: async (context) => {
+  stackId: 'gradle',
+  find: async (context) => {
     const buildFiles = context
       .getAllFilePaths()
       .filter((filePath) =>
@@ -83,16 +76,11 @@ export const gradleBuildAdapter: StackAdapter = {
           context.getProjectRelativePath(filePath)
         )
       );
-    const buildContents = await context.readTexts(buildFiles);
-    const relativeEntries = buildContents.map((entry) => ({
-      filePath: context.getProjectRelativePath(entry.filePath),
-      text: entry.text,
-    }));
+    const relativeEntries = await readRelativeEntries(context, buildFiles);
     const settingsEntries = relativeEntries.filter((entry) =>
       /(?:^|\/)settings\.gradle(?:\.kts)?$/i.test(entry.filePath)
     );
-    const relationships: StackStructuralRelationship[] = [];
-    const modules: string[] = [];
+    const { modules, relationships, link } = createLinkCollector();
 
     for (const settingsEntry of settingsEntries) {
       for (const includeNotation of extractGradleIncludes(settingsEntry.text)) {
@@ -101,18 +89,9 @@ export const gradleBuildAdapter: StackAdapter = {
           settingsEntry.filePath,
           includeNotation
         );
-        if (!targetDescriptor) {
-          continue;
+        if (targetDescriptor) {
+          link(settingsEntry.filePath, targetDescriptor, 'gradle_settings_module');
         }
-        modules.push(targetDescriptor);
-        relationships.push(
-          createRelationship(
-            settingsEntry.filePath,
-            targetDescriptor,
-            'build',
-            'gradle_settings_module'
-          )
-        );
       }
     }
 
@@ -126,31 +105,23 @@ export const gradleBuildAdapter: StackAdapter = {
               resolveGradleModuleDescriptor(context, settingsEntry.filePath, dependencyNotation)
             )
             .find((candidate): candidate is string => Boolean(candidate)) || null;
-        if (!targetDescriptor || targetDescriptor === entry.filePath) {
-          continue;
+        if (targetDescriptor && targetDescriptor !== entry.filePath) {
+          link(entry.filePath, targetDescriptor, 'gradle_project_dependency');
         }
-        modules.push(targetDescriptor);
-        relationships.push(
-          createRelationship(entry.filePath, targetDescriptor, 'build', 'gradle_project_dependency')
-        );
       }
     }
 
-    return createInsight(
-      gradleBuildAdapter.id,
-      gradleBuildAdapter.displayName,
-      gradleBuildAdapter.category,
-      `Detected ${buildFiles.length} Gradle descriptors and ${relationships.length} multi-module build relationships.`,
-      {
-        evidence: context.getDetectedStack('gradle')?.evidence || [],
+    return {
+      summary: `Detected ${buildFiles.length} Gradle descriptors and ${relationships.length} multi-module build relationships.`,
+      details: {
         configFiles: toRelativeList(context, buildFiles),
         entryFiles: settingsEntries.map((entry) => entry.filePath),
         modules,
         relationships,
-      }
-    );
+      },
+    };
   },
-};
+});
 
 const toCargoManifestPath = (sourceRelativePath: string, targetPath: string) => {
   const normalizedTarget = path.posix.normalize(
@@ -262,85 +233,64 @@ const resolveGradleModuleDescriptor = (
   return candidates.find((candidate) => context.hasRelativePath(candidate)) || null;
 };
 
-export const cargoBuildAdapter: StackAdapter = {
-  id: 'cargo-build-topology',
-  displayName: 'Cargo Build Topology',
-  category: 'build',
-  supports: (context) => !!context.getDetectedStack('cargo'),
-  analyze: async (context) => {
-    const cargoFiles = context.findBySuffix('Cargo.toml');
-    const contents = await context.readTexts(cargoFiles);
-    const relativeContentEntries = contents.map((entry) => ({
-      filePath: context.getProjectRelativePath(entry.filePath),
-      text: entry.text,
-    }));
-    const workspaceRoot = relativeContentEntries.find((entry) => /\[workspace\]/.test(entry.text));
-    const relationships: StackStructuralRelationship[] = [];
-    const modules: string[] = [];
-    const configFiles = toRelativeList(context, cargoFiles);
+/** Cargo links, in the order of the manifest: workspace members, path dependencies, bin targets. */
+const cargoLinks = (context: StackAdapterContext, entries: FileContentEntry[]) => {
+  const { modules, relationships, link } = createLinkCollector();
+  const linkIfPresent = (source: string, target: string, reason: string) => {
+    if (context.hasRelativePath(target)) link(source, target, reason);
+  };
 
-    for (const entry of relativeContentEntries) {
-      for (const member of extractCargoWorkspaceMembers(entry.text)) {
-        if (member.includes('*')) {
-          continue;
-        }
-        const targetManifest = toCargoManifestPath(entry.filePath, member);
-        if (!context.hasRelativePath(targetManifest)) {
-          continue;
-        }
-        modules.push(targetManifest);
-        relationships.push(
-          createRelationship(entry.filePath, targetManifest, 'build', 'cargo_workspace_member')
-        );
-      }
-
-      for (const dependencyPath of extractCargoPathDependencies(entry.text)) {
-        const targetManifest = toCargoManifestPath(entry.filePath, dependencyPath);
-        if (!context.hasRelativePath(targetManifest)) {
-          continue;
-        }
-        modules.push(targetManifest);
-        relationships.push(
-          createRelationship(entry.filePath, targetManifest, 'build', 'cargo_path_dependency')
-        );
-      }
-
-      for (const binPath of extractCargoBinPaths(entry.text)) {
-        const targetFile = path.posix.normalize(
-          path.posix.join(path.posix.dirname(entry.filePath), binPath)
-        );
-        if (!context.hasRelativePath(targetFile)) {
-          continue;
-        }
-        modules.push(targetFile);
-        relationships.push(
-          createRelationship(entry.filePath, targetFile, 'build', 'cargo_bin_target')
+  for (const entry of entries) {
+    for (const member of extractCargoWorkspaceMembers(entry.text)) {
+      if (!member.includes('*')) {
+        linkIfPresent(
+          entry.filePath,
+          toCargoManifestPath(entry.filePath, member),
+          'cargo_workspace_member'
         );
       }
     }
+    for (const dependencyPath of extractCargoPathDependencies(entry.text)) {
+      const manifest = toCargoManifestPath(entry.filePath, dependencyPath);
+      linkIfPresent(entry.filePath, manifest, 'cargo_path_dependency');
+    }
+    for (const binPath of extractCargoBinPaths(entry.text)) {
+      const binFile = path.posix.join(path.posix.dirname(entry.filePath), binPath);
+      linkIfPresent(entry.filePath, path.posix.normalize(binFile), 'cargo_bin_target');
+    }
+  }
+  return { modules, relationships };
+};
 
-    return createInsight(
-      cargoBuildAdapter.id,
-      cargoBuildAdapter.displayName,
-      cargoBuildAdapter.category,
-      `Detected ${cargoFiles.length} Cargo manifests and ${relationships.length} workspace/path/bin build relationships.`,
-      {
-        evidence: context.getDetectedStack('cargo')?.evidence || [],
-        configFiles,
+export const cargoBuildAdapter = defineAdapter({
+  id: 'cargo-build-topology',
+  displayName: 'Cargo Build Topology',
+  category: 'build',
+  stackId: 'cargo',
+  find: async (context) => {
+    const cargoFiles = context.findBySuffix('Cargo.toml');
+    const entries = await readRelativeEntries(context, cargoFiles);
+    const workspaceRoot = entries.find((entry) => /\[workspace\]/.test(entry.text));
+    const { modules, relationships } = cargoLinks(context, entries);
+
+    return {
+      summary: `Detected ${cargoFiles.length} Cargo manifests and ${relationships.length} workspace/path/bin build relationships.`,
+      details: {
+        configFiles: toRelativeList(context, cargoFiles),
         entryFiles: workspaceRoot ? [workspaceRoot.filePath] : [],
         modules,
         relationships,
-      }
-    );
+      },
+    };
   },
-};
+});
 
-export const dotnetAdapter: StackAdapter = {
+export const dotnetAdapter = defineAdapter({
   id: 'dotnet-build-topology',
   displayName: '.NET Build Topology',
   category: 'build',
-  supports: (context) => !!context.getDetectedStack('dotnet'),
-  analyze: async (context) => {
+  stackId: 'dotnet',
+  find: async (context) => {
     const projectFiles = context
       .getAllFilePaths()
       .filter((filePath) => /\.(csproj|fsproj|vbproj|sln)$/i.test(filePath));
@@ -353,30 +303,18 @@ export const dotnetAdapter: StackAdapter = {
       )
     );
 
-    return createInsight(
-      dotnetAdapter.id,
-      dotnetAdapter.displayName,
-      dotnetAdapter.category,
-      `Detected ${projectFiles.length} .NET project descriptors and ${projectReferences.length} explicit project references.`,
-      {
-        evidence: context.getDetectedStack('dotnet')?.evidence || [],
+    return {
+      summary: `Detected ${projectFiles.length} .NET project descriptors and ${projectReferences.length} explicit project references.`,
+      details: {
         configFiles: toRelativeList(context, projectFiles),
         modules: projectReferences,
-        relationships: projectReferences.reduce<StackStructuralRelationship[]>((acc, reference) => {
+        relationships: projectReferences.flatMap((reference) => {
           const [source, target] = reference.split(' -> ');
-          if (!source || !target) {
-            return acc;
-          }
-
-          acc.push({
-            source,
-            target,
-            type: 'build',
-            reason: 'dotnet_project_reference',
-          });
-          return acc;
-        }, []),
-      }
-    );
+          return source && target
+            ? [createRelationship(source, target, 'build', 'dotnet_project_reference')]
+            : [];
+        }),
+      },
+    };
   },
-};
+});
