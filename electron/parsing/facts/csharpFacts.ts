@@ -1,7 +1,15 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { allChildren, namedOf, walkNamed } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { addOwnedFunction, allChildren, namedOf } from './astUtils';
+import {
+  FactsAccumulator,
+  declareClassLike,
+  importHandler,
+  namespaceFacts,
+  walkWithHandlers,
+  type NamespaceState,
+  type NodeHandler,
+} from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const TYPE_DECLARATIONS = new Set([
@@ -18,10 +26,7 @@ const NAMESPACE_DECLARATIONS = new Set([
   'file_scoped_namespace_declaration',
 ]);
 
-interface CSharpState {
-  acc: FactsAccumulator;
-  namespaces: string[];
-}
+type CSharpState = NamespaceState;
 
 const stripGenerics = (value: string) => value.replace(/<.*>/s, '').replace(/^global::/, '');
 
@@ -74,6 +79,8 @@ const isDeclaredName = (node: Node): boolean =>
 
 const startsUppercase = (value: string) => /^[A-Z]/.test(value);
 
+const declareTypes = declareClassLike(TYPE_DECLARATIONS);
+
 const registerNamespace: NodeHandler<CSharpState> = (node, state) => {
   const name = fullNamespace(node);
   if (name && !state.namespaces.includes(name)) state.namespaces.push(name);
@@ -81,17 +88,11 @@ const registerNamespace: NodeHandler<CSharpState> = (node, state) => {
 };
 
 const HANDLERS: Record<string, NodeHandler<CSharpState>> = {
-  using_directive: (node, { acc }) => {
-    const record = readUsing(node);
-    if (record) acc.imports.push(record);
-    return false;
-  },
+  using_directive: importHandler(readUsing),
   namespace_declaration: registerNamespace,
   file_scoped_namespace_declaration: registerNamespace,
   method_declaration: (node, { acc }) => {
-    const name = node.childForFieldName('name');
-    const owner = enclosingTypeName(node);
-    if (name) acc.entities.add('function', owner ? `${owner}.${name.text}` : name.text, name);
+    addOwnedFunction(acc.entities, node, enclosingTypeName(node));
     return true;
   },
   qualified_name: (node, { acc }) => {
@@ -117,16 +118,8 @@ const HANDLERS: Record<string, NodeHandler<CSharpState>> = {
   },
 };
 
-const visitDeclaration: NodeHandler<CSharpState> = (node, { acc }) => {
-  if (TYPE_DECLARATIONS.has(node.type)) {
-    const name = node.childForFieldName('name');
-    if (name) acc.entities.add('class', name.text, name);
-  }
-  return true;
-};
-
 export const extractCSharpFacts = (root: Node): LanguageFactsWithDeclarations => {
-  const state: CSharpState = { acc: new FactsAccumulator(true), namespaces: [] };
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? visitDeclaration)(node, state));
-  return state.acc.toFacts({ packageName: state.namespaces[0], namespaces: state.namespaces });
+  const state: NamespaceState = { acc: new FactsAccumulator(true), namespaces: [] };
+  walkWithHandlers(root, state, HANDLERS, declareTypes);
+  return namespaceFacts(state);
 };

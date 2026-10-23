@@ -74,3 +74,14 @@ export class BoundedSet<T> {
     return [...this.values.values()];
   }
 }
+
+/** Declares a function named by the node's `name` field, qualified by its owner when it has one. */
+export const addOwnedFunction = (
+  entities: EntityCollector,
+  node: Node,
+  owner: string | undefined,
+  separator = '.'
+): void => {
+  const name = node.childForFieldName('name');
+  if (name) entities.add('function', owner ? `${owner}${separator}${name.text}` : name.text, name);
+};

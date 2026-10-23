@@ -1,6 +1,12 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord, QualifiedUse } from '../types';
-import { BoundedSet, EntityCollector, MAX_QUALIFIED_USES, MAX_USED_NAMES } from './astUtils';
+import {
+  BoundedSet,
+  EntityCollector,
+  MAX_QUALIFIED_USES,
+  MAX_USED_NAMES,
+  walkNamed,
+} from './astUtils';
 import type { LanguageFactsWithDeclarations } from './types';
 
 /** Shared state every AST-walking facts extractor fills in. */
@@ -37,3 +43,50 @@ export class FactsAccumulator {
 
 /** Handler return value follows `walkNamed`: false skips the node's subtree. */
 export type NodeHandler<State> = (node: Node, state: State) => boolean;
+
+/** Handler for a state that carries the accumulator. */
+type WithAccumulator = { acc: FactsAccumulator };
+
+/** Handler that records the imports `read` finds in a node and skips the node's subtree. */
+export const importsHandler =
+  (read: (node: Node) => ImportRecord[]): NodeHandler<WithAccumulator> =>
+  (node, { acc }) => {
+    acc.imports.push(...read(node));
+    return false;
+  };
+
+/** Like `importsHandler` for a node that holds at most one import. */
+export const importHandler = (read: (node: Node) => ImportRecord | null) =>
+  importsHandler((node) => {
+    const record = read(node);
+    return record ? [record] : [];
+  });
+
+/** Handler that declares a class-like entity for nodes of the given types and descends. */
+export const declareClassLike =
+  (types: ReadonlySet<string>): NodeHandler<WithAccumulator> =>
+  (node, { acc }) => {
+    if (types.has(node.type)) {
+      const name = node.childForFieldName('name');
+      if (name) acc.entities.add('class', name.text, name);
+    }
+    return true;
+  };
+
+/** Walks the tree, handing each node to its handler (or `fallback`) with the shared state. */
+export const walkWithHandlers = <S>(
+  root: Node,
+  state: S,
+  handlers: Record<string, NodeHandler<S>>,
+  fallback: NodeHandler<S>
+): void => walkNamed(root, (node) => (handlers[node.type] ?? fallback)(node, state));
+
+/** State of the languages whose files declare namespaces (C#, PHP). */
+export interface NamespaceState {
+  acc: FactsAccumulator;
+  namespaces: string[];
+}
+
+/** Facts of a namespaced file: the first namespace doubles as its package name. */
+export const namespaceFacts = ({ acc, namespaces }: NamespaceState) =>
+  acc.toFacts({ packageName: namespaces[0], namespaces });

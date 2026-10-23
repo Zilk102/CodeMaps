@@ -1,7 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { namedOf, walkNamed } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { FactsAccumulator, importHandler, type NodeHandler } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const TYPE_DECLARATIONS = new Set(['class_declaration', 'object_declaration']);
@@ -51,11 +51,7 @@ const HANDLERS: Record<string, NodeHandler<KotlinState>> = {
     state.packageName = childOfType(node, 'identifier')?.text;
     return false;
   },
-  import_header: (node, { acc }) => {
-    const record = readImport(node);
-    if (record) acc.imports.push(record);
-    return false;
-  },
+  import_header: importHandler(readImport),
   class_declaration: (node, { acc }) => declareType(node, acc),
   object_declaration: (node, { acc }) => declareType(node, acc),
   type_alias: (node, { acc }) => declareType(node, acc),

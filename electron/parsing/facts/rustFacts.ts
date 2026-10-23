@@ -1,42 +1,44 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { walkNamed, namedOf } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { addOwnedFunction, walkNamed, namedOf } from './astUtils';
+import { FactsAccumulator, declareClassLike, type NodeHandler } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const ITEM_TYPES = new Set(['struct_item', 'enum_item', 'union_item', 'trait_item', 'type_item']);
 
+type UseFlattener = (node: Node, prefix: string, out: ImportRecord[]) => void;
+
+const joinPath = (prefix: string, tail: string) => (prefix ? `${prefix}::${tail}` : tail);
+
+const USE_FLATTENERS: Record<string, UseFlattener> = {
+  scoped_use_list: (node, prefix, out) => {
+    const path = node.childForFieldName('path')?.text;
+    const list = node.childForFieldName('list');
+    const base = path ? joinPath(prefix, path) : prefix;
+    if (list) namedOf(list).forEach((child) => flattenUse(child, base, out));
+  },
+  use_list: (node, prefix, out) => {
+    namedOf(node).forEach((child) => flattenUse(child, prefix, out));
+  },
+  use_as_clause: (node, prefix, out) => {
+    const path = node.childForFieldName('path')?.text;
+    const alias = node.childForFieldName('alias')?.text;
+    if (path) out.push({ path: joinPath(prefix, path), importedEntities: [], alias });
+  },
+  use_wildcard: (node, prefix, out) => {
+    const path = namedOf(node)[0]?.text;
+    out.push({ path: path ? joinPath(prefix, path) : prefix, importedEntities: ['*'] });
+  },
+  self: (_node, prefix, out) => {
+    if (prefix) out.push({ path: prefix, importedEntities: [] });
+  },
+};
+
 /** Expands a `use` tree into one import per leaf: `a::{b, c::d}` -> a::b, a::c::d. */
-const flattenUse = (node: Node, prefix: string, out: ImportRecord[]): void => {
-  const join = (tail: string) => (prefix ? `${prefix}::${tail}` : tail);
-  switch (node.type) {
-    case 'scoped_use_list': {
-      const path = node.childForFieldName('path')?.text;
-      const list = node.childForFieldName('list');
-      const base = path ? join(path) : prefix;
-      if (list) namedOf(list).forEach((child) => flattenUse(child, base, out));
-      return;
-    }
-    case 'use_list':
-      namedOf(node).forEach((child) => flattenUse(child, prefix, out));
-      return;
-    case 'use_as_clause': {
-      const path = node.childForFieldName('path')?.text;
-      const alias = node.childForFieldName('alias')?.text;
-      if (path) out.push({ path: join(path), importedEntities: [], alias });
-      return;
-    }
-    case 'use_wildcard': {
-      const path = namedOf(node)[0]?.text;
-      out.push({ path: path ? join(path) : prefix, importedEntities: ['*'] });
-      return;
-    }
-    case 'self':
-      if (prefix) out.push({ path: prefix, importedEntities: [] });
-      return;
-    default:
-      out.push({ path: join(node.text), importedEntities: [] });
-  }
+const flattenUse: UseFlattener = (node, prefix, out) => {
+  const flatten = USE_FLATTENERS[node.type];
+  if (flatten) flatten(node, prefix, out);
+  else out.push({ path: joinPath(prefix, node.text), importedEntities: [] });
 };
 
 const implTypeName = (impl: Node): string | undefined => {
@@ -66,6 +68,8 @@ const identifierHandler: NodeHandler<RustState> = (node, { acc }) => {
   return false;
 };
 
+const declareItems = declareClassLike(ITEM_TYPES);
+
 const HANDLERS: Record<string, NodeHandler<RustState>> = {
   use_declaration: (node, { acc }) => {
     const argument = node.childForFieldName('argument');
@@ -82,10 +86,8 @@ const HANDLERS: Record<string, NodeHandler<RustState>> = {
     return true;
   },
   function_item: (node, { acc }) => {
-    const name = node.childForFieldName('name');
     // Impl members were registered with their type.
-    if (name && node.parent?.parent?.type !== 'impl_item')
-      acc.entities.add('function', name.text, name);
+    if (node.parent?.parent?.type !== 'impl_item') addOwnedFunction(acc.entities, node, undefined);
     return true;
   },
   scoped_identifier: (node, { acc }) => {
@@ -98,16 +100,8 @@ const HANDLERS: Record<string, NodeHandler<RustState>> = {
   type_identifier: identifierHandler,
 };
 
-const visitItem = (node: Node, { acc }: RustState): boolean => {
-  if (ITEM_TYPES.has(node.type)) {
-    const name = node.childForFieldName('name');
-    if (name) acc.entities.add('class', name.text, name);
-  }
-  return true;
-};
-
 export const extractRustFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: RustState = { acc: new FactsAccumulator(), moduleDeclarations: [] };
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? visitItem)(node, state));
+  walkNamed(root, (node) => (HANDLERS[node.type] ?? declareItems)(node, state));
   return state.acc.toFacts({ moduleDeclarations: state.moduleDeclarations });
 };

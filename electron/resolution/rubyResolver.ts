@@ -1,65 +1,51 @@
 import type { ImportRecord } from '../parsing/types';
 import {
+  bucketsBy,
   ancestorDirs,
   dirOf,
   entityTarget,
   joinPath,
-  nearestPath,
+  languageEdge,
+  nearestOther,
   normalizeSegments,
   pathSuffixes,
   type FileEntry,
-  type LanguageResolver,
-  type ProjectIndex,
   type ResolvedEdge,
 } from './types';
+import { IndexedResolver } from './IndexedResolver';
 
 const isConstant = (name: string) => /^[A-Z]/.test(name) && !name.includes('.');
 const withExtension = (spec: string) => (spec.endsWith('.rb') ? spec : `${spec}.rb`);
 
-const edge = (target: string, value: number, reason: string): ResolvedEdge => ({
-  target,
-  value,
-  reason: `ruby:${reason}`,
-});
+const edge = languageEdge('ruby');
 
-export class RubyResolver implements LanguageResolver {
-  readonly languageId = 'ruby';
-  private index!: ProjectIndex;
+interface RubyTables {
   /** constant -> the files that declare it (a class or module). */
-  private declarers = new Map<string, string[]>();
+  declarers: Map<string, string[]>;
   /** `lib/acme/user.rb`-style suffixes: files reachable through some `lib/` load path. */
-  private libFiles = new Map<string, string[]>();
+  libFiles: Map<string, string[]>;
+}
 
-  async prepare(index: ProjectIndex): Promise<void> {
-    this.index = index;
-    this.declarers = new Map();
-    this.libFiles = new Map();
-    for (const entry of index.files.values()) {
-      if (entry.language !== 'ruby') continue;
-      for (const name of index.entitiesByFile.get(entry.path) ?? []) {
-        if (!isConstant(name)) continue;
-        const bucket = this.declarers.get(name);
-        if (bucket) bucket.push(entry.path);
-        else this.declarers.set(name, [entry.path]);
-      }
-      for (const suffix of pathSuffixes(entry.path, index.root)) {
-        if (!suffix.startsWith('lib/')) continue;
-        const key = suffix.slice('lib/'.length);
-        const bucket = this.libFiles.get(key);
-        if (bucket) bucket.push(entry.path);
-        else this.libFiles.set(key, [entry.path]);
-      }
-    }
-  }
+export class RubyResolver extends IndexedResolver<RubyTables> {
+  readonly languageId = 'ruby';
 
-  private exists(path: string): boolean {
-    return this.index.files.has(path);
+  protected buildTables(files: FileEntry[]): RubyTables {
+    return {
+      declarers: bucketsBy(files, (entry) =>
+        [...(this.index.entitiesByFile.get(entry.path) ?? [])].filter(isConstant)
+      ),
+      libFiles: bucketsBy(files, (entry) =>
+        pathSuffixes(entry.path, this.index.root)
+          .filter((suffix) => suffix.startsWith('lib/'))
+          .map((suffix) => suffix.slice('lib/'.length))
+      ),
+    };
   }
 
   private resolveRelative(importer: string, spec: string, bases: string[]): string | null {
     for (const base of bases) {
       const candidate = normalizeSegments(joinPath(base, withExtension(spec)));
-      if (candidate !== importer && this.exists(candidate)) return candidate;
+      if (candidate !== importer && this.index.files.has(candidate)) return candidate;
     }
     return null;
   }
@@ -73,11 +59,10 @@ export class RubyResolver implements LanguageResolver {
     ]);
     const direct = this.resolveRelative(importer, spec, bases);
     if (direct) return direct;
-    const matches = (this.libFiles.get(file) ?? []).filter((path) => path !== importer);
-    return matches.length > 0 ? nearestPath(importer, matches) : null;
+    return nearestOther(importer, this.tables.libFiles.get(file));
   }
 
-  private resolveTarget(importer: string, record: ImportRecord): string | null {
+  protected resolveImport(importer: string, record: ImportRecord): string | null {
     const spec = record.path;
     if (record.kind === 'relative') return this.resolveRelative(importer, spec, [dirOf(importer)]);
     if (record.kind === 'load') {
@@ -97,29 +82,22 @@ export class RubyResolver implements LanguageResolver {
       .map((name) => edge(entityTarget(target, name), 2, 'require'));
   }
 
-  private requireEdges(file: FileEntry): ResolvedEdge[] {
-    return file.facts.imports.flatMap((record) => {
-      const target = this.resolveTarget(file.path, record);
-      return target ? [edge(target, 1, 'require'), ...this.constantEdges(file, target)] : [];
-    });
+  protected edgesToImport(file: FileEntry, target: string): ResolvedEdge[] {
+    return [edge(target, 1, 'require'), ...this.constantEdges(file, target)];
   }
 
   /**
    * Autoloaded code (Zeitwerk, Rails) is never required: a constant that exactly one file of the
    * project declares, and this file does not, can only mean that file's class.
    */
-  private autoloadEdges(file: FileEntry): ResolvedEdge[] {
+  protected inferredEdges(file: FileEntry): ResolvedEdge[] {
     const own = this.index.entitiesByFile.get(file.path) ?? new Set<string>();
     const edges: ResolvedEdge[] = [];
     for (const name of file.facts.usedNames) {
-      const files = this.declarers.get(name);
+      const files = this.tables.declarers.get(name);
       if (own.has(name) || files?.length !== 1) continue;
       edges.push(edge(entityTarget(files[0], name), 2, 'constant'));
     }
     return edges;
-  }
-
-  resolve(file: FileEntry): ResolvedEdge[] {
-    return [...this.requireEdges(file), ...this.autoloadEdges(file)];
   }
 }

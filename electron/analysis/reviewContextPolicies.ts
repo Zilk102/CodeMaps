@@ -3,6 +3,7 @@ import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
 import type { HealthScoreResult } from './HealthScoreAnalyzer';
 import { collectPatternNodeIds, isDesignSmellPattern } from './patternPolicies';
+import { applyStepRules, stepIfAny, stepWhen, type StepRule } from './stepRules';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
 import type { QualityBudget } from './QualityGovernanceService';
 import type { ReviewContextResult, ReviewPriority, ReviewTaskMode } from './ReviewContextService';
@@ -24,15 +25,14 @@ interface ReviewPriorityContext {
 type PriorityBuilder = (ctx: ReviewPriorityContext) => ReviewPriority | null;
 
 function securityPriority({ securityFindings }: ReviewPriorityContext): ReviewPriority | null {
-  if (!securityFindings.some((finding) => finding.severity === 'critical')) return null;
+  const critical = securityFindings.filter((finding) => finding.severity === 'critical');
+  if (critical.length === 0) return null;
   return createPriority({
     severity: 'critical',
     title: 'Security Findings',
     reason:
       'The project has critical security findings; they must be addressed before any architectural cosmetics.',
-    nodeIds: securityFindings
-      .filter((finding) => finding.severity === 'critical')
-      .map((finding) => finding.nodeId),
+    nodeIds: critical.map((finding) => finding.nodeId),
   });
 }
 
@@ -49,28 +49,34 @@ function architecturePriority({ architecture }: ReviewPriorityContext): ReviewPr
   });
 }
 
-function severePatternsPriority({ patterns }: ReviewPriorityContext): ReviewPriority | null {
-  const severePatterns = patterns.filter((pattern) => pattern.severity === 'high');
-  if (severePatterns.length === 0) return null;
-  return createPriority({
-    severity: 'high',
-    title: 'High-Severity Patterns',
-    reason:
-      'The graph contains hotspots and anti-pattern candidates that increase blast radius and churn risk.',
-    nodeIds: severePatterns.flatMap((pattern) => pattern.nodeIds),
-  });
+/** A priority built from the findings of one kind, or null when there are none. */
+function priorityFrom<T>(
+  findings: T[],
+  make: (found: T[]) => ReviewPriority
+): ReviewPriority | null {
+  return findings.length === 0 ? null : createPriority(make(findings));
 }
 
-function healthIssuesPriority({ health }: ReviewPriorityContext): ReviewPriority | null {
-  if (health.issues.length === 0) return null;
-  return createPriority({
+const severePatternsPriority: PriorityBuilder = ({ patterns }) =>
+  priorityFrom(
+    patterns.filter((pattern) => pattern.severity === 'high'),
+    (severe) => ({
+      severity: 'high',
+      title: 'High-Severity Patterns',
+      reason:
+        'The graph contains hotspots and anti-pattern candidates that increase blast radius and churn risk.',
+      nodeIds: severe.flatMap((pattern) => pattern.nodeIds),
+    })
+  );
+
+const healthIssuesPriority: PriorityBuilder = ({ health }) =>
+  priorityFrom(health.issues, () => ({
     severity: health.grade === 'F' || health.grade === 'D' ? 'high' : 'medium',
     title: 'Health Issues',
     reason:
       'Health score already signals structural degradation: the review must explicitly cover these issues.',
     nodeIds: [],
-  });
-}
+  }));
 
 function maintainabilityBudgetPriority({
   health,
@@ -95,38 +101,54 @@ function maintainabilityBudgetPriority({
   });
 }
 
-function stackAwarePriority({ graph, health }: ReviewPriorityContext): ReviewPriority | null {
-  if (health.summary.stackAwareLinks <= 0) return null;
-  return createPriority({
-    severity: health.summary.stackAwareLinks >= 12 ? 'high' : 'medium',
-    title: 'Stack-Aware Runtime Paths',
-    reason:
-      'Framework/build enrichment exposed runtime and assembly paths that should be reviewed together with direct imports.',
-    nodeIds: collectLinkedNodeIds(graph, isStackAwareLink),
-  });
+interface LinkPrioritySpec {
+  count: (summary: HealthScoreResult['summary']) => number;
+  highFrom: number;
+  title: string;
+  reason: string;
+  collect: (graph: GraphData) => string[];
 }
 
-function diRuntimePriority({ graph, health }: ReviewPriorityContext): ReviewPriority | null {
-  if (health.summary.diRuntimeLinks <= 0) return null;
-  return createPriority({
-    severity: health.summary.diRuntimeLinks >= 8 ? 'high' : 'medium',
-    title: 'DI Runtime Contracts',
-    reason:
-      'Provider bindings, bean factories, and service registrations define runtime wiring that may bypass plain import-based dependency intuition.',
-    nodeIds: collectLinkedNodeIds(graph, isDiRuntimeLink),
-  });
+/** A priority that exists while the health summary counts links of one kind, high from a threshold. */
+function linkPriority(spec: LinkPrioritySpec): PriorityBuilder {
+  return ({ graph, health }) => {
+    const count = spec.count(health.summary);
+    if (count <= 0) return null;
+    return createPriority({
+      severity: count >= spec.highFrom ? 'high' : 'medium',
+      title: spec.title,
+      reason: spec.reason,
+      nodeIds: spec.collect(graph),
+    });
+  };
 }
 
-function contractBindingPriority({ graph, health }: ReviewPriorityContext): ReviewPriority | null {
-  if (health.summary.contractSemanticLinks <= 0) return null;
-  return createPriority({
-    severity: health.summary.contractSemanticLinks >= 10 ? 'high' : 'medium',
-    title: 'Contract Runtime Bindings',
-    reason:
-      'OpenAPI/protobuf schemas, generated clients, and runtime handlers/servers are linked structurally, so contract changes should be reviewed beyond plain imports.',
-    nodeIds: collectStructuralLinkedNodeIds(graph, isContractSemanticLink),
-  });
-}
+const stackAwarePriority = linkPriority({
+  count: (summary) => summary.stackAwareLinks,
+  highFrom: 12,
+  title: 'Stack-Aware Runtime Paths',
+  reason:
+    'Framework/build enrichment exposed runtime and assembly paths that should be reviewed together with direct imports.',
+  collect: (graph) => collectLinkedNodeIds(graph, isStackAwareLink),
+});
+
+const diRuntimePriority = linkPriority({
+  count: (summary) => summary.diRuntimeLinks,
+  highFrom: 8,
+  title: 'DI Runtime Contracts',
+  reason:
+    'Provider bindings, bean factories, and service registrations define runtime wiring that may bypass plain import-based dependency intuition.',
+  collect: (graph) => collectLinkedNodeIds(graph, isDiRuntimeLink),
+});
+
+const contractBindingPriority = linkPriority({
+  count: (summary) => summary.contractSemanticLinks,
+  highFrom: 10,
+  title: 'Contract Runtime Bindings',
+  reason:
+    'OpenAPI/protobuf schemas, generated clients, and runtime handlers/servers are linked structurally, so contract changes should be reviewed beyond plain imports.',
+  collect: (graph) => collectStructuralLinkedNodeIds(graph, isContractSemanticLink),
+});
 
 function designSmellsPriority({ health, patterns }: ReviewPriorityContext): ReviewPriority | null {
   if (!hasDesignSmellSignals(health)) return null;
@@ -240,48 +262,53 @@ interface ReviewStepInput {
   decompositionGuidance: DecompositionGuidance;
 }
 
+type LinkCountKey = 'stackAwareLinks' | 'diRuntimeLinks' | 'contractSemanticLinks';
+
+/** Applies while the health summary counts links of the given kind. */
+const hasLinks = (key: LinkCountKey) => (input: ReviewStepInput) => input.health.summary[key] > 0;
+
 /** Applied in order; each rule yields a step, or null when it does not apply. */
-const REVIEW_STEP_RULES: Array<(input: ReviewStepInput) => string | null> = [
-  (i) =>
-    i.health.issues.length > 0
-      ? 'Cross-check health issues with the actual code and determine what is a real problem and what is heuristic noise.'
-      : null,
-  (i) =>
-    i.health.summary.stackAwareLinks > 0
-      ? 'Review framework/build dependency paths separately from plain imports to verify entrypoints, routes, modules, and build descriptors.'
-      : null,
-  (i) =>
-    i.health.summary.diRuntimeLinks > 0
-      ? 'Inspect DI runtime contracts separately from imports: verify provider tokens, bean factories, and service registrations against the actual concrete implementations.'
-      : null,
-  (i) =>
-    i.health.summary.contractSemanticLinks > 0
-      ? 'Inspect API contract bindings separately from imports: verify schema roots, generated modules, and runtime handlers/clients against the actual operation/service symbols.'
-      : null,
-  (i) =>
-    hasDesignSmellSignals(i.health)
-      ? 'Inspect design-smell hotspots separately: identify mixed responsibilities, god classes, long/complex methods, extraction boundaries, and files that should stop accumulating new stack-specific logic.'
-      : null,
-  (i) =>
-    i.decompositionGuidance.candidates.length > 0
-      ? 'Use structured decomposition candidates to review the exact classes and methods that should be extracted first, not just the surrounding files.'
-      : null,
-  (i) =>
-    hasRefreshPressure(i.health)
-      ? 'Inspect incremental refresh telemetry separately: verify watcher batching, runtime-priority rebuild paths, refresh latency, and whether operational pressure matches the reported degradation.'
-      : null,
-  (i) =>
-    i.architecture.summary.unknownNodes > 0
-      ? 'Refine layer classification rules for unknown nodes so the agent and review rely on a more accurate model.'
-      : null,
-  (i) =>
-    i.patterns.length === 0
-      ? 'No obvious structural patterns found; the review should focus on code contracts and runtime behavior.'
-      : null,
-  (i) =>
-    i.hasFocus
-      ? 'After a general overview, do a separate local review for the focus area and check its blast radius manually.'
-      : null,
+const REVIEW_STEP_RULES: Array<StepRule<ReviewStepInput>> = [
+  stepIfAny(
+    (i) => i.health.issues,
+    'Cross-check health issues with the actual code and determine what is a real problem and what is heuristic noise.'
+  ),
+  stepWhen(
+    hasLinks('stackAwareLinks'),
+    'Review framework/build dependency paths separately from plain imports to verify entrypoints, routes, modules, and build descriptors.'
+  ),
+  stepWhen(
+    hasLinks('diRuntimeLinks'),
+    'Inspect DI runtime contracts separately from imports: verify provider tokens, bean factories, and service registrations against the actual concrete implementations.'
+  ),
+  stepWhen(
+    hasLinks('contractSemanticLinks'),
+    'Inspect API contract bindings separately from imports: verify schema roots, generated modules, and runtime handlers/clients against the actual operation/service symbols.'
+  ),
+  stepWhen(
+    (i) => hasDesignSmellSignals(i.health),
+    'Inspect design-smell hotspots separately: identify mixed responsibilities, god classes, long/complex methods, extraction boundaries, and files that should stop accumulating new stack-specific logic.'
+  ),
+  stepIfAny(
+    (i) => i.decompositionGuidance.candidates,
+    'Use structured decomposition candidates to review the exact classes and methods that should be extracted first, not just the surrounding files.'
+  ),
+  stepWhen(
+    (i) => hasRefreshPressure(i.health),
+    'Inspect incremental refresh telemetry separately: verify watcher batching, runtime-priority rebuild paths, refresh latency, and whether operational pressure matches the reported degradation.'
+  ),
+  stepWhen(
+    (i) => i.architecture.summary.unknownNodes > 0,
+    'Refine layer classification rules for unknown nodes so the agent and review rely on a more accurate model.'
+  ),
+  stepWhen(
+    (i) => i.patterns.length === 0,
+    'No obvious structural patterns found; the review should focus on code contracts and runtime behavior.'
+  ),
+  stepWhen(
+    (i) => i.hasFocus,
+    'After a general overview, do a separate local review for the focus area and check its blast radius manually.'
+  ),
 ];
 
 export function buildReviewNextSteps(
@@ -302,7 +329,7 @@ export function buildReviewNextSteps(
   const nextSteps = [
     'Start the review with nodes that fell into top architecture violations and severe patterns.',
     'Check if high fan-in/high fan-out nodes hide excessive responsibility and incorrect module boundaries.',
-    ...REVIEW_STEP_RULES.map((rule) => rule(input)).filter((step): step is string => step !== null),
+    ...applyStepRules(REVIEW_STEP_RULES, input),
   ];
 
   if (securityFindings.length > 0) {

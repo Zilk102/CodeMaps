@@ -1,9 +1,8 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import ts from 'typescript';
 import type { Node } from 'web-tree-sitter';
 import { getLanguageByExtension } from '../../parsing/languageRegistry';
 import { getParserInstance, loadTreeSitterLanguage } from '../../parsing/treeSitterRuntime';
+import { readSourceText, TS_EXTENSIONS } from '../sourceText';
 
 /** A source file as a sequence of normalized tokens with the line each one starts on. */
 export interface TokenStream {
@@ -18,7 +17,6 @@ export interface TextTokenStream extends TokenStream {
 }
 
 const MAX_FILE_BYTES = 400_000;
-const TS_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts']);
 
 // Imports, package headers and comments are the same in every file; they are not duplication.
 const SKIPPED_NODE =
@@ -73,10 +71,9 @@ const createTemplateTracker = (scanner: ts.Scanner) => {
   };
 };
 
-const tokenizeTypeScript = (filePath: string, text: string): TextTokenStream => {
-  const isJsx = /\.[cm]?[jt]sx$/.test(filePath) || /\.[cm]?js$/.test(filePath);
-  const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, false);
-  const skipped = source.statements
+/** Source ranges of imports and re-exports, which are the same in every file. */
+const skippedRanges = (source: ts.SourceFile) =>
+  source.statements
     .filter(
       (statement) =>
         ts.isImportDeclaration(statement) ||
@@ -84,15 +81,19 @@ const tokenizeTypeScript = (filePath: string, text: string): TextTokenStream => 
     )
     .map((statement) => [statement.getStart(source), statement.getEnd()] as const);
 
+const isJsxFile = (filePath: string) =>
+  /\.[cm]?[jt]sx$/.test(filePath) || /\.[cm]?js$/.test(filePath);
+
+const tokenizeTypeScript = (filePath: string, text: string): TextTokenStream => {
+  const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, false);
+  const skipped = skippedRanges(source);
   const scanner = ts.createScanner(
     ts.ScriptTarget.Latest,
     true,
-    isJsx ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard,
+    isJsxFile(filePath) ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard,
     text
   );
-  const tokens: string[] = [];
-  const lines: number[] = [];
-  const texts: string[] = [];
+  const stream: TextTokenStream = { file: filePath, tokens: [], lines: [], texts: [] };
   const trackTemplates = createTemplateTracker(scanner);
   let skipIndex = 0;
   for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
@@ -102,11 +103,11 @@ const tokenizeTypeScript = (filePath: string, text: string): TextTokenStream => 
     if (skipIndex < skipped.length && start >= skipped[skipIndex][0]) continue;
     const normalized = normalizeTsToken(kind);
     if (!normalized) continue;
-    tokens.push(normalized);
-    lines.push(source.getLineAndCharacterOfPosition(start).line + 1);
-    texts.push(scanner.getTokenText());
+    stream.tokens.push(normalized);
+    stream.lines.push(source.getLineAndCharacterOfPosition(start).line + 1);
+    stream.texts.push(scanner.getTokenText());
   }
-  return { file: filePath, tokens, lines, texts };
+  return stream;
 };
 
 // ---- Tree-sitter languages --------------------------------------------------------------
@@ -120,35 +121,36 @@ const leafToken = (node: Node): string | null => {
   return /identifier|^name$/.test(node.type) ? 'ID' : node.type;
 };
 
-const tokenizeTree = (filePath: string, root: Node): TextTokenStream => {
-  const tokens: string[] = [];
-  const lines: number[] = [];
-  const texts: string[] = [];
+/** Children of a node in source order, pushed so the stack pops the first child first. */
+const pushChildrenReversed = (stack: Node[], node: Node): void => {
+  for (let index = node.childCount - 1; index >= 0; index -= 1) {
+    const child = node.child(index);
+    if (child) stack.push(child);
+  }
+};
 
+const tokenizeTree = (filePath: string, root: Node): TextTokenStream => {
+  const stream: TextTokenStream = { file: filePath, tokens: [], lines: [], texts: [] };
   const stack: Node[] = [root];
   while (stack.length > 0) {
     const node = stack.pop()!;
     if (SKIPPED_NODE.test(node.type)) continue;
     const token = leafToken(node);
-    if (token !== null) {
-      tokens.push(token);
-      lines.push(node.startPosition.row + 1);
-      texts.push(node.text);
+    if (token === null) {
+      pushChildrenReversed(stack, node);
       continue;
     }
-    for (let index = node.childCount - 1; index >= 0; index -= 1) {
-      const child = node.child(index);
-      if (child) stack.push(child);
-    }
+    stream.tokens.push(token);
+    stream.lines.push(node.startPosition.row + 1);
+    stream.texts.push(node.text);
   }
-  return { file: filePath, tokens, lines, texts };
+  return stream;
 };
 
 const tokenizeWithText = async (filePath: string): Promise<TextTokenStream | null> => {
-  const extension = path.extname(filePath).toLowerCase();
-  const stat = await fs.stat(filePath).catch(() => null);
-  if (!stat || stat.size > MAX_FILE_BYTES) return null;
-  const text = await fs.readFile(filePath, 'utf-8');
+  const source = await readSourceText(filePath, MAX_FILE_BYTES);
+  if (!source) return null;
+  const { extension, text } = source;
 
   if (TS_EXTENSIONS.has(extension)) return tokenizeTypeScript(filePath, text);
 

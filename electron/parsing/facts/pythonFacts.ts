@@ -1,13 +1,7 @@
 import type { Node } from 'web-tree-sitter';
-import type { ImportRecord, QualifiedUse } from '../types';
-import {
-  BoundedSet,
-  EntityCollector,
-  MAX_QUALIFIED_USES,
-  walkNamed,
-  namedOf,
-  fieldChildren,
-} from './astUtils';
+import type { ImportRecord } from '../types';
+import { EntityCollector, addOwnedFunction, walkNamed, namedOf, fieldChildren } from './astUtils';
+import { FactsAccumulator, importsHandler, type NodeHandler } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const readPlainImport = (statement: Node): ImportRecord[] =>
@@ -55,52 +49,36 @@ const isModuleLevel = (definition: Node): boolean => {
   return container?.type === 'module';
 };
 
-export const extractPythonFacts = (root: Node): LanguageFactsWithDeclarations => {
-  const imports: ImportRecord[] = [];
-  const entities = new EntityCollector();
-  const qualifiedUses = new BoundedSet<QualifiedUse>(MAX_QUALIFIED_USES);
+interface PythonState {
+  acc: FactsAccumulator;
+}
 
-  walkNamed(root, (node) => {
-    switch (node.type) {
-      case 'import_statement':
-        imports.push(...readPlainImport(node));
-        return false;
-      case 'import_from_statement':
-        imports.push(...readFromImport(node));
-        return false;
-      case 'class_definition': {
-        const name = node.childForFieldName('name');
-        if (name) entities.add('class', name.text, name);
-        addClassMembers(node, entities);
-        return true;
-      }
-      case 'function_definition': {
-        // Methods were registered with their class; only module-level functions stay plain.
-        const name = node.childForFieldName('name');
-        if (name && isModuleLevel(node)) entities.add('function', name.text, name);
-        return true;
-      }
-      case 'attribute': {
-        const object = node.childForFieldName('object');
-        const attribute = node.childForFieldName('attribute');
-        if (object?.type === 'identifier' && attribute) {
-          qualifiedUses.add(`${object.text}.${attribute.text}`, {
-            qualifier: object.text,
-            name: attribute.text,
-          });
-        }
-        return true;
-      }
-      default:
-        return true;
+const HANDLERS: Record<string, NodeHandler<PythonState>> = {
+  import_statement: importsHandler(readPlainImport),
+  import_from_statement: importsHandler(readFromImport),
+  class_definition: (node, { acc }) => {
+    const name = node.childForFieldName('name');
+    if (name) acc.entities.add('class', name.text, name);
+    addClassMembers(node, acc.entities);
+    return true;
+  },
+  function_definition: (node, { acc }) => {
+    // Methods were registered with their class; only module-level functions stay plain.
+    if (isModuleLevel(node)) addOwnedFunction(acc.entities, node, undefined);
+    return true;
+  },
+  attribute: (node, { acc }) => {
+    const object = node.childForFieldName('object');
+    const attribute = node.childForFieldName('attribute');
+    if (object?.type === 'identifier' && attribute) {
+      acc.noteQualified('.', object.text, attribute.text);
     }
-  });
+    return true;
+  },
+};
 
-  return {
-    imports,
-    entities: entities.entities,
-    declarations: entities.declarations,
-    qualifiedUses: qualifiedUses.toArray(),
-    usedNames: [],
-  };
+export const extractPythonFacts = (root: Node): LanguageFactsWithDeclarations => {
+  const state: PythonState = { acc: new FactsAccumulator() };
+  walkNamed(root, (node) => (HANDLERS[node.type] ?? (() => true))(node, state));
+  return state.acc.toFacts({});
 };
