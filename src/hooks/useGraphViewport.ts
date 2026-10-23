@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { LayoutResult } from '../utils/layoutEngine';
 
@@ -72,6 +72,39 @@ export const computeFocusTransform = (
   };
 };
 
+/** Transform that zooms by `factor` around the centre of the usable area. */
+export const computeZoomTransform = (
+  container: Size,
+  current: { scale: number; positionX: number; positionY: number },
+  factor: number,
+  reserveRight = 0
+): ViewTransform => {
+  const { scale, positionX, positionY } = current;
+  const next = clamp(scale * factor, MIN_SCALE, MAX_SCALE);
+  const centreX = (container.width - reserveRight) / 2;
+  const centreY = container.height / 2;
+  const ratio = next / scale;
+  return {
+    scale: next,
+    x: centreX - (centreX - positionX) * ratio,
+    y: centreY - (centreY - positionY) * ratio,
+  };
+};
+
+export type FrameStrategy =
+  { kind: 'focus'; nodeId: string } | { kind: 'fit'; options: FitOptions };
+
+/** What to frame: the selected node in the hierarchy view, otherwise the whole layout. */
+export const chooseFrameStrategy = (
+  frameWholeLayout: boolean,
+  focusNodeId: string | null
+): FrameStrategy => {
+  if (!frameWholeLayout && focusNodeId) {
+    return { kind: 'focus', nodeId: focusNodeId };
+  }
+  return { kind: 'fit', options: frameWholeLayout && focusNodeId ? { minScale: 0.2 } : {} };
+};
+
 interface UseGraphViewportOptions {
   layoutData: LayoutResult | null;
   /** Changes when a different project or layout mode should be framed from scratch. */
@@ -83,6 +116,76 @@ interface UseGraphViewportOptions {
   /** Width of the panel floating over the right edge (0 when nothing is open). */
   reserveRight: number;
 }
+
+interface FrameOnChangeArgs {
+  layoutData: LayoutResult | null;
+  frameKey: string;
+  focusNodeId: string | null;
+  frame: (animate: boolean) => boolean;
+  framedKey: MutableRefObject<string | null>;
+  focusedId: MutableRefObject<string | null>;
+  userMoved: MutableRefObject<boolean>;
+}
+
+/**
+ * Frames a new project or layout mode from scratch. The canvas mounts a moment after the
+ * layout arrives, so keep trying until a frame lands before calling it done.
+ */
+const useFrameOnChange = ({
+  layoutData,
+  frameKey,
+  focusNodeId,
+  frame,
+  framedKey,
+  focusedId,
+  userMoved,
+}: FrameOnChangeArgs) => {
+  useEffect(() => {
+    if (!layoutData) return;
+    const wholeKey = `${frameKey}|${focusNodeId ?? ''}`;
+    if (framedKey.current === wholeKey) return;
+
+    // Moving between nodes of the same project glides; the first frame snaps into place.
+    const sameProject = framedKey.current?.startsWith(`${frameKey}|`) ?? false;
+    let attempts = 0;
+    let handle = 0;
+    const tryFrame = () => {
+      if (frame(sameProject)) {
+        framedKey.current = wholeKey;
+        focusedId.current = focusNodeId;
+        userMoved.current = false;
+      } else if (attempts < MAX_FIT_ATTEMPTS) {
+        attempts += 1;
+        handle = requestAnimationFrame(tryFrame);
+      }
+    };
+    handle = requestAnimationFrame(tryFrame);
+    return () => cancelAnimationFrame(handle);
+  }, [layoutData, frameKey, focusNodeId, frame, framedKey, focusedId, userMoved]);
+};
+
+interface FollowResizeArgs {
+  containerRef: MutableRefObject<HTMLDivElement | null>;
+  frame: (animate: boolean) => boolean;
+  framedKey: MutableRefObject<string | null>;
+  userMoved: MutableRefObject<boolean>;
+}
+
+/**
+ * The window and its side panels settle after first paint; follow them until the person
+ * takes over the view.
+ */
+const useFollowResize = ({ containerRef, frame, framedKey, userMoved }: FollowResizeArgs) => {
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (!userMoved.current && framedKey.current) frame(false);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [frame, containerRef, framedKey, userMoved]);
+};
 
 export const useGraphViewport = ({
   layoutData,
@@ -150,19 +253,7 @@ export const useGraphViewport = ({
       if (!api || !container) return;
 
       userMoved.current = true;
-      const { scale, positionX, positionY } = api.instance.state;
-      const next = clamp(scale * factor, MIN_SCALE, MAX_SCALE);
-      const centreX = (container.width - reserveRight) / 2;
-      const centreY = container.height / 2;
-      const ratio = next / scale;
-      apply(
-        {
-          scale: next,
-          x: centreX - (centreX - positionX) * ratio,
-          y: centreY - (centreY - positionY) * ratio,
-        },
-        true
-      );
+      apply(computeZoomTransform(container, api.instance.state, factor, reserveRight), true);
     },
     [measure, apply, reserveRight]
   );
@@ -175,50 +266,16 @@ export const useGraphViewport = ({
   /** Frames what is relevant right now: the selected node in the hierarchy, else everything. */
   const frame = useCallback(
     (animate: boolean): boolean => {
-      if (!frameWholeLayout && focusNodeId) {
-        return focusNode(focusNodeId, animate);
-      }
-      return fit(frameWholeLayout && focusNodeId ? { minScale: 0.2 } : {}, animate);
+      const strategy = chooseFrameStrategy(frameWholeLayout, focusNodeId);
+      return strategy.kind === 'focus'
+        ? focusNode(strategy.nodeId, animate)
+        : fit(strategy.options, animate);
     },
     [frameWholeLayout, focusNodeId, focusNode, fit]
   );
 
-  // Frame a new project or layout mode from scratch. The canvas mounts a moment after the
-  // layout arrives, so keep trying until a frame lands before calling it done.
-  useEffect(() => {
-    if (!layoutData) return;
-    const wholeKey = `${frameKey}|${focusNodeId ?? ''}`;
-    if (framedKey.current === wholeKey) return;
-
-    // Moving between nodes of the same project glides; the first frame snaps into place.
-    const sameProject = framedKey.current?.startsWith(`${frameKey}|`) ?? false;
-    let attempts = 0;
-    let handle = 0;
-    const tryFrame = () => {
-      if (frame(sameProject)) {
-        framedKey.current = wholeKey;
-        focusedId.current = focusNodeId;
-        userMoved.current = false;
-      } else if (attempts < MAX_FIT_ATTEMPTS) {
-        attempts += 1;
-        handle = requestAnimationFrame(tryFrame);
-      }
-    };
-    handle = requestAnimationFrame(tryFrame);
-    return () => cancelAnimationFrame(handle);
-  }, [layoutData, frameKey, focusNodeId, frame]);
-
-  // The window and its side panels settle after first paint; follow them until the person
-  // takes over the view.
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => {
-      if (!userMoved.current && framedKey.current) frame(false);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [frame]);
+  useFrameOnChange({ layoutData, frameKey, focusNodeId, frame, framedKey, focusedId, userMoved });
+  useFollowResize({ containerRef, frame, framedKey, userMoved });
 
   const markUserMoved = useCallback(() => {
     userMoved.current = true;
