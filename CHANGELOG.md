@@ -1,5 +1,20 @@
 # CodeMaps Changelog
 
+## v1.1.53 (2026-10-23)
+
+### Changed
+
+- **CodeMaps now passes its own checks.** Run on itself, CodeMaps scored 59 of 100 (F): 30 candidates for decomposition, up to 52 cyclomatic complexity in one function, a 372-line class and a 950-line file. Two waves of behavior-preserving refactoring (four parallel passes each, merged and re-verified) split every function over 60 lines or complexity 15, every oversized class and the god files into small named units and modules: analysis scoring and pattern rules, parsing and import resolvers, MCP tool registration, the main process and the whole renderer (graph view, panels, file tree, layout engine, settings). Public exports, tool schemas and outputs did not change (`docs/MCP_TOOLS.md` is byte-identical, 294 tests grew to 412 and all pass, and the graph, panels and settings were checked in the running window). Measured on itself: functions and classes over the thresholds 77 -> 0; god classes 11 -> 0; long methods 13 -> 0; god files 5 -> 1; complex methods 24 -> 15; SOLID score 57 -> 86; maintainability 62 -> 72; overall health 59 -> 61 (D), because the overall score also counts duplication, layer guesses and the few remaining oversized modules, which are listed in the notes below.
+- **Test files no longer count as "god files" or "oversized modules".** A long test file is long by nature; size and complexity findings now concern production code only. Tests are still measured.
+
+### Added
+
+- **`npm run quality`** prints every function over 60 lines or cyclomatic complexity 15 and every oversized class of the repository with the same measurements CodeMaps uses (`scripts/quality-report.mjs`, also usable on any folder). New code is expected to keep it empty.
+
+### Known limits
+
+- Still above the thresholds of the overall health score: nine oversized modules (mostly the large stack-detection adapter tables), 15 methods of complexity 12-16, and duplicated skeletons between the Spring, Ktor, Micronaut and Quarkus adapters.
+
 ## v1.1.52 (2026-10-23)
 
 ### Added

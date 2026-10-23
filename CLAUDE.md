@@ -8,6 +8,7 @@ Electron + React + TypeScript desktop app that builds a dependency graph of a co
 - `npm run dev` — run Vite + Electron
 - `npm run typecheck` / `npm run lint` / `npm run format:check` / `npm test` — the same gates CI runs
 - `npm run verify` — everything CI runs (lint, format, typecheck, tests, both builds). Run it in a FRESH `git clone` before pushing: untracked or git-ignored files (e.g. `src/types/*.d.ts`) and Windows-only path assumptions pass locally and fail on CI.
+- `npm run quality` — lists functions over 60 lines or complexity 15 and oversized classes with CodeMaps' own measurements; keep it empty for new code.
 - `npm run mcp:smoke` — exercise every MCP tool against a running CodeMaps instance
 
 ## Layout
