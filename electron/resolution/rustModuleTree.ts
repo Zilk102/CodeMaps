@@ -9,12 +9,16 @@ export interface CrateInfo {
 }
 
 /** The few Cargo.toml facts that matter here, without a full TOML parser. */
-export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
-  let section = '';
-  let name: string | null = null;
-  let libPath: string | null = null;
-  const binPaths: string[] = [];
+interface CargoFields {
+  name: string | null;
+  libPath: string | null;
+  binPaths: string[];
+}
 
+/** Reads `name`, `[lib] path` and every `[[bin]] path` line by line. */
+const readCargoFields = (text: string): CargoFields => {
+  const fields: CargoFields = { name: null, libPath: null, binPaths: [] };
+  let section = '';
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     const header = /^\[{1,2}\s*([^\]]+?)\s*\]{1,2}$/.exec(line);
@@ -24,10 +28,15 @@ export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
     }
     const pair = /^(\w+)\s*=\s*"([^"]*)"/.exec(line);
     if (!pair) continue;
-    if (section === 'package' && pair[1] === 'name') name = pair[2];
-    if (section === 'lib' && pair[1] === 'path') libPath = pair[2];
-    if (section === 'bin' && pair[1] === 'path') binPaths.push(pair[2]);
+    if (section === 'package' && pair[1] === 'name') fields.name = pair[2];
+    if (section === 'lib' && pair[1] === 'path') fields.libPath = pair[2];
+    if (section === 'bin' && pair[1] === 'path') fields.binPaths.push(pair[2]);
   }
+  return fields;
+};
+
+export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
+  const { name, libPath, binPaths } = readCargoFields(text);
   if (!name) return null;
 
   const roots = [

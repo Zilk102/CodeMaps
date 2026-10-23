@@ -2,14 +2,19 @@ import fg from 'fast-glob';
 import * as fs from 'fs/promises';
 import { ORACLE_IGNORE_GLOBS, normalizePath } from '../oracle/shared';
 import { GraphLink, GraphNode, oracleStore } from '../store';
+import { CppResolver } from './cppResolver';
+import { CSharpResolver } from './csharpResolver';
 import { GoResolver } from './goResolver';
 import { JavaResolver } from './javaResolver';
+import { KotlinResolver } from './kotlinResolver';
+import { PhpResolver } from './phpResolver';
 import { PythonResolver } from './pythonResolver';
+import { RubyResolver } from './rubyResolver';
 import { RustResolver } from './rustResolver';
 import { dirOf, type FileEntry, type LanguageResolver, type ProjectIndex } from './types';
 
 /** Reasons start with the language id, which is how resolver-owned links are recognised. */
-const OWNED_REASON = /^(go|python|java|rust):/;
+const OWNED_REASON = /^(go|python|java|rust|cpp|c_sharp|kotlin|php|ruby):/;
 export const isResolverLink = (link: GraphLink): boolean =>
   link.type === 'import' && !!link.reason && OWNED_REASON.test(link.reason);
 
@@ -65,6 +70,11 @@ export class ImportResolutionService {
       new PythonResolver(),
       new JavaResolver(),
       new RustResolver(),
+      new CppResolver(),
+      new CSharpResolver(),
+      new KotlinResolver(),
+      new PhpResolver(),
+      new RubyResolver(),
     ]
   ) {
     this.resolvers = resolvers;
@@ -89,8 +99,12 @@ export class ImportResolutionService {
       (await fg(`**/${name}`, { cwd: root, absolute: true, ignore: MANIFEST_IGNORE, deep: 6 })).map(
         normalizePath
       );
-    const [goMod, cargo] = await Promise.all([find('go.mod'), find('Cargo.toml')]);
-    return { goMod, cargo };
+    const [goMod, cargo, composer] = await Promise.all([
+      find('go.mod'),
+      find('Cargo.toml'),
+      find('composer.json'),
+    ]);
+    return { goMod, cargo, composer };
   }
 
   /**

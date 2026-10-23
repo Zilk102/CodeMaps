@@ -102,7 +102,7 @@ export const BUILTIN_LANGUAGE_DEFINITIONS: LanguageDefinition[] = [
     parserEngine: 'tree-sitter',
     supportTier: 'structural',
     wasmName: 'cpp',
-    extensions: ['.c', '.cc', '.cpp', '.h', '.hpp'],
+    extensions: ['.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx'],
     query: languageQueries.cpp,
     capabilities: FULL_CODE_CAPABILITIES,
   },

@@ -41,52 +41,62 @@ const enclosingTypeName = (node: Node): string | undefined => {
   return owner?.childForFieldName('name')?.text;
 };
 
-export const extractJavaFacts = (root: Node): LanguageFactsWithDeclarations => {
-  const imports: ImportRecord[] = [];
-  const entities = new EntityCollector();
-  const usedNames = new BoundedSet<string>(MAX_USED_NAMES);
-  let packageName: string | undefined;
+interface JavaState {
+  imports: ImportRecord[];
+  entities: EntityCollector;
+  usedNames: BoundedSet<string>;
+  packageName?: string;
+}
 
-  walkNamed(root, (node) => {
-    if (node.type === 'package_declaration') {
-      packageName = namedOf(node).find(
-        (child) => child.type === 'scoped_identifier' || child.type === 'identifier'
-      )?.text;
-      return false;
-    }
-    if (node.type === 'import_declaration') {
-      const record = readImport(node);
-      if (record) imports.push(record);
-      return false;
-    }
-    if (TYPE_DECLARATIONS.has(node.type)) {
-      const name = node.childForFieldName('name');
-      if (name) entities.add('class', name.text, name);
-      return true;
-    }
-    if (node.type === 'method_declaration') {
-      const name = node.childForFieldName('name');
-      const owner = enclosingTypeName(node);
-      if (name) entities.add('function', owner ? `${owner}.${name.text}` : name.text, name);
-      return true;
-    }
-    if (node.type === 'type_identifier') {
-      usedNames.add(node.text, node.text);
-      return false;
-    }
-    // `Strings.join(...)` and `Color.RED`: the qualifier is a class-like identifier.
-    if (node.type === 'identifier' && node.text.length > 1 && startsUppercase(node.text)) {
-      usedNames.add(node.text, node.text);
-    }
+const declareType = (node: Node, { entities }: JavaState): boolean => {
+  const name = node.childForFieldName('name');
+  if (name) entities.add('class', name.text, name);
+  return true;
+};
+
+const HANDLERS: Record<string, (node: Node, state: JavaState) => boolean> = {
+  package_declaration: (node, state) => {
+    state.packageName = namedOf(node).find(
+      (child) => child.type === 'scoped_identifier' || child.type === 'identifier'
+    )?.text;
+    return false;
+  },
+  import_declaration: (node, { imports }) => {
+    const record = readImport(node);
+    if (record) imports.push(record);
+    return false;
+  },
+  method_declaration: (node, { entities }) => {
+    const name = node.childForFieldName('name');
+    const owner = enclosingTypeName(node);
+    if (name) entities.add('function', owner ? `${owner}.${name.text}` : name.text, name);
     return true;
-  });
+  },
+  type_identifier: (node, { usedNames }) => {
+    usedNames.add(node.text, node.text);
+    return false;
+  },
+  // `Strings.join(...)` and `Color.RED`: the qualifier is a class-like identifier.
+  identifier: (node, { usedNames }) => {
+    if (node.text.length > 1 && startsUppercase(node.text)) usedNames.add(node.text, node.text);
+    return true;
+  },
+};
+for (const type of TYPE_DECLARATIONS) HANDLERS[type] = declareType;
 
+export const extractJavaFacts = (root: Node): LanguageFactsWithDeclarations => {
+  const state: JavaState = {
+    imports: [],
+    entities: new EntityCollector(),
+    usedNames: new BoundedSet<string>(MAX_USED_NAMES),
+  };
+  walkNamed(root, (node) => HANDLERS[node.type]?.(node, state) ?? true);
   return {
-    imports,
-    entities: entities.entities,
-    declarations: entities.declarations,
+    imports: state.imports,
+    entities: state.entities.entities,
+    declarations: state.entities.declarations,
     qualifiedUses: [],
-    usedNames: usedNames.toArray(),
-    packageName,
+    usedNames: state.usedNames.toArray(),
+    packageName: state.packageName,
   };
 };

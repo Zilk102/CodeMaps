@@ -73,13 +73,13 @@ Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
 
 ## Supported languages
 
-| Support              | Languages                                                    | What you get                                                                                                                                    |
-| -------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Semantic**         | TypeScript, TSX, JavaScript                                  | Imports resolved by the TypeScript compiler, barrel re-exports                                                                                  |
-| **Project-resolved** | Go, Python, Java, Rust                                       | Imports resolved to files and symbols (go.mod, Cargo workspaces, packages, `__init__`), same-package references, methods named after their type |
-| **Structural**       | C/C++, C#, PHP, Ruby, Zig, Swift, Kotlin, Bash (tree-sitter) | Declarations and imports; no type-aware resolution                                                                                              |
-| **Limited**          | HTML, CSS, Vue                                               | Files and basic structure                                                                                                                       |
-| **Metadata**         | Markdown (ADR), YAML                                         | Architecture decision records linked to the code                                                                                                |
+| Support              | Languages                                            | What you get                                                                                                                                                                                    |
+| -------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Semantic**         | TypeScript, TSX, JavaScript                          | Imports resolved by the TypeScript compiler, barrel re-exports                                                                                                                                  |
+| **Project-resolved** | Go, Python, Java, Rust, C/C++, C#, Kotlin, PHP, Ruby | Imports resolved to files and symbols (go.mod, Cargo workspaces, packages, `__init__`, `#include` paths, namespaces, PSR-4, `require`), same-package references, methods named after their type |
+| **Structural**       | Zig, Swift, Bash (tree-sitter)                       | Declarations and imports; no type-aware resolution                                                                                                                                              |
+| **Limited**          | HTML, CSS, Vue                                       | Files and basic structure                                                                                                                                                                       |
+| **Metadata**         | Markdown (ADR), YAML                                 | Architecture decision records linked to the code                                                                                                                                                |
 
 Cross-file dependency accuracy is highest for the semantic tier; for the others treat links as a strong hint and confirm with a search.
 

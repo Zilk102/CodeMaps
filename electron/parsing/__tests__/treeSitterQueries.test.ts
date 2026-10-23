@@ -68,13 +68,13 @@ describe('structural extraction', () => {
       ].join('\n')
     );
 
-    expect(result.imports.map((entry) => entry.path)).toEqual(
+    expect(result.resolution?.imports.map((entry) => entry.path)).toEqual(
       expect.arrayContaining(['System', 'System.Collections.Generic'])
     );
     expect(result.entities).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: 'class', name: 'UserService' }),
-        expect.objectContaining({ type: 'function', name: 'Register' }),
+        expect.objectContaining({ type: 'function', name: 'UserService.Register' }),
       ])
     );
     expect(result.variables).toContain('counter');
@@ -98,7 +98,7 @@ describe('structural extraction', () => {
     expect(result.entities).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: 'class', name: 'UserService' }),
-        expect.objectContaining({ type: 'function', name: 'register' }),
+        expect.objectContaining({ type: 'function', name: 'UserService.register' }),
       ])
     );
     expect(result.variables).toContain('counter');
@@ -120,12 +120,12 @@ describe('structural extraction', () => {
       ].join('\n')
     );
 
-    expect(result.imports.map((entry) => entry.path)).toContain('app.model.User');
+    expect(result.resolution?.imports.map((entry) => entry.path)).toContain('app.model.User');
     expect(result.entities).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: 'class', name: 'UserService' }),
         expect.objectContaining({ type: 'class', name: 'Registry' }),
-        expect.objectContaining({ type: 'function', name: 'register' }),
+        expect.objectContaining({ type: 'function', name: 'UserService.register' }),
       ])
     );
     expect(result.variables).toContain('counter');

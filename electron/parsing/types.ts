@@ -10,6 +10,12 @@ export interface ImportRecord {
   resolvedPath?: string;
   /** `import x as y` / Go package alias; '.' and '_' are kept verbatim for Go. */
   alias?: string;
+  /**
+   * Language-specific flavour of the import: `system` for `<angle>` C includes, `relative` for
+   * Ruby `require_relative`, `static` for `using static`, `namespace` for a C# namespace using,
+   * `function` / `const` for PHP `use function`, `file` for PHP `require`.
+   */
+  kind?: string;
 }
 
 /** `pkg.Name` / `module::name`: a name used through a qualifier that an import may have introduced. */
@@ -30,6 +36,8 @@ export interface FileResolutionFacts {
   /** Unqualified identifiers that may refer to a symbol declared in another file. */
   usedNames: string[];
   packageName?: string;
+  /** Every namespace the file declares (C# allows several per file); `packageName` is the first. */
+  namespaces?: string[];
   /** Rust `mod name;` declarations: child module files owned by this file. */
   moduleDeclarations?: string[];
 }

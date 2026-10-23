@@ -42,10 +42,17 @@ export class EntityCollector {
   readonly declarations: DeclarationNode[] = [];
   private readonly seen = new Set<string>();
 
+  /**
+   * With `uniqueNames` a class and a function of the same name are one entity: graph node ids
+   * are `file#name`, so languages that allow such pairs (C's `struct stat` and `stat()`) would
+   * otherwise produce two nodes with one id.
+   */
+  constructor(private readonly uniqueNames = false) {}
+
   add(type: EntityRecord['type'], name: string, node: Node): void {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const key = `${type}:${trimmed}`;
+    const key = this.uniqueNames ? trimmed : `${type}:${trimmed}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
     this.entities.push({ type, name: trimmed, location: toLocation(node) });
