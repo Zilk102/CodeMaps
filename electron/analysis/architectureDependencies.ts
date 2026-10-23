@@ -1,3 +1,4 @@
+import { isCompositionRoot } from './couplingMetrics';
 import { GraphData } from '../store/types';
 import { toStructuralNodeId } from './AgentContextUtils';
 import { isArchitecturalDependencyLink } from './graphAnalysisUtils';
@@ -92,7 +93,10 @@ export const summarizeArchitectureDependencies = (
     const dependencyKey = `${sourceLayer}->${targetLayer}`;
     dependencyCounts.set(dependencyKey, (dependencyCounts.get(dependencyKey) || 0) + 1);
 
-    const violationReason = getArchitectureViolationReason(sourceLayer, targetLayer);
+    // The program's entry point legitimately reaches into every layer.
+    const violationReason = isCompositionRoot(sourceId)
+      ? null
+      : getArchitectureViolationReason(sourceLayer, targetLayer);
     if (violationReason) {
       violations.push({
         sourceId,

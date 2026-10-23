@@ -55,7 +55,7 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
   },
   {
     pattern:
-      /(^|[\\/])(infrastructure|db|database|api|clients?|repositor(?:y|ies)|repos?|dao|persistence|gateways?|storage|postgres|redis|mysql|mongo|cache|queues?|messaging|integration|bin|cmd|mcp)([\\/]|$)/i,
+      /(^|[\\/])(infrastructure|db|database|api|clients?|repositor(?:y|ies)|repos?|dao|persistence|gateways?|storage|postgres|redis|mysql|mongo|cache|queues?|messaging|integration|bin|mcp)([\\/]|$)/i,
     layer: 'integration',
     reason: 'infrastructure_integration',
   },

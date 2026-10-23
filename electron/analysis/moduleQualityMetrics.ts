@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import ts from 'typescript';
+import { cloneIndex } from './clones/CloneIndex';
+import { computeFileCoupling } from './couplingMetrics';
 import { GraphData, GraphNode } from '../store/types';
 import {
   buildGraphAdjacency,
@@ -742,6 +744,7 @@ function calculateDesignSmellScore(
 
 export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
   const { incomingByTarget, outgoingBySource, childrenByParentId } = buildGraphAdjacency(graph);
+  const coupling = computeFileCoupling(graph);
   const metrics = graph.nodes
     .filter((node) => node.type === 'file')
     .map((node) => {
@@ -751,8 +754,8 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
         node,
         lineCount: getFileLineCount(node.id),
         symbolCount: getChildCodeSymbolCount(node.id, childrenByParentId),
-        fanIn: incomingLinks.length,
-        fanOut: outgoingLinks.length,
+        fanIn: Math.round(coupling.get(node.id)?.fanIn ?? 0),
+        fanOut: Math.round(coupling.get(node.id)?.fanOut ?? 0),
         stackAwareDegree: [...incomingLinks, ...outgoingLinks].filter((link) =>
           isStackAwareLink(link)
         ).length,
@@ -895,7 +898,7 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
     }
   }
 
-  const codeClones = Array.from(functionInstancesByHash.entries())
+  const functionClones = Array.from(functionInstancesByHash.entries())
     .filter(([, instances]) => instances.length >= 2)
     .map(([bodyHash, instances]) => ({
       bodyHash,
@@ -907,6 +910,20 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
         a.instances[0].lineCount * a.instances.length
     )
     .slice(0, 15);
+
+  // Copy-paste across any language, found by the token-level detector once it has run; the
+  // function-body comparison above remains the fallback before that (and for tiny projects).
+  const structuralClones = cloneIndex.peek(graph.projectRoot);
+  const codeClones = structuralClones
+    ? structuralClones.slice(0, 15).map((group) => ({
+        bodyHash: `${group.tokenCount}:${group.instances[0].file}:${group.instances[0].startLine}`,
+        instances: group.instances.map((instance) => ({
+          nodeId: instance.file,
+          methodName: `${instance.file.split('/').pop()}:${instance.startLine}-${instance.endLine}`,
+          lineCount: group.lineCount,
+        })),
+      }))
+    : functionClones;
 
   return {
     metrics,

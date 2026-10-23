@@ -1,3 +1,4 @@
+import { isTestFile } from './testFiles';
 import { DetectedPattern, PatternEvidence } from './patternDetectionTypes';
 
 export interface ChangeFinding {
@@ -49,14 +50,12 @@ const SIZE_PATTERNS = new Set([
   'complex_methods',
   'mixed_responsibility_modules',
 ]);
+const ADVISORY_PATTERNS = new Set(['hub_nodes']);
 const MAX_PROJECT_FINDINGS = 10;
 const MAX_EVIDENCE = 5;
 
 const normalize = (value: string) => value.replace(/\\/g, '/').toLowerCase();
 const fileOf = (nodeId: string) => nodeId.split('#')[0];
-const isTestFile = (file: string) =>
-  /(^|\/)(__tests__|tests?)\/|\.(test|spec)\.[a-z]+$/.test(normalize(file));
-
 const toFinding = (
   pattern: DetectedPattern,
   files: string[],
@@ -131,7 +130,10 @@ export const validateChanges = (input: {
     findings.push(toFinding(pattern, files, evidence));
   }
 
-  const blocking = findings.filter((finding) => finding.severity === 'high');
+  // Who depends on a file is not something an edit to it can fix, so a hub never blocks.
+  const blocking = findings.filter(
+    (finding) => finding.severity === 'high' && !ADVISORY_PATTERNS.has(finding.id)
+  );
   const isValid = blocking.length === 0;
   let recommendation = 'Your changes introduce no flagged problems. Safe to proceed.';
   if (!isValid) {

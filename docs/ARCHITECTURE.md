@@ -29,6 +29,10 @@ flowchart LR
 5. **Snapshot** (`electron/store/graphSnapshot.ts`). Links are resolved to real declarations. An import of `./store` that is a barrel re-exporting `./store/types` is followed to the declaring symbol, with a depth limit and cycle guard, so dependents are counted correctly.
 6. **Live updates** (`electron/oracle/FileWatcher.ts`). File changes are debounced, re-indexed and folded into the graph. Starting the watcher waits until it is ready, so files created right after analysis are not missed, and `whenIdle()` lets a caller wait for pending changes before reading the graph.
 
+## Duplication and coupling
+
+Duplicated code is found by `electron/analysis/clones/`: every supported file is turned into a stream of normalized tokens (names, numbers and strings are interchangeable), n-gram hashes are winnowed, and matches are extended to maximal copies, across and inside files. Token streams are cached per file in `CloneIndex`, so tools that report clones (`ensureGraphLoaded` awaits the refresh) pay only for the files that changed. `electron/analysis/couplingMetrics.ts` counts fan-in and fan-out in distinct files rather than links, weighs references inside one package at a quarter, and exempts shared-by-design code and entry points from hub, fan-out and layer findings.
+
 ## MCP server
 
 `electron/mcp.ts` is an Express app speaking MCP Streamable HTTP on `127.0.0.1` (port `3005`, overridable with `CODEMAPS_MCP_PORT`) plus a WebSocket channel for the UI. It only listens on the loopback interface and accepts browser requests only from loopback origins. If the port is taken the server reports `Unavailable` with the reason instead of crashing the app.

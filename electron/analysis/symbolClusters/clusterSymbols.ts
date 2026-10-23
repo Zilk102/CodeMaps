@@ -2,11 +2,14 @@ import * as path from 'path';
 import type { SplitCluster, SplitPlan, SymbolGraph, SymbolInfo } from './types';
 
 const MIN_SYMBOLS = 6;
-const MAX_CLUSTERS = 8;
+const MAX_CLUSTERS = 12;
+const MIN_CLUSTER_CAP = 4;
+const SYMBOLS_PER_CLUSTER = 6;
 const MAX_LISTED_SYMBOLS = 15;
 const MAX_SHARED_LISTED = 10;
 const MAX_ROUNDS = 40;
 const TOKEN_EDGE_WEIGHT = 0.5;
+const DATA_EDGE_WEIGHT = 0.4;
 const MAX_TOKEN_GROUP = 40;
 const TINY_CLUSTER_LINES = 20;
 
@@ -189,6 +192,26 @@ const addTokenEdges = (
   }
 };
 
+/** Symbols that touch the same fields, types and functions of other files work on the same data. */
+const addDataEdges = (graph: WeightedGraph, members: number[], usesOf: string[][]) => {
+  const membersByName = new Map<string, number[]>();
+  for (const index of members) {
+    for (const name of usesOf[index]) {
+      const bucket = membersByName.get(name);
+      if (bucket) bucket.push(index);
+      else membersByName.set(name, [index]);
+    }
+  }
+  const maxShare = Math.min(MAX_TOKEN_GROUP, Math.max(3, Math.floor(members.length * 0.2)));
+  for (const group of membersByName.values()) {
+    if (group.length < 2 || group.length > maxShare) continue;
+    const weight = DATA_EDGE_WEIGHT * (1 - group.length / members.length);
+    for (let a = 0; a < group.length; a += 1) {
+      for (let b = a + 1; b < group.length; b += 1) addEdge(graph, group[a], group[b], weight);
+    }
+  }
+};
+
 interface Group {
   members: number[];
   /** Leftovers that are tied to nothing: they share one catch-all file. */
@@ -237,9 +260,14 @@ const mergeSmallGroups = (
 };
 
 /** Reduces the number of groups to what a person can review at once. */
-const capGroups = (groups: Group[], graph: WeightedGraph, linesOf: (m: number[]) => number) => {
+const capGroups = (
+  groups: Group[],
+  graph: WeightedGraph,
+  linesOf: (m: number[]) => number,
+  maxClusters: number
+) => {
   const result = [...groups];
-  while (result.length > MAX_CLUSTERS) {
+  while (result.length > maxClusters) {
     const candidates = result.filter((group) => !group.misc);
     candidates.sort((a, b) => linesOf(a.members) - linesOf(b.members));
     const smallest = candidates[0];
@@ -317,7 +345,11 @@ const fileNameFor = (clusterName: string, language: string, extension: string) =
  * each other or share a topic word end up in the same cluster, and symbols used all over the
  * file are set aside as shared helpers. Returns null when the file is too small to split.
  */
-export const planSplit = (graph: SymbolGraph, displayPath: string): SplitPlan | null => {
+export const planSplit = (
+  graph: SymbolGraph,
+  displayPath: string,
+  listLimit = MAX_LISTED_SYMBOLS
+): SplitPlan | null => {
   const { symbols } = graph;
   if (symbols.length < MIN_SYMBOLS) return null;
 
@@ -378,6 +410,8 @@ export const planSplit = (graph: SymbolGraph, displayPath: string): SplitPlan | 
     }
   }
   addTokenEdges(weighted, active, tokensOf, 0.25);
+  const usesOf = symbols.map((symbol) => symbol.uses ?? []);
+  addDataEdges(weighted, active, usesOf);
 
   const labels = detectCommunities(weighted, active);
   const byLabel = new Map<number, number[]>();
@@ -406,6 +440,7 @@ export const planSplit = (graph: SymbolGraph, displayPath: string): SplitPlan | 
       }
     }
     addTokenEdges(local, group.members, tokensOf, 0.5);
+    addDataEdges(local, group.members, usesOf);
     const inner = detectCommunities(local, group.members, SUBDIVIDE_RESOLUTION);
     const parts = new Map<number, number[]>();
     for (const member of group.members) {
@@ -422,7 +457,12 @@ export const planSplit = (graph: SymbolGraph, displayPath: string): SplitPlan | 
       { members: loose.flatMap((group) => group.members), misc: true },
     ];
   }
-  groups = capGroups(groups, weighted, linesOf);
+  // A small file does not need a dozen files: the cap grows with the number of symbols.
+  const maxClusters = Math.min(
+    MAX_CLUSTERS,
+    Math.max(MIN_CLUSTER_CAP, Math.ceil(symbols.length / SYMBOLS_PER_CLUSTER))
+  );
+  groups = capGroups(groups, weighted, linesOf, maxClusters);
   groups.sort((a, b) => linesOf(b.members) - linesOf(a.members));
 
   const clusterOf = new Map<number, number>();
@@ -468,12 +508,12 @@ export const planSplit = (graph: SymbolGraph, displayPath: string): SplitPlan | 
       suggestedFile: fileNameFor(names[groupIndex], graph.language, extension),
       symbolCount: ordered.length,
       lineCount: linesOf(group.members),
-      symbols: ordered.slice(0, MAX_LISTED_SYMBOLS).map((member) => ({
+      symbols: ordered.slice(0, listLimit).map((member) => ({
         name: symbols[member].name,
         kind: symbols[member].kind,
         lines: symbols[member].lineCount,
       })),
-      omittedSymbols: Math.max(0, ordered.length - MAX_LISTED_SYMBOLS),
+      omittedSymbols: Math.max(0, ordered.length - listLimit),
       needsHelpers: [...helperUse.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 6)

@@ -61,6 +61,24 @@ describe('planSplit', () => {
     expect(plan.clusters.every((cluster) => cluster.suggestedFile.endsWith('.go'))).toBe(true);
   });
 
+  it('groups handlers that touch the same data even when they never call each other', () => {
+    const withUses = (name: string, uses: string[]) => ({ ...symbol(name, [], 25), uses });
+    const data = [
+      withUses('showInvoice', ['invoiceTotal', 'invoiceDue', 'customerName']),
+      withUses('payInvoice', ['invoiceTotal', 'paymentToken', 'invoiceDue']),
+      withUses('voidInvoice', ['invoiceDue', 'invoiceTotal', 'auditTrail']),
+      withUses('listTickets', ['ticketQueue', 'ticketOwner', 'ticketState']),
+      withUses('closeTicket', ['ticketState', 'ticketOwner', 'auditTrail']),
+      withUses('assignTicket', ['ticketOwner', 'ticketQueue', 'ticketState']),
+    ];
+    const plan = planSplit(graphOf(data), 'billing.go')!;
+    const clusterOf = (name: string) =>
+      plan.clusters.find((cluster) => cluster.symbols.some((item) => item.name === name))?.name;
+    expect(clusterOf('showInvoice')).toBe(clusterOf('payInvoice'));
+    expect(clusterOf('closeTicket')).toBe(clusterOf('assignTicket'));
+    expect(clusterOf('showInvoice')).not.toBe(clusterOf('closeTicket'));
+  });
+
   it('is deterministic', () => {
     const first = planSplit(graphOf(symbols), 'handlers.go');
     const second = planSplit(graphOf(symbols), 'handlers.go');

@@ -12,6 +12,12 @@ import {
   SourceClassMetric,
   SourceFunctionMetric,
 } from './moduleQualityMetrics';
+import {
+  computeFileCoupling,
+  computeNodeFanIn,
+  isCompositionRoot,
+  isSharedByDesign,
+} from './couplingMetrics';
 import type { DetectedPattern } from './patternDetectionTypes';
 
 export function buildStructuralPatterns(args: {
@@ -26,9 +32,13 @@ export function buildStructuralPatterns(args: {
   const { graph, architecture, incomingByTarget, outgoingBySource, nodeById, childrenByParentId } =
     args;
 
+  const coupling = computeFileCoupling(graph);
+  const nodeFanIn = computeNodeFanIn(graph);
+
   const highFanInNodes = graph.nodes
     .filter((node) => ['file', 'class', 'function'].includes(node.type))
-    .map((node) => ({ node, fanIn: (incomingByTarget.get(node.id) || []).length }))
+    .filter((node) => !isSharedByDesign(node.id))
+    .map((node) => ({ node, fanIn: nodeFanIn.get(node.id) ?? 0 }))
     .filter(({ fanIn }) => fanIn >= 8)
     .sort((a, b) => b.fanIn - a.fanIn)
     .slice(0, 10);
@@ -39,14 +49,14 @@ export function buildStructuralPatterns(args: {
       severity: highFanInNodes.some(({ fanIn }) => fanIn >= 15) ? 'high' : 'medium',
       title: 'Hub Nodes',
       description:
-        'Nodes with excessively high fan-in can become bottlenecks and points of massive impact.',
+        'Nodes that many other files depend on can become bottlenecks and points of massive impact.',
       nodeIds: highFanInNodes.map(({ node }) => node.id),
     });
   }
 
   const highFanOutFiles = graph.nodes
-    .filter((node) => node.type === 'file')
-    .map((node) => ({ node, fanOut: (outgoingBySource.get(node.id) || []).length }))
+    .filter((node) => node.type === 'file' && !isCompositionRoot(node.id))
+    .map((node) => ({ node, fanOut: coupling.get(node.id)?.fanOut ?? 0 }))
     .filter(({ fanOut }) => fanOut >= 12)
     .sort((a, b) => b.fanOut - a.fanOut)
     .slice(0, 10);
@@ -57,7 +67,7 @@ export function buildStructuralPatterns(args: {
       severity: highFanOutFiles.some(({ fanOut }) => fanOut >= 20) ? 'high' : 'medium',
       title: 'High Fan-Out Files',
       description:
-        'Files with a large number of outgoing dependencies are overloaded with responsibilities.',
+        'Files that depend on many other files (siblings in the same folder count for little) are overloaded with responsibilities.',
       nodeIds: highFanOutFiles.map(({ node }) => node.id),
     });
   }
@@ -320,10 +330,14 @@ export function buildQualityPatterns(quality: ModuleQualitySummary): DetectedPat
       nodeIds: Array.from(
         new Set(quality.codeClones.flatMap((c) => c.instances.map((i) => i.nodeId)))
       ),
-      evidence: quality.codeClones.slice(0, 5).map((clone) => ({
-        nodeId: clone.instances[0].nodeId,
-        message: `Duplicated ${clone.instances[0].lineCount} LOC across ${clone.instances.length} locations (e.g. ${clone.instances.map((i) => i.methodName).join(', ')})`,
-      })),
+      // One entry per copy, so a change to any of the files finds the copies it must reuse.
+      evidence: quality.codeClones.slice(0, 5).flatMap((clone) => {
+        const places = clone.instances.map((instance) => instance.methodName).join(', ');
+        return clone.instances.map((instance) => ({
+          nodeId: instance.nodeId,
+          message: `${clone.instances[0].lineCount} duplicated lines (${instance.methodName}) also appear in ${clone.instances.length - 1} other place(s): ${places}. Extract the shared logic once.`,
+        }));
+      }),
     });
   }
 

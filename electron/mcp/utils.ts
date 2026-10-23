@@ -1,3 +1,4 @@
+import { cloneIndex } from '../analysis/clones/CloneIndex';
 import { app } from 'electron';
 import { GraphData, oracleStore } from '../store';
 import { oracle } from '../oracle';
@@ -115,7 +116,7 @@ export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData
   }
 
   if (!state.baseDir || (projectPath && normalizePath(state.baseDir) !== targetPath)) {
-    return analyzeLimit(async () => {
+    const analyzed = await analyzeLimit(async () => {
       // Create a timeout promise
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('oracle.analyzeProject timed out')), 60000)
@@ -123,9 +124,16 @@ export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData
       // Race the analyzeProject call against the timeout
       return Promise.race([oracle.analyzeProject(targetPath), timeout]);
     });
+    return withCloneIndex(analyzed);
   }
 
-  return oracle.getGraph();
+  return withCloneIndex(oracle.getGraph());
+};
+
+/** Tools that report duplication read it from the clone index, so it must be current first. */
+const withCloneIndex = async (graph: GraphData): Promise<GraphData> => {
+  await cloneIndex.refreshFor(graph).catch(() => undefined);
+  return graph;
 };
 
 export interface NeighbourFile {

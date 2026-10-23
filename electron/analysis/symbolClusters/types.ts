@@ -11,6 +11,8 @@ export interface SymbolInfo {
   lineCount: number;
   /** Names of other symbols of the same file used inside the declaration. */
   refs: string[];
+  /** Other identifiers it uses (fields, types, functions from elsewhere): symbols that touch the same data belong together. */
+  uses?: string[];
 }
 
 export interface SymbolGraph {

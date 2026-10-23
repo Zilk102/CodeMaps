@@ -13,6 +13,7 @@ import type { SymbolGraph, SymbolInfo, SymbolKind } from './types';
 const MAX_SYMBOLS = 800;
 /** A name shared by more than this many symbols (`new`, `get`) says nothing about who uses it. */
 const MAX_AMBIGUOUS_TARGETS = 2;
+const MAX_USES = 80;
 
 const TS_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts']);
 
@@ -112,19 +113,27 @@ const extractTypeScript = (filePath: string, text: string): SymbolGraph => {
 
   const symbols: SymbolInfo[] = raw.slice(0, MAX_SYMBOLS).map((symbol) => {
     const refs = new Set<string>();
+    const uses = new Set<string>();
+    const noteUse = (name: string) => {
+      if (name.length >= 3 && uses.size < MAX_USES) uses.add(name);
+    };
     const visit = (node: ts.Node) => {
       if (symbol.skip.has(node)) return;
       if (ts.isPropertyAccessExpression(node)) {
         if (node.expression.kind === ts.SyntaxKind.ThisKeyword && symbol.owner) {
           const member = `${symbol.owner}.${node.name.text}`;
           if (names.has(member)) refs.add(member);
+          else noteUse(node.name.text);
           return;
         }
+        noteUse(node.name.text);
         visit(node.expression);
         return;
       }
       if (ts.isIdentifier(node)) {
-        for (const target of byName.get(node.text) ?? []) refs.add(target);
+        const targets = byName.get(node.text);
+        if (targets) for (const target of targets) refs.add(target);
+        else noteUse(node.text);
         return;
       }
       ts.forEachChild(node, visit);
@@ -147,6 +156,7 @@ const extractTypeScript = (filePath: string, text: string): SymbolGraph => {
       endLine: end,
       lineCount: Math.max(1, owned),
       refs: [...refs],
+      uses: [...uses],
     };
   });
 
@@ -250,6 +260,7 @@ const buildFromDeclarations = (
 
   const symbols = limited.map((declaration): SymbolInfo => {
     const refs = new Set<string>();
+    const uses = new Set<string>();
     let nestedLines = 0;
     walkNamed(declaration.node, (node) => {
       if (node.id !== declaration.node.id && declarationIds.has(node.id)) {
@@ -261,6 +272,8 @@ const buildFromDeclarations = (
         const targets = bySimpleName.get(node.text);
         if (targets && targets.length <= MAX_AMBIGUOUS_TARGETS) {
           for (const target of targets) refs.add(target);
+        } else if (!targets && node.text.length >= 3 && uses.size < MAX_USES) {
+          uses.add(node.text);
         }
       }
       return true;
@@ -274,6 +287,7 @@ const buildFromDeclarations = (
       endLine: end,
       lineCount: Math.max(1, lineCountOf(start, end) - nestedLines),
       refs: [...refs],
+      uses: [...uses],
     };
   });
 

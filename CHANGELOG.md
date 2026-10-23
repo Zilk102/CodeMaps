@@ -1,5 +1,20 @@
 # CodeMaps Changelog
 
+## v1.1.50 (2026-10-23)
+
+### Added
+
+- **Duplicate-code (clone) detection for every language.** Before, only whole TypeScript/JavaScript functions with identical bodies were compared, so Go, Python, Java and Rust projects always reported zero clones even when a block had been pasted five times. A new token-level detector reads every supported file (TypeScript through the compiler scanner, all other languages through tree-sitter), normalizes names, numbers and strings so a copy with renamed variables still matches, and finds copied blocks across and inside files. It skips imports, comments, test files and generated code (migrations, `*.pb.go`, `*_pb2.py`), ignores a table of similar entries matching itself, and keeps token streams cached per file so a refresh after one edit reads only that file. `get_health_score`, `detect_patterns`, `validate_architecture_changes` and the review tools now report each copy with its file and line range ("12 duplicated lines also appear in 2 other places: a.go:10-30, b.go:55-75"). On the Go project that motivated this, the 49 files give 40 groups in 0.2 s, including the real copies in `handlers.go`; Python, Java and Rust projects of 120-160 files take 0.3-0.9 s.
+
+### Changed
+
+- **`validate_architecture_changes` no longer raises false alarms on correct code.** Coupling is counted in files, not links: using fifteen symbols of one file is one dependency, files of one package that need no import count a quarter, and a file is reached through its symbols. Shared-by-design code (helpers, utils, constants, models, domain, `pkg`, `lib`) is never a "hub", a hub is advice and never blocks a change, and entry points that wire the program together (`main.go`, `Program.cs`, `Application.java`, `__main__.py`) are exempt from fan-out and layer rules. A Go handler package that previously failed validation with a high-severity fan-out finding now passes.
+- **Better split plans.** Symbols that use the same fields, types and functions of other files are now drawn together even if they never call each other, and the number of clusters grows with the size of the file (up to 12). Measured against the splits that two independent agents made of the same 2,400-line Go file, pair agreement (F1) rose from 0.31 to 0.51.
+
+### Fixed
+
+- **Fan-in of a file was always 0** when importers named symbols (`file#Name`), which understated coupling in design-smell scores and decomposition evidence.
+
 ## v1.1.49 (2026-10-23)
 
 ### Added

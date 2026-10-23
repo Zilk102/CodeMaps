@@ -12,6 +12,7 @@ import { getOraclePerformanceConfig } from './oracle/performanceConfig';
 import { GraphRepository } from './oracle/GraphRepository';
 import { ProjectIndexer } from './oracle/ProjectIndexer';
 import { StackGraphEnrichmentService } from './oracle/StackGraphEnrichmentService';
+import { cloneIndex } from './analysis/clones/CloneIndex';
 import { ImportResolutionService } from './resolution/ImportResolutionService';
 import { normalizePath } from './oracle/shared';
 
@@ -151,6 +152,8 @@ export class OracleService extends EventEmitter {
       );
 
     this.emitGraphUpdated();
+    // Duplication is found in the background; tools that report it wait for it.
+    void cloneIndex.refreshFor(this.graphRepository.getGraph()).catch(() => undefined);
     this.parsingProgressResetTimeout = setTimeout(() => {
       this.parsingProgressResetTimeout = null;
       this.emit('parsing-progress', null);
