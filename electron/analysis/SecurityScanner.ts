@@ -75,6 +75,103 @@ const stripStringsAndComments = (content: string) => {
   );
 };
 
+const BUILD_OUTPUT_RE = /(dist|dist-electron|dist-renderer|node_modules|build|out|coverage)\//;
+
+type ContentRule = (typeof RAW_CONTENT_RULES)[number];
+
+function toFinding(rule: ContentRule, nodeId: string): SecurityFinding {
+  return { ruleId: rule.ruleId, severity: rule.severity, nodeId, message: rule.message };
+}
+
+function scanPath(node: GraphData['nodes'][number]): SecurityFinding[] {
+  const findings: SecurityFinding[] = [];
+  const normalizedId = node.id.toLowerCase();
+  const normalizedLabel = node.label.toLowerCase();
+
+  if (SECRET_FILE_RE.test(normalizedId) || SENSITIVE_NAME_RE.test(normalizedLabel)) {
+    findings.push({
+      ruleId: 'sensitive_file_name',
+      severity: normalizedLabel === '.env' ? 'high' : 'medium',
+      nodeId: node.id,
+      message: 'The file name looks like a potential carrier of a secret or key material.',
+    });
+  }
+
+  if (normalizedId.includes('/public/') && SECRET_FILE_RE.test(normalizedId)) {
+    findings.push({
+      ruleId: 'public_secret_exposure',
+      severity: 'critical',
+      nodeId: node.id,
+      message: 'A potentially sensitive file is located in a public directory.',
+    });
+  }
+
+  if (normalizedId.includes('/src/') && INFRA_FILE_RE.test(normalizedId)) {
+    findings.push({
+      ruleId: 'infra_in_source_tree',
+      severity: 'low',
+      nodeId: node.id,
+      message:
+        'An infrastructure file is located inside the source tree; check the separation of runtime and delivery artifacts.',
+    });
+  }
+
+  return findings;
+}
+
+function hasInsecureRemoteHttp(content: string): boolean {
+  return content
+    .split(/\r?\n/)
+    .some(
+      (line) =>
+        /http:\/\//i.test(line) &&
+        !/localhost|127\.0\.0\.1/i.test(line) &&
+        !/\$\{/.test(line) &&
+        !/xmlns\s*=|www\.w3\.org/i.test(line)
+    );
+}
+
+function scanContent(nodeId: string, content: string): SecurityFinding[] {
+  const sanitizedContent = stripStringsAndComments(content);
+  const findings = [
+    ...SANITIZED_CONTENT_RULES.filter((rule) => rule.pattern.test(sanitizedContent)),
+    ...RAW_CONTENT_RULES.filter((rule) => rule.pattern.test(content)),
+  ].map((rule) => toFinding(rule, nodeId));
+
+  if (hasInsecureRemoteHttp(content)) {
+    findings.push({
+      ruleId: 'insecure_http_url',
+      severity: 'medium',
+      nodeId,
+      message: 'Found an insecure HTTP URL outside of localhost.',
+    });
+  }
+  return findings;
+}
+
+function summarizeFindings(findings: SecurityFinding[]): SecurityScanResult['summary'] {
+  const count = (severity: SecurityFinding['severity']) =>
+    findings.filter((finding) => finding.severity === severity).length;
+  return {
+    total: findings.length,
+    critical: count('critical'),
+    high: count('high'),
+    medium: count('medium'),
+    low: count('low'),
+  };
+}
+
+async function scanFileNode(node: GraphData['nodes'][number]): Promise<SecurityFinding[]> {
+  const findings = scanPath(node);
+  try {
+    const content = await readFileWithinLimit(node.id);
+    if (content !== null) findings.push(...scanContent(node.id, content));
+  } catch {
+    // Ignore unreadable files; path-based checks above still apply.
+  }
+  return findings;
+}
+
 export class SecurityScanner {
   async analyze(graph: GraphData): Promise<SecurityScanResult> {
     const findings: SecurityFinding[] = [];
@@ -85,104 +182,13 @@ export class SecurityScanner {
       }
 
       // Skip build output directories to avoid false positives from bundled/compiled code
-      const normalizedPath = node.id.replace(/\\/g, '/');
-      if (
-        /(dist|dist-electron|dist-renderer|node_modules|build|out|coverage)\//.test(normalizedPath)
-      ) {
+      if (BUILD_OUTPUT_RE.test(node.id.replace(/\\/g, '/'))) {
         continue;
       }
 
-      const normalizedId = node.id.toLowerCase();
-      const normalizedLabel = node.label.toLowerCase();
-
-      if (SECRET_FILE_RE.test(normalizedId) || SENSITIVE_NAME_RE.test(normalizedLabel)) {
-        findings.push({
-          ruleId: 'sensitive_file_name',
-          severity: normalizedLabel === '.env' ? 'high' : 'medium',
-          nodeId: node.id,
-          message: 'The file name looks like a potential carrier of a secret or key material.',
-        });
-      }
-
-      if (normalizedId.includes('/public/') && SECRET_FILE_RE.test(normalizedId)) {
-        findings.push({
-          ruleId: 'public_secret_exposure',
-          severity: 'critical',
-          nodeId: node.id,
-          message: 'A potentially sensitive file is located in a public directory.',
-        });
-      }
-
-      if (normalizedId.includes('/src/') && INFRA_FILE_RE.test(normalizedId)) {
-        findings.push({
-          ruleId: 'infra_in_source_tree',
-          severity: 'low',
-          nodeId: node.id,
-          message:
-            'An infrastructure file is located inside the source tree; check the separation of runtime and delivery artifacts.',
-        });
-      }
-
-      try {
-        const content = await readFileWithinLimit(node.id);
-        if (content === null) continue;
-
-        const sanitizedContent = stripStringsAndComments(content);
-
-        for (const rule of SANITIZED_CONTENT_RULES) {
-          if (rule.pattern.test(sanitizedContent)) {
-            findings.push({
-              ruleId: rule.ruleId,
-              severity: rule.severity,
-              nodeId: node.id,
-              message: rule.message,
-            });
-          }
-        }
-
-        for (const rule of RAW_CONTENT_RULES) {
-          if (rule.pattern.test(content)) {
-            findings.push({
-              ruleId: rule.ruleId,
-              severity: rule.severity,
-              nodeId: node.id,
-              message: rule.message,
-            });
-          }
-        }
-
-        const hasInsecureRemoteHttp = content
-          .split(/\r?\n/)
-          .some(
-            (line) =>
-              /http:\/\//i.test(line) &&
-              !/localhost|127\.0\.0\.1/i.test(line) &&
-              !/\$\{/.test(line) &&
-              !/xmlns\s*=|www\.w3\.org/i.test(line)
-          );
-
-        if (hasInsecureRemoteHttp) {
-          findings.push({
-            ruleId: 'insecure_http_url',
-            severity: 'medium',
-            nodeId: node.id,
-            message: 'Found an insecure HTTP URL outside of localhost.',
-          });
-        }
-      } catch {
-        // Ignore unreadable files; path-based checks above still apply.
-      }
+      findings.push(...(await scanFileNode(node)));
     }
 
-    return {
-      findings,
-      summary: {
-        total: findings.length,
-        critical: findings.filter((finding) => finding.severity === 'critical').length,
-        high: findings.filter((finding) => finding.severity === 'high').length,
-        medium: findings.filter((finding) => finding.severity === 'medium').length,
-        low: findings.filter((finding) => finding.severity === 'low').length,
-      },
-    };
+    return { findings, summary: summarizeFindings(findings) };
   }
 }
