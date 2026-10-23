@@ -93,3 +93,16 @@ export const isCompositionRoot = (nodeId: string): boolean =>
   /(^|\/)(main|__main__|Main|Program|manage)\.[a-z]+$|(^|\/)[A-Za-z]*Application\.(java|kt)$/.test(
     fileOf(nodeId)
   );
+
+const WIRING_NAME =
+  /^(new|register|routes?|setup|wire|bootstrap|configure|build|create)([A-Z_0-9]|$)|^(New|Register|Routes?|Setup|Wire|Bootstrap|Configure|Build|Create)([A-Z_0-9]|$)|^(create_app|make_app|init_app|app_factory)$/;
+
+/** A file that declares a constructor/registration/setup function composes other modules. */
+export const declaresWiring = (children: Array<{ label: string; type: string }>): boolean =>
+  children.some(
+    (child) =>
+      child.type === 'function' &&
+      WIRING_NAME.test(child.label.split(/[.:]+/).filter(Boolean).pop() ?? child.label)
+  );
+
+export const WIRING_FAN_OUT_SCALE = 2;

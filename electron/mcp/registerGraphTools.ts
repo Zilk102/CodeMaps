@@ -3,7 +3,13 @@ import * as path from 'path';
 import * as z from 'zod/v4';
 import { summarizeBlastRadius } from '../analysis/blastRadiusSummary';
 import { oracleStore } from '../store';
-import { createGraphSummary, ensureGraphLoaded, getNodeDependencies, searchGraph } from './utils';
+import {
+  createGraphSummary,
+  ensureGraphLoaded,
+  getNodeDependencies,
+  resolveNodeReference,
+  searchGraph,
+} from './utils';
 import { McpToolContext } from './toolContext';
 import { errorToolResult, okStatusToolResult } from './toolSupport';
 
@@ -83,10 +89,13 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
     },
     async ({ nodeId, limit }: { nodeId: string; limit?: number }) => {
       const graph = await ensureGraphLoaded();
+      nodeId = resolveNodeReference(graph, nodeId);
       const node = graph.nodes.find((candidate) => candidate.id === nodeId);
 
       if (!node) {
-        return errorToolResult(`Node not found: ${nodeId}`);
+        return errorToolResult(
+          `Node not found: ${nodeId}. Pass the node id from the graph, an absolute path, or a path relative to the project root.`
+        );
       }
 
       return okStatusToolResult({
@@ -163,10 +172,13 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
       detail?: 'summary' | 'full';
     }) => {
       const graph = await ensureGraphLoaded();
+      nodeId = resolveNodeReference(graph, nodeId);
       const node = graph.nodes.find((candidate) => candidate.id === nodeId);
 
       if (!node) {
-        return errorToolResult(`Node not found: ${nodeId}`);
+        return errorToolResult(
+          `Node not found: ${nodeId}. Pass the node id from the graph, an absolute path, or a path relative to the project root.`
+        );
       }
 
       const impact = context.blastRadiusAnalyzer.analyze(graph, nodeId, depth);

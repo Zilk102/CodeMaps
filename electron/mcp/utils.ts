@@ -156,6 +156,32 @@ const relativeToRoot = (root: string | undefined, id: string) => {
  * `file#symbol`; without that a file would wrongly look unused. The per-file summaries list
  * every neighbouring file once with how many links tie it to the node.
  */
+/**
+ * Agents often pass `internal/app/main.go` instead of the absolute node id. A path relative to
+ * the project root (optionally with `./` and a `#symbol`) is mapped to the id the graph uses;
+ * anything else is returned unchanged so the caller reports it as not found.
+ */
+export const resolveNodeReference = (graph: GraphData, reference: string): string => {
+  const normalized = reference.replace(/\\/g, '/');
+  if (graph.nodes.some((node) => node.id === normalized)) return normalized;
+
+  const root = (graph.projectRoot ?? '').replace(/\/$/, '');
+  const relative = normalized.replace(/^\.\//, '');
+  if (!root || path.isAbsolute(relative)) return normalized;
+
+  const candidate = `${root}/${relative}`;
+  if (graph.nodes.some((node) => node.id === candidate)) return candidate;
+  const lowered = candidate.toLowerCase();
+  return graph.nodes.find((node) => node.id.toLowerCase() === lowered)?.id ?? normalized;
+};
+
+/** The same mapping for a file that may not be a graph node (for tools that read the file). */
+export const resolveProjectFilePath = (graph: GraphData, filePath: string): string => {
+  const normalized = filePath.replace(/\\/g, '/');
+  if (path.isAbsolute(normalized) || !graph.projectRoot) return normalized;
+  return `${graph.projectRoot.replace(/\/$/, '')}/${normalized.replace(/^\.\//, '')}`;
+};
+
 export const getNodeDependencies = (
   graph: GraphData,
   nodeId: string,

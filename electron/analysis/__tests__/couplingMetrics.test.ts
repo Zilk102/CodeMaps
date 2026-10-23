@@ -3,6 +3,7 @@ import type { GraphData } from '../../store/types';
 import {
   computeFileCoupling,
   computeNodeFanIn,
+  declaresWiring,
   isCompositionRoot,
   isSharedByDesign,
 } from '../couplingMetrics';
@@ -100,5 +101,17 @@ describe('isCompositionRoot', () => {
     expect(isCompositionRoot('/p/src/ShopApplication.java')).toBe(true);
     expect(isCompositionRoot('/p/internal/service/main_helper.go')).toBe(false);
     expect(isCompositionRoot('/p/internal/auth.go')).toBe(false);
+  });
+});
+
+describe('declaresWiring', () => {
+  it('recognises files that build the object graph or the routes', () => {
+    const fn = (label: string) => ({ label, type: 'function' });
+    expect(declaresWiring([fn('Handler.Register'), fn('helper')])).toBe(true);
+    expect(declaresWiring([fn('New')])).toBe(true);
+    expect(declaresWiring([fn('create_app')])).toBe(true);
+    expect(declaresWiring([fn('registerRoutes')])).toBe(true);
+    expect(declaresWiring([fn('Newton'), fn('renew')])).toBe(false);
+    expect(declaresWiring([{ label: 'New', type: 'class' }])).toBe(false);
   });
 });

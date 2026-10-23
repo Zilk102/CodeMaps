@@ -1,5 +1,17 @@
 # CodeMaps Changelog
 
+## v1.1.51 (2026-10-23)
+
+### Fixed
+
+- **Paths relative to the project root were not understood.** `analyze_decomposition` with `filePath: "internal/app/handlers.go"` returned nothing and only an absolute path worked. `get_node_dependencies`, `get_blast_radius`, `calculate_blast_radius_v2`, `get_semantic_skeleton` and `analyze_decomposition` now accept an absolute path, a path relative to the project root (with or without `./`, with a `#symbol`, with either slash) or the exact node id. A reference that matches nothing now says what to pass.
+- **`validate_architecture_changes` reported a clone without saying where.** Only the five biggest groups carried evidence, so a clone in a smaller group showed up as a bare file name. Every copy of every group now comes with its file and line range and the places it is duplicated at ("26 duplicated lines at admin_users.go:164-189; the same code is also at admin_users.go:220-245"), and the clone list is no longer cut to 15 groups.
+- **A file that builds the object graph or the routes was flagged for high fan-out.** A file that declares a constructor, registration or setup function (`New`, `Register`, `Routes`, `Setup`, `create_app`, ...) composes other modules by design and now gets twice the fan-out threshold. Entry points such as `main.go` were already exempt.
+
+### Known limits
+
+- Clone detection finds code that is the same up to names, numbers and strings. Blocks that were copied and then edited (a different number of statements, an extra branch) are not reported.
+
 ## v1.1.50 (2026-10-23)
 
 ### Added

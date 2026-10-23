@@ -4,7 +4,7 @@ import * as z from 'zod/v4';
 import { validateChanges } from '../analysis/ChangeValidationService';
 import { GitService } from '../services/GitService';
 import { oracle } from '../oracle';
-import { ensureGraphLoaded } from './utils';
+import { ensureGraphLoaded, resolveNodeReference, resolveProjectFilePath } from './utils';
 import { McpToolContext } from './toolContext';
 import { okStatusToolResult } from './toolSupport';
 
@@ -169,7 +169,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
         filePath: z
           .string()
           .optional()
-          .describe('Optional absolute path of one file to plan a split for.'),
+          .describe(
+            'Optional path of one file to plan a split for (absolute, or relative to the project root).'
+          ),
         limit: z
           .number()
           .int()
@@ -193,7 +195,9 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
         await import('../analysis/DecompositionGuidanceService.js');
       const { SymbolClusterService } =
         await import('../analysis/symbolClusters/SymbolClusterService.js');
-      const focus = [...(focusNodeIds ?? []), ...(filePath ? [filePath.replace(/\\/g, '/')] : [])];
+      const focus = [...(focusNodeIds ?? []), ...(filePath ? [filePath] : [])].map((reference) =>
+        resolveNodeReference(graph, reference)
+      );
       const result = new DecompositionGuidanceService().prepareGuidance(graph, {
         focusNodeIds: focus.length > 0 ? focus : undefined,
         limit,
@@ -217,11 +221,15 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
       description:
         'Strips out function/method bodies from a file, returning only the structural skeleton (imports, interfaces, signatures). Use this to save tokens when exploring large files.',
       inputSchema: {
-        filePath: z.string().describe('Absolute path to the file to skeletonize'),
+        filePath: z
+          .string()
+          .describe('Path of the file to skeletonize (absolute, or relative to the project root)'),
       },
     },
-    async ({ filePath }: { filePath: string }) => {
+    async ({ filePath: requestedPath }: { filePath: string }) => {
       try {
+        const graph = await ensureGraphLoaded();
+        const filePath = resolveProjectFilePath(graph, requestedPath);
         const { SemanticSkeletonService } = await import('../analysis/SemanticSkeletonService.js');
         const service = new SemanticSkeletonService();
         const skeleton = await service.generateSkeleton(filePath);

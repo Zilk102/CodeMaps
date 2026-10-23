@@ -15,10 +15,15 @@ import {
 import {
   computeFileCoupling,
   computeNodeFanIn,
+  declaresWiring,
   isCompositionRoot,
   isSharedByDesign,
+  WIRING_FAN_OUT_SCALE,
 } from './couplingMetrics';
 import type { DetectedPattern } from './patternDetectionTypes';
+
+// Every copy of every group is evidence, so a change to any file can find the copies it touches.
+const MAX_CLONE_EVIDENCE = 120;
 
 export function buildStructuralPatterns(args: {
   graph: GraphData;
@@ -56,15 +61,22 @@ export function buildStructuralPatterns(args: {
 
   const highFanOutFiles = graph.nodes
     .filter((node) => node.type === 'file' && !isCompositionRoot(node.id))
-    .map((node) => ({ node, fanOut: coupling.get(node.id)?.fanOut ?? 0 }))
-    .filter(({ fanOut }) => fanOut >= 12)
+    .map((node) => ({
+      node,
+      // A file that builds the object graph or the routes depends on much by design.
+      scale: declaresWiring(childrenByParentId.get(node.id) ?? []) ? WIRING_FAN_OUT_SCALE : 1,
+      fanOut: coupling.get(node.id)?.fanOut ?? 0,
+    }))
+    .filter(({ fanOut, scale }) => fanOut >= 12 * scale)
     .sort((a, b) => b.fanOut - a.fanOut)
     .slice(0, 10);
 
   if (highFanOutFiles.length > 0) {
     patterns.push({
       id: 'high_fan_out_files',
-      severity: highFanOutFiles.some(({ fanOut }) => fanOut >= 20) ? 'high' : 'medium',
+      severity: highFanOutFiles.some(({ fanOut, scale }) => fanOut >= 20 * scale)
+        ? 'high'
+        : 'medium',
       title: 'High Fan-Out Files',
       description:
         'Files that depend on many other files (siblings in the same folder count for little) are overloaded with responsibilities.',
@@ -331,13 +343,19 @@ export function buildQualityPatterns(quality: ModuleQualitySummary): DetectedPat
         new Set(quality.codeClones.flatMap((c) => c.instances.map((i) => i.nodeId)))
       ),
       // One entry per copy, so a change to any of the files finds the copies it must reuse.
-      evidence: quality.codeClones.slice(0, 5).flatMap((clone) => {
-        const places = clone.instances.map((instance) => instance.methodName).join(', ');
-        return clone.instances.map((instance) => ({
-          nodeId: instance.nodeId,
-          message: `${clone.instances[0].lineCount} duplicated lines (${instance.methodName}) also appear in ${clone.instances.length - 1} other place(s): ${places}. Extract the shared logic once.`,
-        }));
-      }),
+      evidence: quality.codeClones
+        .flatMap((clone) => {
+          return clone.instances.map((instance) => {
+            const others = clone.instances
+              .filter((other) => other !== instance)
+              .map((other) => other.methodName);
+            return {
+              nodeId: instance.nodeId,
+              message: `${clone.instances[0].lineCount} duplicated lines at ${instance.methodName}; the same code is also at ${others.join(', ')}. Extract it once and reuse it.`,
+            };
+          });
+        })
+        .slice(0, MAX_CLONE_EVIDENCE),
     });
   }
 

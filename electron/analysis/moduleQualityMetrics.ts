@@ -915,7 +915,7 @@ export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
   // function-body comparison above remains the fallback before that (and for tiny projects).
   const structuralClones = cloneIndex.peek(graph.projectRoot);
   const codeClones = structuralClones
-    ? structuralClones.slice(0, 15).map((group) => ({
+    ? structuralClones.map((group) => ({
         bodyHash: `${group.tokenCount}:${group.instances[0].file}:${group.instances[0].startLine}`,
         instances: group.instances.map((instance) => ({
           nodeId: instance.file,

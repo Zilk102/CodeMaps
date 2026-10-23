@@ -3,7 +3,7 @@ import * as z from 'zod/v4';
 import { BlastRadiusV2 } from '../services/BlastRadiusV2';
 import { GitActivityService } from '../services/GitActivityService';
 import { PRImpactAnalyzer } from '../services/PRImpactAnalyzer';
-import { ensureGraphLoaded } from './utils';
+import { ensureGraphLoaded, resolveNodeReference } from './utils';
 import { okStatusToolResult, requireProjectRoot } from './toolSupport';
 
 export function registerAdvancedTools(server: McpServer) {
@@ -83,7 +83,7 @@ export function registerAdvancedTools(server: McpServer) {
       const analyzer = new BlastRadiusV2(projectRoot);
       await analyzer.init();
       try {
-        const result = await analyzer.calculate(nodeId, maxDepth || 5);
+        const result = await analyzer.calculate(resolveNodeReference(graph, nodeId), maxDepth || 5);
         return okStatusToolResult(result);
       } finally {
         await analyzer.close();

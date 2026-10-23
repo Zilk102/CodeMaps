@@ -6,6 +6,8 @@ import {
   createAgentPlaybook,
   createGraphSummary,
   getNodeDependencies,
+  resolveNodeReference,
+  resolveProjectFilePath,
   searchGraph,
 } from '../utils';
 
@@ -160,5 +162,57 @@ describe('searchGraph ranking', () => {
   it('honours the type filter and the limit', () => {
     expect(searchGraph(sampleGraph(), 'kuzu', 'class', 1)).toHaveLength(1);
     expect(searchGraph(sampleGraph(), 'kuzu', 'function')).toEqual([]);
+  });
+});
+
+describe('resolveNodeReference', () => {
+  const graph = {
+    projectRoot: 'd:/PROJECT/sample',
+    nodes: [
+      {
+        id: 'd:/PROJECT/sample/internal/app.go',
+        label: 'app.go',
+        group: 1,
+        type: 'file',
+        churn: 0,
+      },
+      {
+        id: 'd:/PROJECT/sample/internal/app.go#Run',
+        label: 'Run',
+        group: 3,
+        type: 'function',
+        churn: 0,
+      },
+    ],
+    links: [],
+  } as unknown as GraphData;
+
+  it('keeps an id the graph already knows', () => {
+    expect(resolveNodeReference(graph, 'd:/PROJECT/sample/internal/app.go')).toBe(
+      'd:/PROJECT/sample/internal/app.go'
+    );
+  });
+
+  it('maps a path relative to the project root, with or without ./ and a symbol', () => {
+    expect(resolveNodeReference(graph, 'internal/app.go')).toBe(
+      'd:/PROJECT/sample/internal/app.go'
+    );
+    expect(resolveNodeReference(graph, './internal/app.go')).toBe(
+      'd:/PROJECT/sample/internal/app.go'
+    );
+    expect(resolveNodeReference(graph, 'internal\\app.go#Run')).toBe(
+      'd:/PROJECT/sample/internal/app.go#Run'
+    );
+  });
+
+  it('leaves an unknown reference alone so the tool can report it', () => {
+    expect(resolveNodeReference(graph, 'internal/missing.go')).toBe('internal/missing.go');
+  });
+
+  it('resolves a file path that is not a graph node against the project root', () => {
+    expect(resolveProjectFilePath(graph, 'internal/other.go')).toBe(
+      'd:/PROJECT/sample/internal/other.go'
+    );
+    expect(resolveProjectFilePath(graph, 'd:/elsewhere/x.go')).toBe('d:/elsewhere/x.go');
   });
 });
