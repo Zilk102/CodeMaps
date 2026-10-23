@@ -102,6 +102,28 @@ const resolveOwnSymbol = (
   return { originalName: directExport?.localName ?? symbolName };
 };
 
+const reExportsName = (
+  reExport: NonNullable<GraphNode['reExports']>[number],
+  name: string
+): boolean => reExport.entities.includes('*') || reExport.entities.includes(name);
+
+// Follows the file's re-exports that forward `name` to the file that declares it.
+const resolveThroughReExports = (
+  nodes: NodeMap,
+  fileNode: GraphNode,
+  name: string,
+  visited: Set<string>
+): string | undefined => {
+  for (const reExport of fileNode.reExports ?? []) {
+    if (!reExportsName(reExport, name)) continue;
+    const targetFile = resolveReExportFile(nodes, reExport.target);
+    if (!targetFile) continue;
+    const forwarded = resolveSymbolTarget(nodes, targetFile, name, visited);
+    if (forwarded) return forwarded;
+  }
+  return undefined;
+};
+
 // Looks up the node a name really refers to, following barrel re-exports
 // (`export * from`, `export { a as b } from`) so dependents link to the declaration
 // instead of the barrel file.
@@ -129,17 +151,7 @@ const resolveSymbolTarget = (
   const own = resolveOwnSymbol(nodes, fileNode, filePath, symbolName);
   if (own.target) return own.target;
 
-  for (const reExport of fileNode.reExports ?? []) {
-    if (!reExport.entities.includes('*') && !reExport.entities.includes(own.originalName)) {
-      continue;
-    }
-    const targetFile = resolveReExportFile(nodes, reExport.target);
-    if (!targetFile) continue;
-    const forwarded = resolveSymbolTarget(nodes, targetFile, own.originalName, visited);
-    if (forwarded) return forwarded;
-  }
-
-  return undefined;
+  return resolveThroughReExports(nodes, fileNode, own.originalName, visited);
 };
 
 // Tries `<file><ext>` for every known extension, returning the first non-undefined result.

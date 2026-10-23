@@ -1,9 +1,12 @@
 import type { ImportRecord } from '../parsing/types';
 import {
+  addToBucket,
+  ancestorDirs,
   dirOf,
   entityTarget,
   hasEntity,
   joinPath,
+  nearestPath,
   type FileEntry,
   type LanguageResolver,
   type ProjectIndex,
@@ -17,32 +20,11 @@ interface ModuleHit {
   file: string;
 }
 
-/** The candidate that shares the longest directory prefix with the importer. */
-const nearest = (importer: string, candidates: string[]): string => {
-  const score = (candidate: string) => {
-    const a = importer.split('/');
-    const b = candidate.split('/');
-    let shared = 0;
-    while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
-    return shared;
-  };
-  return candidates.reduce((best, candidate) =>
-    score(candidate) > score(best) ? candidate : best
-  );
-};
-
 /** Directories an absolute import may be rooted at: every ancestor plus `src/`. */
-const absoluteRoots = (rootDir: string, importer: FileEntry): string[] => {
-  const roots: string[] = [];
-  let current = dirOf(importer.path);
-  while (current.length >= rootDir.length) {
-    roots.push(current);
-    if (current === rootDir) break;
-    current = dirOf(current);
-  }
-  roots.push(joinPath(rootDir, 'src'));
-  return roots;
-};
+const absoluteRoots = (rootDir: string, importer: FileEntry): string[] => [
+  ...ancestorDirs(importer.path, rootDir),
+  joinPath(rootDir, 'src'),
+];
 
 /** `django_host.apps.billing` -> candidate files, for every suffix of every module path. */
 const buildModulesBySuffix = (index: ProjectIndex): Map<string, string[]> => {
@@ -57,9 +39,7 @@ const buildModulesBySuffix = (index: ProjectIndex): Map<string, string[]> => {
     // trailing part of the path may be the module name.
     for (let start = 0; start < segments.length; start += 1) {
       const key = segments.slice(start).join('.');
-      const bucket = modulesBySuffix.get(key);
-      if (bucket) bucket.push(entry.path);
-      else modulesBySuffix.set(key, [entry.path]);
+      addToBucket(modulesBySuffix, key, entry.path);
     }
   }
   return modulesBySuffix;
@@ -111,7 +91,7 @@ export class PythonResolver implements LanguageResolver {
       if (hit) return hit;
     }
     const candidates = this.modulesBySuffix.get(segments.join('.'));
-    return candidates?.length ? { file: nearest(importer.path, candidates) } : null;
+    return candidates?.length ? { file: nearestPath(importer.path, candidates) } : null;
   }
 
   /** Where `name` imported from `module` really lives, following `from .x import name` re-exports. */

@@ -23,29 +23,78 @@ function highIf(condition: boolean): Severity {
   return condition ? 'high' : 'medium';
 }
 
+type CountKey = {
+  [K in keyof HealthScoreMetricSnapshot]: HealthScoreMetricSnapshot[K] extends number ? K : never;
+}[keyof HealthScoreMetricSnapshot];
+
+type CountToLevel = (count: number) => Severity;
+
+/**
+ * A rule that fires while the counter `key` is positive. `{count}` in the message is replaced by
+ * the counter; `severity` and `penalty` follow it.
+ */
+function countRule(
+  key: CountKey,
+  code: string,
+  severity: Severity | CountToLevel,
+  message: string,
+  penalty?: (count: number) => number
+): HealthRule {
+  return (m) => {
+    const count = m[key];
+    if (!(count > 0)) return null;
+    const level = typeof severity === 'function' ? severity(count) : severity;
+    return finding(code, level, message.replace('{count}', String(count)), penalty?.(count));
+  };
+}
+
+/** `high` from `threshold` on, otherwise `medium`. */
+const highFrom =
+  (threshold: number): CountToLevel =>
+  (count) =>
+    highIf(count >= threshold);
+
+/** `high` above `limit`, otherwise `medium`. */
+const highAbove =
+  (limit: number): CountToLevel =>
+  (count) =>
+    highIf(count > limit);
+
+/** `medium` above `limit`, otherwise `low`. */
+const mediumAbove =
+  (limit: number): CountToLevel =>
+  (count) =>
+    count > limit ? 'medium' : 'low';
+
+/** The count, capped; `factor` weighs each unit. */
+const capped =
+  (cap: number, factor = 1) =>
+  (count: number) =>
+    Math.min(cap, count * factor);
+
+/** One point per `divisor` units, rounded up and capped. */
+const perUnits = (cap: number, divisor: number) => (count: number) =>
+  Math.min(cap, Math.ceil(count / divisor));
+
 const STRUCTURE_RULES: HealthRule[] = [
   (m) =>
     m.totalNodes === 0
       ? finding('empty_graph', 'high', 'Граф пуст, индексация проекта не дала ни одного узла.', 70)
       : null,
-  (m) =>
-    m.unresolvedImportLinks > 0
-      ? finding(
-          'unresolved_import_links',
-          highIf(m.unresolvedImportLinks > 25),
-          `Обнаружено ${m.unresolvedImportLinks} import-связей с неразрешенной целью.`,
-          Math.min(25, m.unresolvedImportLinks)
-        )
-      : null,
-  (m) =>
-    m.orphanNodes > 0
-      ? finding(
-          'orphan_nodes',
-          m.orphanNodes > 20 ? 'medium' : 'low',
-          `Обнаружено ${m.orphanNodes} изолированных узлов без входящих и исходящих связей.`,
-          Math.min(15, Math.ceil(m.orphanNodes / 3))
-        )
-      : null,
+  countRule(
+    'unresolvedImportLinks',
+    'unresolved_import_links',
+    highAbove(25),
+    'Обнаружено {count} import-связей с неразрешенной целью.',
+    capped(25)
+  ),
+  countRule(
+    'orphanNodes',
+    'orphan_nodes',
+    mediumAbove(20),
+    'Обнаружено {count} изолированных узлов без входящих и исходящих связей.',
+    perUnits(15, 3)
+  ),
   (m) =>
     m.directoryCoverageRatio < 0.85
       ? finding(
@@ -64,83 +113,65 @@ const STRUCTURE_RULES: HealthRule[] = [
           25
         )
       : null,
-  (m) =>
-    m.architectureViolations > 0
-      ? finding(
-          'architecture_violations',
-          highIf(m.architectureViolations > 10),
-          `Обнаружено ${m.architectureViolations} нарушений межслоевых зависимостей.`,
-          Math.min(20, m.architectureViolations * 2)
-        )
-      : null,
-  (m) =>
-    m.unknownLayerNodes > 0
-      ? finding(
-          'unknown_layer_nodes',
-          m.unknownLayerNodes > 25 ? 'medium' : 'low',
-          `Для ${m.unknownLayerNodes} узлов не удалось определить архитектурный слой.`,
-          Math.min(10, Math.ceil(m.unknownLayerNodes / 10))
-        )
-      : null,
+  countRule(
+    'architectureViolations',
+    'architecture_violations',
+    highAbove(10),
+    'Обнаружено {count} нарушений межслоевых зависимостей.',
+    capped(20, 2)
+  ),
+  countRule(
+    'unknownLayerNodes',
+    'unknown_layer_nodes',
+    mediumAbove(25),
+    'Для {count} узлов не удалось определить архитектурный слой.',
+    perUnits(10, 10)
+  ),
 ];
 
 const DESIGN_RULES: HealthRule[] = [
-  (m) =>
-    m.oversizedModules > 0
-      ? finding(
-          'oversized_modules',
-          highIf(m.oversizedModules >= 3),
-          `Обнаружено ${m.oversizedModules} oversized-модулей с избыточным размером или плотностью символов.`
-        )
-      : null,
-  (m) =>
-    m.godFiles > 0
-      ? finding(
-          'god_files',
-          'high',
-          `Обнаружено ${m.godFiles} god-file модулей с чрезмерной концентрацией ответственности.`
-        )
-      : null,
-  (m) =>
-    m.godClasses > 0
-      ? finding(
-          'god_classes',
-          highIf(m.godClasses >= 3),
-          `Обнаружено ${m.godClasses} god-class конструкций с перегруженным публичным API или слишком большим телом класса.`
-        )
-      : null,
-  (m) =>
-    m.longMethods > 0
-      ? finding(
-          'long_methods',
-          highIf(m.longMethods >= 4),
-          `Обнаружено ${m.longMethods} длинных методов/функций, ухудшающих читаемость и стоимость безопасного рефакторинга.`
-        )
-      : null,
-  (m) =>
-    m.complexMethods > 0
-      ? finding(
-          'complex_methods',
-          highIf(m.complexMethods >= 4),
-          `Обнаружено ${m.complexMethods} методов/функций с высокой цикломатической сложностью или глубокой вложенностью.`
-        )
-      : null,
-  (m) =>
-    m.codeClones > 0
-      ? finding(
-          'code_clones',
-          highIf(m.codeClones >= 3),
-          `Обнаружено ${m.codeClones} групп дублирующегося кода (клонов). Дублирование усложняет поддержку и увеличивает объем кодовой базы.`
-        )
-      : null,
-  (m) =>
-    m.mixedResponsibilityModules > 0
-      ? finding(
-          'mixed_responsibility_modules',
-          highIf(m.mixedResponsibilityModules >= 3),
-          `Обнаружено ${m.mixedResponsibilityModules} модулей со смешанными архитектурными ответственностями.`
-        )
-      : null,
+  countRule(
+    'oversizedModules',
+    'oversized_modules',
+    highFrom(3),
+    'Обнаружено {count} oversized-модулей с избыточным размером или плотностью символов.'
+  ),
+  countRule(
+    'godFiles',
+    'god_files',
+    'high',
+    'Обнаружено {count} god-file модулей с чрезмерной концентрацией ответственности.'
+  ),
+  countRule(
+    'godClasses',
+    'god_classes',
+    highFrom(3),
+    'Обнаружено {count} god-class конструкций с перегруженным публичным API или слишком большим телом класса.'
+  ),
+  countRule(
+    'longMethods',
+    'long_methods',
+    highFrom(4),
+    'Обнаружено {count} длинных методов/функций, ухудшающих читаемость и стоимость безопасного рефакторинга.'
+  ),
+  countRule(
+    'complexMethods',
+    'complex_methods',
+    highFrom(4),
+    'Обнаружено {count} методов/функций с высокой цикломатической сложностью или глубокой вложенностью.'
+  ),
+  countRule(
+    'codeClones',
+    'code_clones',
+    highFrom(3),
+    'Обнаружено {count} групп дублирующегося кода (клонов). Дублирование усложняет поддержку и увеличивает объем кодовой базы.'
+  ),
+  countRule(
+    'mixedResponsibilityModules',
+    'mixed_responsibility_modules',
+    highFrom(3),
+    'Обнаружено {count} модулей со смешанными архитектурными ответственностями.'
+  ),
 ];
 
 const QUALITY_RULES: HealthRule[] = [

@@ -83,40 +83,52 @@ function serializeError(error: unknown): KuzuResponse['error'] {
   };
 }
 
+type ActionParams = Record<string, unknown>;
+
+/** What one action does with the repository; `null` results mean "done, nothing to return". */
+type ActionHandler = (
+  repo: KuzuGraphRepository,
+  params: ActionParams,
+  request: KuzuRequest
+) => Promise<unknown>;
+
+const stringOrUndefined = (value: unknown) => (typeof value === 'string' ? value : undefined);
+
+const ACTION_HANDLERS: Record<KuzuAction, ActionHandler> = {
+  init: async (repo) => {
+    await repo.init();
+    return null;
+  },
+  addNode: async (repo, params) => {
+    await repo.addNode(params.node as GraphNode);
+    return null;
+  },
+  addEdge: async (repo, params) => {
+    await repo.addEdge(params.edge as GraphEdge);
+    return null;
+  },
+  query: async (repo, params) => repo.query(String(params.query ?? '')),
+  queryNodes: async (repo, params) =>
+    repo.queryNodes(stringOrUndefined(params.type), stringOrUndefined(params.filePath)),
+  queryNeighbors: async (repo, params) => repo.queryNeighbors(String(params.nodeId ?? '')),
+  getStats: async (repo) => repo.getStats(),
+  clear: async (repo) => {
+    await repo.clear();
+    return null;
+  },
+  close: async (repo, _params, request) => {
+    await repo.close();
+    repositories.delete(request.dbPath);
+    return null;
+  },
+};
+
 async function executeRequest(request: KuzuRequest): Promise<unknown> {
   const repo = getRepository(request.dbPath, request.dbDir);
-
-  switch (request.action) {
-    case 'init':
-      await repo.init();
-      return null;
-    case 'addNode':
-      await repo.addNode(request.params?.node as GraphNode);
-      return null;
-    case 'addEdge':
-      await repo.addEdge(request.params?.edge as GraphEdge);
-      return null;
-    case 'query':
-      return repo.query(String(request.params?.query ?? ''));
-    case 'queryNodes':
-      return repo.queryNodes(
-        typeof request.params?.type === 'string' ? request.params.type : undefined,
-        typeof request.params?.filePath === 'string' ? request.params.filePath : undefined
-      );
-    case 'queryNeighbors':
-      return repo.queryNeighbors(String(request.params?.nodeId ?? ''));
-    case 'getStats':
-      return repo.getStats();
-    case 'clear':
-      await repo.clear();
-      return null;
-    case 'close':
-      await repo.close();
-      repositories.delete(request.dbPath);
-      return null;
-    default:
-      throw new Error(`Unsupported Kuzu action: ${String(request.action)}`);
+  if (!Object.prototype.hasOwnProperty.call(ACTION_HANDLERS, request.action)) {
+    throw new Error(`Unsupported Kuzu action: ${String(request.action)}`);
   }
+  return ACTION_HANDLERS[request.action](repo, request.params ?? {}, request);
 }
 
 process.on('message', (payload) => {

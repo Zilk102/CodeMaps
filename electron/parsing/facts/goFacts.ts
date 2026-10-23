@@ -1,7 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { unquote, walkNamed, namedOf } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { addOwnedFunction, unquote, walkNamed, namedOf } from './astUtils';
+import { FactsAccumulator, importHandler, type NodeHandler } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const receiverTypeName = (method: Node): string | undefined => {
@@ -44,19 +44,11 @@ const HANDLERS: Record<string, NodeHandler<GoState>> = {
     state.packageName = namedOf(node)[0]?.text;
     return false;
   },
-  import_spec: (node, { acc }) => {
-    const record = readImport(node);
-    if (record) acc.imports.push(record);
-    return false;
-  },
+  import_spec: importHandler(readImport),
   type_spec: addNamed('class'),
   function_declaration: addNamed('function'),
   method_declaration: (node, { acc }) => {
-    const name = node.childForFieldName('name');
-    if (name) {
-      const owner = receiverTypeName(node);
-      acc.entities.add('function', owner ? `${owner}.${name.text}` : name.text, name);
-    }
+    addOwnedFunction(acc.entities, node, receiverTypeName(node));
     return true;
   },
   selector_expression: (node, { acc }) => {

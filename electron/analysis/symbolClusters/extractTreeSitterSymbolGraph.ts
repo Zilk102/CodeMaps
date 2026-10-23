@@ -95,6 +95,21 @@ const uniqueBlockName = (label: string, start: number, taken: Set<string>): stri
   return name;
 };
 
+/** An identifier either refers to declarations of the file or is an outside name the symbol uses. */
+const noteIdentifier = (
+  name: string,
+  bySimpleName: Map<string, string[]>,
+  refs: Set<string>,
+  uses: Set<string>
+): void => {
+  const targets = bySimpleName.get(name);
+  if (targets && targets.length <= MAX_AMBIGUOUS_TARGETS) {
+    for (const target of targets) refs.add(target);
+  } else if (!targets && name.length >= 3 && uses.size < MAX_USES) {
+    uses.add(name);
+  }
+};
+
 /** Which other declarations a declaration refers to, which outside names it uses, and the lines of nested declarations. */
 const collectDeclarationUsage = (
   declaration: Declaration,
@@ -111,12 +126,7 @@ const collectDeclarationUsage = (
       return false;
     }
     if (node.childCount === 0 && /identifier/.test(node.type)) {
-      const targets = bySimpleName.get(node.text);
-      if (targets && targets.length <= MAX_AMBIGUOUS_TARGETS) {
-        for (const target of targets) refs.add(target);
-      } else if (!targets && node.text.length >= 3 && uses.size < MAX_USES) {
-        uses.add(node.text);
-      }
+      noteIdentifier(node.text, bySimpleName, refs, uses);
     }
     return true;
   });

@@ -229,41 +229,57 @@ const validateFile = async (endpoint, absoluteFile) => {
   }
 };
 
-export const run = async (rawInput, env = process.env) => {
-  if (env.CODEMAPS_HOOK_DISABLED === '1') return { exitCode: 0 };
-
-  const input = JSON.parse(rawInput || '{}');
+/** The file Claude edited, when it is a source file worth validating. */
+const editedSourceFile = (input) => {
   const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
-  if (!isCandidateFile(editedFile)) {
-    log('not a source file');
-    return { exitCode: 0 };
-  }
+  if (isCandidateFile(editedFile)) return editedFile;
+  log('not a source file');
+  return null;
+};
 
-  const endpoint = env.CODEMAPS_MCP_URL ?? 'http://127.0.0.1:3005/mcp';
+/** The open project's root and the edited file's absolute path, or null when the hook stays silent. */
+const locateEdit = async (endpoint, input, editedFile) => {
   const { running, projectRoot } = await fetchProjectRoot(endpoint);
   if (!running) {
     log('CodeMaps is not running');
-    return { exitCode: 0 };
+    return null;
   }
-
   const absoluteFile = isAbsolutePath(editedFile)
     ? editedFile
     : path.resolve(input.cwd ?? process.cwd(), editedFile);
   if (!isInsideProject(absoluteFile, projectRoot)) {
     log(`CodeMaps has ${projectRoot ?? 'no project'} open, not this file's project`);
-    return { exitCode: 0 };
+    return null;
   }
+  return { projectRoot, absoluteFile };
+};
 
+/** The validation report for Claude, or null when there is nothing new to say. */
+const newReportFor = async (endpoint, env, { projectRoot, absoluteFile }) => {
   await sleep(Number(env.CODEMAPS_HOOK_SETTLE_MS ?? 1200));
 
   const validation = await validateFile(endpoint, absoluteFile);
-  if (validation === null) return { exitCode: 0 };
+  if (validation === null) return null;
 
   const report = buildReport(validation, projectRoot, absoluteFile);
   const stateFile = stateFileFor(projectRoot, env.CODEMAPS_HOOK_STATE_DIR || os.tmpdir());
-  if (!report || isRepeat(stateFile, absoluteFile, report)) return { exitCode: 0 };
+  return report && !isRepeat(stateFile, absoluteFile, report) ? report : null;
+};
+
+export const run = async (rawInput, env = process.env) => {
+  if (env.CODEMAPS_HOOK_DISABLED === '1') return { exitCode: 0 };
+
+  const input = JSON.parse(rawInput || '{}');
+  const editedFile = editedSourceFile(input);
+  if (!editedFile) return { exitCode: 0 };
+
+  const endpoint = env.CODEMAPS_MCP_URL ?? 'http://127.0.0.1:3005/mcp';
+  const edit = await locateEdit(endpoint, input, editedFile);
+  if (!edit) return { exitCode: 0 };
+
+  const report = await newReportFor(endpoint, env, edit);
   // Exit code 2 on PostToolUse feeds stderr back to Claude.
-  return { exitCode: 2, stderr: report };
+  return report ? { exitCode: 2, stderr: report } : { exitCode: 0 };
 };
 
 const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;

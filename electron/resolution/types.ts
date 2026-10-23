@@ -1,4 +1,4 @@
-import type { FileResolutionFacts } from '../parsing/types';
+import type { FileResolutionFacts, ImportRecord } from '../parsing/types';
 
 /** One edge from a file to a file (`a/b.go`) or to a symbol in a file (`a/b.go#Name`). */
 export interface ResolvedEdge {
@@ -92,4 +92,53 @@ export const pathSuffixes = (path: string, root: string): string[] => {
   const prefix = `${root}/`;
   const segments = (path.startsWith(prefix) ? path.slice(prefix.length) : path).split('/');
   return segments.map((_, start) => segments.slice(start).join('/'));
+};
+
+/** Appends `value` to the list kept under `key`, creating the list on first use. */
+export const addToBucket = <V>(map: Map<string, V[]>, key: string, value: V): void => {
+  const bucket = map.get(key);
+  if (bucket) bucket.push(value);
+  else map.set(key, [value]);
+};
+
+/** Builds the edges of one language: the reason is prefixed with its id. */
+export const languageEdge =
+  (languageId: string) =>
+  (target: string, value: number, reason: string): ResolvedEdge => ({
+    target,
+    value,
+    reason: `${languageId}:${reason}`,
+  });
+
+/** The candidate nearest to the importer, ignoring the importer itself; null when none is left. */
+export const nearestOther = (importer: string, candidates: string[] | undefined): string | null => {
+  const others = (candidates ?? []).filter((path) => path !== importer);
+  return others.length > 0 ? nearestPath(importer, others) : null;
+};
+
+/** Edges for every import of the file whose target `resolveTarget` finds. */
+export const edgesOfImports = (
+  file: FileEntry,
+  resolveTarget: (record: ImportRecord) => string | null,
+  edgesTo: (target: string) => ResolvedEdge[]
+): ResolvedEdge[] =>
+  file.facts.imports.flatMap((record) => {
+    const target = resolveTarget(record);
+    return target ? edgesTo(target) : [];
+  });
+
+/** The indexed files written in `language`. */
+export const filesOfLanguage = (index: ProjectIndex, language: string): FileEntry[] =>
+  [...index.files.values()].filter((entry) => entry.language === language);
+
+/** Groups the paths of `files` under each key `keysOf` gives them, in file order. */
+export const bucketsBy = (
+  files: FileEntry[],
+  keysOf: (entry: FileEntry) => string[]
+): Map<string, string[]> => {
+  const buckets = new Map<string, string[]>();
+  for (const entry of files) {
+    for (const key of keysOf(entry)) addToBucket(buckets, key, entry.path);
+  }
+  return buckets;
 };

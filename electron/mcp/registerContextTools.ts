@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
-import { defineGraphTool } from './defineTool';
+import { GraphData } from '../store';
+import { defineGraphTool, type ToolArgs, type ToolSpec } from './defineTool';
 import { McpToolContext } from './toolContext';
 import {
   PATTERN_LIMIT_DESCRIPTION,
@@ -22,6 +23,44 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
   registerReviewContext(server, context);
 }
 
+interface PreparedContext {
+  result: unknown;
+  /** How many items per list the compact status result keeps. */
+  limit: number;
+}
+
+/** A graph tool that prepares one context and returns it under `resultKey`. */
+function defineContextTool<Shape extends z.ZodRawShape>(
+  server: McpServer,
+  spec: ToolSpec<Shape>,
+  resultKey: string,
+  prepare: (graph: GraphData, args: ToolArgs<Shape>) => Promise<PreparedContext>
+) {
+  defineGraphTool(server, spec, async (graph, args) => {
+    const { result, limit } = await prepare(graph, args);
+    return okCompactStatusToolResult({ [resultKey]: result }, limit);
+  });
+}
+
+interface SwitchArgs {
+  includeClassifications?: boolean;
+  includeSecurityFindings?: boolean;
+  limit?: number;
+}
+
+/** The options of the switches above, with the defaults the context tools share. */
+const switchOptions = (args: SwitchArgs, includeSecurityFindings: boolean) => ({
+  includeClassifications: args.includeClassifications ?? false,
+  includeSecurityFindings: args.includeSecurityFindings ?? includeSecurityFindings,
+  limit: args.limit ?? 10,
+});
+
+/** Runs a context service with the tool's options and reports the limit those options set. */
+const prepareWith = async <O extends { limit: number }>(
+  options: O,
+  run: (options: O) => Promise<unknown>
+): Promise<PreparedContext> => ({ result: await run(options), limit: options.limit });
+
 /** The inputs every context tool that can include classifications and security findings shares. */
 const contextSwitches = (securityDescription: string) => ({
   includeClassifications: includeClassificationsField,
@@ -31,7 +70,7 @@ const contextSwitches = (securityDescription: string) => ({
 
 function registerProjectContext(server: McpServer, context: McpToolContext) {
   const switches = contextSwitches('When true, include security findings in the project context');
-  defineGraphTool(
+  defineContextTool(
     server,
     {
       name: 'prepare_project_context',
@@ -40,23 +79,17 @@ function registerProjectContext(server: McpServer, context: McpToolContext) {
         'Prepare a project-level mental model so an agent can understand architecture before editing or review',
       inputSchema: { projectPath: projectPathField, ...switches },
     },
-    async (
-      graph,
-      { includeClassifications = false, includeSecurityFindings = false, limit = 10 }
-    ) => {
-      const preparedContext = await context.projectInsightService.prepareContext(graph, {
-        includeClassifications,
-        includeSecurityFindings,
-        limit,
-      });
-      return okCompactStatusToolResult({ context: preparedContext }, limit);
-    }
+    'context',
+    (graph, args) =>
+      prepareWith(switchOptions(args, false), (options) =>
+        context.projectInsightService.prepareContext(graph, options)
+      )
   );
 }
 
 function registerTaskContext(server: McpServer, context: McpToolContext) {
   const switches = contextSwitches('When true, include security findings in prepared contexts');
-  defineGraphTool(
+  defineContextTool(
     server,
     {
       name: 'prepare_task_context',
@@ -77,25 +110,11 @@ function registerTaskContext(server: McpServer, context: McpToolContext) {
         ...switches,
       },
     },
-    async (
-      graph,
-      {
-        userRequest,
-        depth,
-        includeClassifications = false,
-        includeSecurityFindings = false,
-        limit = 10,
-      }
-    ) => {
-      const taskResult = await context.taskIntelligenceService.prepareContext(graph, {
-        userRequest,
-        depth,
-        includeClassifications,
-        includeSecurityFindings,
-        limit,
-      });
-      return okCompactStatusToolResult({ taskResult }, limit);
-    }
+    'taskResult',
+    (graph, { userRequest, depth, ...switches }) =>
+      prepareWith({ userRequest, depth, ...switchOptions(switches, false) }, (options) =>
+        context.taskIntelligenceService.prepareContext(graph, options)
+      )
   );
 }
 
@@ -122,7 +141,7 @@ const changeCampaignInputSchema = {
 };
 
 function registerChangeCampaign(server: McpServer, context: McpToolContext) {
-  defineGraphTool(
+  defineContextTool(
     server,
     {
       name: 'prepare_change_campaign',
@@ -131,6 +150,7 @@ function registerChangeCampaign(server: McpServer, context: McpToolContext) {
         'Prepare a phased multi-target migration/refactor context for broad codebase changes',
       inputSchema: changeCampaignInputSchema,
     },
+    'campaign',
     async (
       graph,
       {
@@ -143,8 +163,8 @@ function registerChangeCampaign(server: McpServer, context: McpToolContext) {
         seedNodeIds,
         candidateQueries,
       }
-    ) => {
-      const campaign = await context.changeCampaignService.prepareContext(graph, {
+    ) => ({
+      result: await context.changeCampaignService.prepareContext(graph, {
         userRequest,
         taskMode,
         depth,
@@ -153,14 +173,14 @@ function registerChangeCampaign(server: McpServer, context: McpToolContext) {
         maxFiles,
         seedNodeIds,
         candidateQueries: candidateQueries || [],
-      });
-      return okCompactStatusToolResult({ campaign }, Math.max(maxFiles, maxSeeds));
-    }
+      }),
+      limit: Math.max(maxFiles, maxSeeds),
+    })
   );
 }
 
 function registerChangeContext(server: McpServer, context: McpToolContext) {
-  defineGraphTool(
+  defineContextTool(
     server,
     {
       name: 'prepare_change_context',
@@ -184,20 +204,21 @@ function registerChangeContext(server: McpServer, context: McpToolContext) {
         ),
       },
     },
+    'changeContext',
     async (
       graph,
       { target, taskMode, changeIntent, type, depth, includeSecurityFindings = false, limit = 15 }
-    ) => {
-      const preparedContext = await context.changeContextService.prepareChangeContext(graph, {
+    ) => ({
+      result: await context.changeContextService.prepareChangeContext(graph, {
         target,
         taskMode,
         changeIntent,
         type,
         depth,
         includeSecurityFindings,
-      });
-      return okCompactStatusToolResult({ changeContext: preparedContext }, limit);
-    }
+      }),
+      limit,
+    })
   );
 }
 
@@ -205,7 +226,7 @@ function registerReviewContext(server: McpServer, context: McpToolContext) {
   const switches = contextSwitches(
     'When true, include security findings (default true for review contexts)'
   );
-  defineGraphTool(
+  defineContextTool(
     server,
     {
       name: 'prepare_review_context',
@@ -224,24 +245,10 @@ function registerReviewContext(server: McpServer, context: McpToolContext) {
         ...switches,
       },
     },
-    async (
-      graph,
-      {
-        taskMode,
-        focusQuery,
-        includeClassifications = false,
-        includeSecurityFindings = true,
-        limit = 10,
-      }
-    ) => {
-      const preparedContext = await context.reviewContextService.prepareReviewContext(graph, {
-        taskMode,
-        focusQuery,
-        includeClassifications,
-        includeSecurityFindings,
-        limit,
-      });
-      return okCompactStatusToolResult({ reviewContext: preparedContext }, limit);
-    }
+    'reviewContext',
+    (graph, { taskMode, focusQuery, ...switches }) =>
+      prepareWith({ taskMode, focusQuery, ...switchOptions(switches, true) }, (options) =>
+        context.reviewContextService.prepareReviewContext(graph, options)
+      )
   );
 }

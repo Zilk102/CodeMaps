@@ -1,7 +1,40 @@
-import type { DetectedPattern } from './patternDetectionTypes';
+import type { DetectedPattern, PatternEvidence } from './patternDetectionTypes';
 
 export function runBuilders<T>(builders: Array<(input: T) => DetectedPattern | null>, input: T) {
   return builders
     .map((build) => build(input))
     .filter((pattern): pattern is DetectedPattern => pattern !== null);
+}
+
+export interface PatternSpec<T> {
+  id: string;
+  title: string;
+  description: string;
+  severity: (findings: T[]) => DetectedPattern['severity'];
+  nodeIds: (findings: T[]) => string[];
+  evidence?: (findings: T[]) => PatternEvidence[];
+}
+
+/** A severity rule: 'high' when any finding matches, otherwise 'medium'. */
+export function highWhenAny<T>(isHigh: (finding: T) => boolean) {
+  return (findings: T[]): DetectedPattern['severity'] =>
+    findings.some(isHigh) ? 'high' : 'medium';
+}
+
+/** Turns the findings of one detector into a pattern, or null when there are fewer than `minCount`. */
+export function buildPattern<T>(
+  findings: T[],
+  spec: PatternSpec<T>,
+  minCount = 1
+): DetectedPattern | null {
+  if (findings.length < minCount) return null;
+  const pattern: DetectedPattern = {
+    id: spec.id,
+    severity: spec.severity(findings),
+    title: spec.title,
+    description: spec.description,
+    nodeIds: spec.nodeIds(findings),
+  };
+  if (spec.evidence) pattern.evidence = spec.evidence(findings);
+  return pattern;
 }

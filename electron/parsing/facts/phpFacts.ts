@@ -1,7 +1,15 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { allChildren, namedOf, walkNamed } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { addOwnedFunction, allChildren, namedOf } from './astUtils';
+import {
+  FactsAccumulator,
+  declareClassLike,
+  importsHandler,
+  namespaceFacts,
+  walkWithHandlers,
+  type NamespaceState,
+  type NodeHandler,
+} from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const CLASS_LIKE = new Set([
@@ -17,10 +25,7 @@ const INCLUDES = new Set([
   'require_once_expression',
 ]);
 
-interface PhpState {
-  acc: FactsAccumulator;
-  namespaces: string[];
-}
+type PhpState = NamespaceState;
 
 const trimSlashes = (value: string) => value.replace(/^\\+|\\+$/g, '');
 const startsUppercase = (value: string) => /^[A-Z]/.test(value);
@@ -95,19 +100,13 @@ const HANDLERS: Record<string, NodeHandler<PhpState>> = {
     if (name) state.namespaces.push(trimSlashes(name.text));
     return true;
   },
-  namespace_use_declaration: (node, { acc }) => {
-    acc.imports.push(...readUse(node));
-    return false;
-  },
+  namespace_use_declaration: importsHandler(readUse),
   function_definition: (node, { acc }) => {
-    const name = node.childForFieldName('name');
-    if (name) acc.entities.add('function', name.text, name);
+    addOwnedFunction(acc.entities, node, undefined);
     return true;
   },
   method_declaration: (node, { acc }) => {
-    const name = node.childForFieldName('name');
-    const owner = enclosingClassName(node);
-    if (name) acc.entities.add('function', owner ? `${owner}.${name.text}` : name.text, name);
+    addOwnedFunction(acc.entities, node, enclosingClassName(node));
     return true;
   },
   namespace_name: () => false,
@@ -127,21 +126,19 @@ const HANDLERS: Record<string, NodeHandler<PhpState>> = {
   },
 };
 
+const declareClasses = declareClassLike(CLASS_LIKE);
+
 const visitDeclaration: NodeHandler<PhpState> = (node, state) => {
   if (INCLUDES.has(node.type)) {
     const path = includePath(namedOf(node)[0]);
     if (path) state.acc.imports.push({ path, importedEntities: [], kind: 'file' });
     return false;
   }
-  if (CLASS_LIKE.has(node.type)) {
-    const name = node.childForFieldName('name');
-    if (name) state.acc.entities.add('class', name.text, name);
-  }
-  return true;
+  return declareClasses(node, state);
 };
 
 export const extractPhpFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: PhpState = { acc: new FactsAccumulator(true), namespaces: [] };
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? visitDeclaration)(node, state));
-  return state.acc.toFacts({ packageName: state.namespaces[0], namespaces: state.namespaces });
+  walkWithHandlers(root, state, HANDLERS, visitDeclaration);
+  return namespaceFacts(state);
 };

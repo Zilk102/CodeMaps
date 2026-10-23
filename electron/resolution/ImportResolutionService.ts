@@ -11,7 +11,13 @@ import { PhpResolver } from './phpResolver';
 import { PythonResolver } from './pythonResolver';
 import { RubyResolver } from './rubyResolver';
 import { RustResolver } from './rustResolver';
-import { dirOf, type FileEntry, type LanguageResolver, type ProjectIndex } from './types';
+import {
+  addToBucket,
+  dirOf,
+  type FileEntry,
+  type LanguageResolver,
+  type ProjectIndex,
+} from './types';
 
 /** Reasons start with the language id, which is how resolver-owned links are recognised. */
 const OWNED_REASON = /^(go|python|java|rust|cpp|c_sharp|kotlin|php|ruby):/;
@@ -30,6 +36,15 @@ export interface ImportResolutionResult {
   filesResolved: number;
 }
 
+type ResolverFileNode = GraphNode & {
+  language: string;
+  resolution: NonNullable<GraphNode['resolution']>;
+};
+
+/** A file of a language that has a resolver and carries the facts to resolve. */
+const isResolverFile = (node: GraphNode, languages: Set<string>): node is ResolverFileNode =>
+  node.type === 'file' && !!node.resolution && !!node.language && languages.has(node.language);
+
 const collectIndex = (
   nodes: Map<string, GraphNode>,
   root: string,
@@ -40,21 +55,13 @@ const collectIndex = (
   const entitiesByFile = new Map<string, Set<string>>();
 
   for (const node of nodes.values()) {
-    if (
-      node.type === 'file' &&
-      node.resolution &&
-      node.language &&
-      resolverLanguages.has(node.language)
-    ) {
+    if (isResolverFile(node, resolverLanguages)) {
       files.set(node.id, { path: node.id, language: node.language, facts: node.resolution });
-      const directory = dirOf(node.id);
-      const bucket = filesByDir.get(directory);
-      if (bucket) bucket.push(node.id);
-      else filesByDir.set(directory, [node.id]);
+      addToBucket(filesByDir, dirOf(node.id), node.id);
     } else if ((node.type === 'class' || node.type === 'function') && node.parentId) {
-      const names = entitiesByFile.get(node.parentId);
-      if (names) names.add(node.label);
-      else entitiesByFile.set(node.parentId, new Set([node.label]));
+      const names = entitiesByFile.get(node.parentId) ?? new Set<string>();
+      names.add(node.label);
+      entitiesByFile.set(node.parentId, names);
     }
   }
   void root;

@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import {
+  addOwnedFunction,
   BoundedSet,
   EntityCollector,
   MAX_USED_NAMES,
@@ -67,9 +68,7 @@ const HANDLERS: Record<string, (node: Node, state: JavaState) => boolean> = {
     return false;
   },
   method_declaration: (node, { entities }) => {
-    const name = node.childForFieldName('name');
-    const owner = enclosingTypeName(node);
-    if (name) entities.add('function', owner ? `${owner}.${name.text}` : name.text, name);
+    addOwnedFunction(entities, node, enclosingTypeName(node));
     return true;
   },
   type_identifier: (node, { usedNames }) => {

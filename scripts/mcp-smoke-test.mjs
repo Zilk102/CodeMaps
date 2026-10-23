@@ -58,37 +58,41 @@ const expectOk = (payload, toolName) => {
 const trackedErrors = [];
 const stats = { tools: 0, resources: 0, passed: 0, failed: 0 };
 
-const runTool = async (name, args = {}) => {
-  stats.tools++;
+/** Runs one check, counts it under `${type}s` and records a failure instead of throwing. */
+const tracked = async (type, name, check) => {
+  stats[`${type}s`]++;
   try {
-    const res = await client.callTool({ name, arguments: args });
-    const payload = parseFirstTextPayload(res, name);
-    expectOk(payload, name);
-    console.log(`[PASS] tool: ${name}`);
+    const result = await check();
+    console.log(`[PASS] ${type}: ${name}`);
     stats.passed++;
-    return payload;
+    return result;
   } catch (err) {
-    console.error(`[FAIL] tool: ${name} — ${err.message}`);
-    trackedErrors.push({ type: 'tool', name, error: err.message });
+    console.error(`[FAIL] ${type}: ${name} — ${err.message}`);
+    trackedErrors.push({ type, name, error: err.message });
     stats.failed++;
     return null;
   }
 };
 
-const runResource = async (uri) => {
-  stats.resources++;
-  try {
+const runTool = (name, args = {}) =>
+  tracked('tool', name, async () => {
+    const res = await client.callTool({ name, arguments: args });
+    const payload = parseFirstTextPayload(res, name);
+    expectOk(payload, name);
+    return payload;
+  });
+
+const runResource = (uri) =>
+  tracked('resource', uri, async () => {
     const res = await client.readResource({ uri });
     assert(Array.isArray(res.contents) && res.contents.length > 0, `${uri}: no contents`);
-    console.log(`[PASS] resource: ${uri}`);
-    stats.passed++;
     return res;
-  } catch (err) {
-    console.error(`[FAIL] resource: ${uri} — ${err.message}`);
-    trackedErrors.push({ type: 'resource', name: uri, error: err.message });
-    stats.failed++;
-    return null;
-  }
+  });
+
+/** Reads a resource and parses its first text content as JSON (null when it is missing). */
+const runJsonResource = async (uri) => {
+  const text = (await runResource(uri))?.contents?.[0]?.text;
+  return text ? JSON.parse(text) : null;
 };
 
 try {
@@ -303,27 +307,19 @@ try {
 
   // ─── RESOURCES ────────────────────────────────────────────
   // 1. project summary
-  const summaryRes = await runResource('codemaps://project/summary');
-  const summaryText = summaryRes?.contents?.[0]?.text;
-  const summaryPayload = summaryText ? JSON.parse(summaryText) : null;
+  const summaryPayload = await runJsonResource('codemaps://project/summary');
   assert(summaryPayload?.nodesCount >= 0, 'resource project/summary: expected nodesCount');
 
   // 2. full graph
-  const fullGraphRes = await runResource('codemaps://graph/full');
-  const fullGraphText = fullGraphRes?.contents?.[0]?.text;
-  const fullGraphPayload = fullGraphText ? JSON.parse(fullGraphText) : null;
+  const fullGraphPayload = await runJsonResource('codemaps://graph/full');
   assert(Array.isArray(fullGraphPayload?.nodes), 'resource graph/full: expected nodes array');
 
   // 3. agent playbook
-  const playbookRes = await runResource('codemaps://agent/playbook');
-  const playbookText = playbookRes?.contents?.[0]?.text;
-  const playbookPayload = playbookText ? JSON.parse(playbookText) : null;
+  const playbookPayload = await runJsonResource('codemaps://agent/playbook');
   assert(playbookPayload?.version >= 1, 'resource agent/playbook: expected version');
 
   // 4. project brain
-  const brainRes = await runResource('codemaps://agent/project-brain');
-  const brainText = brainRes?.contents?.[0]?.text;
-  const brainPayload = brainText ? JSON.parse(brainText) : null;
+  const brainPayload = await runJsonResource('codemaps://agent/project-brain');
   assert(brainPayload !== null, 'resource agent/project-brain: expected payload');
 
   // ─── CLEANUP ──────────────────────────────────────────────
