@@ -8,6 +8,12 @@ import { boundedInt, nodeIdField, optionalString } from './toolSchemas';
 import { okStatusToolResult, requireProjectRoot, withInitializedService } from './toolSupport';
 
 export function registerAdvancedTools(server: McpServer) {
+  registerAnalyzePrImpact(server);
+  registerActivityHeatmap(server);
+  registerBlastRadiusV2(server);
+}
+
+function registerAnalyzePrImpact(server: McpServer) {
   server.registerTool(
     'analyze_pr_impact',
     {
@@ -27,7 +33,9 @@ export function registerAdvancedTools(server: McpServer) {
       );
     }
   );
+}
 
+function registerActivityHeatmap(server: McpServer) {
   server.registerTool(
     'analyze_activity_heatmap',
     {
@@ -52,7 +60,9 @@ export function registerAdvancedTools(server: McpServer) {
       );
     }
   );
+}
 
+function registerBlastRadiusV2(server: McpServer) {
   server.registerTool(
     'calculate_blast_radius_v2',
     {

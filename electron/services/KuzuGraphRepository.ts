@@ -27,6 +27,61 @@ function isAlreadyExistsError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('already exists');
 }
 
+const NODE_TABLE_DDL = `
+  CREATE NODE TABLE FileNode (
+    id STRING PRIMARY KEY,
+    type STRING,
+    label STRING,
+    filePath STRING,
+    line INT64,
+    col INT64,
+    language STRING,
+    meta STRING
+  )
+`;
+
+const EDGE_TABLE_DDL = `
+  CREATE REL TABLE FileEdge (
+    FROM FileNode TO FileNode,
+    type STRING,
+    meta STRING
+  )
+`;
+
+/** Creates both tables, treating "already exists" as success so init is idempotent. */
+async function createSchema(run: (query: string) => Promise<unknown>): Promise<void> {
+  for (const ddl of [NODE_TABLE_DDL, EDGE_TABLE_DDL]) {
+    try {
+      await run(ddl);
+    } catch (error: unknown) {
+      if (!isAlreadyExistsError(error)) throw error;
+    }
+  }
+}
+
+async function runQuery(
+  conn: Connection | undefined,
+  dbDir: string,
+  query: string
+): Promise<QueryResult> {
+  if (!conn) {
+    throw new Error(`Kuzu connection is not initialized for ${dbDir}`);
+  }
+
+  const result = await conn.query(query);
+  if (Array.isArray(result)) {
+    if (result.length !== 1) {
+      throw new Error(`Expected a single Kuzu query result, received ${result.length}`);
+    }
+    return result[0];
+  }
+  return result;
+}
+
+function getAll(result: QueryResult): Promise<Record<string, unknown>[]> {
+  return result.getAll() as Promise<Record<string, unknown>[]>;
+}
+
 export class KuzuGraphRepository {
   private conn: Connection | undefined;
   private initialized = false;
@@ -42,34 +97,7 @@ export class KuzuGraphRepository {
     const { conn } = await KuzuConnectionManager.getConnection(this.dbPath);
     this.conn = conn;
 
-    try {
-      await this.runQuery(`
-        CREATE NODE TABLE FileNode (
-          id STRING PRIMARY KEY,
-          type STRING,
-          label STRING,
-          filePath STRING,
-          line INT64,
-          col INT64,
-          language STRING,
-          meta STRING
-        )
-      `);
-    } catch (error: unknown) {
-      if (!isAlreadyExistsError(error)) throw error;
-    }
-
-    try {
-      await this.runQuery(`
-        CREATE REL TABLE FileEdge (
-          FROM FileNode TO FileNode,
-          type STRING,
-          meta STRING
-        )
-      `);
-    } catch (error: unknown) {
-      if (!isAlreadyExistsError(error)) throw error;
-    }
+    await createSchema((query) => runQuery(conn, this.dbDir, query));
 
     this.initialized = true;
   }
@@ -90,7 +118,7 @@ export class KuzuGraphRepository {
         meta: '${metaStr}'
       })
     `;
-    await this.runQuery(query);
+    await runQuery(this.conn, this.dbDir, query);
   }
 
   async addEdge(edge: GraphEdge): Promise<void> {
@@ -102,7 +130,7 @@ export class KuzuGraphRepository {
             (b:FileNode {id: '${escapeCypherString(edge.targetId)}'})
       CREATE (a)-[:FileEdge {type: '${edge.type}', meta: '${metaStr}'}]->(b)
     `;
-    await this.runQuery(query);
+    await runQuery(this.conn, this.dbDir, query);
   }
 
   async queryNodes(type?: string, filePath?: string): Promise<Record<string, unknown>[]> {
@@ -116,30 +144,36 @@ export class KuzuGraphRepository {
       whereClause += `${whereClause ? ' AND' : ' WHERE'} n.filePath = '${escapeCypherString(filePath)}'`;
     }
 
-    const result = await this.runQuery(
+    const result = await runQuery(
+      this.conn,
+      this.dbDir,
       `MATCH (n:FileNode)${whereClause} RETURN n.id, n.type, n.label, n.filePath, n.line, n.language, n.meta`
     );
-    return this.getAll(result);
+    return getAll(result);
   }
 
   async queryNeighbors(nodeId: string): Promise<Record<string, unknown>[]> {
     if (!this.initialized) await this.init();
 
     const safeId = escapeCypherString(nodeId);
-    const result = await this.runQuery(`
+    const result = await runQuery(
+      this.conn,
+      this.dbDir,
+      `
       MATCH (n:FileNode {id: '${safeId}'})-[r:FileEdge]->(m:FileNode)
       RETURN m.id, m.type, m.label, m.filePath, r.type as edgeType
       UNION
       MATCH (n:FileNode {id: '${safeId}'})<-[r:FileEdge]-(m:FileNode)
       RETURN m.id, m.type, m.label, m.filePath, r.type as edgeType
-    `);
-    return this.getAll(result);
+    `
+    );
+    return getAll(result);
   }
 
   async query(cypherQuery: string): Promise<Record<string, unknown>[]> {
     if (!this.initialized) await this.init();
-    const result = await this.runQuery(cypherQuery);
-    return this.getAll(result);
+    const result = await runQuery(this.conn, this.dbDir, cypherQuery);
+    return getAll(result);
   }
 
   async getStats(): Promise<{ nodes: number; edges: number }> {
@@ -155,8 +189,8 @@ export class KuzuGraphRepository {
 
   async clear(): Promise<void> {
     if (!this.initialized) return;
-    await this.runQuery('MATCH ()-[r:FileEdge]->() DELETE r');
-    await this.runQuery('MATCH (n:FileNode) DELETE n');
+    await runQuery(this.conn, this.dbDir, 'MATCH ()-[r:FileEdge]->() DELETE r');
+    await runQuery(this.conn, this.dbDir, 'MATCH (n:FileNode) DELETE n');
   }
 
   async close(): Promise<void> {
@@ -165,24 +199,5 @@ export class KuzuGraphRepository {
     await KuzuConnectionManager.releaseConnection(this.dbPath);
     this.conn = undefined;
     this.initialized = false;
-  }
-
-  private async runQuery(query: string): Promise<QueryResult> {
-    if (!this.conn) {
-      throw new Error(`Kuzu connection is not initialized for ${this.dbDir}`);
-    }
-
-    const result = await this.conn.query(query);
-    if (Array.isArray(result)) {
-      if (result.length !== 1) {
-        throw new Error(`Expected a single Kuzu query result, received ${result.length}`);
-      }
-      return result[0];
-    }
-    return result;
-  }
-
-  private async getAll(result: QueryResult): Promise<Record<string, unknown>[]> {
-    return result.getAll() as Promise<Record<string, unknown>[]>;
   }
 }

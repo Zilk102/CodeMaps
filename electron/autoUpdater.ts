@@ -44,15 +44,7 @@ export function setAutoUpdaterWindow(window: BrowserWindow) {
   mainWindow = window;
 }
 
-export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptions = {}) {
-  mainWindow = window;
-
-  const publishConfig = getPublishConfig();
-  if (publishConfig) {
-    autoUpdater.setFeedURL(publishConfig);
-  }
-
-  // IPC handlers (always register, even in dev mode)
+function registerIpcHandlers(options: AutoUpdaterOptions) {
   ipcMain.handle('updater:check', async () => {
     try {
       const result = await autoUpdater.checkForUpdates();
@@ -82,62 +74,45 @@ export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptio
   ipcMain.handle('updater:get-state', () => {
     return updateState;
   });
+}
 
-  // Only check for updates in packaged mode
-  if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-    log.info('[AutoUpdater] Skipping update checks in development mode');
+function setUpdateState(next: typeof updateState) {
+  updateState = next;
+  sendUpdateState();
+}
 
-    return;
-  }
+function registerUpdaterListeners() {
+  if (listenersRegistered) return;
 
-  const autoInstallOnQuit = process.platform !== 'win32';
+  autoUpdater.on('checking-for-update', () => {
+    setUpdateState({ checking: true, available: false, downloaded: false });
+  });
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = autoInstallOnQuit;
+  autoUpdater.on('update-available', (info) => {
+    setUpdateState({ checking: false, available: true, downloaded: false, version: info.version });
+  });
 
-  if (!listenersRegistered) {
-    autoUpdater.on('checking-for-update', () => {
-      updateState = { checking: true, available: false, downloaded: false };
-      sendUpdateState();
-    });
+  autoUpdater.on('update-not-available', () => {
+    setUpdateState({ checking: false, available: false, downloaded: false });
+  });
 
-    autoUpdater.on('update-available', (info) => {
-      updateState = { checking: false, available: true, downloaded: false, version: info.version };
-      sendUpdateState();
-    });
+  autoUpdater.on('download-progress', (progressObj) => {
+    setUpdateState({ ...updateState, progress: Math.round(progressObj.percent) });
+  });
 
-    autoUpdater.on('update-not-available', () => {
-      updateState = { checking: false, available: false, downloaded: false };
-      sendUpdateState();
-    });
+  autoUpdater.on('update-downloaded', (info) => {
+    setUpdateState({ checking: false, available: true, downloaded: true, version: info.version });
+  });
 
-    autoUpdater.on('download-progress', (progressObj) => {
-      updateState = {
-        ...updateState,
-        progress: Math.round(progressObj.percent),
-      };
-      sendUpdateState();
-    });
+  autoUpdater.on('error', (err) => {
+    log.error('[AutoUpdater] Error:', err.message);
+    setUpdateState({ checking: false, available: false, downloaded: false, error: err.message });
+  });
 
-    autoUpdater.on('update-downloaded', (info) => {
-      updateState = {
-        checking: false,
-        available: true,
-        downloaded: true,
-        version: info.version,
-      };
-      sendUpdateState();
-    });
+  listenersRegistered = true;
+}
 
-    autoUpdater.on('error', (err) => {
-      log.error('[AutoUpdater] Error:', err.message);
-      updateState = { checking: false, available: false, downloaded: false, error: err.message };
-      sendUpdateState();
-    });
-
-    listenersRegistered = true;
-  }
-
+function scheduleUpdateChecks() {
   // Check for updates on startup (with a small delay to not block app launch)
   startupCheckTimeout = setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
@@ -152,6 +127,31 @@ export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptio
     },
     4 * 60 * 60 * 1000
   );
+}
+
+export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptions = {}) {
+  mainWindow = window;
+
+  const publishConfig = getPublishConfig();
+  if (publishConfig) {
+    autoUpdater.setFeedURL(publishConfig);
+  }
+
+  // IPC handlers (always register, even in dev mode)
+  registerIpcHandlers(options);
+
+  // Only check for updates in packaged mode
+  if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+    log.info('[AutoUpdater] Skipping update checks in development mode');
+
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = process.platform !== 'win32';
+
+  registerUpdaterListeners();
+  scheduleUpdateChecks();
 }
 
 export function shutdownAutoUpdater() {

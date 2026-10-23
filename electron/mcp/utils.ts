@@ -80,53 +80,56 @@ export const assertProjectDirectory = (resolvedPath: string, requestedPath: stri
   }
 };
 
+/** Any absolute path is allowed; a relative one resolves from cwd (no SAFE_ROOT restriction). */
+const resolveRequestedPath = (projectPath: string): string => {
+  const targetPath = normalizePath(
+    path.isAbsolute(projectPath) ? projectPath : path.resolve(process.cwd(), projectPath)
+  )!;
+  assertProjectDirectory(targetPath, projectPath);
+  return targetPath;
+};
+
+const isInsideElectronInstall = (targetPath: string): boolean => {
+  try {
+    const exeDir = normalizePath(path.dirname(app.getPath('exe')));
+    const resourcesDir = normalizePath(process.resourcesPath);
+    return Boolean(
+      (exeDir && targetPath.startsWith(exeDir)) ||
+      (resourcesDir && targetPath.startsWith(resourcesDir))
+    );
+  } catch {
+    // Ignore if app is not available
+    return false;
+  }
+};
+
+/** Prevent accidentally indexing the Electron installation directory if no project is opened. */
+const resolveDefaultPath = (baseDir: string | undefined): string => {
+  const targetPath = baseDir || normalizePath(process.env.CODEMAPS_ROOT || process.cwd())!;
+  if (!baseDir && !process.env.CODEMAPS_ROOT && isInsideElectronInstall(targetPath)) {
+    throw new Error(
+      'No active project loaded in CodeMaps. Please use the analyze_project tool to specify an absolute projectPath first.'
+    );
+  }
+  return targetPath;
+};
+
+const ANALYZE_TIMEOUT_MS = 60000;
+
+const analyzeWithTimeout = (targetPath: string) =>
+  analyzeLimit(async () => {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('oracle.analyzeProject timed out')), ANALYZE_TIMEOUT_MS)
+    );
+    return Promise.race([oracle.analyzeProject(targetPath), timeout]);
+  });
+
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
-  const state = oracleStore.getState();
+  const { baseDir } = oracleStore.getState();
+  const targetPath = projectPath ? resolveRequestedPath(projectPath) : resolveDefaultPath(baseDir);
 
-  // Разрешаем любой абсолютный путь. Если путь относительный, резолвим от cwd.
-  // Мы убираем жесткую привязку к SAFE_ROOT, так как CodeMaps должен иметь возможность
-  // анализировать любые проекты на машине пользователя по запросу ИИ-агента или UI.
-  let targetPath: string;
-  if (projectPath) {
-    targetPath = normalizePath(
-      path.isAbsolute(projectPath) ? projectPath : path.resolve(process.cwd(), projectPath)
-    )!;
-    assertProjectDirectory(targetPath, projectPath);
-  } else {
-    targetPath = state.baseDir || normalizePath(process.env.CODEMAPS_ROOT || process.cwd())!;
-  }
-
-  // Prevent accidentally indexing the Electron installation directory if no project is opened
-  if (!projectPath && !state.baseDir && !process.env.CODEMAPS_ROOT) {
-    let isAppDir = false;
-    try {
-      const exeDir = normalizePath(path.dirname(app.getPath('exe')));
-      const resourcesDir = normalizePath(process.resourcesPath);
-      if (exeDir && targetPath.startsWith(exeDir)) isAppDir = true;
-      if (resourcesDir && targetPath.startsWith(resourcesDir)) isAppDir = true;
-    } catch {
-      // Ignore if app is not available
-    }
-
-    if (isAppDir) {
-      throw new Error(
-        'No active project loaded in CodeMaps. Please use the analyze_project tool to specify an absolute projectPath first.'
-      );
-    }
-  }
-
-  if (!state.baseDir || (projectPath && normalizePath(state.baseDir) !== targetPath)) {
-    const analyzed = await analyzeLimit(async () => {
-      // Create a timeout promise
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('oracle.analyzeProject timed out')), 60000)
-      );
-      // Race the analyzeProject call against the timeout
-      return Promise.race([oracle.analyzeProject(targetPath), timeout]);
-    });
-    return withCloneIndex(analyzed);
-  }
-
+  const needsAnalysis = !baseDir || (projectPath && normalizePath(baseDir) !== targetPath);
+  if (needsAnalysis) return withCloneIndex(await analyzeWithTimeout(targetPath));
   return withCloneIndex(oracle.getGraph());
 };
 

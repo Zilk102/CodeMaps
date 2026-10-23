@@ -12,6 +12,14 @@ const MAX_FULL_GRAPH_NODES = 1000;
 const MAX_FULL_GRAPH_LINKS = 2000;
 
 export function registerGraphTools(server: McpServer, context: McpToolContext) {
+  registerAnalyzeProject(server);
+  registerGetGraphContext(server);
+  registerGetNodeDependencies(server);
+  registerSearchGraph(server);
+  registerGetBlastRadius(server, context);
+}
+
+function registerAnalyzeProject(server: McpServer) {
   server.registerTool(
     'analyze_project',
     {
@@ -37,7 +45,9 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
       return okStatusToolResult({ summary });
     }
   );
+}
 
+function registerGetGraphContext(server: McpServer) {
   server.registerTool(
     'get_graph_context',
     {
@@ -63,7 +73,9 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
       return okStatusToolResult(payload, { unbounded: true });
     }
   );
+}
 
+function registerGetNodeDependencies(server: McpServer) {
   server.registerTool(
     'get_node_dependencies',
     {
@@ -89,7 +101,9 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
       });
     }
   );
+}
 
+function registerSearchGraph(server: McpServer) {
   server.registerTool(
     'search_graph',
     {
@@ -109,7 +123,9 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
       return okStatusToolResult({ count: matches.length, matches });
     }
   );
+}
 
+function registerGetBlastRadius(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'get_blast_radius',
     {
