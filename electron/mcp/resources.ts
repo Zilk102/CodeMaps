@@ -7,97 +7,63 @@ import {
   createAgentPlaybook,
 } from './utils';
 
-export function registerResources(server: McpServer, projectInsightService: ProjectInsightService) {
+interface ResourceDefinition {
+  name: string;
+  uri: string;
+  title: string;
+  description: string;
+  /** Builds the JSON payload served for the resource. */
+  read: () => Promise<unknown> | unknown;
+}
+
+const registerJsonResource = (server: McpServer, definition: ResourceDefinition) => {
+  const { name, uri, title, description, read } = definition;
   server.registerResource(
-    'project-summary',
-    'codemaps://project/summary',
+    name,
+    uri,
+    { title, description, mimeType: 'application/json' },
+    async () => ({
+      contents: [{ uri, mimeType: 'application/json', text: createTextContent(await read()) }],
+    })
+  );
+};
+
+export function registerResources(server: McpServer, projectInsightService: ProjectInsightService) {
+  const definitions: ResourceDefinition[] = [
     {
+      name: 'project-summary',
+      uri: 'codemaps://project/summary',
       title: 'Project Summary',
       description: 'High-level graph summary for the currently opened project',
-      mimeType: 'application/json',
+      read: async () => createGraphSummary(await ensureGraphLoaded()),
     },
-    async () => {
-      const graph = await ensureGraphLoaded();
-      const summary = createGraphSummary(graph);
-      return {
-        contents: [
-          {
-            uri: 'codemaps://project/summary',
-            mimeType: 'application/json',
-            text: createTextContent(summary),
-          },
-        ],
-      };
-    }
-  );
-
-  server.registerResource(
-    'graph-full',
-    'codemaps://graph/full',
     {
+      name: 'graph-full',
+      uri: 'codemaps://graph/full',
       title: 'Full Graph',
       description: 'Complete CodeMaps graph for the currently opened project',
-      mimeType: 'application/json',
+      read: () => ensureGraphLoaded(),
     },
-    async () => {
-      const graph = await ensureGraphLoaded();
-      return {
-        contents: [
-          {
-            uri: 'codemaps://graph/full',
-            mimeType: 'application/json',
-            text: createTextContent(graph),
-          },
-        ],
-      };
-    }
-  );
-
-  server.registerResource(
-    'agent-playbook',
-    'codemaps://agent/playbook',
     {
+      name: 'agent-playbook',
+      uri: 'codemaps://agent/playbook',
       title: 'Agent Playbook',
       description: 'Preferred agent-first workflow for CodeMaps',
-      mimeType: 'application/json',
+      read: () => createAgentPlaybook(),
     },
-    async () => {
-      return {
-        contents: [
-          {
-            uri: 'codemaps://agent/playbook',
-            mimeType: 'application/json',
-            text: createTextContent(createAgentPlaybook()),
-          },
-        ],
-      };
-    }
-  );
-
-  server.registerResource(
-    'project-brain',
-    'codemaps://agent/project-brain',
     {
+      name: 'project-brain',
+      uri: 'codemaps://agent/project-brain',
       title: 'Project Brain',
       description: 'Project-level architectural mental model for agent-first understanding',
-      mimeType: 'application/json',
+      read: async () =>
+        projectInsightService.prepareContext(await ensureGraphLoaded(), {
+          includeSecurityFindings: true,
+          includeClassifications: false,
+          limit: 8,
+        }),
     },
-    async () => {
-      const graph = await ensureGraphLoaded();
-      const context = await projectInsightService.prepareContext(graph, {
-        includeSecurityFindings: true,
-        includeClassifications: false,
-        limit: 8,
-      });
-      return {
-        contents: [
-          {
-            uri: 'codemaps://agent/project-brain',
-            mimeType: 'application/json',
-            text: createTextContent(context),
-          },
-        ],
-      };
-    }
-  );
+  ];
+
+  for (const definition of definitions) registerJsonResource(server, definition);
 }

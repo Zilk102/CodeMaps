@@ -122,84 +122,89 @@ function registerAnalyticsBindings(
   getErrorMessage: (error: unknown) => string,
   logger: LoggerLike
 ) {
+  // Wraps an analytics action in the shared success/error envelope returned over IPC.
+  const respond = async (logLabel: string, run: () => Promise<unknown> | unknown) => {
+    try {
+      return { success: true, data: await run() };
+    } catch (error: unknown) {
+      logger.error(logLabel, getErrorMessage(error));
+      return { success: false, error: getErrorMessage(error) };
+    }
+  };
+
   ipcMain.handle(
     'analyze-pr-impact',
-    async (_, rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) => {
-      try {
-        const projectPath = requireProjectDirectory(rawProjectPath);
-        const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
-        const analyzer = new PRImpactAnalyzer(projectPath);
-        await analyzer.init();
-        const result = await analyzer.analyzePR(
-          requireString(baseBranch, 'Base branch'),
-          requireString(headBranch, 'Head branch')
-        );
-        await analyzer.close();
-        return { success: true, data: result };
-      } catch (error: unknown) {
-        logger.error('[PRImpact] Analysis failed:', getErrorMessage(error));
-        return { success: false, error: getErrorMessage(error) };
-      }
-    }
+    (_, rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) =>
+      respond('[PRImpact] Analysis failed:', () =>
+        runPrImpact(rawProjectPath, baseBranch, headBranch)
+      )
   );
 
   ipcMain.handle(
     'analyze-activity-heatmap',
-    async (_, rawProjectPath: unknown, since?: string, until?: string) => {
-      try {
-        const projectPath = requireProjectDirectory(rawProjectPath);
-        const { GitActivityService } = await import('./services/GitActivityService.js');
-        const service = new GitActivityService(projectPath);
-        await service.init();
-        const result = service.analyzeChurn(
-          since ? new Date(since) : undefined,
-          until ? new Date(until) : undefined
-        );
-        await service.close();
-        return { success: true, data: result };
-      } catch (error: unknown) {
-        logger.error('[Heatmap] Analysis failed:', getErrorMessage(error));
-        return { success: false, error: getErrorMessage(error) };
-      }
-    }
+    (_, rawProjectPath: unknown, since?: string, until?: string) =>
+      respond('[Heatmap] Analysis failed:', () => runActivityHeatmap(rawProjectPath, since, until))
   );
 
   ipcMain.handle(
     'calculate-blast-radius',
-    async (_, rawProjectPath: unknown, nodeId: unknown, maxDepth?: number) => {
-      try {
-        const projectPath = requireProjectDirectory(rawProjectPath);
-        const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
-        const analyzer = new BlastRadiusV2(projectPath);
-        await analyzer.init();
-        const result = await analyzer.calculate(requireString(nodeId, 'Node id'), maxDepth || 5);
-        await analyzer.close();
-        return { success: true, data: result };
-      } catch (error: unknown) {
-        logger.error('[BlastRadius] Calculation failed:', getErrorMessage(error));
-        return { success: false, error: getErrorMessage(error) };
-      }
-    }
+    (_, rawProjectPath: unknown, nodeId: unknown, maxDepth?: number) =>
+      respond('[BlastRadius] Calculation failed:', () =>
+        runBlastRadius(rawProjectPath, nodeId, maxDepth)
+      )
   );
 
-  ipcMain.handle(
-    'analyze-decomposition',
-    async (_, rawProjectPath: unknown, focusNodeIds?: string[]) => {
-      try {
-        requireProjectDirectory(rawProjectPath); // validate
-        const { oracleStore } = await import('./store.js');
-        const graphData = oracleStore.getState().getValidGraph();
-        const { DecompositionGuidanceService } =
-          await import('./analysis/DecompositionGuidanceService.js');
-        const service = new DecompositionGuidanceService();
-        const result = service.prepareGuidance(graphData, { focusNodeIds });
-        return { success: true, data: result };
-      } catch (error: unknown) {
-        logger.error('[Decomposition] Analysis failed:', getErrorMessage(error));
-        return { success: false, error: getErrorMessage(error) };
-      }
-    }
+  ipcMain.handle('analyze-decomposition', (_, rawProjectPath: unknown, focusNodeIds?: string[]) =>
+    respond('[Decomposition] Analysis failed:', () =>
+      runDecomposition(rawProjectPath, focusNodeIds)
+    )
   );
+}
+
+async function runPrImpact(rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) {
+  const projectPath = requireProjectDirectory(rawProjectPath);
+  const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
+  const analyzer = new PRImpactAnalyzer(projectPath);
+  await analyzer.init();
+  const result = await analyzer.analyzePR(
+    requireString(baseBranch, 'Base branch'),
+    requireString(headBranch, 'Head branch')
+  );
+  await analyzer.close();
+  return result;
+}
+
+async function runActivityHeatmap(rawProjectPath: unknown, since?: string, until?: string) {
+  const projectPath = requireProjectDirectory(rawProjectPath);
+  const { GitActivityService } = await import('./services/GitActivityService.js');
+  const service = new GitActivityService(projectPath);
+  await service.init();
+  const result = service.analyzeChurn(
+    since ? new Date(since) : undefined,
+    until ? new Date(until) : undefined
+  );
+  await service.close();
+  return result;
+}
+
+async function runBlastRadius(rawProjectPath: unknown, nodeId: unknown, maxDepth?: number) {
+  const projectPath = requireProjectDirectory(rawProjectPath);
+  const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
+  const analyzer = new BlastRadiusV2(projectPath);
+  await analyzer.init();
+  const result = await analyzer.calculate(requireString(nodeId, 'Node id'), maxDepth || 5);
+  await analyzer.close();
+  return result;
+}
+
+async function runDecomposition(rawProjectPath: unknown, focusNodeIds?: string[]) {
+  requireProjectDirectory(rawProjectPath); // validate
+  const { oracleStore } = await import('./store.js');
+  const graphData = oracleStore.getState().getValidGraph();
+  const { DecompositionGuidanceService } =
+    await import('./analysis/DecompositionGuidanceService.js');
+  const service = new DecompositionGuidanceService();
+  return service.prepareGuidance(graphData, { focusNodeIds });
 }
 
 function registerOracleBridges(

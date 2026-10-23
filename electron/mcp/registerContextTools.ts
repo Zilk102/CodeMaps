@@ -16,6 +16,14 @@ import {
 import { okCompactStatusToolResult } from './toolSupport';
 
 export function registerContextTools(server: McpServer, context: McpToolContext) {
+  registerProjectContext(server, context);
+  registerTaskContext(server, context);
+  registerChangeCampaign(server, context);
+  registerChangeContext(server, context);
+  registerReviewContext(server, context);
+}
+
+function registerProjectContext(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'prepare_project_context',
     {
@@ -51,7 +59,9 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       return okCompactStatusToolResult({ context: preparedContext }, limit);
     }
   );
+}
 
+function registerTaskContext(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'prepare_task_context',
     {
@@ -102,34 +112,38 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       return okCompactStatusToolResult({ taskResult }, limit);
     }
   );
+}
 
+const changeCampaignInputSchema = {
+  userRequest: z
+    .string()
+    .describe('Natural-language large-scale change request or migration plan.'),
+  projectPath: projectPathField,
+  taskMode: changeTaskModeField('High-level change mode for the campaign'),
+  depth: boundedInt(20, 'Dependency expansion depth for the campaign'),
+  includeSecurityFindings: optionalBoolean(
+    'When true, include security findings related to the campaign area'
+  ),
+  maxSeeds: boundedInt(30, 'Maximum number of seed targets'),
+  maxFiles: boundedInt(100, 'Maximum number of affected files in the campaign'),
+  seedNodeIds: z
+    .array(z.string())
+    .optional()
+    .describe('Optional exact graph node ids to seed the campaign.'),
+  candidateQueries: z
+    .array(z.string())
+    .optional()
+    .describe('Optional pre-extracted candidate queries to bias campaign seed matching.'),
+};
+
+function registerChangeCampaign(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'prepare_change_campaign',
     {
       title: 'Prepare Change Campaign',
       description:
         'Prepare a phased multi-target migration/refactor context for broad codebase changes',
-      inputSchema: {
-        userRequest: z
-          .string()
-          .describe('Natural-language large-scale change request or migration plan.'),
-        projectPath: projectPathField,
-        taskMode: changeTaskModeField('High-level change mode for the campaign'),
-        depth: boundedInt(20, 'Dependency expansion depth for the campaign'),
-        includeSecurityFindings: optionalBoolean(
-          'When true, include security findings related to the campaign area'
-        ),
-        maxSeeds: boundedInt(30, 'Maximum number of seed targets'),
-        maxFiles: boundedInt(100, 'Maximum number of affected files in the campaign'),
-        seedNodeIds: z
-          .array(z.string())
-          .optional()
-          .describe('Optional exact graph node ids to seed the campaign.'),
-        candidateQueries: z
-          .array(z.string())
-          .optional()
-          .describe('Optional pre-extracted candidate queries to bias campaign seed matching.'),
-      },
+      inputSchema: changeCampaignInputSchema,
     },
     async ({
       userRequest,
@@ -166,7 +180,9 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       return okCompactStatusToolResult({ campaign }, Math.max(maxFiles, maxSeeds));
     }
   );
+}
 
+function registerChangeContext(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'prepare_change_context',
     {
@@ -221,7 +237,9 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       return okCompactStatusToolResult({ changeContext: preparedContext }, limit);
     }
   );
+}
 
+function registerReviewContext(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'prepare_review_context',
     {

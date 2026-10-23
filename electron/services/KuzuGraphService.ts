@@ -1,7 +1,12 @@
-import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import {
+  KuzuAction,
+  KuzuProcessManager,
+  SerializableQueryResult,
+  resolveWorkerScript,
+} from './KuzuProcessManager';
 import { isRecoverableCorruption, isWorkerCrash, quarantineDatabaseFiles } from './KuzuRecovery';
 
 export interface GraphNode {
@@ -22,313 +27,89 @@ export interface GraphEdge {
   meta?: Record<string, any>;
 }
 
-type KuzuAction =
-  | 'init'
-  | 'addNode'
-  | 'addEdge'
-  | 'query'
-  | 'queryNodes'
-  | 'queryNeighbors'
-  | 'getStats'
-  | 'clear'
-  | 'close';
+export { resolveWorkerScript };
 
-interface KuzuRequest {
-  id: number;
-  action: KuzuAction;
-  dbPath: string;
-  dbDir: string;
-  params?: Record<string, unknown>;
-}
-
-interface KuzuResponse {
-  id: number;
-  ok: boolean;
-  result?: unknown;
-  error?: {
-    name: string;
-    message: string;
-    stack?: string;
-  };
-}
-
-class SerializableQueryResult {
-  constructor(private readonly rows: Record<string, unknown>[]) {}
-
-  async getAll(): Promise<Record<string, unknown>[]> {
-    return this.rows;
-  }
-}
-
-class KuzuProcessManager {
-  private static instance: KuzuProcessManager | null = null;
-
-  private child: ChildProcess | null = null;
-  private nextRequestId = 1;
-  private readonly pending = new Map<
-    number,
-    {
-      resolve: (value: unknown) => void;
-      reject: (reason?: unknown) => void;
-      timeout: ReturnType<typeof setTimeout>;
-    }
-  >();
-
-  static getInstance(): KuzuProcessManager {
-    if (!this.instance) {
-      this.instance = new KuzuProcessManager();
-    }
-    return this.instance;
-  }
-
-  private constructor() {
-    process.once('exit', () => {
-      this.dispose();
-    });
-  }
-
-  async request<T>(
-    action: KuzuAction,
-    dbPath: string,
-    dbDir: string,
-    params?: Record<string, unknown>
-  ): Promise<T> {
-    const child = this.ensureChild();
-    const id = this.nextRequestId++;
-
-    return new Promise<T>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`Kuzu background worker timeout for action "${action}"`));
-      }, 120_000);
-
-      this.pending.set(id, {
-        resolve: (value) => resolve(value as T),
-        reject,
-        timeout,
-      });
-
-      const request: KuzuRequest = {
-        id,
-        action,
-        dbPath,
-        dbDir,
-        params,
-      };
-
-      child.send(request, (error) => {
-        if (!error) {
-          return;
-        }
-
-        const entry = this.pending.get(id);
-        if (!entry) {
-          return;
-        }
-
-        clearTimeout(entry.timeout);
-        this.pending.delete(id);
-        reject(error);
-      });
-    });
-  }
-
-  dispose(): void {
-    this.rejectAllPending(new Error('Kuzu background worker disposed'));
-
-    if (this.child) {
-      this.child.kill();
-      this.child = null;
-    }
-  }
-
-  private ensureChild(): ChildProcess {
-    if (this.child && this.child.connected) {
-      return this.child;
-    }
-
-    const child = fork(resolveWorkerScript(__dirname), [], {
-      execPath: this.resolveNodeExecutable(),
-      env: { ...process.env },
-      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-    });
-
-    child.on('message', (message) => {
-      this.handleMessage(message);
-    });
-
-    child.on('exit', (code, signal) => {
-      const reason =
-        code !== null
-          ? `Kuzu background worker exited with code ${code}`
-          : `Kuzu background worker exited with signal ${signal ?? 'unknown'}`;
-      this.rejectAllPending(new Error(reason));
-      this.child = null;
-    });
-
-    child.on('error', (error) => {
-      this.rejectAllPending(error);
-      this.child = null;
-    });
-
-    child.stdout?.on('data', (chunk: Buffer | string) => {
-      const text = chunk.toString().trim();
-      if (text) {
-        console.log(`[KuzuWorker] ${text}`);
-      }
-    });
-
-    child.stderr?.on('data', (chunk: Buffer | string) => {
-      const text = chunk.toString().trim();
-      if (text) {
-        console.error(`[KuzuWorker] ${text}`);
-      }
-    });
-
-    this.child = child;
-    return child;
-  }
-
-  private handleMessage(message: unknown): void {
-    if (!message || typeof message !== 'object') {
-      return;
-    }
-
-    const response = message as Partial<KuzuResponse>;
-    if (typeof response.id !== 'number' || typeof response.ok !== 'boolean') {
-      return;
-    }
-
-    const entry = this.pending.get(response.id);
-    if (!entry) {
-      return;
-    }
-
-    clearTimeout(entry.timeout);
-    this.pending.delete(response.id);
-
-    if (response.ok) {
-      entry.resolve(response.result);
-      return;
-    }
-
-    const errorMessage = response.error?.message ?? 'Unknown Kuzu worker error';
-    const error = new Error(errorMessage);
-    error.name = response.error?.name ?? 'KuzuWorkerError';
-    if (response.error?.stack) {
-      error.stack = response.error.stack;
-    }
-    entry.reject(error);
-  }
-
-  private rejectAllPending(error: Error): void {
-    for (const [id, entry] of this.pending.entries()) {
-      clearTimeout(entry.timeout);
-      entry.reject(error);
-      this.pending.delete(id);
-    }
-  }
-
-  private resolveNodeExecutable(): string {
-    const candidates = [
-      process.env.CODEMAPS_NODE_EXECUTABLE,
-      process.env.npm_node_execpath,
-      process.env.NODE,
-    ].filter((candidate): candidate is string => Boolean(candidate));
-
-    for (const candidate of candidates) {
-      if (candidate === 'node' || fs.existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    return 'node';
-  }
-}
+type WorkerRequest = <T>(action: KuzuAction, params?: Record<string, unknown>) => Promise<T>;
 
 /**
- * The worker runs under a system Node (Kuzu's native module crashes inside Electron's
- * runtime), and Node cannot read app.asar, so a packaged build ships the script unpacked.
+ * The database is only a cache of the analysed graph, and a copy that crashes or breaks the
+ * worker on open is replaced instead of failing every Kuzu tool until someone deletes it.
  */
-export const resolveWorkerScript = (directory: string): string => {
-  const script = path.join(directory, 'KuzuNativeProcess.js');
-  return script.replace(/app\.asar(?=[\\/])/, 'app.asar.unpacked');
-};
+async function initWithRecovery(request: WorkerRequest, dbPath: string): Promise<void> {
+  try {
+    await request<void>('init');
+  } catch (error) {
+    if (!isWorkerCrash(error) && !isRecoverableCorruption(error)) throw error;
+    const moved = quarantineDatabaseFiles(dbPath);
+    if (moved.length === 0) throw error;
+    console.warn(
+      `[KuzuDB] Opening ${dbPath} failed (${error instanceof Error ? error.message : String(error)}); ` +
+        `moved ${moved.length} file(s) aside and starting fresh`
+    );
+    await request<void>('init');
+  }
+}
 
 export class KuzuGraphService {
   private static readonly processManager = KuzuProcessManager.getInstance();
 
-  private dbPath: string;
-  private dbDir: string;
+  private readonly dbPath: string;
+  private readonly request: WorkerRequest;
   private initialized: boolean = false;
 
   constructor(projectPath?: string) {
-    if (projectPath) {
-      this.dbDir = path.join(projectPath, '.codemaps');
-      this.dbPath = path.join(this.dbDir, 'graph.db');
-    } else {
-      this.dbDir = path.join(os.tmpdir(), 'codemaps-graph');
-      this.dbPath = path.join(this.dbDir, 'graph.db');
-    }
+    const dbDir = projectPath
+      ? path.join(projectPath, '.codemaps')
+      : path.join(os.tmpdir(), 'codemaps-graph');
+    this.dbPath = path.join(dbDir, 'graph.db');
+    this.request = (action, params) =>
+      KuzuGraphService.processManager.request(action, this.dbPath, dbDir, params);
 
-    if (!fs.existsSync(this.dbDir)) {
-      fs.mkdirSync(this.dbDir, { recursive: true });
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
     }
   }
 
   async init(): Promise<void> {
     if (this.initialized) return;
-    try {
-      await this.invoke<void>('init');
-    } catch (error) {
-      if (!isWorkerCrash(error) && !isRecoverableCorruption(error)) throw error;
-      // The database is only a cache of the analysed graph, and a copy that crashes or breaks the
-      // worker on open is replaced instead of failing every Kuzu tool until someone deletes it.
-      const moved = quarantineDatabaseFiles(this.dbPath);
-      if (moved.length === 0) throw error;
-      console.warn(
-        `[KuzuDB] Opening ${this.dbPath} failed (${error instanceof Error ? error.message : String(error)}); ` +
-          `moved ${moved.length} file(s) aside and starting fresh`
-      );
-      await this.invoke<void>('init');
-    }
+    await initWithRecovery(this.request, this.dbPath);
     this.initialized = true;
   }
 
   async addNode(node: GraphNode): Promise<void> {
     if (!this.initialized) await this.init();
-    await this.invoke<void>('addNode', { node });
+    await this.request<void>('addNode', { node });
   }
 
   async addEdge(edge: GraphEdge): Promise<void> {
     if (!this.initialized) await this.init();
-    await this.invoke<void>('addEdge', { edge });
+    await this.request<void>('addEdge', { edge });
   }
 
   async queryNodes(type?: string, filePath?: string): Promise<any[]> {
     if (!this.initialized) await this.init();
-    return this.invoke<any[]>('queryNodes', { type, filePath });
+    return this.request<any[]>('queryNodes', { type, filePath });
   }
 
   async queryNeighbors(nodeId: string): Promise<any[]> {
     if (!this.initialized) await this.init();
-    return this.invoke<any[]>('queryNeighbors', { nodeId });
+    return this.request<any[]>('queryNeighbors', { nodeId });
   }
 
   async query(cypherQuery: string): Promise<SerializableQueryResult> {
     if (!this.initialized) await this.init();
-    const rows = await this.invoke<Record<string, unknown>[]>('query', { query: cypherQuery });
+    const rows = await this.request<Record<string, unknown>[]>('query', { query: cypherQuery });
     return new SerializableQueryResult(rows);
   }
 
   async getStats(): Promise<{ nodes: number; edges: number }> {
     if (!this.initialized) await this.init();
-    return this.invoke<{ nodes: number; edges: number }>('getStats');
+    return this.request<{ nodes: number; edges: number }>('getStats');
   }
 
   async clear(): Promise<void> {
     if (!this.initialized) return;
-    await this.invoke<void>('clear');
+    await this.request<void>('clear');
   }
 
   async close(): Promise<void> {
@@ -336,17 +117,13 @@ export class KuzuGraphService {
       return;
     }
 
-    await this.invoke<void>('close');
+    await this.request<void>('close');
     this.initialized = false;
   }
 
-  private async invoke<T>(action: KuzuAction, params?: Record<string, unknown>): Promise<T> {
-    return KuzuGraphService.processManager.request<T>(action, this.dbPath, this.dbDir, params);
-  }
-
-  static shutdownProcessManager(): void {
+  static readonly shutdownProcessManager = (): void => {
     KuzuGraphService.processManager.dispose();
-  }
+  };
 }
 
 let instance: KuzuGraphService | null = null;
