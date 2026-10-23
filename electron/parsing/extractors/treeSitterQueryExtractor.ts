@@ -10,140 +10,139 @@ const normalizeImportEntity = (value: string) => {
   return segments[segments.length - 1] || cleaned;
 };
 
+type CaptureNode = {
+  text: string;
+  startPosition: { row: number; column: number };
+  endPosition: { row: number; column: number };
+};
+
+const toSourceLocation = (node: CaptureNode): SourceLocation => ({
+  startLine: node.startPosition.row + 1,
+  startColumn: node.startPosition.column + 1,
+  endLine: node.endPosition.row + 1,
+  endColumn: node.endPosition.column + 1,
+});
+
+/** Accumulates the de-duplicated results of every query match. */
+class QueryCollector {
+  readonly entities: ParseResult['entities'] = [];
+  private readonly importsMap = new Map<string, Set<string>>();
+  private readonly entityKeys = new Set<string>();
+  private readonly variables = new Set<string>();
+  private readonly calls = new Set<string>();
+  private readonly comments = new Set<string>();
+
+  private pushEntity(type: 'class' | 'function', name: string, location?: SourceLocation) {
+    const normalized = name.trim();
+    if (!normalized) return;
+    const key = `${type}:${normalized}`;
+    if (this.entityKeys.has(key)) return;
+    this.entityKeys.add(key);
+    this.entities.push({ type, name: normalized, location });
+  }
+
+  private static addTrimmed(target: Set<string>, text: string) {
+    if (text.trim()) target.add(text.trim());
+  }
+
+  /** Handles one capture; returns the import path or entity it contributed, if any. */
+  private collectCapture(
+    name: string,
+    node: CaptureNode,
+    match: { importPath: string | null; importEntities: Set<string> }
+  ) {
+    switch (name) {
+      case 'import_path':
+        match.importPath = normalizeImportPath(node.text);
+        break;
+      case 'import_entity': {
+        const normalizedEntity = normalizeImportEntity(node.text);
+        if (normalizedEntity) match.importEntities.add(normalizedEntity);
+        break;
+      }
+      case 'class':
+      case 'function':
+        this.pushEntity(name, node.text, toSourceLocation(node));
+        break;
+      case 'variable':
+        QueryCollector.addTrimmed(this.variables, node.text);
+        break;
+      case 'call':
+        QueryCollector.addTrimmed(this.calls, node.text);
+        break;
+      case 'comment':
+        QueryCollector.addTrimmed(this.comments, node.text);
+        break;
+    }
+  }
+
+  collectMatch(captures: { name: string; node: CaptureNode }[]) {
+    const match = { importPath: null as string | null, importEntities: new Set<string>() };
+    captures.forEach((capture) => this.collectCapture(capture.name, capture.node, match));
+    if (!match.importPath) return;
+    if (!this.importsMap.has(match.importPath)) this.importsMap.set(match.importPath, new Set());
+    const bucket = this.importsMap.get(match.importPath)!;
+    match.importEntities.forEach((entityName) => bucket.add(entityName));
+  }
+
+  get imports(): ParseResult['imports'] {
+    return Array.from(this.importsMap, ([path, importedEntities]) => ({
+      path,
+      importedEntities: Array.from(importedEntities),
+    }));
+  }
+
+  get variableList(): string[] {
+    return [...this.variables];
+  }
+
+  get callList(): string[] {
+    return [...this.calls];
+  }
+
+  get commentList(): string[] {
+    return [...this.comments];
+  }
+}
+
+const emptyResult = (definition: LanguageDefinition, adr?: string): ParseResult => ({
+  sizeExceeded: false,
+  imports: [],
+  entities: [],
+  exports: [],
+  adr,
+  variables: [],
+  calls: [],
+  comments: [],
+  detectedLanguage: definition.id,
+});
+
 export const extractWithTreeSitterQuery = (
   tree: Tree,
   language: Language,
   definition: LanguageDefinition,
   adr?: string
 ): ParseResult => {
-  const imports: ParseResult['imports'] = [];
-  const entities: ParseResult['entities'] = [];
-  const exports: ParseResult['exports'] = [];
-  const variables: string[] = [];
-  const calls: string[] = [];
-  const comments: string[] = [];
+  if (!definition.query) return emptyResult(definition, adr);
 
-  if (!definition.query) {
-    return {
-      sizeExceeded: false,
-      imports,
-      entities,
-      exports,
-      adr,
-      variables,
-      calls,
-      comments,
-      detectedLanguage: definition.id,
-    };
-  }
+  const collector = new QueryCollector();
+  new Query(language, definition.query)
+    .matches(tree.rootNode)
+    .forEach((match) => collector.collectMatch(match.captures));
 
-  const query = new Query(language, definition.query);
-  const importsMap = new Map<string, Set<string>>();
-  const entityKeys = new Set<string>();
-  const variableSet = new Set<string>();
-  const callSet = new Set<string>();
-  const commentSet = new Set<string>();
-
-  const toSourceLocation = (node: {
-    startPosition: { row: number; column: number };
-    endPosition: { row: number; column: number };
-  }): SourceLocation => ({
-    startLine: node.startPosition.row + 1,
-    startColumn: node.startPosition.column + 1,
-    endLine: node.endPosition.row + 1,
-    endColumn: node.endPosition.column + 1,
-  });
-
-  const pushEntity = (type: 'class' | 'function', name: string, location?: SourceLocation) => {
-    const normalized = name.trim();
-    if (!normalized) return;
-    const key = `${type}:${normalized}`;
-    if (entityKeys.has(key)) return;
-    entityKeys.add(key);
-    entities.push({ type, name: normalized, location });
+  const result: ParseResult = {
+    ...emptyResult(definition, adr),
+    imports: collector.imports,
+    entities: collector.entities,
+    variables: collector.variableList,
+    calls: collector.callList,
+    comments: collector.commentList,
   };
-
-  const matches = query.matches(tree.rootNode);
-  matches.forEach((match) => {
-    let importPath: string | null = null;
-    const importEntities = new Set<string>();
-
-    match.captures.forEach((capture) => {
-      const captureText = capture.node.text;
-
-      switch (capture.name) {
-        case 'import_path':
-          importPath = normalizeImportPath(captureText);
-          break;
-        case 'import_entity': {
-          const normalizedEntity = normalizeImportEntity(captureText);
-          if (normalizedEntity) importEntities.add(normalizedEntity);
-          break;
-        }
-        case 'class':
-          pushEntity('class', captureText, toSourceLocation(capture.node));
-          break;
-        case 'function':
-          pushEntity('function', captureText, toSourceLocation(capture.node));
-          break;
-        case 'variable':
-          if (captureText.trim()) variableSet.add(captureText.trim());
-          break;
-        case 'call':
-          if (captureText.trim()) callSet.add(captureText.trim());
-          break;
-        case 'comment':
-          if (captureText.trim()) commentSet.add(captureText.trim());
-          break;
-      }
-    });
-
-    if (importPath) {
-      if (!importsMap.has(importPath)) importsMap.set(importPath, new Set());
-      const bucket = importsMap.get(importPath)!;
-      importEntities.forEach((entityName) => bucket.add(entityName));
-    }
-  });
-
-  for (const [importPath, importedEntities] of importsMap) {
-    imports.push({
-      path: importPath,
-      importedEntities: Array.from(importedEntities),
-    });
-  }
-
-  variables.push(...variableSet);
-  calls.push(...callSet);
-  comments.push(...commentSet);
 
   // Go, Python, Java and Rust name packages and modules instead of relative paths, so their
   // imports are kept raw and resolved against the whole project once indexing is done.
   const facts = extractLanguageFacts(definition.id, tree.rootNode);
-  if (facts) {
-    const { entities: factEntities, ...resolution } = facts;
-    return {
-      sizeExceeded: false,
-      imports: [],
-      entities: factEntities,
-      exports,
-      resolution,
-      adr,
-      variables,
-      calls,
-      comments,
-      detectedLanguage: definition.id,
-    };
-  }
-
-  return {
-    sizeExceeded: false,
-    imports,
-    entities,
-    exports,
-    adr,
-    variables,
-    calls,
-    comments,
-    detectedLanguage: definition.id,
-  };
+  if (!facts) return result;
+  const { entities: factEntities, ...resolution } = facts;
+  return { ...result, imports: [], entities: factEntities, resolution };
 };

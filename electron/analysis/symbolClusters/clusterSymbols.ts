@@ -118,8 +118,7 @@ const detectCommunities = (
   const degree = new Map<number, number>();
   let totalWeight = 0;
   for (const node of active) {
-    let sum = 0;
-    for (const weight of graph[node].values()) sum += weight;
+    const sum = [...graph[node].values()].reduce((acc, weight) => acc + weight, 0);
     degree.set(node, sum);
     totalWeight += sum;
   }
@@ -127,41 +126,70 @@ const detectCommunities = (
   if (m === 0) return community;
 
   const communityDegree = new Map<number, number>(active.map((node) => [node, degree.get(node)!]));
+  const move = (node: number): boolean =>
+    moveToBestCommunity(
+      { graph, community, communityDegree, m, resolution },
+      node,
+      degree.get(node)!
+    );
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
-    let moved = false;
-    for (const node of active) {
-      const own = community.get(node)!;
-      const k = degree.get(node)!;
-      const toCommunity = new Map<number, number>();
-      for (const [neighbour, weight] of graph[node]) {
-        const target = community.get(neighbour);
-        if (target !== undefined) toCommunity.set(target, (toCommunity.get(target) ?? 0) + weight);
-      }
-      communityDegree.set(own, communityDegree.get(own)! - k);
-      const gain = (target: number) =>
-        (toCommunity.get(target) ?? 0) / m -
-        (resolution * (communityDegree.get(target) ?? 0) * k) / (2 * m * m);
-      let best = own;
-      let bestGain = gain(own);
-      for (const target of toCommunity.keys()) {
-        const candidate = gain(target);
-        if (
-          candidate > bestGain + 1e-12 ||
-          (Math.abs(candidate - bestGain) <= 1e-12 && target < best)
-        ) {
-          best = target;
-          bestGain = candidate;
-        }
-      }
-      communityDegree.set(best, (communityDegree.get(best) ?? 0) + k);
-      if (best !== own) {
-        community.set(node, best);
-        moved = true;
-      }
-    }
+    // Evaluate every node each round (no short-circuit), as the local-moving phase requires.
+    const moved = active.map(move).some(Boolean);
     if (!moved) break;
   }
   return community;
+};
+
+interface ModularityState {
+  graph: WeightedGraph;
+  community: Map<number, number>;
+  communityDegree: Map<number, number>;
+  /** Half of the total edge weight. */
+  m: number;
+  resolution: number;
+}
+
+/** Edge weight from `node` into each neighbouring community. */
+const weightsToCommunities = (
+  graph: WeightedGraph,
+  community: Map<number, number>,
+  node: number
+): Map<number, number> => {
+  const toCommunity = new Map<number, number>();
+  for (const [neighbour, weight] of graph[node]) {
+    const target = community.get(neighbour);
+    if (target !== undefined) toCommunity.set(target, (toCommunity.get(target) ?? 0) + weight);
+  }
+  return toCommunity;
+};
+
+const GAIN_EPSILON = 1e-12;
+
+/** Moves one node to the community with the best modularity gain; true when it moved. */
+const moveToBestCommunity = (state: ModularityState, node: number, k: number): boolean => {
+  const { graph, community, communityDegree, m, resolution } = state;
+  const own = community.get(node)!;
+  const toCommunity = weightsToCommunities(graph, community, node);
+  communityDegree.set(own, communityDegree.get(own)! - k);
+  const gain = (target: number) =>
+    (toCommunity.get(target) ?? 0) / m -
+    (resolution * (communityDegree.get(target) ?? 0) * k) / (2 * m * m);
+  let best = own;
+  let bestGain = gain(own);
+  for (const target of toCommunity.keys()) {
+    const candidate = gain(target);
+    const better =
+      candidate > bestGain + GAIN_EPSILON ||
+      (Math.abs(candidate - bestGain) <= GAIN_EPSILON && target < best);
+    if (better) {
+      best = target;
+      bestGain = candidate;
+    }
+  }
+  communityDegree.set(best, (communityDegree.get(best) ?? 0) + k);
+  if (best === own) return false;
+  community.set(node, best);
+  return true;
 };
 
 /**
