@@ -4,8 +4,8 @@
 //
 //   node scripts/quality-report.mjs electron/analysis src/components
 import { createRequire } from 'node:module';
-import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { sourceFilesOfArguments } from './lib/collectSourceFiles.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, '..');
@@ -13,30 +13,14 @@ const { analyzeSourceFileStructure } = require(
   path.join(root, 'dist-electron/analysis/sourceFileStructure.js')
 );
 
-const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const TEST = /(\.test\.|\.spec\.|__tests__)/;
 const MAX_LINES = Number(process.env.QUALITY_MAX_LINES ?? 60);
 const MAX_COMPLEXITY = Number(process.env.QUALITY_MAX_COMPLEXITY ?? 15);
 
-const collect = (target) => {
-  const stat = fs.statSync(target);
-  if (stat.isFile()) return SOURCE.test(target) ? [target] : [];
-  return fs
-    .readdirSync(target, { withFileTypes: true })
-    .filter(
-      (entry) => !['node_modules', 'dist-electron', 'dist-renderer', '.git'].includes(entry.name)
-    )
-    .flatMap((entry) => collect(path.join(target, entry.name)));
-};
-
-const targets = process.argv.slice(2);
-if (targets.length === 0) {
-  console.error('usage: node scripts/quality-report.mjs <file-or-folder>...');
-  process.exit(2);
-}
+const files = sourceFilesOfArguments('quality-report.mjs', process.argv.slice(2));
 
 const rows = [];
-for (const file of targets.flatMap((target) => collect(path.resolve(target)))) {
+for (const file of files) {
   if (TEST.test(file)) continue;
   const metrics = analyzeSourceFileStructure(file);
   for (const fn of metrics.allFunctions) {
