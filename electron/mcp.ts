@@ -69,36 +69,25 @@ export const isLoopbackOrigin = (origin: string): boolean => {
   }
 };
 
-export function setupMcpServer() {
-  if (mcpService) {
-    return mcpService;
-  }
+type TransportMap = Record<string, McpTransportRecord>;
 
-  const app = createMcpExpressApp({ host: MCP_HOST });
-  // MCP clients are local processes and send no Origin header. Browsers always do,
-  // so allowing only loopback origins keeps a random web page the user has open from
-  // reading the indexed codebase off this port.
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        if (!origin || isLoopbackOrigin(origin)) {
-          callback(null, true);
-          return;
-        }
-        callback(new Error('Origin not allowed'));
-      },
-      exposedHeaders: ['Mcp-Session-Id'],
-      allowedHeaders: [
-        'Content-Type',
-        'Accept',
-        'Authorization',
-        'Mcp-Session-Id',
-        'Last-Event-ID',
-      ],
-    })
-  );
-  app.use(express.json({ limit: '10mb' }));
+// MCP clients are local processes and send no Origin header. Browsers always do,
+// so allowing only loopback origins keeps a random web page the user has open from
+// reading the indexed codebase off this port.
+const corsMiddleware = () =>
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || isLoopbackOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Origin not allowed'));
+    },
+    exposedHeaders: ['Mcp-Session-Id'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Mcp-Session-Id', 'Last-Event-ID'],
+  });
 
+const registerLegacyRoutes = (app: express.Express) => {
   app.get('/mcp/status', (_req, res) => {
     res.json({ status: 'ok', ...getMcpStatusInternal() });
   });
@@ -139,12 +128,9 @@ export function setupMcpServer() {
       ...getNodeDependencies(graph, targetId, Number.MAX_SAFE_INTEGER),
     });
   });
+};
 
-  const server = http.createServer(app);
-  const wss = new WebSocketServer({ server });
-  const clients = new Set<WebSocket>();
-  const transports: Record<string, McpTransportRecord> = {};
-
+const attachWebSocketClients = (wss: WebSocketServer, clients: Set<WebSocket>) => {
   wss.on('connection', (ws) => {
     clients.add(ws);
 
@@ -162,63 +148,67 @@ export function setupMcpServer() {
       clients.delete(ws);
     });
   });
+};
 
-  const handleMcpPost = async (req: express.Request, res: express.Response) => {
+const createSessionRecord = (transports: TransportMap): McpTransportRecord => {
+  // The session callback can fire before the enclosing statement finishes, so the
+  // server instance has to exist before the transport is constructed.
+  const mcpServer = createMcpServerInstance();
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+    onsessioninitialized: (initializedSessionId) => {
+      transports[initializedSessionId] = {
+        transport,
+        server: mcpServer,
+      };
+    },
+  });
+
+  transport.onclose = () => {
+    const currentSessionId = transport.sessionId;
+    if (currentSessionId) {
+      delete transports[currentSessionId];
+    }
+  };
+
+  return { transport, server: mcpServer };
+};
+
+const sendInternalError = (res: express.Response) => {
+  if (res.headersSent) return;
+  res.status(500).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32603,
+      message: 'Internal server error',
+    },
+    id: null,
+  });
+};
+
+const createPostHandler =
+  (transports: TransportMap) => async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'];
 
     try {
-      let record: McpTransportRecord | undefined;
-
       if (typeof sessionId === 'string' && transports[sessionId]) {
-        record = transports[sessionId];
+        await transports[sessionId].transport.handleRequest(req, res, req.body);
       } else if (!sessionId && isInitializeRequest(req.body)) {
-        // The session callback can fire before the enclosing statement finishes, so the
-        // server instance has to exist before the transport is constructed.
-        const mcpServer = createMcpServerInstance();
-        const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => randomUUID(),
-          onsessioninitialized: (initializedSessionId) => {
-            transports[initializedSessionId] = {
-              transport,
-              server: mcpServer,
-            };
-          },
-        });
-
-        transport.onclose = () => {
-          const currentSessionId = transport.sessionId;
-          if (currentSessionId) {
-            delete transports[currentSessionId];
-          }
-        };
-
-        record = { transport, server: mcpServer };
-
-        await record.server.connect(transport);
-        await transport.handleRequest(req, res, req.body);
-        return;
+        const record = createSessionRecord(transports);
+        await record.server.connect(record.transport);
+        await record.transport.handleRequest(req, res, req.body);
       } else {
         rejectUnknownSession(res, sessionId);
-        return;
       }
-
-      await record.transport.handleRequest(req, res, req.body);
     } catch (error) {
       log.error('Error handling MCP POST request:', error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          jsonrpc: '2.0',
-          error: {
-            code: -32603,
-            message: 'Internal server error',
-          },
-          id: null,
-        });
-      }
+      sendInternalError(res);
     }
   };
 
-  const handleMcpGet = async (req: express.Request, res: express.Response) => {
+// GET (SSE stream) and DELETE (session teardown) both just delegate to the session transport.
+const createSessionHandler =
+  (transports: TransportMap) => async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'];
     if (typeof sessionId !== 'string' || !transports[sessionId]) {
       rejectUnknownSession(res, sessionId);
@@ -228,85 +218,102 @@ export function setupMcpServer() {
     await transports[sessionId].transport.handleRequest(req, res);
   };
 
-  const handleMcpDelete = async (req: express.Request, res: express.Response) => {
-    const sessionId = req.headers['mcp-session-id'];
-    if (typeof sessionId !== 'string' || !transports[sessionId]) {
-      rejectUnknownSession(res, sessionId);
-      return;
+const registerMcpTransportRoutes = (app: express.Express, transports: TransportMap) => {
+  const sessionHandler = createSessionHandler(transports);
+  app.post(MCP_PATH, createPostHandler(transports));
+  app.get(MCP_PATH, sessionHandler);
+  app.delete(MCP_PATH, sessionHandler);
+};
+
+const broadcast = (clients: Set<WebSocket>, message: string) => {
+  for (const client of clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
     }
+  }
+};
 
-    await transports[sessionId].transport.handleRequest(req, res);
-  };
+const notifyListChanged = (transports: TransportMap) => {
+  for (const sessionId in transports) {
+    const record = transports[sessionId];
+    try {
+      record.server.server.notification({
+        method: 'notifications/resources/list_changed',
+      });
+      record.server.server.notification({
+        method: 'notifications/tools/list_changed',
+      });
+    } catch (e) {
+      log.error(`Failed to send MCP list_changed notification to session ${sessionId}:`, e);
+    }
+  }
+};
 
-  app.post(MCP_PATH, handleMcpPost);
-  app.get(MCP_PATH, handleMcpGet);
-  app.delete(MCP_PATH, handleMcpDelete);
-
+const createGraphListeners = (clients: Set<WebSocket>, transports: TransportMap) => {
   const onGraphUpdated = (graphData: ReturnType<typeof oracle.getGraph>) => {
     const diff = oracleStore.getState().getAndResetDiff();
-    const message = JSON.stringify({
-      type: 'graph-diff',
-      payload: {
-        graph: graphData,
-        diff,
-      },
-    });
-
-    for (const client of clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    }
-
-    for (const sessionId in transports) {
-      const record = transports[sessionId];
-      try {
-        record.server.server.notification({
-          method: 'notifications/resources/list_changed',
-        });
-        record.server.server.notification({
-          method: 'notifications/tools/list_changed',
-        });
-      } catch (e) {
-        log.error(`Failed to send MCP list_changed notification to session ${sessionId}:`, e);
-      }
-    }
+    broadcast(
+      clients,
+      JSON.stringify({
+        type: 'graph-diff',
+        payload: {
+          graph: graphData,
+          diff,
+        },
+      })
+    );
+    notifyListChanged(transports);
   };
 
   const onParsingProgress = (progress: unknown) => {
-    const message = JSON.stringify({
-      type: 'parsing-progress',
-      payload: progress,
-    });
-
-    for (const client of clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    }
+    broadcast(clients, JSON.stringify({ type: 'parsing-progress', payload: progress }));
   };
 
+  return { onGraphUpdated, onParsingProgress };
+};
+
+const reportListenError = (kind: McpListenError, error: Error) => {
+  // The HTTP server and the ws server both report the same failure.
+  if (listenError === kind) return;
+  listenError = kind;
+  log.error(
+    kind === 'port_in_use'
+      ? `[MCP] Port ${MCP_PORT} is already in use; MCP is unavailable in this instance. Set CODEMAPS_MCP_PORT to use another port.`
+      : `[MCP] Server error: ${error.message}`
+  );
+};
+
+export function setupMcpServer() {
+  if (mcpService) {
+    return mcpService;
+  }
+
+  const app = createMcpExpressApp({ host: MCP_HOST });
+  app.use(corsMiddleware());
+  app.use(express.json({ limit: '10mb' }));
+  registerLegacyRoutes(app);
+
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server });
+  const clients = new Set<WebSocket>();
+  const transports: TransportMap = {};
+
+  attachWebSocketClients(wss, clients);
+  registerMcpTransportRoutes(app, transports);
+
+  const { onGraphUpdated, onParsingProgress } = createGraphListeners(clients, transports);
   oracle.on('graph-updated', onGraphUpdated);
   oracle.on('parsing-progress', onParsingProgress);
 
-  watchListenErrors([server, wss], (kind, error) => {
-    // The HTTP server and the ws server both report the same failure.
-    if (listenError === kind) return;
-    listenError = kind;
-    log.error(
-      kind === 'port_in_use'
-        ? `[MCP] Port ${MCP_PORT} is already in use; MCP is unavailable in this instance. Set CODEMAPS_MCP_PORT to use another port.`
-        : `[MCP] Server error: ${error.message}`
-    );
-  });
+  watchListenErrors([server, wss], reportListenError);
 
   server.listen(MCP_PORT, MCP_HOST, () => {
     log.info(`[MCP] Streamable HTTP endpoint: ${MCP_HTTP_URL}`);
     log.info(`[WS] Graph updates endpoint: ${MCP_WS_URL}`);
   });
 
-  const close = async () => {
-    await closeMcpRuntime({
+  const close = () =>
+    closeMcpRuntime({
       oracle,
       onGraphUpdated,
       onParsingProgress,
@@ -316,7 +323,6 @@ export function setupMcpServer() {
       server,
       logger: log,
     });
-  };
 
   mcpService = {
     server,

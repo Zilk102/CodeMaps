@@ -3,6 +3,16 @@ import * as z from 'zod/v4';
 import { ChangeTaskMode } from '../analysis/ChangeContextService';
 import { ensureGraphLoaded } from './utils';
 import { McpToolContext } from './toolContext';
+import {
+  PATTERN_LIMIT_DESCRIPTION,
+  boundedInt,
+  changeTaskModeField,
+  contextLimitField,
+  includeClassificationsField,
+  optionalBoolean,
+  optionalString,
+  projectPathField,
+} from './toolSchemas';
 import { okCompactStatusToolResult } from './toolSupport';
 
 export function registerContextTools(server: McpServer, context: McpToolContext) {
@@ -13,27 +23,12 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
       description:
         'Prepare a project-level mental model so an agent can understand architecture before editing or review',
       inputSchema: {
-        projectPath: z
-          .string()
-          .optional()
-          .describe(
-            'Absolute project path. When provided, CodeMaps loads it before building the context.'
-          ),
-        includeClassifications: z
-          .boolean()
-          .optional()
-          .describe('When true, include per-node layer classifications'),
-        includeSecurityFindings: z
-          .boolean()
-          .optional()
-          .describe('When true, include security findings in the project context'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .describe('Maximum number of patterns/dependencies/findings to include'),
+        projectPath: projectPathField,
+        includeClassifications: includeClassificationsField,
+        includeSecurityFindings: optionalBoolean(
+          'When true, include security findings in the project context'
+        ),
+        limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
       },
     },
     async ({
@@ -69,34 +64,16 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
           .describe(
             'Natural-language user request, problem statement, bug report, feature ask or review prompt.'
           ),
-        projectPath: z
-          .string()
-          .optional()
-          .describe(
-            'Absolute project path. When provided, CodeMaps loads it before building the context.'
-          ),
-        depth: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .describe('Optional blast radius depth limit when change-like context is selected'),
-        includeClassifications: z
-          .boolean()
-          .optional()
-          .describe('When true, include per-node layer classifications'),
-        includeSecurityFindings: z
-          .boolean()
-          .optional()
-          .describe('When true, include security findings in prepared contexts'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .describe('Maximum number of patterns/dependencies/findings to include'),
+        projectPath: projectPathField,
+        depth: boundedInt(
+          20,
+          'Optional blast radius depth limit when change-like context is selected'
+        ),
+        includeClassifications: includeClassificationsField,
+        includeSecurityFindings: optionalBoolean(
+          'When true, include security findings in prepared contexts'
+        ),
+        limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
       },
     },
     async ({
@@ -136,41 +113,14 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         userRequest: z
           .string()
           .describe('Natural-language large-scale change request or migration plan.'),
-        projectPath: z
-          .string()
-          .optional()
-          .describe(
-            'Absolute project path. When provided, CodeMaps loads it before building the context.'
-          ),
-        taskMode: z
-          .enum(['bugfix', 'feature', 'refactor', 'explore'])
-          .optional()
-          .describe('High-level change mode for the campaign'),
-        depth: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .describe('Dependency expansion depth for the campaign'),
-        includeSecurityFindings: z
-          .boolean()
-          .optional()
-          .describe('When true, include security findings related to the campaign area'),
-        maxSeeds: z
-          .number()
-          .int()
-          .min(1)
-          .max(30)
-          .optional()
-          .describe('Maximum number of seed targets'),
-        maxFiles: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .describe('Maximum number of affected files in the campaign'),
+        projectPath: projectPathField,
+        taskMode: changeTaskModeField('High-level change mode for the campaign'),
+        depth: boundedInt(20, 'Dependency expansion depth for the campaign'),
+        includeSecurityFindings: optionalBoolean(
+          'When true, include security findings related to the campaign area'
+        ),
+        maxSeeds: boundedInt(30, 'Maximum number of seed targets'),
+        maxFiles: boundedInt(100, 'Maximum number of affected files in the campaign'),
         seedNodeIds: z
           .array(z.string())
           .optional()
@@ -227,42 +177,17 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
         target: z
           .string()
           .describe('Exact node id or free-text query for the code area that will be changed'),
-        taskMode: z
-          .enum(['bugfix', 'feature', 'refactor', 'explore'])
-          .optional()
-          .describe('High-level change mode used to tailor agent guidance'),
-        changeIntent: z
-          .string()
-          .optional()
-          .describe('Short human description of the planned change'),
-        type: z
-          .string()
-          .optional()
-          .describe('Optional node type filter such as file, class, function or adr'),
-        projectPath: z
-          .string()
-          .optional()
-          .describe(
-            'Absolute project path. When provided, CodeMaps loads it before building the context.'
-          ),
-        depth: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .describe('Optional blast radius depth limit'),
-        includeSecurityFindings: z
-          .boolean()
-          .optional()
-          .describe('When true, include security findings related to the target area'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .describe('Maximum number of items kept in each list of the returned context'),
+        taskMode: changeTaskModeField('High-level change mode used to tailor agent guidance'),
+        changeIntent: optionalString('Short human description of the planned change'),
+        type: optionalString('Optional node type filter such as file, class, function or adr'),
+        projectPath: projectPathField,
+        depth: boundedInt(20, 'Optional blast radius depth limit'),
+        includeSecurityFindings: optionalBoolean(
+          'When true, include security findings related to the target area'
+        ),
+        limit: contextLimitField(
+          'Maximum number of items kept in each list of the returned context'
+        ),
       },
     },
     async ({
@@ -308,33 +233,15 @@ export function registerContextTools(server: McpServer, context: McpToolContext)
           .enum(['review', 'architecture', 'security', 'stabilization'])
           .optional()
           .describe('High-level review mode used to prioritize findings'),
-        focusQuery: z
-          .string()
-          .optional()
-          .describe(
-            'Optional free-text query to narrow the review to a specific directory or file'
-          ),
-        projectPath: z
-          .string()
-          .optional()
-          .describe(
-            'Absolute project path. When provided, CodeMaps loads it before building the context.'
-          ),
-        includeClassifications: z
-          .boolean()
-          .optional()
-          .describe('When true, include per-node layer classifications'),
-        includeSecurityFindings: z
-          .boolean()
-          .optional()
-          .describe('When true, include security findings (default true for review contexts)'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .describe('Maximum number of patterns/dependencies/findings to include'),
+        focusQuery: optionalString(
+          'Optional free-text query to narrow the review to a specific directory or file'
+        ),
+        projectPath: projectPathField,
+        includeClassifications: includeClassificationsField,
+        includeSecurityFindings: optionalBoolean(
+          'When true, include security findings (default true for review contexts)'
+        ),
+        limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
       },
     },
     async ({

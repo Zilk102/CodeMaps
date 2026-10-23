@@ -73,134 +73,117 @@ const withoutResolutionFacts = (node: GraphNode): GraphNode => {
   return rest;
 };
 
+type NodeMap = Map<string, GraphNode>;
+
+const MAX_REEXPORT_DEPTH = 6;
+
+// Finds the node of `filePath` that a re-export can forward `symbolName` to, trying the
+// exact specifier first and then the extension / index fallbacks.
+const resolveReExportFile = (nodes: NodeMap, specifier: string): string | undefined =>
+  [specifier, ...POSSIBLE_EXTS.map((ext) => specifier + ext)].find((file) => nodes.has(file));
+
+// Resolves a symbol the file declares itself (directly or through an `export { local as x }`).
+const resolveOwnSymbol = (
+  nodes: NodeMap,
+  fileNode: GraphNode,
+  filePath: string,
+  symbolName: string
+): { target?: string; originalName: string } => {
+  const directExport = fileNode.exports?.find(
+    (record) => record.exportedName === symbolName || (symbolName === 'default' && record.isDefault)
+  );
+
+  if (directExport?.localName && nodes.has(`${filePath}#${directExport.localName}`)) {
+    return { target: `${filePath}#${directExport.localName}`, originalName: symbolName };
+  }
+  if (directExport && nodes.has(`${filePath}#${directExport.exportedName}`)) {
+    return { target: `${filePath}#${directExport.exportedName}`, originalName: symbolName };
+  }
+  return { originalName: directExport?.localName ?? symbolName };
+};
+
+// Looks up the node a name really refers to, following barrel re-exports
+// (`export * from`, `export { a as b } from`) so dependents link to the declaration
+// instead of the barrel file.
+const resolveSymbolTarget = (
+  nodes: NodeMap,
+  filePath: string,
+  symbolName: string,
+  visited: Set<string> = new Set()
+): string | undefined => {
+  const visitKey = `${filePath}#${symbolName}`;
+  if (visited.has(visitKey) || visited.size > MAX_REEXPORT_DEPTH) {
+    return undefined;
+  }
+  visited.add(visitKey);
+
+  if (nodes.has(visitKey)) {
+    return visitKey;
+  }
+
+  const fileNode = nodes.get(filePath);
+  if (!fileNode) {
+    return undefined;
+  }
+
+  const own = resolveOwnSymbol(nodes, fileNode, filePath, symbolName);
+  if (own.target) return own.target;
+
+  for (const reExport of fileNode.reExports ?? []) {
+    if (!reExport.entities.includes('*') && !reExport.entities.includes(own.originalName)) {
+      continue;
+    }
+    const targetFile = resolveReExportFile(nodes, reExport.target);
+    if (!targetFile) continue;
+    const forwarded = resolveSymbolTarget(nodes, targetFile, own.originalName, visited);
+    if (forwarded) return forwarded;
+  }
+
+  return undefined;
+};
+
+// Tries `<file><ext>` for every known extension, returning the first non-undefined result.
+const firstWithExtension = (
+  file: string,
+  resolve: (candidate: string) => string | undefined
+): string | undefined => {
+  for (const ext of POSSIBLE_EXTS) {
+    const resolved = resolve(`${file}${ext}`);
+    if (resolved) return resolved;
+  }
+  return undefined;
+};
+
+const resolveSymbolLinkTarget = (nodes: NodeMap, target: string): string | undefined => {
+  if (nodes.has(target)) return target;
+
+  const [filePath, entityName] = target.split('#');
+  return (
+    resolveSymbolTarget(nodes, filePath, entityName) ??
+    firstWithExtension(filePath, (candidate) =>
+      resolveSymbolTarget(nodes, candidate, entityName)
+    ) ??
+    (nodes.has(filePath) ? filePath : undefined) ??
+    firstWithExtension(filePath, (candidate) => (nodes.has(candidate) ? candidate : undefined))
+  );
+};
+
+// Returns the node id a link target really points at, or undefined when it dangles.
+const resolveLinkTarget = (nodes: NodeMap, target: string): string | undefined => {
+  if (target.includes('#')) return resolveSymbolLinkTarget(nodes, target);
+  if (nodes.has(target)) return target;
+  return firstWithExtension(target, (candidate) => (nodes.has(candidate) ? candidate : undefined));
+};
+
 export const buildValidGraphSnapshot = (state: GraphSnapshotState): GraphData => {
   const validLinks: GraphLink[] = [];
 
-  const MAX_REEXPORT_DEPTH = 6;
-
-  // Looks up the node a name really refers to, following barrel re-exports
-  // (`export * from`, `export { a as b } from`) so dependents link to the declaration
-  // instead of the barrel file.
-  const resolveSymbolTarget = (
-    filePath: string,
-    symbolName: string,
-    visited: Set<string> = new Set()
-  ): string | undefined => {
-    const visitKey = `${filePath}#${symbolName}`;
-    if (visited.has(visitKey) || visited.size > MAX_REEXPORT_DEPTH) {
-      return undefined;
-    }
-    visited.add(visitKey);
-
-    const fileNode = state.nodes.get(filePath);
-
-    if (state.nodes.has(`${filePath}#${symbolName}`)) {
-      return `${filePath}#${symbolName}`;
-    }
-
-    if (!fileNode) {
-      return undefined;
-    }
-
-    const directExport = fileNode.exports?.find(
-      (record) =>
-        record.exportedName === symbolName || (symbolName === 'default' && record.isDefault)
-    );
-
-    if (directExport?.localName && state.nodes.has(`${filePath}#${directExport.localName}`)) {
-      return `${filePath}#${directExport.localName}`;
-    }
-
-    if (directExport && state.nodes.has(`${filePath}#${directExport.exportedName}`)) {
-      return `${filePath}#${directExport.exportedName}`;
-    }
-
-    const originalName = directExport?.localName ?? symbolName;
-    for (const reExport of fileNode.reExports ?? []) {
-      if (!reExport.entities.includes('*') && !reExport.entities.includes(originalName)) {
-        continue;
-      }
-      for (const targetFile of [
-        reExport.target,
-        ...POSSIBLE_EXTS.map((ext) => reExport.target + ext),
-      ]) {
-        if (!state.nodes.has(targetFile)) continue;
-        const forwarded = resolveSymbolTarget(targetFile, originalName, visited);
-        if (forwarded) return forwarded;
-        break;
-      }
-    }
-
-    return undefined;
-  };
-
-  state.links.forEach((link) => {
-    let resolvedTarget = link.target;
-    let isValid = false;
-
-    if (resolvedTarget.includes('#')) {
-      if (state.nodes.has(resolvedTarget)) {
-        isValid = true;
-      } else {
-        const [filePath, entityName] = resolvedTarget.split('#');
-        const directResolvedSymbol = resolveSymbolTarget(filePath, entityName);
-        if (directResolvedSymbol) {
-          resolvedTarget = directResolvedSymbol;
-          isValid = true;
-        }
-
-        if (isValid) {
-          validLinks.push({ ...link, target: resolvedTarget });
-          return;
-        }
-
-        for (const ext of POSSIBLE_EXTS) {
-          const resolvedSymbol = resolveSymbolTarget(`${filePath}${ext}`, entityName);
-          if (resolvedSymbol) {
-            resolvedTarget = resolvedSymbol;
-            isValid = true;
-            break;
-          }
-        }
-
-        if (!isValid) {
-          if (state.nodes.has(filePath)) {
-            resolvedTarget = filePath;
-            isValid = true;
-          } else {
-            for (const ext of POSSIBLE_EXTS) {
-              const fullFile = `${filePath}${ext}`;
-              if (state.nodes.has(fullFile)) {
-                resolvedTarget = fullFile;
-                isValid = true;
-                break;
-              }
-            }
-          }
-        }
-      }
-    } else if (state.nodes.has(resolvedTarget)) {
-      isValid = true;
-    } else {
-      const targetNode = state.nodes.get(resolvedTarget);
-      if (targetNode && targetNode.type === 'directory') {
-        isValid = true;
-      } else {
-        for (const ext of POSSIBLE_EXTS) {
-          const candidate = resolvedTarget + ext;
-          if (state.nodes.has(candidate)) {
-            resolvedTarget = candidate;
-            isValid = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (isValid) {
+  for (const link of state.links) {
+    const resolvedTarget = resolveLinkTarget(state.nodes, link.target);
+    if (resolvedTarget !== undefined) {
       validLinks.push({ ...link, target: resolvedTarget });
     }
-  });
+  }
 
   return {
     projectRoot: state.baseDir,
