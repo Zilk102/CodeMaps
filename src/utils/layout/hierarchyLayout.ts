@@ -18,6 +18,13 @@ import {
   type LayoutResult,
 } from './layoutTypes';
 
+type GraphLink = GraphData['links'][number];
+
+const linkEndpointId = (end: GraphLink['source']) => (typeof end === 'string' ? end : end.id);
+
+const touchesProjectRoot = (sourceId: string, targetId: string) =>
+  sourceId === PROJECT_ROOT_ID || targetId === PROJECT_ROOT_ID;
+
 const buildRenderedEdges = (
   graphData: GraphData,
   validNodes: Map<string, GraphNode>,
@@ -29,36 +36,22 @@ const buildRenderedEdges = (
   const visibleNodeIds = new Set(validNodes.keys());
 
   graphData.links.forEach((link, idx) => {
-    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    const sourceId = resolveVisibleNodeId(linkEndpointId(link.source), visibleNodeIds, nodeIndex);
+    const targetId = resolveVisibleNodeId(linkEndpointId(link.target), visibleNodeIds, nodeIndex);
 
-    const visibleSourceId = resolveVisibleNodeId(sourceId, visibleNodeIds, nodeIndex);
-    const visibleTargetId = resolveVisibleNodeId(targetId, visibleNodeIds, nodeIndex);
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    if (includeProjectRoot && touchesProjectRoot(sourceId, targetId)) return;
 
-    if (!visibleSourceId || !visibleTargetId || visibleSourceId === visibleTargetId) {
-      return;
-    }
-
-    if (
-      includeProjectRoot &&
-      (visibleSourceId === PROJECT_ROOT_ID || visibleTargetId === PROJECT_ROOT_ID)
-    ) {
-      return;
-    }
-
-    const sourceNode = nodeLayoutIndex.get(visibleSourceId);
-    const targetNode = nodeLayoutIndex.get(visibleTargetId);
-
-    if (!sourceNode || !targetNode) {
-      return;
-    }
+    const sourceNode = nodeLayoutIndex.get(sourceId);
+    const targetNode = nodeLayoutIndex.get(targetId);
+    if (!sourceNode || !targetNode) return;
 
     renderedEdges.push({
       id: `e${idx}`,
       sections: buildOrthogonalSections(sourceNode, targetNode),
       data: link,
-      sourceId: visibleSourceId,
-      targetId: visibleTargetId,
+      sourceId,
+      targetId,
     });
   });
 

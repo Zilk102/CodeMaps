@@ -15,7 +15,7 @@ const { analyzeSourceFileStructure } = require(
 
 const TEST = /(\.test\.|\.spec\.|__tests__)/;
 const MAX_LINES = Number(process.env.QUALITY_MAX_LINES ?? 60);
-const MAX_COMPLEXITY = Number(process.env.QUALITY_MAX_COMPLEXITY ?? 15);
+const MAX_COMPLEXITY = Number(process.env.QUALITY_MAX_COMPLEXITY ?? 10);
 
 const files = sourceFilesOfArguments('quality-report.mjs', process.argv.slice(2));
 

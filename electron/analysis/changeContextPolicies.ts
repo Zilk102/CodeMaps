@@ -109,7 +109,7 @@ export function buildChangeRisks(args: ChangeRiskArgs) {
   );
 }
 
-export function buildChangeNextSteps(args: {
+interface ChangeNextStepsArgs {
   changeIntent?: string;
   target: GraphNode;
   targetClassification: ArchitectureNodeClassification;
@@ -119,53 +119,48 @@ export function buildChangeNextSteps(args: {
   contractBindingNodes: GraphNode[];
   securityFindings: SecurityFinding[];
   decompositionCandidates: DecompositionCandidate[];
-}) {
+}
+
+/** Conditional follow-ups, in the order they are appended after the two fixed steps. */
+const CONDITIONAL_NEXT_STEPS: Array<[(args: ChangeNextStepsArgs) => boolean, string]> = [
+  [
+    (a) => a.blastRadius.affectedNodes.length > 0,
+    'After editing, double-check the affected nodes from the blast radius and ensure contracts have not degraded.',
+  ],
+  [
+    (a) => a.runtimeContractNodes.length > 0,
+    'Inspect DI runtime contracts separately from imports and verify provider bindings, bean factories, or service registrations after the change.',
+  ],
+  [
+    (a) => a.contractBindingNodes.length > 0,
+    'Inspect API contract bindings separately from imports and verify schema roots, generated modules, and runtime handlers/clients after the change.',
+  ],
+  [
+    (a) => a.securityFindings.length > 0,
+    'Separately re-verify safe handling of secrets, shell/process APIs, and browser storage.',
+  ],
+  [
+    (a) =>
+      a.targetClassification.layer === 'application' ||
+      a.targetClassification.layer === 'integration',
+    'Ensure that orchestration/integration code does not start pulling presentation details or extra state.',
+  ],
+  [
+    (a) => a.target.churn >= 10,
+    'If the target is already a churn-heavy orchestration file, prefer extracting responsibilities instead of adding another branch, matcher, or adapter path.',
+  ],
+];
+
+export function buildChangeNextSteps(args: ChangeNextStepsArgs) {
   const nextSteps = [
     `First, re-read the target node ${args.target.id} and the closest files from recommendedFilesToInspect.`,
     'Check if the change creates new layer violations or unnecessary import edges.',
   ];
 
-  if (args.changeIntent) {
-    nextSteps.unshift(`Clarify change intent: ${args.changeIntent}.`);
-  }
+  if (args.changeIntent) nextSteps.unshift(`Clarify change intent: ${args.changeIntent}.`);
 
-  if (args.blastRadius.affectedNodes.length > 0) {
-    nextSteps.push(
-      'After editing, double-check the affected nodes from the blast radius and ensure contracts have not degraded.'
-    );
-  }
-
-  if (args.runtimeContractNodes.length > 0) {
-    nextSteps.push(
-      'Inspect DI runtime contracts separately from imports and verify provider bindings, bean factories, or service registrations after the change.'
-    );
-  }
-
-  if (args.contractBindingNodes.length > 0) {
-    nextSteps.push(
-      'Inspect API contract bindings separately from imports and verify schema roots, generated modules, and runtime handlers/clients after the change.'
-    );
-  }
-
-  if (args.securityFindings.length > 0) {
-    nextSteps.push(
-      'Separately re-verify safe handling of secrets, shell/process APIs, and browser storage.'
-    );
-  }
-
-  if (
-    args.targetClassification.layer === 'application' ||
-    args.targetClassification.layer === 'integration'
-  ) {
-    nextSteps.push(
-      'Ensure that orchestration/integration code does not start pulling presentation details or extra state.'
-    );
-  }
-
-  if (args.target.churn >= 10) {
-    nextSteps.push(
-      'If the target is already a churn-heavy orchestration file, prefer extracting responsibilities instead of adding another branch, matcher, or adapter path.'
-    );
+  for (const [applies, step] of CONDITIONAL_NEXT_STEPS) {
+    if (applies(args)) nextSteps.push(step);
   }
 
   if (args.decompositionCandidates.length > 0) {

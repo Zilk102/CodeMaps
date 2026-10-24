@@ -20,24 +20,24 @@ function getScriptKind(filePath: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
-function getNodeName(node: ts.Node): string | null {
-  if (
+function isNamedDeclaration(
+  node: ts.Node
+): node is
+  ts.FunctionDeclaration | ts.MethodDeclaration | ts.ClassDeclaration | ts.InterfaceDeclaration {
+  return (
     ts.isFunctionDeclaration(node) ||
     ts.isMethodDeclaration(node) ||
     ts.isClassDeclaration(node) ||
     ts.isInterfaceDeclaration(node)
-  ) {
-    return node.name?.getText() || null;
-  }
+  );
+}
 
-  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
-    return node.name.text;
+function getNodeName(node: ts.Node): string | null {
+  if (isNamedDeclaration(node)) return node.name?.getText() || null;
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) return node.name.text;
+  if (ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) {
+    return node.name?.getText() ?? null;
   }
-
-  if ((ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) && node.name) {
-    return node.name.getText();
-  }
-
   return null;
 }
 
