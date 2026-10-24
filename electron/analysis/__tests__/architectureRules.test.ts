@@ -29,6 +29,20 @@ describe('default architecture rules: fallback conventions', () => {
     expect(layerOf(id)).toMatchObject({ layer, reason });
   });
 
+  it.each([
+    ['index.html', 'presentation', 'html_entry_or_root_asset'],
+    ['favicon.ico', 'presentation', 'html_entry_or_root_asset'],
+    ['electron/store/types.ts', 'shared', 'type_contracts'],
+    ['electron/parsing/types.ts', 'shared', 'type_contracts'],
+    ['src/store/graph.types.ts', 'shared', 'type_contracts'],
+  ])('%s -> %s (entry files and type contracts)', (id, layer, reason) => {
+    expect(layerOf(id)).toMatchObject({ layer, reason });
+  });
+
+  it('does not treat other files named like types as contracts', () => {
+    expect(layerOf('src/store/mytypes.ts').layer).toBe('state');
+  });
+
   it('classifies a resolution directory itself', () => {
     expect(layerOf('electron/resolution', 'directory').layer).toBe('application');
   });

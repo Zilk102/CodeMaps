@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
-import { ErrorBanner, PanelCard, StatTileGrid } from './panels/PanelParts';
+import { ErrorBanner, PanelCard, PanelHeader, StatTileGrid } from './panels/PanelParts';
 import {
   HEAT_LEGEND,
   MAX_VISIBLE_FILES,
@@ -127,48 +127,47 @@ const HeatmapResults: React.FC<{ heatmap: HeatmapData }> = ({ heatmap }) => {
   );
 };
 
-export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath }) => {
+async function fetchHeatmap(projectPath: string, timeRange: string) {
+  const since = computeSince(parseInt(timeRange));
+  if (!window.api?.analyzeActivityHeatmap) {
+    throw new Error('Activity heatmap not available');
+  }
+  const result = await window.api.analyzeActivityHeatmap(
+    projectPath,
+    since.toISOString(),
+    new Date().toISOString()
+  );
+  return unwrapResponse<HeatmapData>(result);
+}
+
+/** Time range, analysis state and the loader of the heatmap panel. */
+function useHeatmap(projectPath: string) {
   const { t } = useTranslation();
   const [timeRange, setTimeRange] = useState('30');
-  const { isRunning: isLoading, result: heatmap, error, run } = useAnalysisRunner<HeatmapData>();
+  const { isRunning, result, error, run } = useAnalysisRunner<HeatmapData>();
+  const analyze = () => run(() => fetchHeatmap(projectPath, timeRange), t('activityHeatmap.error'));
+  return { timeRange, setTimeRange, isLoading: isRunning, heatmap: result, error, analyze };
+}
 
-  const loadHeatmap = () =>
-    run(async () => {
-      const since = computeSince(parseInt(timeRange));
-
-      if (!window.api?.analyzeActivityHeatmap) {
-        throw new Error('Activity heatmap not available');
-      }
-      const result = await window.api.analyzeActivityHeatmap(
-        projectPath,
-        since.toISOString(),
-        new Date().toISOString()
-      );
-      return unwrapResponse<HeatmapData>(result);
-    }, t('activityHeatmap.error'));
+export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath }) => {
+  const { t } = useTranslation();
+  const { timeRange, setTimeRange, isLoading, heatmap, error, analyze } = useHeatmap(projectPath);
 
   return (
     <div className="space-y-4 p-4">
-      <PanelCard className="p-4">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
-          {t('tools.quickActions.hotspots')}
-        </div>
-        <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <h3 className="text-[16px] font-semibold text-(--t0)">{t('activityHeatmap.title')}</h3>
-            <p className="mt-2 text-[13px] leading-6 text-(--t2)">
-              {t('tools.quickActions.heatmapDescription')}
-            </p>
-          </div>
-
+      <PanelHeader
+        eyebrow={t('tools.quickActions.hotspots')}
+        title={t('activityHeatmap.title')}
+        description={t('tools.quickActions.heatmapDescription')}
+        actions={
           <HeatmapControls
             timeRange={timeRange}
             onTimeRangeChange={setTimeRange}
             isLoading={isLoading}
-            onAnalyze={loadHeatmap}
+            onAnalyze={analyze}
           />
-        </div>
-      </PanelCard>
+        }
+      />
 
       {error && (
         <ErrorBanner className="p-4">

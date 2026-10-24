@@ -221,33 +221,30 @@ interface ViewportControlsArgs extends CanvasAccessArgs {
   onUserZoom: () => void;
 }
 
-/** Imperative helpers (fit, focus, zoom) that push transforms into the canvas. */
-const useViewportControls = ({
-  layoutData,
-  reserveRight,
-  transformRef,
-  containerRef,
-  onUserZoom,
-}: ViewportControlsArgs) => {
-  const { measure, apply } = useCanvasAccess({ transformRef, containerRef });
+type CanvasAccess = ReturnType<typeof useCanvasAccess>;
 
-  const fit = useCallback(
+const useFit = (
+  { measure, apply }: CanvasAccess,
+  layoutData: LayoutResult | null,
+  reserveRight: number
+) =>
+  useCallback(
     (options: FitOptions = {}, animate = true): boolean => {
       const container = measure();
       if (!container || !layoutData) return false;
-      return apply(
-        computeFitTransform(
-          container,
-          { width: layoutData.width, height: layoutData.height },
-          { reserveRight, ...options }
-        ),
-        animate
-      );
+      const content = { width: layoutData.width, height: layoutData.height };
+      return apply(computeFitTransform(container, content, { reserveRight, ...options }), animate);
     },
     [layoutData, measure, apply, reserveRight]
   );
 
-  const focusNode = useCallback(
+const useFocusNode = (
+  { measure, apply }: CanvasAccess,
+  { transformRef }: CanvasAccessArgs,
+  layoutData: LayoutResult | null,
+  reserveRight: number
+) =>
+  useCallback(
     (nodeId: string, animate: boolean): boolean => {
       const target = layoutData?.nodes.find((node) => node.id === nodeId);
       const container = measure();
@@ -261,7 +258,13 @@ const useViewportControls = ({
     [layoutData, measure, apply, reserveRight, transformRef]
   );
 
-  const zoomBy = useCallback(
+const useZoomBy = (
+  { measure, apply }: CanvasAccess,
+  { transformRef }: CanvasAccessArgs,
+  reserveRight: number,
+  onUserZoom: () => void
+) =>
+  useCallback(
     (factor: number) => {
       const api = transformRef.current;
       const container = measure();
@@ -273,6 +276,19 @@ const useViewportControls = ({
     [measure, apply, reserveRight, transformRef, onUserZoom]
   );
 
+/** Imperative helpers (fit, focus, zoom) that push transforms into the canvas. */
+const useViewportControls = ({
+  layoutData,
+  reserveRight,
+  transformRef,
+  containerRef,
+  onUserZoom,
+}: ViewportControlsArgs) => {
+  const refs = { transformRef, containerRef };
+  const access = useCanvasAccess(refs);
+  const fit = useFit(access, layoutData, reserveRight);
+  const focusNode = useFocusNode(access, refs, layoutData, reserveRight);
+  const zoomBy = useZoomBy(access, refs, reserveRight, onUserZoom);
   return { fit, focusNode, zoomBy };
 };
 

@@ -10,52 +10,55 @@ type DataTransferItemWithEntry = DataTransferItem & {
   getAsEntry?: () => FileSystemEntryLike | null;
 };
 
+const entryOf = (item: DataTransferItem) =>
+  item.webkitGetAsEntry?.() || (item as DataTransferItemWithEntry).getAsEntry?.() || null;
+
+const pathOfFile = (file: File | null) =>
+  file && 'path' in file ? (file as File & { path: string }).path : null;
+
+const parentDirectory = (filePath: string) =>
+  filePath.substring(0, filePath.lastIndexOf('/')) ||
+  filePath.substring(0, filePath.lastIndexOf('\\'));
+
 async function getPathFromItem(item: DataTransferItem) {
-  const itemWithEntry = item as DataTransferItemWithEntry;
-  const entry = item.webkitGetAsEntry?.() || itemWithEntry.getAsEntry?.() || null;
-  if (!entry) {
-    return null;
-  }
-
-  if (entry.isDirectory) {
-    const file = item.getAsFile();
-    if (file && 'path' in file) {
-      return (file as File & { path: string }).path;
-    }
-    return null;
-  }
-
-  const file = item.getAsFile();
-  if (file && 'path' in file) {
-    const filePath = (file as File & { path: string }).path;
-    return (
-      filePath.substring(0, filePath.lastIndexOf('/')) ||
-      filePath.substring(0, filePath.lastIndexOf('\\'))
-    );
-  }
-
-  return null;
+  const entry = entryOf(item);
+  const filePath = entry ? pathOfFile(item.getAsFile()) : null;
+  if (!entry || !filePath) return null;
+  return entry.isDirectory ? filePath : parentDirectory(filePath);
 }
+
+/** Opens the first dropped item that resolves to a path; later items are ignored. */
+async function openFirstDroppedPath(items: DataTransferItemList, fetchGraph: FetchGraph) {
+  for (let index = 0; index < items.length; index += 1) {
+    const path = await getPathFromItem(items[index]);
+    if (path) {
+      await fetchGraph(path);
+      return;
+    }
+  }
+}
+
+const swallow = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+};
 
 export function useProjectDrop(fetchGraph: FetchGraph) {
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
   const handleDragOver = useCallback((event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+    swallow(event);
   }, []);
 
   const handleDragEnter = useCallback((event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+    swallow(event);
     dragCounter.current += 1;
     setDragOver(true);
   }, []);
 
   const handleDragLeave = useCallback((event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+    swallow(event);
     dragCounter.current -= 1;
     if (dragCounter.current === 0) {
       setDragOver(false);
@@ -64,8 +67,7 @@ export function useProjectDrop(fetchGraph: FetchGraph) {
 
   const handleDrop = useCallback(
     (event: DragEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
+      swallow(event);
       dragCounter.current = 0;
       setDragOver(false);
 
@@ -74,17 +76,7 @@ export function useProjectDrop(fetchGraph: FetchGraph) {
         return;
       }
 
-      const processDrop = async () => {
-        for (let index = 0; index < items.length; index += 1) {
-          const path = await getPathFromItem(items[index]);
-          if (path) {
-            await fetchGraph(path);
-            return;
-          }
-        }
-      };
-
-      processDrop().catch(console.error);
+      openFirstDroppedPath(items, fetchGraph).catch(console.error);
     },
     [fetchGraph]
   );

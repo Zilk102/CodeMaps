@@ -11,6 +11,26 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
+const ErrorDetails = ({ error, errorInfo }: { error: Error; errorInfo: ErrorInfo | null }) => (
+  <pre
+    style={{
+      backgroundColor: 'var(--bg1)',
+      padding: '15px',
+      borderRadius: '8px',
+      overflowX: 'auto',
+      maxWidth: '80%',
+      border: '1px solid var(--border)',
+      textAlign: 'left',
+      fontSize: '12px',
+      color: 'var(--t3)',
+    }}
+  >
+    {error.toString()}
+    {'\n'}
+    {errorInfo?.componentStack}
+  </pre>
+);
+
 const ErrorFallback = ({
   t,
   error,
@@ -38,25 +58,7 @@ const ErrorFallback = ({
     <p style={{ marginBottom: '20px', maxWidth: '600px', lineHeight: '1.5' }}>
       {t('app.errorBoundary.message')}
     </p>
-    {error && (
-      <pre
-        style={{
-          backgroundColor: 'var(--bg1)',
-          padding: '15px',
-          borderRadius: '8px',
-          overflowX: 'auto',
-          maxWidth: '80%',
-          border: '1px solid var(--border)',
-          textAlign: 'left',
-          fontSize: '12px',
-          color: 'var(--t3)',
-        }}
-      >
-        {error.toString()}
-        {'\n'}
-        {errorInfo?.componentStack}
-      </pre>
-    )}
+    {error && <ErrorDetails error={error} errorInfo={errorInfo} />}
     <button
       onClick={() => window.location.reload()}
       style={{

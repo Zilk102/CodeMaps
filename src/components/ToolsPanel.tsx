@@ -12,6 +12,9 @@ import {
   buildTabs,
   buildWorkflowSteps,
   projectDisplayName,
+  type ScenarioCard,
+  type WorkflowStep,
+  type WorkspaceTab,
 } from './panels/toolsPanelData';
 import { useUIStore } from '../store/useStore';
 
@@ -77,6 +80,37 @@ const ToolsHeader: React.FC<{
   );
 };
 
+const ToolsTabPanel: React.FC<{
+  activeTab: WorkspaceTab;
+  projectPath: string;
+  projectName: string;
+  scenarioCards: ScenarioCard[];
+  workflowSteps: WorkflowStep[];
+  onOpenTool: (tab: WorkspaceTab) => void;
+}> = ({ activeTab, projectPath, projectName, scenarioCards, workflowSteps, onOpenTool }) => (
+  <div
+    role="tabpanel"
+    id={`tabpanel-${activeTab}`}
+    aria-labelledby={`tab-${activeTab}`}
+    className="min-h-0 flex-1 overflow-y-auto bg-(--bg1)"
+  >
+    {activeTab === 'overview' && (
+      <ToolsOverview
+        projectName={projectName}
+        projectPath={projectPath}
+        scenarioCards={scenarioCards}
+        workflowSteps={workflowSteps}
+        onOpenTool={onOpenTool}
+      />
+    )}
+    {activeTab === 'blast' && <BlastRadiusV2Panel projectPath={projectPath} />}
+    {activeTab === 'decomposition' && <DecompositionWizardPanel projectPath={projectPath} />}
+    {activeTab === 'duplicates' && <DuplicatesPanel projectPath={projectPath} />}
+    {activeTab === 'heatmap' && <ActivityHeatmap projectPath={projectPath} />}
+    {activeTab === 'pr' && <PRImpactPanel projectPath={projectPath} />}
+  </div>
+);
+
 export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { activeTab, setActiveTab, toggleToolsPanel } = useUIStore();
@@ -107,27 +141,14 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
 
         <ToolsTabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
 
-        <div
-          role="tabpanel"
-          id={`tabpanel-${activeTab}`}
-          aria-labelledby={`tab-${activeTab}`}
-          className="min-h-0 flex-1 overflow-y-auto bg-(--bg1)"
-        >
-          {activeTab === 'overview' && (
-            <ToolsOverview
-              projectName={projectName}
-              projectPath={projectPath}
-              scenarioCards={scenarioCards}
-              workflowSteps={workflowSteps}
-              onOpenTool={setActiveTab}
-            />
-          )}
-          {activeTab === 'blast' && <BlastRadiusV2Panel projectPath={projectPath} />}
-          {activeTab === 'decomposition' && <DecompositionWizardPanel projectPath={projectPath} />}
-          {activeTab === 'duplicates' && <DuplicatesPanel projectPath={projectPath} />}
-          {activeTab === 'heatmap' && <ActivityHeatmap projectPath={projectPath} />}
-          {activeTab === 'pr' && <PRImpactPanel projectPath={projectPath} />}
-        </div>
+        <ToolsTabPanel
+          activeTab={activeTab}
+          projectPath={projectPath}
+          projectName={projectName}
+          scenarioCards={scenarioCards}
+          workflowSteps={workflowSteps}
+          onOpenTool={setActiveTab}
+        />
       </div>
     </div>
   );

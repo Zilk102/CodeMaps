@@ -18,7 +18,7 @@ A map of the code base is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Run everything CI runs, **in a fresh clone** if you can:
 
 ```bash
-npm run verify   # lint, format check, typecheck, tests, renderer and electron builds
+npm run verify   # lint, format check, typecheck, tests, renderer and electron builds, quality (complexity/size) and duplicate-code gates
 ```
 
 Why a fresh clone: files that are untracked or git-ignored (for example a new `src/types/*.d.ts`) and Windows-only path assumptions pass on your machine and fail on CI, which runs on Linux and Windows.

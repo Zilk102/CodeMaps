@@ -7,9 +7,9 @@ Electron + React + TypeScript desktop app that builds a dependency graph of a co
 - `yarn install` — install (yarn is the supported package manager; `yarn.lock` is authoritative)
 - `npm run dev` — run Vite + Electron
 - `npm run typecheck` / `npm run lint` / `npm run format:check` / `npm test` — the same gates CI runs
-- `npm run verify` — everything CI runs (lint, format, typecheck, tests, both builds). Run it in a FRESH `git clone` before pushing: untracked or git-ignored files (e.g. `src/types/*.d.ts`) and Windows-only path assumptions pass locally and fail on CI.
-- `npm run quality` — lists functions over 60 lines or complexity 10 and oversized classes with CodeMaps' own measurements; keep it empty for new code.
-- `npm run duplicates` — lists copy-pasted code with CodeMaps' own clone detector (same as the `find_duplicates` tool); new code should not add groups.
+- `npm run verify` — everything CI runs (lint, format, typecheck, tests, both builds, quality, duplicates). Run it in a FRESH `git clone` before pushing: untracked or git-ignored files (e.g. `src/types/*.d.ts`) and Windows-only path assumptions pass locally and fail on CI.
+- `npm run quality` — lists functions over 60 lines or complexity 8 and oversized classes with CodeMaps' own measurements (override with `QUALITY_MAX_LINES` / `QUALITY_MAX_COMPLEXITY`). A CI gate: exits 1 when anything is listed.
+- `npm run duplicates` — lists copy-pasted code with CodeMaps' own clone detector (same as the `find_duplicates` tool). A CI gate: exits 1 when any group is listed.
 - `npm run mcp:smoke` — exercise every MCP tool against a running CodeMaps instance
 
 ## Layout

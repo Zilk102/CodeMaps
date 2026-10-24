@@ -62,12 +62,31 @@ const NodeRow: React.FC<{
   </div>
 );
 
+const isSyntheticRoot = (node: FileTreeEntry) => !node.name || node.name === 'root';
+
+const ExpandedChildren: React.FC<FileTreeNodeProps & { isExpanded: boolean; lineLeft: number }> = ({
+  isExpanded,
+  lineLeft,
+  ...props
+}) => {
+  if (!props.node.isDir || !isExpanded || !props.node.children) return null;
+  return (
+    <div className="relative">
+      <div
+        className="absolute top-0 bottom-0 w-px bg-(--border)"
+        style={{ left: `${lineLeft}px`, zIndex: 1 }}
+      />
+
+      <ChildNodes {...props} childLevel={props.level + 1} />
+    </div>
+  );
+};
+
 export const FileTreeNode: React.FC<FileTreeNodeProps> = (props) => {
   const { node, level, expandedFolders, toggleFolder, selectedPath, onSelect } = props;
-  const isSelected = selectedPath === node.path;
   const isExpanded = expandedFolders[node.path] ?? level === 0;
 
-  if (!node.name || node.name === 'root') {
+  if (isSyntheticRoot(node)) {
     return (
       <div className="px-2">
         <ChildNodes {...props} childLevel={0} />
@@ -76,32 +95,23 @@ export const FileTreeNode: React.FC<FileTreeNodeProps> = (props) => {
   }
 
   const currentIndent = BASE_PADDING + level * INDENT_STEP;
-  // Line should align with the center of the chevron icon (which is 16px wide, so +8px from its left edge)
-  const lineLeft = currentIndent + 8;
+  const onClick = () => {
+    if (node.isDir) toggleFolder(node.path, isExpanded);
+    onSelect(node);
+  };
 
   return (
     <div className="relative">
       <NodeRow
         node={node}
-        isSelected={isSelected}
+        isSelected={selectedPath === node.path}
         isExpanded={isExpanded}
         currentIndent={currentIndent}
-        onClick={() => {
-          if (node.isDir) toggleFolder(node.path, isExpanded);
-          onSelect(node);
-        }}
+        onClick={onClick}
       />
 
-      {node.isDir && isExpanded && node.children && (
-        <div className="relative">
-          <div
-            className="absolute top-0 bottom-0 w-px bg-(--border)"
-            style={{ left: `${lineLeft}px`, zIndex: 1 }}
-          />
-
-          <ChildNodes {...props} childLevel={level + 1} />
-        </div>
-      )}
+      {/* The guide line aligns with the centre of the chevron icon (16px wide, so +8px). */}
+      <ExpandedChildren {...props} isExpanded={isExpanded} lineLeft={currentIndent + 8} />
     </div>
   );
 };

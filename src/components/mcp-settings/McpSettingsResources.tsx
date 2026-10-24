@@ -1,68 +1,35 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { McpStatusResourceDescriptor } from './types';
-import { commonSectionStyle } from './shared';
+import { CardDescription, CardTitle, commonSectionStyle } from './shared';
 
 interface Props {
   resourceDetails: McpStatusResourceDescriptor[];
 }
 
-export const McpSettingsResources: React.FC<Props> = ({ resourceDetails }) => {
+const getResourceKey = (uri: string) => uri.split('//')[1].replace('/', '_').replace('-', '_');
+
+const ResourceCard: React.FC<{ resource: McpStatusResourceDescriptor }> = ({ resource }) => {
   const { t } = useTranslation();
-
-  const getResourceKey = (uri: string) => uri.split('//')[1].replace('/', '_').replace('-', '_');
-
+  const key = getResourceKey(resource.uri);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {resourceDetails.map((resource) => (
-        <div key={resource.uri} style={commonSectionStyle}>
-          <div
-            style={{
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <span>
-              {t(`mcpSettings.resources.${getResourceKey(resource.uri)}.title`, {
-                defaultValue: resource.title,
-              })}
-            </span>
-            {resource.preferredForAgents && (
-              <span
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  background: 'var(--accbg)',
-                  border: '1px solid var(--acc)',
-                  color: 'var(--acc)',
-                }}
-              >
-                {t('mcpSettings.forAutopilot')}
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>
-            {resource.uri}
-          </div>
-          <div
-            style={{
-              marginTop: '8px',
-              color: 'var(--text-secondary)',
-              fontSize: '12px',
-              lineHeight: 1.45,
-            }}
-          >
-            {t(`mcpSettings.resources.${getResourceKey(resource.uri)}.description`, {
-              defaultValue: resource.description,
-            })}
-          </div>
-        </div>
-      ))}
+    <div style={commonSectionStyle}>
+      <CardTitle
+        title={t(`mcpSettings.resources.${key}.title`, { defaultValue: resource.title })}
+        badge={resource.preferredForAgents && t('mcpSettings.forAutopilot')}
+        id={resource.uri}
+      />
+      <CardDescription>
+        {t(`mcpSettings.resources.${key}.description`, { defaultValue: resource.description })}
+      </CardDescription>
     </div>
   );
 };
+
+export const McpSettingsResources: React.FC<Props> = ({ resourceDetails }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    {resourceDetails.map((resource) => (
+      <ResourceCard key={resource.uri} resource={resource} />
+    ))}
+  </div>
+);

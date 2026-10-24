@@ -21,6 +21,12 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     layer: 'configuration',
     reason: 'config_or_doc_file',
   },
+  {
+    // Type-only contract modules are depended on by every layer, wherever they live.
+    pattern: /(^|[\\/])(?:[^\\/]+\.)?types\.ts$/i,
+    layer: 'shared',
+    reason: 'type_contracts',
+  },
   dirRule(
     'config|configs|settings|migrations|deploy|deployments|nginx|k8s',
     'configuration',
@@ -82,6 +88,11 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
     pattern: /(^|[\\/])(?:app|main|index)\.[jt]sx$/i,
     layer: 'presentation',
     reason: 'ui_entrypoint',
+  },
+  {
+    pattern: /\.(?:html?|png|jpe?g|gif|svg|ico|icns|webp|woff2?|ttf|otf)$/i,
+    layer: 'presentation',
+    reason: 'html_entry_or_root_asset',
   },
 ];
 
