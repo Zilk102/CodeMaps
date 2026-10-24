@@ -6,10 +6,8 @@
 import type { FindingSources } from '../analysis/baseline';
 import { cloneIndex } from '../analysis/clones/CloneIndex';
 import { documentationIndex } from '../analysis/documentation';
-import {
-  PatternDetectionAnalyzer,
-  type PatternDetectionSources,
-} from '../analysis/PatternDetectionAnalyzer';
+import { PatternDetectionAnalyzer } from '../analysis/PatternDetectionAnalyzer';
+import type { PatternDetectionSources } from '../analysis/patternDetectionTypes';
 import { buildHeadlessGraph } from './headlessGraph';
 
 /** A measured project: the sources findings are read from, the detected patterns and the file count. */

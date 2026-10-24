@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateChanges } from '../ChangeValidationService';
+import {
+  isBlockingFinding,
+  isStrictBlockingFinding,
+  validateChanges,
+} from '../ChangeValidationService';
 import { DetectedPattern } from '../patternDetectionTypes';
 
 const pattern = (
@@ -83,5 +87,24 @@ describe('validateChanges', () => {
     expect(result.scope).toBe('project');
     expect(result.isValid).toBe(false);
     expect(result.recommendation).toMatch(/changedFiles or baseRef/);
+  });
+});
+
+describe('strict blocking', () => {
+  it('fails on every health-score kind at any severity and keeps hubs and fan-out advisory', () => {
+    for (const id of [
+      'mixed_responsibility_modules',
+      'god_files',
+      'code_clones',
+      'layer_violations',
+    ]) {
+      expect(isStrictBlockingFinding({ id, severity: 'medium' })).toBe(true);
+    }
+    expect(isBlockingFinding({ id: 'mixed_responsibility_modules', severity: 'medium' })).toBe(
+      false
+    );
+    for (const id of ['hub_nodes', 'high_fan_out_files']) {
+      expect(isStrictBlockingFinding({ id, severity: 'high' })).toBe(false);
+    }
   });
 });

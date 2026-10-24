@@ -120,6 +120,47 @@ describe('codemaps-guard check', () => {
   });
 });
 
+/** A module of one class, many public methods and many top-level functions: several axes, over 500 lines. */
+const mixedModule = (): string => {
+  const indexes = Array.from({ length: 9 }, (_, index) => index);
+  const functions = indexes.map(
+    (n) =>
+      `/** Doubles the number ${n}. */\nexport function helper${n}(value: number): number {\n  return value * ${n + 2};\n}\n`
+  );
+  const methods = indexes.map(
+    (n) =>
+      `  /** Adds ${n}. */\n  public add${n}(value: number): number {\n    return value + ${n};\n  }\n`
+  );
+  const padding = Array.from({ length: 430 }, (_, index) => `  ${index},`);
+  return [
+    '/** A module that mixes contracts, helpers and orchestration. */\n',
+    ...functions,
+    '/** The orchestrator. */\nexport class Orchestrator {',
+    ...methods,
+    '}\n\n/** Lookup table. */\nexport const TABLE = [',
+    ...padding,
+    '];\n',
+  ].join('\n');
+};
+
+describe('codemaps-guard check on a whole project', () => {
+  const fixture = () =>
+    tempRepo({
+      'src/mixed.ts': mixedModule(),
+      '.codemaps/config.json': JSON.stringify({ version: 1, documentation: { enabled: false } }),
+    });
+
+  it('fails a strict run on a mixed-responsibility module that a normal run only warns about', async () => {
+    const root = fixture();
+    const normal = await runCheck({ root });
+    const strict = await runCheck({ root, strict: true });
+
+    expect(blockingRules(normal)).not.toContain('mixed_responsibility_modules');
+    expect(strict.ok).toBe(false);
+    expect(blockingRules(strict)).toContain('mixed_responsibility_modules');
+  });
+});
+
 describe('codemaps-guard check --base', () => {
   it('judges only the files changed since the base ref', async () => {
     const root = tempRepo({

@@ -1,28 +1,12 @@
 /**
- * Code quality, documentation and architecture metrics for the health score, reduced from the
- * module quality and architecture analyses.
+ * Helper logic of the health score that turns module quality findings and the architecture
+ * analysis into the counts and scores the metric snapshot carries.
  */
 
-import { ArchitectureInsightService } from './ArchitectureInsightService';
-import { type DocumentationIndex } from './documentation';
-import { analyzeModuleQuality } from './moduleQualityMetrics';
+import type { ArchitectureOverview } from './architectureTypes';
 import { calculateMaintainabilityScore, calculateSolidScore } from './healthScorePolicies';
-import type { HealthScoreMetricSnapshot } from './healthScoreTypes';
-
-type Architecture = ReturnType<ArchitectureInsightService['analyze']>;
-type ModuleQuality = ReturnType<typeof analyzeModuleQuality>;
-
-/** Counts of the module quality findings that feed the health score. */
-export interface QualityCounts {
-  oversizedModules: number;
-  godFiles: number;
-  godClasses: number;
-  longMethods: number;
-  complexMethods: number;
-  codeClones: number;
-  mixedResponsibilityModules: number;
-  avgDesignSmellScore: number;
-}
+import type { QualityCounts } from './healthScoreTypes';
+import type { ModuleQualitySummary } from './moduleQualityMetrics';
 
 function sumMatches<T>(items: T[], pick: (item: T) => unknown[]): number {
   return items.reduce((count, item) => count + pick(item).length, 0);
@@ -32,7 +16,7 @@ function sumMatches<T>(items: T[], pick: (item: T) => unknown[]): number {
  * Reduces module quality findings to counts, taking the number of matched classes or methods for
  * class and method findings, and the average design smell score over all modules.
  */
-export function summarizeQuality(quality: ModuleQuality): QualityCounts {
+export function summarizeQuality(quality: ModuleQualitySummary): QualityCounts {
   return {
     oversizedModules: quality.oversizedModules.length,
     godFiles: quality.godFiles.length,
@@ -49,32 +33,12 @@ export function summarizeQuality(quality: ModuleQuality): QualityCounts {
   };
 }
 
-/** The documentation facts of the health score, taken from the snapshot type so the two never drift apart. */
-export type DocumentationMetrics = Pick<
-  HealthScoreMetricSnapshot,
-  'documentationCoveragePercent' | 'undocumentedSymbols' | 'filesWithoutHeader' | 'lowQualityDocs'
->;
-
-/** Documentation facts from the last report of the project; a project not measured yet reads as fully documented so nothing is penalized on missing data. */
-export function buildDocumentationMetrics(
-  documentation: Pick<DocumentationIndex, 'peek'>,
-  projectRoot: string | undefined
-): DocumentationMetrics {
-  const report = documentation.peek(projectRoot);
-  return {
-    documentationCoveragePercent: report?.coveragePercent ?? 100,
-    undocumentedSymbols: report?.undocumented.length ?? 0,
-    filesWithoutHeader: report?.filesWithoutHeader.length ?? 0,
-    lowQualityDocs: report?.lowQuality.length ?? 0,
-  };
-}
-
 /**
  * Combines violation and unknown layer counts from the architecture analysis with the
  * maintainability and SOLID scores computed from the quality counts.
  */
 export function buildArchitectureMetrics(
-  architecture: Architecture,
+  architecture: ArchitectureOverview,
   counts: QualityCounts,
   fileCount: number,
   documentationCoveragePercent: number

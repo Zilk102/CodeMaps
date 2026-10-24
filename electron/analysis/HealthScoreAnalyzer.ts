@@ -5,38 +5,44 @@
 
 import { GraphData } from '../store/types';
 import { buildGraphAdjacency } from './graphAnalysisUtils';
-import { documentationIndex, type DocumentationIndex } from './documentation';
-import { ArchitectureInsightService } from './ArchitectureInsightService';
+import type { DocumentationIndex } from './documentation';
+import type { ArchitectureInsightService } from './ArchitectureInsightService';
 import { analyzeModuleQuality } from './moduleQualityMetrics';
 import { buildHealthScoreResult } from './healthScorePolicies';
 import {
+  buildDocumentationMetrics,
   buildLinkMetrics,
   buildRefreshMetrics,
   calculateDirectoryCoverageRatio,
   isOrphanNode,
+  withProjectSettings,
 } from './healthScoreGraphMetrics';
-import {
-  buildArchitectureMetrics,
-  buildDocumentationMetrics,
-  summarizeQuality,
-} from './healthScoreQualityMetrics';
-import { withProjectSettings } from './healthScoreProjectSettings';
+import { buildArchitectureMetrics, summarizeQuality } from './healthScoreQuality';
+import { createHealthScoreServices, type HealthScoreServices } from './healthScoreServices';
 import type { HealthScoreMetricSnapshot, HealthScoreResult } from './healthScoreTypes';
 export type { HealthScoreIssue, HealthScoreResult, HealthScoreSummary } from './healthScoreTypes';
 
 /** Computes the health score of a graph with the architecture and module quality analyzers. */
 export class HealthScoreAnalyzer {
+  private readonly services: HealthScoreServices;
+
   constructor(
-    private readonly architectureInsightService = new ArchitectureInsightService(),
-    private readonly documentation: Pick<DocumentationIndex, 'peek'> = documentationIndex
-  ) {}
+    architectureInsightService?: ArchitectureInsightService,
+    documentation?: Pick<DocumentationIndex, 'peek'>
+  ) {
+    this.services = createHealthScoreServices({
+      ...(architectureInsightService ? { architectureInsight: architectureInsightService } : {}),
+      ...(documentation ? { documentation } : {}),
+    });
+  }
 
   /**
    * Gathers all metrics of the graph and passes them to the scoring policy. The result has a 0-100
    * score, a grade, the metric summary and the issues found.
    */
   analyze(graph: GraphData): HealthScoreResult {
-    const architecture = this.architectureInsightService.analyze(graph);
+    const { architectureInsight, documentation } = this.services;
+    const architecture = architectureInsight.analyze(graph);
     const layerByNodeId = new Map<string, string>(
       architecture.classifications.map((record) => [record.nodeId, record.layer])
     );
@@ -49,7 +55,7 @@ export class HealthScoreAnalyzer {
       isOrphanNode(node, layerByNodeId, adjacency)
     ).length;
 
-    const documentationMetrics = buildDocumentationMetrics(this.documentation, graph.projectRoot);
+    const documentationMetrics = buildDocumentationMetrics(documentation, graph.projectRoot);
 
     const metrics: HealthScoreMetricSnapshot = {
       totalNodes: graph.nodes.length,
@@ -74,7 +80,7 @@ export class HealthScoreAnalyzer {
       graph,
       quality,
       architecture,
-      documentation: this.documentation.peek(graph.projectRoot),
+      documentation: documentation.peek(graph.projectRoot),
     });
   }
 }
