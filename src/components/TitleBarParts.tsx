@@ -65,6 +65,25 @@ interface ActionProps {
   onToggleTools: () => void;
 }
 
+/** A title-bar button; below 1100px only the icon stays so the bar never overlaps the language switcher. */
+const ActionButton: React.FC<{
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  children: React.ReactNode;
+}> = ({ label, onClick, active = false, children }) => (
+  <button
+    type="button"
+    className={`btn-glass ${active ? 'active' : ''}`}
+    onClick={onClick}
+    title={label}
+    aria-label={label}
+  >
+    <ButtonIcon>{children}</ButtonIcon>
+    <span className="hidden min-[1100px]:inline">{label}</span>
+  </button>
+);
+
 export const TitleBarActions: React.FC<ActionProps> = ({
   hasProject,
   isToolsPanelOpen,
@@ -76,38 +95,26 @@ export const TitleBarActions: React.FC<ActionProps> = ({
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-1 ml-2">
-      <button className="btn-glass" onClick={onOpenProject}>
-        <ButtonIcon>
-          <path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5z" />
-        </ButtonIcon>
-        {t('titleBar.openProject')}
-      </button>
+      <ActionButton label={t('titleBar.openProject')} onClick={onOpenProject}>
+        <path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5z" />
+      </ActionButton>
 
       {hasProject && (
-        <button className="btn-glass" onClick={onCloseProject}>
-          <ButtonIcon>
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </ButtonIcon>
-          {t('titleBar.closeProject')}
-        </button>
+        <ActionButton label={t('titleBar.closeProject')} onClick={onCloseProject}>
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </ActionButton>
       )}
 
-      <button className="btn-glass" onClick={onOpenSettings}>
-        <ButtonIcon>
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d={GEAR_PATH}></path>
-        </ButtonIcon>
-        {t('titleBar.mcpSettings')}
-      </button>
+      <ActionButton label={t('titleBar.mcpSettings')} onClick={onOpenSettings}>
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d={GEAR_PATH}></path>
+      </ActionButton>
 
       {hasProject && (
-        <button className={`btn-glass ${isToolsPanelOpen ? 'active' : ''}`} onClick={onToggleTools}>
-          <ButtonIcon>
-            <path d={TOOLS_PATH} />
-          </ButtonIcon>
-          {t('titleBar.tools')}
-        </button>
+        <ActionButton label={t('titleBar.tools')} onClick={onToggleTools} active={isToolsPanelOpen}>
+          <path d={TOOLS_PATH} />
+        </ActionButton>
       )}
     </div>
   );
