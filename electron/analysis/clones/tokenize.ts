@@ -53,7 +53,7 @@ const normalizeTsToken = (kind: ts.SyntaxKind): string | null =>
  * The scanner does not know it is inside a template literal: after `${` the closing `}` has to be
  * re-scanned as the next template part, or the rest of the file would read as one string.
  */
-const createTemplateTracker = (scanner: ts.Scanner) => {
+export const createTemplateTracker = (scanner: ts.Scanner) => {
   const openBraces: number[] = [];
   return (kind: ts.SyntaxKind): ts.SyntaxKind => {
     if (kind === ts.SyntaxKind.TemplateHead) openBraces.push(0);

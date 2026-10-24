@@ -1,14 +1,12 @@
-import * as fs from 'fs/promises';
-import pLimit from 'p-limit';
 import type { GraphData } from '../../store/types';
+import { type FileStat, statFiles } from '../fileStats';
+import { isGeneratedPath } from '../generatedFiles';
+import { InflightRuns } from '../inflightRuns';
 import { isTestFile } from '../testFiles';
 import { detectClones, type CloneGroup } from './detectClones';
 import { tokenizeFile, type TokenStream } from './tokenize';
 
 const MAX_FILES = 4000;
-// Code that is generated or machine-written repeats by construction; nobody refactors it.
-const GENERATED_PATH =
-  /(^|\/)(migrations|generated|__generated__|gen|vendor|third_party)\/|\.pb\.go$|_pb2(_grpc)?\.pyi?$|\.(generated|g|designer)\.[a-z]+$|\.min\.js$/;
 const STAT_CONCURRENCY = 32;
 /** Tokenizing is CPU work on the main thread: give the event loop a turn every few files. */
 const YIELD_EVERY = 15;
@@ -28,7 +26,7 @@ const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resol
 export class CloneIndex {
   private readonly streams = new Map<string, CachedStream>();
   private readonly results = new Map<string, { signature: string; groups: CloneGroup[] }>();
-  private readonly inflight = new Map<string, Promise<CloneGroup[]>>();
+  private readonly inflight = new InflightRuns<CloneGroup[]>();
 
   /** Last computed groups for a project, or null when none were computed yet. */
   peek(root: string | undefined): CloneGroup[] | null {
@@ -44,19 +42,15 @@ export class CloneIndex {
   refresh(root: string, files: string[], includeTests = false): Promise<CloneGroup[]> {
     // Groups with and without tests are different results, so they are cached apart.
     const key = includeTests ? `${root}::tests` : root;
-    const running = this.inflight.get(key);
-    if (running) return running;
-    const candidates = files
-      .filter(
-        (file) =>
-          (includeTests || !isTestFile(file)) && !GENERATED_PATH.test(file.replace(/\\/g, '/'))
-      )
-      .slice(0, MAX_FILES);
-    const work = this.compute(key, candidates).finally(() => {
-      this.inflight.delete(key);
+    return this.inflight.run(key, () => {
+      const candidates = files
+        .filter(
+          // Generated code repeats by construction; nobody refactors it.
+          (file) => (includeTests || !isTestFile(file)) && !isGeneratedPath(file)
+        )
+        .slice(0, MAX_FILES);
+      return this.compute(key, candidates);
     });
-    this.inflight.set(key, work);
-    return work;
   }
 
   clear() {
@@ -65,7 +59,7 @@ export class CloneIndex {
   }
 
   private async compute(key: string, files: string[]): Promise<CloneGroup[]> {
-    const present = await statFiles(files);
+    const present = await statFiles(files, STAT_CONCURRENCY);
     const signature = present
       .map((entry) => `${entry.file}:${entry.mtimeMs}:${entry.size}`)
       .join('|');
@@ -98,24 +92,5 @@ export class CloneIndex {
     return streams;
   }
 }
-
-interface FileStat {
-  file: string;
-  mtimeMs: number;
-  size: number;
-}
-
-const statFiles = async (files: string[]): Promise<FileStat[]> => {
-  const limit = pLimit(STAT_CONCURRENCY);
-  const stats = await Promise.all(
-    files.map((file) =>
-      limit(async () => {
-        const stat = await fs.stat(file).catch(() => null);
-        return stat ? { file, mtimeMs: stat.mtimeMs, size: stat.size } : null;
-      })
-    )
-  );
-  return stats.filter((entry): entry is FileStat => !!entry);
-};
 
 export const cloneIndex = new CloneIndex();
