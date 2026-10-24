@@ -1,9 +1,12 @@
+// Static description of the tools panel: tab metadata, overview cards and the suggested workflow,
+// built from i18n keys.
 import type { ToolTab, WorkspaceTab } from '../../types/workspace';
 
 export type { ToolTab, WorkspaceTab };
 
 type Translate = (key: string) => string;
 
+/** Label, eyebrow and description of one tab of the tools panel, already translated. */
 export interface TabMeta {
   id: WorkspaceTab;
   label: string;
@@ -11,6 +14,10 @@ export interface TabMeta {
   description: string;
 }
 
+/**
+ * Overview card that opens a tool: its title, a short badge such as the kind of risk it addresses,
+ * and a one-line description.
+ */
 export interface ScenarioCard {
   id: ToolTab;
   title: string;
@@ -18,6 +25,9 @@ export interface ScenarioCard {
   description: string;
 }
 
+/**
+ * One step of the suggested workflow on the overview: the tool to open, its title and description.
+ */
 export interface WorkflowStep {
   id: ToolTab;
   title: string;
@@ -80,6 +90,7 @@ const TAB_ORDER: ToolDefinition[] = [BLAST, HEATMAP, DECOMPOSITION, DUPLICATES, 
 /** Order of the cards and guide steps on the overview tab. */
 const SCENARIO_ORDER: ToolDefinition[] = [BLAST, DECOMPOSITION, DUPLICATES, PR, HEATMAP];
 
+/** Tabs of the tools panel in display order: the overview first, then the tools. */
 export function buildTabs(t: Translate): TabMeta[] {
   return [
     {
@@ -97,6 +108,7 @@ export function buildTabs(t: Translate): TabMeta[] {
   ];
 }
 
+/** Overview cards, one per tool, in the recommended order. */
 export function buildScenarioCards(t: Translate): ScenarioCard[] {
   return SCENARIO_ORDER.map((tool) => ({
     id: tool.id,
@@ -106,6 +118,7 @@ export function buildScenarioCards(t: Translate): ScenarioCard[] {
   }));
 }
 
+/** Steps of the suggested workflow, one per tool, in the same order as the cards. */
 export function buildWorkflowSteps(t: Translate): WorkflowStep[] {
   return SCENARIO_ORDER.map((tool) => ({
     id: tool.id,

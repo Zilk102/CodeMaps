@@ -1,5 +1,7 @@
+// Icons of the file explorer: expand chevron, folder, and file icons chosen by extension or name.
 import React from 'react';
 
+/** Right-pointing chevron that rotates a quarter turn when its folder is expanded. */
 export const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
   <svg
     width="16"
@@ -23,6 +25,7 @@ export const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
   </svg>
 );
 
+/** Outline folder icon. */
 const FolderIcon = () => (
   <svg
     width="16"
@@ -40,6 +43,7 @@ const FolderIcon = () => (
   </svg>
 );
 
+/** React logo, used for tsx and jsx files. */
 const ReactIcon = () => (
   <svg
     width="16"
@@ -57,6 +61,7 @@ const ReactIcon = () => (
   </svg>
 );
 
+/** TypeScript logo, used for ts files. */
 const TypeScriptIcon = () => (
   <svg
     width="16"
@@ -73,6 +78,7 @@ const TypeScriptIcon = () => (
   </svg>
 );
 
+/** Small coloured text mark used as an icon. */
 const BadgeIcon = ({ color, children }: { color: string; children: React.ReactNode }) => (
   <span
     style={{
@@ -94,6 +100,7 @@ const EmojiIcon = ({ glyph }: { glyph: string }) => (
   <span style={{ fontSize: 12, minWidth: 16, textAlign: 'center' }}>{glyph}</span>
 );
 
+/** Plain document icon for files with no specific icon. */
 const GenericFileIcon = () => (
   <svg
     width="16"
@@ -124,6 +131,10 @@ const ICON_BY_NAME_HINT: Array<[string, string]> = [
   ['vite', '⚡'],
 ];
 
+/**
+ * Icon for an explorer row: a folder for directories, otherwise by extension (tsx, jsx, ts, html,
+ * json), then by name hint (config, vite), else a plain file.
+ */
 export const FileIcon = ({ name, isDir }: { name: string; isDir: boolean }) => {
   if (isDir) return <FolderIcon />;
 

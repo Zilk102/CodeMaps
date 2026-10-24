@@ -1,7 +1,10 @@
+// Hook and pure helpers that position the graph canvas: fit all, focus a node, zoom, and keep the
+// view framed on resize.
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { LayoutResult } from '../utils/layoutEngine';
 
+/** Scale and translation of the canvas in pixels. */
 export interface ViewTransform {
   scale: number;
   x: number;
@@ -91,6 +94,7 @@ export const computeZoomTransform = (
   };
 };
 
+/** What to bring into view: one node (focus) or the whole layout (fit). */
 export type FrameStrategy =
   { kind: 'focus'; nodeId: string } | { kind: 'fit'; options: FitOptions };
 
@@ -223,6 +227,10 @@ interface ViewportControlsArgs extends CanvasAccessArgs {
 
 type CanvasAccess = ReturnType<typeof useCanvasAccess>;
 
+/**
+ * Returns a callback that fits the whole layout in the visible area; it reports false when the
+ * canvas is not ready yet.
+ */
 const useFit = (
   { measure, apply }: CanvasAccess,
   layoutData: LayoutResult | null,
@@ -238,6 +246,10 @@ const useFit = (
     [layoutData, measure, apply, reserveRight]
   );
 
+/**
+ * Returns a callback that centres a node by id at no less than a readable zoom; false when the
+ * node or canvas is missing.
+ */
 const useFocusNode = (
   { measure, apply }: CanvasAccess,
   { transformRef }: CanvasAccessArgs,
@@ -258,6 +270,10 @@ const useFocusNode = (
     [layoutData, measure, apply, reserveRight, transformRef]
   );
 
+/**
+ * Returns a callback that zooms by a factor around the centre of the visible area and records that
+ * the user took control of the view.
+ */
 const useZoomBy = (
   { measure, apply }: CanvasAccess,
   { transformRef }: CanvasAccessArgs,
@@ -292,6 +308,11 @@ const useViewportControls = ({
   return { fit, focusNode, zoomBy };
 };
 
+/**
+ * Owns the pan and zoom state of the graph canvas. Frames the layout once per project or mode,
+ * then follows window resizes until the user pans or zooms. Returns the canvas refs plus fit,
+ * zoomBy and markUserMoved.
+ */
 export const useGraphViewport = ({
   layoutData,
   frameKey,

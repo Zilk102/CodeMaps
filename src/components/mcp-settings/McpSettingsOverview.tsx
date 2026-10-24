@@ -1,3 +1,5 @@
+// Overview tab of the MCP settings: server status, counts, endpoints and the tools agents should
+// prefer.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { McpStatus } from './types';
@@ -19,6 +21,10 @@ const labelStyle: React.CSSProperties = {
   marginBottom: '6px',
 };
 
+/**
+ * Active or unavailable indicator with the explanation; when the server failed to start it shows
+ * the error (such as port in use) with the port.
+ */
 const StatusBlock: React.FC<{ status: McpStatus | null }> = ({ status }) => {
   const { t } = useTranslation();
   return (
@@ -52,6 +58,7 @@ const StatusBlock: React.FC<{ status: McpStatus | null }> = ({ status }) => {
   );
 };
 
+/** Row with the status and the tool, resource and graph size counts. */
 const MetricsSection: React.FC<{ status: McpStatus | null; graphData: GraphData | null }> = ({
   status,
   graphData,
@@ -78,6 +85,7 @@ const MetricsSection: React.FC<{ status: McpStatus | null; graphData: GraphData 
   );
 };
 
+/** The MCP endpoint in a code block with a button to copy the URL. */
 const EndpointSection: React.FC<{
   endpoint: string;
   copiedKey: string | null;
@@ -105,6 +113,7 @@ const EndpointSection: React.FC<{
   );
 };
 
+/** Chips with the names of the tools marked as preferred for agents. */
 const PreferredToolsSection: React.FC<{ status: McpStatus | null }> = ({ status }) => {
   const { t } = useTranslation();
   const toolDetails = status?.toolDetails || [];
@@ -136,6 +145,10 @@ const PreferredToolsSection: React.FC<{ status: McpStatus | null }> = ({ status 
   );
 };
 
+/**
+ * Overview tab: metrics, endpoint with copy button, WebSocket address, active project and a note
+ * on what agents get, plus the preferred tools.
+ */
 export const McpSettingsOverview: React.FC<Props> = ({
   status,
   endpoint,

@@ -1,3 +1,4 @@
+// Tab strip of the tools panel with keyboard navigation.
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { nextTabIndex, type TabMeta, type WorkspaceTab } from './toolsPanelData';

@@ -1,3 +1,5 @@
+// IndexedDB-backed string storage in the shape zustand's persist middleware expects.
+
 type TransactionMode = 'readonly' | 'readwrite';
 
 const openDatabase = (dbName: string, storeName: string): Promise<IDBDatabase> =>
@@ -16,6 +18,10 @@ const requestToPromise = <T>(request: IDBRequest, map: (result: unknown) => T): 
     request.onsuccess = () => resolve(map(request.result));
   });
 
+/**
+ * Creates a getItem/setItem/removeItem storage on one IndexedDB object store, opened lazily.
+ * Failures are logged and swallowed (reads give null) so unavailable storage never breaks the app.
+ */
 export function getIDBStorage(dbName: string, storeName: string) {
   let dbInstance: IDBDatabase | null = null;
 

@@ -1,3 +1,4 @@
+// MCP settings tab listing the tools the server exposes.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { McpStatusToolDescriptor } from './types';
@@ -7,6 +8,10 @@ interface Props {
   toolDetails: McpStatusToolDescriptor[];
 }
 
+/**
+ * Card for one MCP tool: translated title and description (falling back to the server's text), a
+ * recommended badge and a "when to use" line when available.
+ */
 const ToolCard: React.FC<{ tool: McpStatusToolDescriptor }> = ({ tool }) => {
   const { t } = useTranslation();
   return (
@@ -44,6 +49,7 @@ const TOOL_GRID: React.CSSProperties = {
   gap: '12px',
 };
 
+/** Tools tab: the tool cards in a two-column grid. */
 export const McpSettingsTools: React.FC<Props> = ({ toolDetails }) => (
   <div style={TOOL_GRID}>
     {toolDetails.map((tool) => (

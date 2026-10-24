@@ -1,3 +1,5 @@
+// The single zustand store, with the UI preferences persisted to IndexedDB and narrow selector
+// hooks.
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
@@ -6,6 +8,7 @@ import { createUISlice, type UISlice } from './slices/uiSlice';
 import { createConnectionSlice, type ConnectionSlice } from './slices/connectionSlice';
 import { getIDBStorage } from './idb-storage';
 
+/** Full state of the app store: graph, UI and connection slices combined. */
 export type StoreState = GraphSlice & UISlice & ConnectionSlice;
 
 /** The named fields of the store state, as one object. */
@@ -75,9 +78,18 @@ export const useStore = create<StoreState>()(
 );
 
 // Dedicated selectors (hooks) to prevent unnecessary re-renders
+/**
+ * Subscribes to the graph state and its actions (graph, selection, filters, layout mode) without
+ * re-rendering on unrelated changes.
+ */
 export const useGraphStore = () => useStore(useShallow((state) => pick(state, GRAPH_KEYS)));
 
+/**
+ * Subscribes to the UI state and actions (tabs, panels, sidebar width, layout data, parsing
+ * progress).
+ */
 export const useUIStore = () => useStore(useShallow((state) => pick(state, UI_KEYS)));
 
+/** Subscribes to the connection actions that start live updates and load projects. */
 export const useConnectionStore = () =>
   useStore(useShallow((state) => pick(state, CONNECTION_KEYS)));

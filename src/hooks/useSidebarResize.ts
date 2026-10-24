@@ -1,3 +1,4 @@
+// Hook for dragging the sidebar edge to resize it, including clamping when the window shrinks.
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useStore } from '../store/useStore';
 
@@ -49,6 +50,11 @@ function attachSidebarListeners(deps: SidebarListenerDeps) {
   };
 }
 
+/**
+ * Handles sidebar resizing: startSidebarDrag begins a drag, document-level mouse listeners set the
+ * width (minimum 200px, capped by the window size), and a window resize re-clamps it. Also reports
+ * whether the window is in mobile width.
+ */
 export function useSidebarResize(setSidebarWidth: (width: number) => void) {
   const [isDraggingState, setIsDraggingState] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= MOBILE_BREAKPOINT);

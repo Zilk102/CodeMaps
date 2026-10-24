@@ -1,3 +1,5 @@
+// Helpers shared by both layout modes: node sizes, ELK node creation, edge routing, normalisation
+// and canvas bounds.
 import type { ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { GraphData, GraphFilters, GraphNode, LayoutMode } from '../../types/graph';
 import {
@@ -7,6 +9,10 @@ import {
   type LayoutResult,
 } from './layoutTypes';
 
+/**
+ * Walks up parentId links until it finds a visible ancestor (or the node itself); undefined when
+ * none is visible.
+ */
 export const resolveVisibleNodeId = (
   nodeId: string,
   visibleNodeIds: Set<string>,
@@ -29,6 +35,10 @@ const centerOf = (node: LayoutNode) => ({
   y: node.y + node.height / 2,
 });
 
+/**
+ * Route for a mostly horizontal edge: leaves the facing side of the source, bends at the midpoint
+ * and enters the facing side of the target.
+ */
 const horizontalSection = (source: LayoutNode, target: LayoutNode) => {
   const sourceCenter = centerOf(source);
   const targetCenter = centerOf(target);
@@ -43,6 +53,7 @@ const horizontalSection = (source: LayoutNode, target: LayoutNode) => {
   return [{ startPoint, bendPoints, endPoint }];
 };
 
+/** Route for a mostly vertical edge, mirroring the horizontal one on the top and bottom sides. */
 const verticalSection = (source: LayoutNode, target: LayoutNode) => {
   const sourceCenter = centerOf(source);
   const targetCenter = centerOf(target);
@@ -57,6 +68,10 @@ const verticalSection = (source: LayoutNode, target: LayoutNode) => {
   return [{ startPoint, bendPoints, endPoint }];
 };
 
+/**
+ * Builds a three-segment orthogonal route between two nodes, choosing horizontal or vertical by
+ * which distance between their centres is larger.
+ */
 export const buildOrthogonalSections = (source: LayoutNode, target: LayoutNode) => {
   const sourceCenter = centerOf(source);
   const targetCenter = centerOf(target);
@@ -73,6 +88,7 @@ const FILTER_FLAG_BY_TYPE: Partial<Record<string, keyof GraphFilters>> = {
   adr: 'showADR',
 };
 
+/** True when the node's kind is switched off in the filters. */
 export const isNodeHiddenByFilters = (node: GraphNode, filters: GraphFilters) => {
   const flag = FILTER_FLAG_BY_TYPE[node.type];
   return flag !== undefined && !filters[flag];
@@ -95,6 +111,10 @@ const HIERARCHY_SIZES: Partial<Record<string, NodeSize>> = {
   adr: { width: 220, height: 54 },
 };
 
+/**
+ * Fixed box size of a node by kind and layout mode; hierarchy mode makes symbol nodes (ids with
+ * '#') smaller than files.
+ */
 export const getNodeDimensions = (node: GraphNode, mode: LayoutMode): NodeSize => {
   if (mode === 'dependencies') return DEPENDENCY_SIZES[node.type] ?? DEFAULT_DEPENDENCY_SIZE;
 
@@ -103,6 +123,10 @@ export const getNodeDimensions = (node: GraphNode, mode: LayoutMode): NodeSize =
   return node.id.includes('#') ? { width: 150, height: 40 } : { width: 200, height: 50 };
 };
 
+/**
+ * ELK node for a graph node, with its size, a label width estimated from the text length and
+ * padding for its mode.
+ */
 export const createElkNode = (node: GraphNode, mode: LayoutMode) => ({
   id: node.id,
   width: getNodeDimensions(node, mode).width,
@@ -116,6 +140,7 @@ export const createElkNode = (node: GraphNode, mode: LayoutMode) => ({
   },
 });
 
+/** Shifts all nodes in place so the top-left of the drawing sits at 0,0. */
 export const normalizeFlatNodes = (nodes: LayoutNode[]) => {
   if (nodes.length === 0) {
     return;
@@ -132,6 +157,7 @@ export const normalizeFlatNodes = (nodes: LayoutNode[]) => {
   }
 };
 
+/** Width and height needed to contain every node plus a 120px margin (0 for an empty layout). */
 export const computeCanvasBounds = (nodes: LayoutNode[]) => {
   if (nodes.length === 0) {
     return { width: 0, height: 0 };
@@ -143,6 +169,10 @@ export const computeCanvasBounds = (nodes: LayoutNode[]) => {
   };
 };
 
+/**
+ * Prepares the filtered node set and id index; in hierarchy mode also adds a synthetic root node
+ * named after the project folder.
+ */
 export const buildVisibleContext = (
   graphData: GraphData,
   filters: GraphFilters,

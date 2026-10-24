@@ -1,3 +1,5 @@
+// Pure helpers for the duplicates panel: path and label formatting, group ordering and mapping a
+// copy to its graph node.
 import type { DuplicateAction, DuplicateCopy, DuplicateGroup } from '../../types/duplicates';
 import type { GraphNode } from '../../types/graph';
 

@@ -1,3 +1,5 @@
+// Modal dialog with the MCP server settings: status, tools, resources, client setup and the agent
+// skill.
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore, useUIStore } from '../store/useStore';
@@ -5,6 +7,11 @@ import { SettingsTab } from './mcp-settings/types';
 import { McpSettingsBody, McpSettingsHeader } from './mcp-settings/McpSettingsModalParts';
 import { useMcpSettingsState } from '../hooks/useMcpSettingsState';
 
+/**
+ * MCP settings dialog, rendered only while open. It shows tabs over the server status and the
+ * connection endpoint (the default local address when the status is not loaded), and closes on
+ * Escape, a click outside or the Close button.
+ */
 export const McpSettingsModal: React.FC = () => {
   const { t } = useTranslation();
   const { isMcpSettingsOpen: isOpen, setMcpSettingsOpen: setOpen } = useUIStore();

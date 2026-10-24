@@ -1,11 +1,18 @@
+// Builds the plain-language summary of a node (who uses it, what it depends on) shown in the
+// details panel.
 import type { GraphData, GraphNode } from '../types/graph';
 
+/** A neighbouring file together with the number of links that connect it to the summarised node. */
 export interface NeighbourSummary {
   node: GraphNode;
   /** Number of individual links behind this neighbour (symbols count separately). */
   links: number;
 }
 
+/**
+ * Display data for a node: its project-relative path, the strongest users and dependencies with
+ * their full counts, and its export names.
+ */
 export interface NodeSummary {
   relativePath: string;
   usedBy: NeighbourSummary[];

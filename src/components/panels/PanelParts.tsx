@@ -1,3 +1,5 @@
+// Small presentational pieces shared by the tool panels: cards, headers, stat tiles, error banners
+// and list helpers.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 

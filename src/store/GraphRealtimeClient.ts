@@ -1,5 +1,11 @@
+// Singleton WebSocket client that receives live graph updates and parsing progress from the main
+// process.
 import type { GraphData } from '../types/graph';
 
+/**
+ * Callbacks the client invokes for pushed events: a new graph snapshot, and progress while files
+ * are being parsed.
+ */
 export interface GraphRealtimeHandlers {
   onGraphUpdated: (graphData: GraphData) => void;
   onParsingProgress: (progress: {
@@ -14,6 +20,10 @@ const WS_URL = 'ws://localhost:3005';
 const RECONNECT_BASE_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 30_000;
 
+/**
+ * Keeps one WebSocket open to the local CodeMaps server (ws://localhost:3005) and reconnects with
+ * exponential backoff (1 s up to 30 s) when it drops. Obtain it with getInstance().
+ */
 export class GraphRealtimeClient {
   private static instance: GraphRealtimeClient;
   private ws: WebSocket | null = null;
@@ -25,6 +35,7 @@ export class GraphRealtimeClient {
 
   private constructor() {}
 
+  /** Returns the shared client, creating it on first use. */
   public static getInstance(): GraphRealtimeClient {
     if (!GraphRealtimeClient.instance) {
       GraphRealtimeClient.instance = new GraphRealtimeClient();
@@ -33,6 +44,10 @@ export class GraphRealtimeClient {
     return GraphRealtimeClient.instance;
   }
 
+  /**
+   * Stores the handlers and opens the socket; calling it again only replaces the handlers while a
+   * connection already exists.
+   */
   public connect(handlers: GraphRealtimeHandlers) {
     this.handlers = handlers;
     this.isDisposed = false;
@@ -45,6 +60,10 @@ export class GraphRealtimeClient {
     this.establishConnection();
   }
 
+  /**
+   * Closes the socket for good and cancels any pending reconnect. Handlers are detached first so
+   * closing does not trigger a reconnect.
+   */
   public disconnect() {
     this.isDisposed = true;
     this.isInitialized = false;
@@ -69,6 +88,10 @@ export class GraphRealtimeClient {
     }
   }
 
+  /**
+   * Opens the socket and routes graph-updated, graph-diff (uses its full graph) and
+   * parsing-progress messages to the handlers; resets the backoff once connected.
+   */
   private establishConnection() {
     this.ws = new WebSocket(WS_URL);
 
@@ -99,6 +122,10 @@ export class GraphRealtimeClient {
     };
   }
 
+  /**
+   * Schedules the next connection attempt after an exponentially growing delay, unless the client
+   * was disconnected.
+   */
   private scheduleReconnect() {
     if (this.isDisposed || !this.handlers) {
       return;

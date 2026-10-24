@@ -1,3 +1,4 @@
+// Header with tabs and body of the MCP settings modal, mapping each tab to its view.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GraphData } from '../../types/graph';
@@ -8,6 +9,7 @@ import { McpSettingsResources } from './McpSettingsResources';
 import { McpSettingsClients } from './McpSettingsClients';
 import { McpSettingsAgentSkill } from './McpSettingsAgentSkill';
 
+/** Tab button, highlighted when active. */
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
   active,
   onClick,
@@ -37,6 +39,7 @@ const TABS: Array<{ id: SettingsTab; labelKey: string }> = [
 const GEAR_PATH =
   'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z';
 
+/** Gear icon beside the modal title. */
 const GearIcon: React.FC = () => (
   <svg
     viewBox="0 0 24 24"
@@ -53,6 +56,10 @@ const GearIcon: React.FC = () => (
   </svg>
 );
 
+/**
+ * Modal heading, one-line description of the server and the tab buttons (overview, tools,
+ * resources, clients, agent skill).
+ */
 export const McpSettingsHeader: React.FC<{
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
@@ -123,6 +130,7 @@ const TAB_VIEWS: Record<SettingsTab, (props: BodyProps) => React.ReactNode> = {
   ),
 };
 
+/** Scrollable body that renders the view of the active tab. */
 export const McpSettingsBody: React.FC<BodyProps & { activeTab: SettingsTab }> = ({
   activeTab,
   ...props

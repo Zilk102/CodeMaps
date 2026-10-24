@@ -1,3 +1,5 @@
+// Panel that estimates the impact of a branch comparison: risk level, changed files, affected
+// nodes and recommendations.
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
@@ -27,6 +29,7 @@ interface PRImpactResult {
 const INPUT_CLASS =
   'w-full rounded-xl border border-(--border) bg-(--bg1) px-3 py-2.5 text-sm text-(--t0) outline-none transition-colors placeholder:text-(--t3) focus:border-(--acc)';
 
+/** Small rotating spinner shown inside the Analyze button while a run is in progress. */
 const Spinner: React.FC = () => (
   <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -38,6 +41,7 @@ const Spinner: React.FC = () => (
   </svg>
 );
 
+/** Labelled text input for a branch name. */
 const BranchField: React.FC<{
   label: string;
   value: string;
@@ -56,6 +60,7 @@ const BranchField: React.FC<{
   </div>
 );
 
+/** List of the changed files with a status dot and the added and removed line counts. */
 const ChangedFilesList: React.FC<{ files: Record<string, unknown>[] }> = ({ files }) => {
   const { t } = useTranslation();
   return (
@@ -75,6 +80,7 @@ const ChangedFilesList: React.FC<{ files: Record<string, unknown>[] }> = ({ file
   );
 };
 
+/** List of the recommendations returned by the analysis. */
 const RecommendationsList: React.FC<{ recommendations: string[] }> = ({ recommendations }) => {
   const { t } = useTranslation();
   return (
@@ -88,6 +94,10 @@ const RecommendationsList: React.FC<{ recommendations: string[] }> = ({ recommen
   );
 };
 
+/**
+ * Result display: a risk badge, tiles for changed files, affected nodes and blast radius, the
+ * changed files and the recommendations when there are any.
+ */
 const PRImpactResultView: React.FC<{ result: PRImpactResult }> = ({ result }) => {
   const { t } = useTranslation();
   return (
@@ -115,6 +125,10 @@ const PRImpactResultView: React.FC<{ result: PRImpactResult }> = ({ result }) =>
   );
 };
 
+/**
+ * Form with the base and head branch fields and the Analyze button, which shows a spinner while
+ * running.
+ */
 const PRImpactForm: React.FC<{
   baseBranch: string;
   headBranch: string;
@@ -159,6 +173,10 @@ const PRImpactForm: React.FC<{
   );
 };
 
+/**
+ * PR Impact tool tab. The user compares a base branch (default main) with a head (default HEAD)
+ * for the open project and reads the estimated risk and the changed files.
+ */
 export const PRImpactPanel: React.FC<PRImpactPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const [baseBranch, setBaseBranch] = useState('main');

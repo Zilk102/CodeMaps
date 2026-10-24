@@ -1,11 +1,15 @@
+// Visual rules for graph edges and node emphasis: colours, widths, dashes, opacity, SVG path data
+// and mode text keys.
 import type { NodeEmphasis, LayoutMode } from './nodeStyle';
 
+/** One routed segment of an edge: start, end and optional bend points. */
 export interface EdgeSection {
   startPoint: { x: number; y: number };
   endPoint: { x: number; y: number };
   bendPoints?: { x: number; y: number }[];
 }
 
+/** Resolved look of an edge: stroke colour, width, dash pattern and arrowhead marker. */
 export interface EdgeAppearance {
   strokeColor: string;
   strokeWidth: number;
@@ -13,6 +17,7 @@ export interface EdgeAppearance {
   marker: string;
 }
 
+/** Stroke colour by link kind (ADR, framework, build, import), with a muted default. */
 function strokeColorFor(type: string | undefined): string {
   switch (type) {
     case 'adr':
@@ -28,6 +33,7 @@ function strokeColorFor(type: string | undefined): string {
   }
 }
 
+/** Stroke width by link kind; edges connected to the selection are drawn thicker. */
 function strokeWidthFor(type: string | undefined, isConnected: boolean): number {
   const isAdr = type === 'adr';
   const isFrameworkOrBuild = type === 'framework' || type === 'build';
@@ -39,6 +45,7 @@ function strokeWidthFor(type: string | undefined, isConnected: boolean): number 
   return isFrameworkOrBuild ? 1.8 : 1.2;
 }
 
+/** Dash pattern of a link kind: ADR, build and framework links are dashed, others solid. */
 function dashArrayFor(type: string | undefined): string {
   switch (type) {
     case 'adr':
@@ -52,6 +59,10 @@ function dashArrayFor(type: string | undefined): string {
   }
 }
 
+/**
+ * Complete look of an edge from its kind and whether it touches the selection; ADR edges use the
+ * purple arrowhead.
+ */
 export function getEdgeAppearance(
   type: string | undefined,
   isConnectedToSelection: boolean
@@ -64,6 +75,10 @@ export function getEdgeAppearance(
   };
 }
 
+/**
+ * Edge opacity: strong when connected to the selection, nearly hidden when not; without a
+ * selection, dependency view edges are more visible than hierarchy ones.
+ */
 export function getEdgeOpacity(
   hasSelection: boolean,
   isConnectedToSelection: boolean,
@@ -99,6 +114,7 @@ export function getNodeEmphasis(
   return relatedNodeIds?.has(nodeId) ? 'related' : 'muted';
 }
 
+/** The part of the selection insights needed to pick the toolbar description. */
 export interface DescriptionInsights {
   selectedVisibleId?: string | null;
   incomingCount: number;

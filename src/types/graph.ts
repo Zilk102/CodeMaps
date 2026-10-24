@@ -1,3 +1,9 @@
+// Renderer-side types of the dependency graph: nodes, links, refresh telemetry, layout mode and
+// visibility filters.
+/**
+ * A vertex of the code graph: a directory, file, function, class or ADR document, with optional
+ * position and export info.
+ */
 export interface GraphNode {
   id: string;
   label: string;
@@ -18,6 +24,10 @@ export interface GraphNode {
   z?: number;
 }
 
+/**
+ * A directed edge between two nodes (ids, or node objects once the force layout resolved them)
+ * with a kind and weight.
+ */
 export interface GraphLink {
   source: string | GraphNode;
   target: string | GraphNode;
@@ -26,6 +36,9 @@ export interface GraphLink {
   reason?: string;
 }
 
+/**
+ * The whole graph of the open project, plus optional telemetry about how the live refresh behaves.
+ */
 export interface GraphData {
   projectRoot: string;
   nodes: GraphNode[];
@@ -67,8 +80,13 @@ export interface GraphData {
   };
 }
 
+/**
+ * How the canvas arranges nodes: nested containers by folder structure, or a left-to-right
+ * dependency flow.
+ */
 export type LayoutMode = 'hierarchy' | 'dependencies';
 
+/** Per-kind visibility switches for the graph, one flag per node kind plus one for edges. */
 export interface GraphFilters {
   showDirectories: boolean;
   showFiles: boolean;

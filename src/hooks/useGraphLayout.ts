@@ -1,7 +1,13 @@
+// Hook that recomputes the ELK layout when the graph, filters, mode or selection change and
+// derives selection insights.
 import { useEffect, useMemo, useState } from 'react';
 import { runLayout, LayoutNode, LayoutResult } from '../utils/layoutEngine';
 import type { GraphData, GraphFilters, LayoutMode, GraphNode } from '../types/graph';
 
+/**
+ * Finds the node to highlight for the selection: the selected node if it is on the canvas, else
+ * its nearest visible ancestor, else null.
+ */
 export const resolveVisibleNodeId = (
   selectedNode: GraphNode | null,
   layoutNodes: LayoutNode[],
@@ -22,6 +28,10 @@ export const resolveVisibleNodeId = (
   return currentId || null;
 };
 
+/**
+ * Describes the selection's surroundings on the canvas: its visible node id, the edges touching
+ * it, the ids of related nodes and the incoming and outgoing edge counts.
+ */
 export const computeGraphInsights = (
   graphData: GraphData,
   layoutData: LayoutResult,
@@ -52,6 +62,11 @@ export const computeGraphInsights = (
   };
 };
 
+/**
+ * Runs the layout in the background whenever its inputs change and stores the result with
+ * setLayoutData; stale results of superseded runs are dropped. Returns isCalculating and the
+ * selection insights.
+ */
 export const useGraphLayout = (
   graphData: GraphData | null,
   filters: GraphFilters,

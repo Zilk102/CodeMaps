@@ -1,3 +1,4 @@
+// MCP settings tab with copyable setup snippets for each supported AI client.
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import hookScript from '../../../scripts/codemaps-validate-hook.mjs?raw';
@@ -10,6 +11,7 @@ interface Props {
   copyText: (key: string, text: string) => void;
 }
 
+/** Card for one client: title, description, a Copy button and the snippet. */
 const ClientCard: React.FC<{
   client: ClientExample;
   copied: boolean;
@@ -52,6 +54,10 @@ const ClientCard: React.FC<{
   );
 };
 
+/**
+ * Client setup tab: one card per client (Trae, Cursor, Claude Code, Claude Desktop and the Claude
+ * validation hook with its script), built for the given endpoint.
+ */
 export const McpSettingsClients: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
   const clientExamples = useMemo(() => buildClientExamples(endpoint, hookScript), [endpoint]);
 

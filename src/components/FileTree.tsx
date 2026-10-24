@@ -1,3 +1,5 @@
+// File explorer in the sidebar: the project's files as an expandable tree, or an open-folder
+// prompt.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFileTreeState } from '../hooks/useFileTreeState';
@@ -5,6 +7,7 @@ import { ChevronIcon } from './FileTreeIcons';
 import { FileTreeNode } from './FileTreeNode';
 import type { FileTreeEntry } from './fileTreeModel';
 
+/** Red box with the project load error. */
 const ErrorBanner: React.FC<{ error: string }> = ({ error }) => (
   <div
     style={{
@@ -19,6 +22,10 @@ const ErrorBanner: React.FC<{ error: string }> = ({ error }) => (
   </div>
 );
 
+/**
+ * Shown when no project is loaded: a hint and an Open folder button that shows an analyzing label
+ * while loading.
+ */
 const EmptyState: React.FC<{ isLoading: boolean; openProject: () => void }> = ({
   isLoading,
   openProject,
@@ -49,6 +56,7 @@ const EmptyState: React.FC<{ isLoading: boolean; openProject: () => void }> = ({
   );
 };
 
+/** The collapsible project root with the file tree under it; the root starts expanded. */
 const ProjectTree: React.FC<{
   tree: FileTreeEntry;
   expandedFolders: Record<string, boolean>;
@@ -92,6 +100,10 @@ const ProjectTree: React.FC<{
   );
 };
 
+/**
+ * Chooses what the explorer shows: the error, the open-folder prompt when there is no tree, or the
+ * tree.
+ */
 const ExplorerBody: React.FC<ReturnType<typeof useFileTreeState>> = (state) => {
   const { error, tree } = state;
   if (error) return <ErrorBanner error={error} />;
@@ -107,6 +119,10 @@ const ExplorerBody: React.FC<ReturnType<typeof useFileTreeState>> = (state) => {
   );
 };
 
+/**
+ * Sidebar explorer. Clicking a file selects it in the graph; clicking a folder expands or
+ * collapses it.
+ */
 export const FileTree: React.FC = () => {
   const { t } = useTranslation();
   const state = useFileTreeState();

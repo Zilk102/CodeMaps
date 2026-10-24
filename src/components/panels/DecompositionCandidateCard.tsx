@@ -1,7 +1,12 @@
+// Result types and the card that presents one refactoring candidate of the decomposition analysis.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { BulletBox, PanelCard, ReasonLine } from './PanelParts';
 
+/**
+ * One suggested refactoring: the target (module, class or method), the recommended action,
+ * priority, score, the reason with its evidence, an optional line range and the metrics behind it.
+ */
 export interface DecompositionCandidate {
   fileNodeId: string;
   targetNodeId: string;
@@ -33,6 +38,10 @@ export interface DecompositionCandidate {
   };
 }
 
+/**
+ * Reply of the decomposition analysis: counts and focus areas in the summary, and the ranked
+ * candidates.
+ */
 export interface DecompositionResult {
   summary: {
     candidateCount: number;
@@ -44,12 +53,14 @@ export interface DecompositionResult {
 
 const BADGE_BASE = 'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider';
 
+/** Badge colours for a priority: red for high, amber for anything else. */
 export function priorityBadgeClass(priority: DecompositionCandidate['priority']): string {
   return priority === 'high'
     ? 'bg-[rgba(255,107,107,0.15)] text-(--red) border border-[rgba(255,107,107,0.3)]'
     : 'bg-[rgba(255,170,0,0.15)] text-[rgb(255,170,0)] border border-[rgba(255,170,0,0.3)]';
 }
 
+/** Bulleted list of the facts that led to a candidate, in monospace. */
 const EvidenceList: React.FC<{ evidence: string[] }> = ({ evidence }) => {
   const { t } = useTranslation();
   return (
@@ -61,6 +72,10 @@ const EvidenceList: React.FC<{ evidence: string[] }> = ({ evidence }) => {
   );
 };
 
+/**
+ * Row of small chips, one per metric the analysis measured (metrics it did not report are
+ * skipped).
+ */
 const MetricChips: React.FC<{ metrics: DecompositionCandidate['metrics'] }> = ({ metrics }) => {
   const { t } = useTranslation();
   return (
@@ -81,6 +96,10 @@ const MetricChips: React.FC<{ metrics: DecompositionCandidate['metrics'] }> = ({
   );
 };
 
+/**
+ * Card for one candidate: priority and action badges, the target's name and id, the reason, the
+ * evidence and the metrics.
+ */
 export const DecompositionCandidateCard: React.FC<{ candidate: DecompositionCandidate }> = ({
   candidate,
 }) => {

@@ -1,3 +1,5 @@
+// Common frame for the tool panels that work on one graph node (header, node picker, error and
+// result).
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorBanner, PanelCard, PanelHeader, SelectedNodeBar } from './PanelParts';

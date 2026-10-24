@@ -1,3 +1,4 @@
+// Hook that lets the user drop a folder or file on the window to open its project.
 import { useCallback, useRef, useState, type DragEvent } from 'react';
 
 type FetchGraph = (path: string) => Promise<unknown>;
@@ -43,6 +44,11 @@ const swallow = (event: DragEvent) => {
   event.stopPropagation();
 };
 
+/**
+ * Tracks drag-over state with an enter/leave counter, so nested elements do not make it flicker,
+ * and on drop opens the first item that resolves to a path (a file opens its parent folder).
+ * Returns the four drag handlers and dragOver.
+ */
 export function useProjectDrop(fetchGraph: FetchGraph) {
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);

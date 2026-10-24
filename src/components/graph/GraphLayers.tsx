@@ -1,9 +1,14 @@
+// The two layers of the canvas: SVG edges below and node boxes above.
 import React, { useMemo } from 'react';
 import type { LayoutResult } from '../../utils/layoutEngine';
 import type { GraphNode, LayoutMode } from '../../types/graph';
 import { GraphNodeComponent } from '../GraphNodeComponent';
 import { buildEdgePath, getEdgeAppearance, getEdgeOpacity, getNodeEmphasis } from './edgeStyle';
 
+/**
+ * What the layout learned about the current selection: the visible node standing for it, the ids
+ * of its neighbours and its incoming and outgoing edge counts.
+ */
 export interface GraphInsights {
   selectedVisibleId: string | null;
   relatedNodeIds: Set<string>;
@@ -79,6 +84,10 @@ interface NodeLayerProps {
   onSelectNode: (node: GraphNode) => void;
 }
 
+/**
+ * Renders every laid-out node, emphasising the selected node and its neighbours and fading the
+ * others; clicking a node selects its graph node.
+ */
 export const GraphNodeLayer: React.FC<NodeLayerProps> = ({
   layoutData,
   layoutMode,

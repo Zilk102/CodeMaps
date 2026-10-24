@@ -1,3 +1,4 @@
+// Styles and small building blocks shared by the MCP settings tabs.
 import React from 'react';
 
 export const commonSectionStyle: React.CSSProperties = {
@@ -8,6 +9,7 @@ export const commonSectionStyle: React.CSSProperties = {
   boxShadow: '0 12px 30px rgba(0,0,0,0.14)',
 };
 
+/** Monospace block for endpoints, snippets and paths; wraps long lines and scrolls past 200px. */
 export const CodeBlock = ({ children }: { children: React.ReactNode }) => (
   <div
     style={{
@@ -28,6 +30,7 @@ export const CodeBlock = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+/** Label, large value and optional hint, used for the overview counts. */
 export const MetricCard = ({
   label,
   value,
@@ -88,6 +91,7 @@ export const CardTitle = ({
   </div>
 );
 
+/** Secondary-coloured description text under a card title. */
 export const CardDescription = ({ children }: { children: React.ReactNode }) => (
   <div
     style={{

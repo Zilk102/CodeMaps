@@ -1,3 +1,4 @@
+// Toolbar over the graph: layout mode switch, node-kind filter chips and a help popover.
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../../store/useStore';
@@ -19,6 +20,10 @@ interface GraphToolbarProps {
   help: React.ReactNode;
 }
 
+/**
+ * Returns a ref for a popover's container and calls close when the user presses outside it or hits
+ * Escape while it is open.
+ */
 const useDismissOnOutsideClick = (open: boolean, close: () => void) => {
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -41,6 +46,7 @@ const useDismissOnOutsideClick = (open: boolean, close: () => void) => {
   return ref;
 };
 
+/** Two-button switch between the hierarchy and dependency layouts. */
 const ModeSwitch: React.FC<{
   layoutMode: LayoutMode;
   onChange: (mode: LayoutMode) => void;
@@ -72,6 +78,10 @@ const ModeSwitch: React.FC<{
   );
 };
 
+/**
+ * Toggle chips for directories, files, functions, classes, ADRs and edges, each with a colour dot
+ * like the shape on the graph.
+ */
 const FilterChips: React.FC<{
   filters: GraphFilters;
   onToggle: (key: keyof GraphFilters, value: boolean) => void;
@@ -119,6 +129,10 @@ const FilterChips: React.FC<{
   );
 };
 
+/**
+ * Question-mark button that opens a popover with the description of the current mode and the
+ * legend.
+ */
 const HelpPopover: React.FC<{ modeDescription: string; help: React.ReactNode }> = ({
   modeDescription,
   help,
@@ -152,6 +166,10 @@ const HelpPopover: React.FC<{ modeDescription: string; help: React.ReactNode }> 
   );
 };
 
+/**
+ * Top bar of the graph: mode switch, filters and help. It reads and updates the graph filters and
+ * layout mode in the store.
+ */
 export const GraphToolbar: React.FC<GraphToolbarProps> = ({ modeDescription, help }) => {
   const { filters, layoutMode, setLayoutMode, setFilter } = useGraphStore();
 

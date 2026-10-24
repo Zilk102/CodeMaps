@@ -1,10 +1,13 @@
+// Turns the flat graph node list into the filtered parent/child tree used by the file explorer.
 import type { GraphLink, GraphNode } from '../types/graph';
 
+/** A node of the explorer tree: the graph node and its visible children. */
 export interface TreeNode {
   data: GraphNode;
   children: TreeNode[];
 }
 
+/** Visibility switches for the explorer tree (the graph filters without the edge flag). */
 export interface TreeFilters {
   showDirectories: boolean;
   showFiles: boolean;
@@ -50,6 +53,11 @@ const buildCleanParentMap = (nodes: GraphNode[]): Map<string, string> => {
   return cleanParentMap;
 };
 
+/**
+ * Builds the explorer forest from the flat node list: hidden kinds are dropped, nodes without a
+ * visible parent become roots, and parent cycles are ignored. Returns an empty list when no graph
+ * is loaded.
+ */
 export const buildTree = (
   graphData: { nodes: GraphNode[]; links: GraphLink[] } | null,
   filters: TreeFilters

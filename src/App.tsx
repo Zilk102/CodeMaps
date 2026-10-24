@@ -1,3 +1,5 @@
+// Root of the renderer: title bar, sidebar, graph or welcome screen, tools panel and global
+// overlays.
 import React, { Suspense } from 'react';
 
 const GraphView = React.lazy(() =>
@@ -25,6 +27,10 @@ import { useRealtimeConnection } from './hooks/useRealtimeConnection';
 import { useProjectDrop } from './hooks/useProjectDrop';
 import { useSidebarResize } from './hooks/useSidebarResize';
 
+/**
+ * Main area under the title bar. Once a project is loaded it shows the file-tree sidebar, the
+ * graph, and the tools panel when opened; before that it shows the recent-projects welcome screen.
+ */
 const AppWorkspace: React.FC = () => {
   const { sidebarWidth, setSidebarWidth, isToolsPanelOpen } = useUIStore();
   const { graphData } = useGraphStore();
@@ -58,6 +64,11 @@ const AppWorkspace: React.FC = () => {
   );
 };
 
+/**
+ * Application shell. Starts the live connection, makes the whole window a drop target for project
+ * folders, and wraps everything in an error boundary with the title bar, update notice, drop
+ * overlay, progress toast and MCP settings modal.
+ */
 const App: React.FC = () => {
   const { parsingProgress } = useUIStore();
   const { fetchGraph } = useRealtimeConnection();

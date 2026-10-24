@@ -1,5 +1,10 @@
+// Hook that mirrors the auto-updater state from the main process for the update notification.
 import { useEffect, useState } from 'react';
 
+/**
+ * Updater status as reported by the main process: checking, update available or downloaded, with
+ * version, download progress or error when known.
+ */
 export interface UpdateState {
   checking: boolean;
   available: boolean;

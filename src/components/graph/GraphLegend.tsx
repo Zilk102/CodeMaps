@@ -1,3 +1,4 @@
+// Colour legend and controls hint shown in the toolbar's help popover.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 

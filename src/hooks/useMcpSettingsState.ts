@@ -1,3 +1,5 @@
+// Hook behind the MCP settings modal: server status, copy-to-clipboard feedback and Escape
+// handling.
 import { useEffect, useState } from 'react';
 import type { McpStatus } from '../components/mcp-settings/types';
 

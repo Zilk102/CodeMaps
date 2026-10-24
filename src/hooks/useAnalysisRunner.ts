@@ -1,3 +1,5 @@
+// Hook for the tool panels that runs an async analysis and tracks its running, result and error
+// state.
 import { useCallback, useState } from 'react';
 import { toErrorMessage } from '../components/panels/panelUtils';
 

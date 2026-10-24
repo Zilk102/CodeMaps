@@ -1,8 +1,11 @@
+// Pieces of the title bar: brand mark, project breadcrumb, action buttons and the minimize,
+// maximize and close controls.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 const noDragStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
+/** CodeMaps logo and name at the left of the bar. */
 export const BrandMark: React.FC = () => (
   <div className="flex items-center gap-2">
     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-(--acc) text-(--bg0)">
@@ -23,6 +26,7 @@ export const BrandMark: React.FC = () => (
   </div>
 );
 
+/** Project folder name followed by an "analysis ready" status; shown only on wide windows. */
 export const ProjectBreadcrumb: React.FC<{ projectName?: string }> = ({ projectName }) => {
   const { t } = useTranslation();
   return (
@@ -43,6 +47,7 @@ const GEAR_PATH =
 const TOOLS_PATH =
   'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z';
 
+/** Wrapper that gives an action button's SVG shapes the shared stroke style. */
 const ButtonIcon: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <svg
     viewBox="0 0 24 24"
@@ -84,6 +89,10 @@ const ActionButton: React.FC<{
   </button>
 );
 
+/**
+ * Open project, close project (with a project), MCP settings and tools (with a project,
+ * highlighted while the panel is open) buttons.
+ */
 export const TitleBarActions: React.FC<ActionProps> = ({
   hasProject,
   isToolsPanelOpen,
@@ -120,6 +129,7 @@ export const TitleBarActions: React.FC<ActionProps> = ({
   );
 };
 
+/** Square icon button of the window controls. */
 const WindowControlButton: React.FC<{
   className: string;
   label: string;
@@ -133,6 +143,7 @@ const WindowControlButton: React.FC<{
   </button>
 );
 
+/** Minimize, maximize and close buttons that ask the main process to act on the window. */
 export const WindowControls: React.FC = () => {
   const { t } = useTranslation();
   return (
