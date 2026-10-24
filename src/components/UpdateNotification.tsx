@@ -71,6 +71,24 @@ const DownloadIcon: React.FC = () => (
   </svg>
 );
 
+const UpdateMessage: React.FC<{ state: UpdateState }> = ({ state }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="section-label mb-1">{t('updateNotification.updateAvailable')}</div>
+      <div className="text-[13px] leading-relaxed text-(--t0)">
+        <Trans
+          i18nKey="updateNotification.updateReady"
+          values={{ version: state.version }}
+          components={{
+            1: <strong className="font-semibold text-(--acc)" />,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const UpdateReady: React.FC<{
   state: UpdateState;
   onLater: () => void;
@@ -83,18 +101,7 @@ const UpdateReady: React.FC<{
         <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--accbg) text-(--acc)">
           <DownloadIcon />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="section-label mb-1">{t('updateNotification.updateAvailable')}</div>
-          <div className="text-[13px] leading-relaxed text-(--t0)">
-            <Trans
-              i18nKey="updateNotification.updateReady"
-              values={{ version: state.version }}
-              components={{
-                1: <strong className="font-semibold text-(--acc)" />,
-              }}
-            />
-          </div>
-        </div>
+        <UpdateMessage state={state} />
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={onLater} className="btn-glass px-4">

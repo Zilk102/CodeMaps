@@ -1,6 +1,6 @@
 import type { Node } from 'web-tree-sitter';
-import { namedOf, walkNamed } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { namedOf } from './astUtils';
+import { FactsAccumulator, type NodeHandler, walkWithHandlers } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const OWNERS = new Set(['class', 'module']);
@@ -91,6 +91,6 @@ const HANDLERS: Record<string, NodeHandler<FactsAccumulator>> = {
 
 export const extractRubyFacts = (root: Node): LanguageFactsWithDeclarations => {
   const acc = new FactsAccumulator(true);
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? (() => true))(node, acc));
+  walkWithHandlers(root, acc, HANDLERS);
   return acc.toFacts({});
 };

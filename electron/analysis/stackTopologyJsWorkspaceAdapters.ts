@@ -196,6 +196,24 @@ const workspaceDependencyLinks = (
     })
   );
 
+const manifestPaths = (manifests: WorkspacePackageManifest[]) =>
+  manifests.map((manifest) => manifest.filePath);
+
+/** The root links to each of its packages, and each package to the packages it depends on. */
+const workspacePackageLinks = (
+  root: string,
+  packages: {
+    manifests: WorkspacePackageManifest[];
+    byName: Map<string, WorkspacePackageManifest>;
+  },
+  reasons: { member: string; dependency: string }
+) => [
+  ...packages.manifests.map((manifest) =>
+    createRelationship(root, manifest.filePath, 'build', reasons.member)
+  ),
+  ...workspaceDependencyLinks(packages.manifests, packages.byName, reasons.dependency),
+];
+
 export const pnpmWorkspaceAdapter = defineAdapter({
   id: 'pnpm-workspace-topology',
   displayName: 'pnpm Workspace Topology',
@@ -234,24 +252,18 @@ export const pnpmWorkspaceAdapter = defineAdapter({
       context,
       Array.from(workspacePatterns)
     );
-    const relationships = [
-      ...manifests.map((manifest) =>
-        createRelationship(
-          workspaceRootDescriptor,
-          manifest.filePath,
-          'build',
-          'pnpm_workspace_package'
-        )
-      ),
-      ...workspaceDependencyLinks(manifests, byName, 'pnpm_workspace_dependency'),
-    ];
+    const relationships = workspacePackageLinks(
+      workspaceRootDescriptor,
+      { manifests, byName },
+      { member: 'pnpm_workspace_package', dependency: 'pnpm_workspace_dependency' }
+    );
 
     return {
       summary: `Detected ${manifests.length} workspace packages and ${relationships.length} pnpm workspace relationships.`,
       details: {
         entryFiles: [workspaceRootDescriptor],
         configFiles: toRelativeList(context, configFiles),
-        modules: manifests.map((manifest) => manifest.filePath),
+        modules: manifestPaths(manifests),
         relationships,
       },
     };
@@ -360,19 +372,18 @@ export const turborepoAdapter = defineAdapter({
       taskNames.length === 0 ? true : manifest.scripts.some((script) => taskNames.includes(script))
     );
 
-    const relationships = [
-      ...taskAwarePackages.map((manifest) =>
-        createRelationship('turbo.json', manifest.filePath, 'build', 'turbo_pipeline_package')
-      ),
-      ...workspaceDependencyLinks(taskAwarePackages, byName, 'turbo_workspace_dependency'),
-    ];
+    const relationships = workspacePackageLinks(
+      'turbo.json',
+      { manifests: taskAwarePackages, byName },
+      { member: 'turbo_pipeline_package', dependency: 'turbo_workspace_dependency' }
+    );
 
     return {
       summary: `Detected ${taskAwarePackages.length} Turborepo packages participating in the pipeline and ${relationships.length} related build links.`,
       details: {
         entryFiles: ['turbo.json'],
         configFiles: ['turbo.json', 'package.json'],
-        modules: taskAwarePackages.map((manifest) => manifest.filePath),
+        modules: manifestPaths(taskAwarePackages),
         relationships,
       },
     };

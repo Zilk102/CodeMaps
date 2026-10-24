@@ -1,7 +1,13 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { addOwnedFunction, walkNamed, namedOf } from './astUtils';
-import { FactsAccumulator, declareClassLike, type NodeHandler } from './factsAccumulator';
+import { addOwnedFunction, namedOf } from './astUtils';
+import {
+  FactsAccumulator,
+  declareClassLike,
+  qualifiedUseHandler,
+  type NodeHandler,
+  walkWithHandlers,
+} from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const ITEM_TYPES = new Set(['struct_item', 'enum_item', 'union_item', 'trait_item', 'type_item']);
@@ -90,18 +96,13 @@ const HANDLERS: Record<string, NodeHandler<RustState>> = {
     if (node.parent?.parent?.type !== 'impl_item') addOwnedFunction(acc.entities, node, undefined);
     return true;
   },
-  scoped_identifier: (node, { acc }) => {
-    const path = node.childForFieldName('path');
-    const name = node.childForFieldName('name');
-    if (path?.type === 'identifier' && name) acc.noteQualified('::', path.text, name.text);
-    return true;
-  },
+  scoped_identifier: qualifiedUseHandler('::', 'path', 'name'),
   identifier: identifierHandler,
   type_identifier: identifierHandler,
 };
 
 export const extractRustFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: RustState = { acc: new FactsAccumulator(), moduleDeclarations: [] };
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? declareItems)(node, state));
+  walkWithHandlers(root, state, HANDLERS, declareItems);
   return state.acc.toFacts({ moduleDeclarations: state.moduleDeclarations });
 };

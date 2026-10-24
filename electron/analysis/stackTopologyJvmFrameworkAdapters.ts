@@ -7,11 +7,10 @@ import {
   extractMicronautRouteMethods,
   extractSpringBeanBindings,
   extractSpringRouteMethods,
-  toRelativeList,
 } from './stackTopologySupport';
 import {
   classEndpoint,
-  configEntryLinks,
+  configuredFindings,
   configFilesNamed,
   defineFrameworkAdapter,
   entryLinks,
@@ -128,11 +127,12 @@ const defineLayeredJvmAdapter = (spec: LayeredJvmSpec) =>
       const configs = configFilesNamed(context, SPRING_STYLE_CONFIG_FILES);
       const layers = layeredLinks(sources, { controllers, services, repositories }, spec.prefix);
 
-      return {
+      return configuredFindings(sources, {
         summary: `Detected ${entryFiles.length} ${spec.entryLabel}, ${controllers.length} controllers, ${services.length} services, and ${repositories.length} repositories.`,
+        entryFiles,
+        configFiles: configs,
+        configReason: `${spec.prefix}_config_entry`,
         details: {
-          entryFiles,
-          configFiles: toRelativeList(context, configs),
           components: controllers,
           modules: [...services, ...repositories],
           relationships: [
@@ -148,10 +148,9 @@ const defineLayeredJvmAdapter = (spec: LayeredJvmSpec) =>
               `${spec.prefix}_controller_method`
             ),
             ...(spec.extraLinks?.(sources, entryFiles, layers.serviceSymbols) ?? []),
-            ...configEntryLinks(sources, configs, entryFiles, `${spec.prefix}_config_entry`),
           ],
         },
-      };
+      });
     },
   });
 
@@ -192,11 +191,12 @@ export const ktorAdapter = defineFrameworkAdapter({
       'src/main/resources/application.properties',
     ]);
 
-    return {
+    return configuredFindings(sources, {
       summary: `Detected ${entryFiles.length} Ktor entry files and ${routeFiles.length} route-bearing modules.`,
+      entryFiles,
+      configFiles,
+      configReason: 'ktor_config_entry',
       details: {
-        entryFiles,
-        configFiles: toRelativeList(context, configFiles),
         routes: routeFiles,
         relationships: [
           ...entryLinks(sources, entryFiles, routeFiles, 'ktor_entry_routes'),
@@ -207,10 +207,9 @@ export const ktorAdapter = defineFrameworkAdapter({
             functionSymbols,
             'ktor_route_function'
           ),
-          ...configEntryLinks(sources, configFiles, entryFiles, 'ktor_config_entry'),
         ],
       },
-    };
+    });
   },
 });
 
@@ -243,11 +242,12 @@ export const quarkusAdapter = defineFrameworkAdapter({
     const configFiles = configFilesNamed(context, SPRING_STYLE_CONFIG_FILES);
     const serviceSymbols = symbolsOfFiles(sources, services);
 
-    return {
+    return configuredFindings(sources, {
       summary: `Detected ${entryFiles.length} Quarkus entry files, ${resources.length} REST resources, and ${services.length} scoped services.`,
+      entryFiles,
+      configFiles,
+      configReason: 'quarkus_config_entry',
       details: {
-        entryFiles,
-        configFiles: toRelativeList(context, configFiles),
         components: resources,
         modules: services,
         relationships: [
@@ -256,9 +256,8 @@ export const quarkusAdapter = defineFrameworkAdapter({
           }),
           ...referenceLinks(sources, resources, serviceSymbols, 'quarkus_resource_service'),
           ...methodLinks(sources, resources, extractJakartaRouteMethods, 'quarkus_resource_method'),
-          ...configEntryLinks(sources, configFiles, entryFiles, 'quarkus_config_entry'),
         ],
       },
-    };
+    });
   },
 });

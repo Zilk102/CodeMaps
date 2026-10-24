@@ -1,7 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { fieldChildren, walkNamed } from './astUtils';
-import { FactsAccumulator, type NodeHandler } from './factsAccumulator';
+import { fieldChildren } from './astUtils';
+import { FactsAccumulator, type NodeHandler, walkWithHandlers } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const TYPE_SPECIFIERS = new Set([
@@ -154,6 +154,6 @@ const HANDLERS: Record<string, NodeHandler<FactsAccumulator>> = {
 
 export const extractCppFacts = (root: Node): LanguageFactsWithDeclarations => {
   const acc = new FactsAccumulator(true);
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? (() => true))(node, acc));
+  walkWithHandlers(root, acc, HANDLERS);
   return acc.toFacts({});
 };

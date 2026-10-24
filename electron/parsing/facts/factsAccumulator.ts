@@ -47,6 +47,21 @@ export type NodeHandler<State> = (node: Node, state: State) => boolean;
 /** Handler for a state that carries the accumulator. */
 type WithAccumulator = { acc: FactsAccumulator };
 
+/**
+ * Handler that notes `<qualifier><separator><name>` for nodes whose qualifier field is a plain
+ * identifier (`pkg.Name`, `Module::Item`) and descends.
+ */
+export const qualifiedUseHandler =
+  (separator: string, qualifierField: string, nameField: string): NodeHandler<WithAccumulator> =>
+  (node, { acc }) => {
+    const qualifier = node.childForFieldName(qualifierField);
+    const name = node.childForFieldName(nameField);
+    if (qualifier?.type === 'identifier' && name) {
+      acc.noteQualified(separator, qualifier.text, name.text);
+    }
+    return true;
+  };
+
 /** Handler that records the imports `read` finds in a node and skips the node's subtree. */
 export const importsHandler =
   (read: (node: Node) => ImportRecord[]): NodeHandler<WithAccumulator> =>
@@ -78,7 +93,7 @@ export const walkWithHandlers = <S>(
   root: Node,
   state: S,
   handlers: Record<string, NodeHandler<S>>,
-  fallback: NodeHandler<S>
+  fallback: NodeHandler<S> = () => true
 ): void => walkNamed(root, (node) => (handlers[node.type] ?? fallback)(node, state));
 
 /** State of the languages whose files declare namespaces (C#, PHP). */

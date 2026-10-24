@@ -1,7 +1,13 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { addOwnedFunction, unquote, walkNamed, namedOf } from './astUtils';
-import { FactsAccumulator, importHandler, type NodeHandler } from './factsAccumulator';
+import { addOwnedFunction, unquote, namedOf } from './astUtils';
+import {
+  FactsAccumulator,
+  importHandler,
+  qualifiedUseHandler,
+  type NodeHandler,
+  walkWithHandlers,
+} from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const receiverTypeName = (method: Node): string | undefined => {
@@ -51,12 +57,7 @@ const HANDLERS: Record<string, NodeHandler<GoState>> = {
     addOwnedFunction(acc.entities, node, receiverTypeName(node));
     return true;
   },
-  selector_expression: (node, { acc }) => {
-    const operand = node.childForFieldName('operand');
-    const field = node.childForFieldName('field');
-    if (operand?.type === 'identifier' && field) acc.noteQualified('.', operand.text, field.text);
-    return true;
-  },
+  selector_expression: qualifiedUseHandler('.', 'operand', 'field'),
   qualified_type: (node, { acc }) => {
     const pkg = node.childForFieldName('package');
     const name = node.childForFieldName('name');
@@ -75,6 +76,6 @@ const HANDLERS: Record<string, NodeHandler<GoState>> = {
 
 export const extractGoFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: GoState = { acc: new FactsAccumulator() };
-  walkNamed(root, (node) => HANDLERS[node.type]?.(node, state) ?? true);
+  walkWithHandlers(root, state, HANDLERS);
   return state.acc.toFacts({ packageName: state.packageName });
 };

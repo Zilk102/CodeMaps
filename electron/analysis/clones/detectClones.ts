@@ -69,6 +69,23 @@ const hasControlFlow = (sample: Int32Array, controlIds: Set<number>): boolean =>
   return count >= 3;
 };
 
+/**
+ * All copies of a group are cut to the length the shortest one shares. A copy that shares too
+ * little is left out instead of dragging the others below the threshold, so two long copies are
+ * found whether or not a third, partly similar piece of code exists.
+ */
+const sharedLength = (
+  regions: Region[],
+  minTokens: number
+): { distinct: Region[]; length: number } => {
+  const longest = [...regions].sort((a, b) => b.end - b.start - (a.end - a.start));
+  for (let count = longest.length; count >= 2; count -= 1) {
+    const length = longest[count - 1].end - longest[count - 1].start;
+    if (length >= minTokens) return { distinct: longest.slice(0, count), length };
+  }
+  return { distinct: [], length: 0 };
+};
+
 const toGroup = (
   members: Region[],
   streams: TokenStream[],
@@ -76,11 +93,8 @@ const toGroup = (
   controlIds: Set<number>,
   options: CloneOptions
 ): CloneGroup | null => {
-  const distinct = maximalRegions(members);
+  const { distinct, length } = sharedLength(maximalRegions(members), options.minTokens);
   if (distinct.length < 2) return null;
-  // All copies of a group are cut to the length the shortest one shares.
-  const length = Math.min(...distinct.map((region) => region.end - region.start));
-  if (length < options.minTokens) return null;
 
   const first = distinct[0];
   if (!hasControlFlow(ids[first.stream].slice(first.start, first.start + length), controlIds)) {
@@ -109,9 +123,11 @@ const toGroup = (
  * token stream, so the same detector serves every language.
  */
 export const detectClones = (
-  streams: TokenStream[],
+  unordered: TokenStream[],
   overrides: Partial<CloneOptions> = {}
 ): CloneGroup[] => {
+  // The order the files arrive in (graph order, directory walk) must not change the result.
+  const streams = [...unordered].sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
   const options = { ...DEFAULT_CLONE_OPTIONS, ...overrides };
   const { ids, vocabulary } = internStreams(streams);
 

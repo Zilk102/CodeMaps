@@ -8,6 +8,56 @@ import { getIDBStorage } from './idb-storage';
 
 export type StoreState = GraphSlice & UISlice & ConnectionSlice;
 
+/** The named fields of the store state, as one object. */
+const pick = <K extends keyof StoreState>(state: StoreState, keys: readonly K[]) =>
+  Object.fromEntries(keys.map((key) => [key, state[key]])) as Pick<StoreState, K>;
+
+const PERSISTED_KEYS = [
+  'activeTab',
+  'sidebarWidth',
+  'layoutMode',
+  'filters',
+  'selectedNode',
+] as const;
+
+const GRAPH_KEYS = [
+  'graphData',
+  'isLoading',
+  'error',
+  'selectedNode',
+  'selectedPath',
+  'filters',
+  'layoutMode',
+  'setFilter',
+  'setLayoutMode',
+  'setSelectedNode',
+  'setSelectedPath',
+  'closeProject',
+] as const;
+
+const UI_KEYS = [
+  'activeTab',
+  'sidebarWidth',
+  'layoutData',
+  'isMcpSettingsOpen',
+  'isToolsPanelOpen',
+  'parsingProgress',
+  'setActiveTab',
+  'setSidebarWidth',
+  'setLayoutData',
+  'setMcpSettingsOpen',
+  'toggleToolsPanel',
+  'setParsingProgress',
+] as const;
+
+const CONNECTION_KEYS = [
+  'initializeWatcher',
+  'initializeWebSocket',
+  'teardownRealtime',
+  'fetchGraph',
+  'openProject',
+] as const;
+
 export const useStore = create<StoreState>()(
   persist(
     (...a) => ({
@@ -18,62 +68,16 @@ export const useStore = create<StoreState>()(
     {
       name: 'codemaps-ui-storage',
       storage: createJSONStorage(() => getIDBStorage('codemaps-db', 'ui-store')),
-      partialize: (state) => ({
-        // Только сохраняем состояние UI
-        activeTab: state.activeTab,
-        sidebarWidth: state.sidebarWidth,
-        layoutMode: state.layoutMode,
-        filters: state.filters,
-        selectedNode: state.selectedNode,
-      }),
+      // Only the UI state is persisted
+      partialize: (state) => pick(state, PERSISTED_KEYS),
     }
   )
 );
 
 // Dedicated selectors (hooks) to prevent unnecessary re-renders
-export const useGraphStore = () =>
-  useStore(
-    useShallow((state) => ({
-      graphData: state.graphData,
-      isLoading: state.isLoading,
-      error: state.error,
-      selectedNode: state.selectedNode,
-      selectedPath: state.selectedPath,
-      filters: state.filters,
-      layoutMode: state.layoutMode,
-      setFilter: state.setFilter,
-      setLayoutMode: state.setLayoutMode,
-      setSelectedNode: state.setSelectedNode,
-      setSelectedPath: state.setSelectedPath,
-      closeProject: state.closeProject,
-    }))
-  );
+export const useGraphStore = () => useStore(useShallow((state) => pick(state, GRAPH_KEYS)));
 
-export const useUIStore = () =>
-  useStore(
-    useShallow((state) => ({
-      activeTab: state.activeTab,
-      sidebarWidth: state.sidebarWidth,
-      layoutData: state.layoutData,
-      isMcpSettingsOpen: state.isMcpSettingsOpen,
-      isToolsPanelOpen: state.isToolsPanelOpen,
-      parsingProgress: state.parsingProgress,
-      setActiveTab: state.setActiveTab,
-      setSidebarWidth: state.setSidebarWidth,
-      setLayoutData: state.setLayoutData,
-      setMcpSettingsOpen: state.setMcpSettingsOpen,
-      toggleToolsPanel: state.toggleToolsPanel,
-      setParsingProgress: state.setParsingProgress,
-    }))
-  );
+export const useUIStore = () => useStore(useShallow((state) => pick(state, UI_KEYS)));
 
 export const useConnectionStore = () =>
-  useStore(
-    useShallow((state) => ({
-      initializeWatcher: state.initializeWatcher,
-      initializeWebSocket: state.initializeWebSocket,
-      teardownRealtime: state.teardownRealtime,
-      fetchGraph: state.fetchGraph,
-      openProject: state.openProject,
-    }))
-  );
+  useStore(useShallow((state) => pick(state, CONNECTION_KEYS)));

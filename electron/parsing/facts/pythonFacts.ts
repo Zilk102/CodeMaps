@@ -1,7 +1,13 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { EntityCollector, addOwnedFunction, walkNamed, namedOf, fieldChildren } from './astUtils';
-import { FactsAccumulator, importsHandler, type NodeHandler } from './factsAccumulator';
+import { EntityCollector, addOwnedFunction, namedOf, fieldChildren } from './astUtils';
+import {
+  FactsAccumulator,
+  importsHandler,
+  qualifiedUseHandler,
+  type NodeHandler,
+  walkWithHandlers,
+} from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const readPlainImport = (statement: Node): ImportRecord[] =>
@@ -67,18 +73,11 @@ const HANDLERS: Record<string, NodeHandler<PythonState>> = {
     if (isModuleLevel(node)) addOwnedFunction(acc.entities, node, undefined);
     return true;
   },
-  attribute: (node, { acc }) => {
-    const object = node.childForFieldName('object');
-    const attribute = node.childForFieldName('attribute');
-    if (object?.type === 'identifier' && attribute) {
-      acc.noteQualified('.', object.text, attribute.text);
-    }
-    return true;
-  },
+  attribute: qualifiedUseHandler('.', 'object', 'attribute'),
 };
 
 export const extractPythonFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: PythonState = { acc: new FactsAccumulator() };
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? (() => true))(node, state));
+  walkWithHandlers(root, state, HANDLERS);
   return state.acc.toFacts({});
 };

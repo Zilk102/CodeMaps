@@ -1,7 +1,12 @@
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
-import { namedOf, walkNamed } from './astUtils';
-import { FactsAccumulator, importHandler, type NodeHandler } from './factsAccumulator';
+import { namedOf } from './astUtils';
+import {
+  FactsAccumulator,
+  importHandler,
+  type NodeHandler,
+  walkWithHandlers,
+} from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
 const TYPE_DECLARATIONS = new Set(['class_declaration', 'object_declaration']);
@@ -76,6 +81,6 @@ const HANDLERS: Record<string, NodeHandler<KotlinState>> = {
 
 export const extractKotlinFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: KotlinState = { acc: new FactsAccumulator(true) };
-  walkNamed(root, (node) => (HANDLERS[node.type] ?? (() => true))(node, state));
+  walkWithHandlers(root, state, HANDLERS);
   return state.acc.toFacts({ packageName: state.packageName });
 };
