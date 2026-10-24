@@ -1,5 +1,13 @@
 # CodeMaps Changelog
 
+## v1.1.56 (2026-10-24)
+
+### Fixed
+
+- **Duplicate search no longer depends on the file set or file order.** Token ids used to follow first-seen order and copies within a bucket were only paired with the first one, so `find_duplicates` and `npm run duplicates` could disagree on the same project, and adding an unrelated file could hide a group. Ids are now derived from the token text, all pairs are matched, streams are sorted by file, and one short copy no longer drops its whole group. The fix uncovered 9 more hidden groups, which were removed: CodeMaps shows 0 groups on itself.
+- **The title bar no longer overlaps the language switcher in a narrow window:** below 1100 px the Open project, Close project, MCP settings and Workspace buttons show only their icon, with a tooltip.
+- **Function complexity:** 9 functions of complexity 11 are down to 8 or less, and the `npm run quality` threshold drops from 15 to 10 and stays empty. Tests: 519 -> 521.
+
 ## v1.1.55 (2026-10-24)
 
 ### Changed
