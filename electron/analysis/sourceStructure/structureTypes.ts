@@ -1,4 +1,6 @@
 // Shapes of the per-file structure metrics.
+
+/** Size and complexity of one function or method. */
 export interface SourceFunctionMetric {
   name: string;
   lineCount: number;
@@ -10,6 +12,7 @@ export interface SourceFunctionMetric {
   bodyHash?: string;
 }
 
+/** Size and method statistics of one class. */
 export interface SourceClassMetric {
   name: string;
   lineCount: number;
@@ -23,6 +26,10 @@ export interface SourceClassMetric {
   maxMethodComplexity: number;
 }
 
+/**
+ * Structure summary of a source file: counts plus the classes and functions that exceed the
+ * thresholds of `structureRules`.
+ */
 export interface SourceFileMetrics {
   classCount: number;
   topLevelFunctionCount: number;

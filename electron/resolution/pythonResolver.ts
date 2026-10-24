@@ -1,3 +1,5 @@
+// Resolves Python imports, absolute and relative, to files and symbols of the project.
+
 import type { ImportRecord } from '../parsing/types';
 import {
   addToBucket,
@@ -72,12 +74,21 @@ const reExportSource = (
   return null;
 };
 
+/**
+ * Python resolver: handles `import a.b`, `from a import b` and relative imports, follows `from .x
+ * import name` re-exports, and finds modules rooted at any ancestor directory, `src/` or any path
+ * suffix.
+ */
 export class PythonResolver implements LanguageResolver {
   readonly languageId = 'python';
   private index!: ProjectIndex;
 
   private modulesBySuffix = new Map<string, string[]>();
 
+  /**
+   * Indexes every module path by each of its dotted suffixes, since source roots are not declared
+   * anywhere.
+   */
   async prepare(index: ProjectIndex): Promise<void> {
     this.index = index;
     this.modulesBySuffix = buildModulesBySuffix(index);
@@ -92,6 +103,11 @@ export class PythonResolver implements LanguageResolver {
     return null;
   }
 
+  /**
+   * File of the module a specifier names. Relative specifiers start in the importer's package;
+   * absolute ones are tried under each ancestor and `src/`, then by dotted suffix, preferring the
+   * file nearest the importer. Null for external modules.
+   */
   private resolveModule(importer: FileEntry, spec: string): ModuleHit | null {
     const dots = /^\.*/.exec(spec)?.[0].length ?? 0;
     const segments = spec.slice(dots).split('.').filter(Boolean);
@@ -160,6 +176,10 @@ export class PythonResolver implements LanguageResolver {
     return record.importedEntities.map((name) => this.importedNameEdge(target.file, name));
   }
 
+  /**
+   * Edges of all imports of a file. An import of a name resolves to the symbol (or submodule)
+   * itself, falling back to its module.
+   */
   resolve(file: FileEntry): ResolvedEdge[] {
     return file.facts.imports.flatMap((record) => this.edgesForImport(file, record));
   }

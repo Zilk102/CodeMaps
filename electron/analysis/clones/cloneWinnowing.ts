@@ -1,3 +1,5 @@
+// Hashing half of clone detection: rolling n-gram hashes, winnowing and stable token numbering.
+
 import type { TokenStream } from './tokenize';
 
 const BASE = 1_000_003;

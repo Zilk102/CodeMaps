@@ -1,3 +1,5 @@
+// Parses one file with the adapter of its language; the unit of work of the parse workers.
+
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getLanguageAdapter } from './languageAdapters';
@@ -6,6 +8,11 @@ import { MAX_ANALYZED_FILE_SIZE } from './fileLimits';
 import { createEmptyParseResult, extractAdrReference } from './parseResultUtils';
 import { ParseResult, ParseWorkerInput } from './types';
 
+/**
+ * Parses a file into a `ParseResult`. Never throws: an unknown extension, a language outside
+ * `activeLanguageIds`, a read error or an adapter failure gives an empty result, and files over the
+ * size limit are flagged with `sizeExceeded`. Also picks up an `@adr` reference from the text.
+ */
 export const parseFile = async ({
   filePath,
   activeLanguageIds,

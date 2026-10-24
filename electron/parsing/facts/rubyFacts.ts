@@ -1,3 +1,6 @@
+// Facts of a Ruby file: `require` imports, classes, modules, constants built by `Struct.new` and
+// friends, methods, and `A::B` uses.
+
 import type { Node } from 'web-tree-sitter';
 import { namedOf } from './astUtils';
 import { FactsAccumulator, type NodeHandler, walkWithHandlers } from './factsAccumulator';
@@ -50,6 +53,11 @@ const defineOwner: NodeHandler<FactsAccumulator> = (node, acc) => {
   return true;
 };
 
+/**
+ * Records a `require`, `require_relative` or `load` call that has no receiver and a literal string
+ * argument as an import (kind `relative` or `load` for the latter two). Any other call is left to
+ * the walk.
+ */
 const callHandler: NodeHandler<FactsAccumulator> = (node, acc) => {
   const method = node.childForFieldName('method')?.text ?? '';
   if (node.childForFieldName('receiver') || !Object.hasOwn(LOADERS, method)) return true;
@@ -89,6 +97,10 @@ const HANDLERS: Record<string, NodeHandler<FactsAccumulator>> = {
   },
 };
 
+/**
+ * Facts of a Ruby file. Methods are named `Owner.method` after the enclosing class or module; used
+ * names are constants.
+ */
 export const extractRubyFacts = (root: Node): LanguageFactsWithDeclarations => {
   const acc = new FactsAccumulator(true);
   walkWithHandlers(root, acc, HANDLERS);

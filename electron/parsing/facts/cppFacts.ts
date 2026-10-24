@@ -99,6 +99,10 @@ const typeHandler: NodeHandler<FactsAccumulator> = (node, acc) => {
   return true;
 };
 
+/**
+ * Declares the names a typedef, `using X = ...` or `typedef struct {...} X;` introduces as class
+ * entities.
+ */
 const aliasHandler: NodeHandler<FactsAccumulator> = (node, acc) => {
   const names =
     node.type === 'alias_declaration'
@@ -152,6 +156,11 @@ const HANDLERS: Record<string, NodeHandler<FactsAccumulator>> = {
   namespace_identifier: noteHandler,
 };
 
+/**
+ * Facts of a C or C++ file: `#include` imports (`<...>` ones are marked `system`), types with a
+ * body, functions (class members as `Class::method`), and used names and `A::b` qualifiers. Class
+ * and function names share one namespace, because graph node ids are `file#name`.
+ */
 export const extractCppFacts = (root: Node): LanguageFactsWithDeclarations => {
   const acc = new FactsAccumulator(true);
   walkWithHandlers(root, acc, HANDLERS);

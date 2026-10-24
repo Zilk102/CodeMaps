@@ -1,3 +1,5 @@
+// Entry point that proposes how to split a large source file into smaller files, for the MCP tools.
+
 import * as path from 'path';
 import { GraphData } from '../../store/types';
 import { toStructuralNodeId } from '../AgentContextUtils';
@@ -11,7 +13,12 @@ const relativeTo = (root: string | undefined, file: string) => {
   return file.startsWith(`${normalizedRoot}/`) ? file.slice(normalizedRoot.length + 1) : file;
 };
 
+/** Plans file splits for graph nodes. Stateless: every call reads the files from disk. */
 export class SymbolClusterService {
+  /**
+   * Split plan for one file, with the path shown relative to `projectRoot` when given. Null when
+   * the file is unsupported, unreadable, unparsable or too small to split.
+   */
   async planFile(filePath: string, projectRoot?: string): Promise<SplitPlan | null> {
     try {
       const graph = await extractSymbolGraph(filePath);

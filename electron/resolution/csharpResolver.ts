@@ -1,3 +1,5 @@
+// Resolves C# `using` directives and qualified names to files and types of the project.
+
 import type { ImportRecord } from '../parsing/types';
 import { PackageResolver } from './packageResolver';
 import { entityTarget, hasEntity, type FileEntry, type ResolvedEdge } from './types';
@@ -8,6 +10,10 @@ const withParents = (namespace: string): string[] => {
   return segments.map((_, index) => segments.slice(0, segments.length - index).join('.'));
 };
 
+/**
+ * C# resolver. A file can declare several namespaces, a namespace sees the types of its parent
+ * namespaces, and `using` can import a namespace, a type's statics or an alias.
+ */
 export class CSharpResolver extends PackageResolver {
   constructor() {
     super('c_sharp');

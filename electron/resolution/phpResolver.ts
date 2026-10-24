@@ -1,3 +1,6 @@
+// Resolves PHP `use` statements, inline qualified names and `require`/`include` to files of the
+// project, using composer PSR-4 mappings.
+
 import type { ImportRecord } from '../parsing/types';
 import { PackageResolver } from './packageResolver';
 import {
@@ -24,6 +27,10 @@ type Psr4Section = Record<string, string | string[]>;
 const psr4Section = (json: unknown, section: string): Psr4Section =>
   (json as Record<string, { 'psr-4'?: Psr4Section }> | null)?.[section]?.['psr-4'] ?? {};
 
+/**
+ * One mapping per target directory of a PSR-4 prefix entry (the target may be a list). The prefix
+ * gets a trailing backslash; a blank prefix stays empty.
+ */
 const mappingsOfTarget = (
   dir: string,
   prefix: string,

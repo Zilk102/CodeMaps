@@ -1,3 +1,5 @@
+// Shared contracts and path helpers of the language import resolvers.
+
 import type { FileResolutionFacts, ImportRecord } from '../parsing/types';
 
 /** One edge from a file to a file (`a/b.go`) or to a symbol in a file (`a/b.go#Name`). */
@@ -8,12 +10,17 @@ export interface ResolvedEdge {
   reason: string;
 }
 
+/** A project file of a resolver language with the raw facts the parser extracted from it. */
 export interface FileEntry {
   path: string;
   language: string;
   facts: FileResolutionFacts;
 }
 
+/**
+ * Everything a resolver may consult about the project. Paths are absolute with forward slashes;
+ * entity names are the labels of the class and function nodes of each file.
+ */
 export interface ProjectIndex {
   root: string;
   /** Every indexed file of a resolver language. */
@@ -26,24 +33,36 @@ export interface ProjectIndex {
   readText: (path: string) => Promise<string | null>;
 }
 
+/**
+ * Turns the raw import facts of one language into graph edges. `prepare` runs once per pass and
+ * builds lookup tables; `resolve` is then called per file of that language.
+ */
 export interface LanguageResolver {
   languageId: string;
   prepare: (index: ProjectIndex) => Promise<void>;
   resolve: (file: FileEntry) => ResolvedEdge[];
 }
 
+/** Graph node id of a symbol: `<file>#<name>`. */
 export const entityTarget = (file: string, name: string) => `${file}#${name}`;
 
+/** True when the file declares an entity of this name, according to the project index. */
 export const hasEntity = (index: ProjectIndex, file: string, name: string): boolean =>
   index.entitiesByFile.get(file)?.has(name) ?? false;
 
+/** Directory part of a forward-slash path; empty for a bare file name or a root-level path. */
 export const dirOf = (path: string): string => {
   const cut = path.lastIndexOf('/');
   return cut <= 0 ? '' : path.slice(0, cut);
 };
 
+/** Last segment of a forward-slash path. */
 export const baseName = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
 
+/**
+ * Joins non-empty parts with `/` and collapses repeated slashes. Does not resolve `..`; see
+ * `normalizeSegments`.
+ */
 export const joinPath = (...parts: string[]): string =>
   parts
     .filter((part) => part.length > 0)

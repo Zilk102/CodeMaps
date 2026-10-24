@@ -1,5 +1,9 @@
 // Scans source text for matching braces while skipping comments and string literals.
 
+/**
+ * Index of the first `{` at or after `startIndex`, or -1. Plain character search: comments and
+ * strings are not skipped.
+ */
 export function findNextOpenBrace(text: string, startIndex: number): number {
   for (let index = startIndex; index < text.length; index += 1) {
     if (text[index] === '{') {
@@ -38,6 +42,11 @@ function startsScanMode(
 
 const BRACE_DELTA: Record<string, number> = { '{': 1, '}': -1 };
 
+/**
+ * Index of the `}` that closes the `{` at `openBraceIndex`, or -1 when the text ends first. Braces
+ * inside comments and string or template literals are ignored; a regular-expression literal
+ * containing a quote or brace can still confuse it.
+ */
 export function findMatchingBrace(text: string, openBraceIndex: number): number {
   let depth = 0;
   let mode: ScanMode = 'code';
@@ -65,10 +74,15 @@ export function findMatchingBrace(text: string, openBraceIndex: number): number 
   return -1;
 }
 
+/**
+ * Number of lines spanned by `text[start, end)`, counting a partial first and last line each as
+ * one.
+ */
 export function getLineCountForRange(text: string, start: number, end: number): number {
   return text.slice(start, end).split(/\r?\n/u).length;
 }
 
+/** True when `index` lies inside any of the inclusive ranges. */
 export function isInsideRanges(
   index: number,
   ranges: Array<{ start: number; end: number }>

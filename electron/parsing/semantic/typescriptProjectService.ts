@@ -1,3 +1,6 @@
+// Finds and caches the tsconfig compiler options of a project and resolves module specifiers with
+// them.
+
 import * as fs from 'fs';
 import * as path from 'path';
 import ts from 'typescript';
@@ -11,6 +14,11 @@ const contextCache = new Map<string, TypeScriptProjectContext>();
 
 const normalizePath = (value: string) => value.replace(/\\/g, '/');
 
+/**
+ * Nearest `tsconfig.json` or `jsconfig.json` walking up from the file, tsconfig first in each
+ * directory. Stops at the filesystem root or when the walk would leave `baseDir`; undefined if none
+ * is found.
+ */
 const findNearestTsConfig = (filePath: string, baseDir?: string) => {
   let currentDir = path.dirname(filePath);
   const normalizedBaseDir = baseDir ? normalizePath(baseDir) : undefined;
@@ -33,6 +41,10 @@ const findNearestTsConfig = (filePath: string, baseDir?: string) => {
   }
 };
 
+/**
+ * Fallback options for projects without a usable config: modern ESM with the bundler resolution, JS
+ * allowed, React JSX.
+ */
 const createDefaultCompilerOptions = (): ts.CompilerOptions => ({
   allowJs: true,
   checkJs: false,
@@ -45,6 +57,10 @@ const createDefaultCompilerOptions = (): ts.CompilerOptions => ({
   jsx: ts.JsxEmit.ReactJSX,
 });
 
+/**
+ * Compiler options of a config file layered over the defaults. An unreadable or invalid config
+ * falls back to the defaults.
+ */
 const loadCompilerOptions = (configPath?: string): ts.CompilerOptions => {
   if (!configPath) {
     return createDefaultCompilerOptions();
@@ -73,6 +89,10 @@ const loadCompilerOptions = (configPath?: string): ts.CompilerOptions => {
   }
 };
 
+/**
+ * Compiler options that apply to a file, cached per config file (or per base directory when there
+ * is none). Config changes are not picked up until the process restarts.
+ */
 export const getTypeScriptProjectContext = (
   filePath: string,
   baseDir?: string
@@ -93,6 +113,10 @@ export const getTypeScriptProjectContext = (
   return context;
 };
 
+/**
+ * Resolves an import specifier to a file path with forward slashes, using the options of the
+ * importing file. Undefined when it cannot be resolved or resolves outside `baseDir`.
+ */
 export const resolveTypeScriptModule = (
   specifier: string,
   containingFile: string,

@@ -1,3 +1,5 @@
+// Resolves Ruby `require`, `require_relative` and `load`, and links classes that are autoloaded.
+
 import type { ImportRecord } from '../parsing/types';
 import {
   bucketsBy,
@@ -26,9 +28,17 @@ interface RubyTables {
   libFiles: Map<string, string[]>;
 }
 
+/**
+ * Ruby resolver. Besides explicit requires, it infers links to the one file that declares a
+ * constant, since Rails and Zeitwerk load code without `require`.
+ */
 export class RubyResolver extends IndexedResolver<RubyTables> {
   readonly languageId = 'ruby';
 
+  /**
+   * Maps each constant to the files declaring it, and each path below a `lib/` directory to the
+   * files reachable through it.
+   */
   protected buildTables(files: FileEntry[]): RubyTables {
     return {
       declarers: bucketsBy(files, (entry) =>
@@ -62,6 +72,11 @@ export class RubyResolver extends IndexedResolver<RubyTables> {
     return nearestOther(importer, this.tables.libFiles.get(file));
   }
 
+  /**
+   * File a Ruby import names: `require_relative` from the importer's directory, `load` from the
+   * project root or that directory, `./` paths relative to the importer, and plain `require`
+   * through `lib/` load paths.
+   */
   protected resolveImport(importer: string, record: ImportRecord): string | null {
     const spec = record.path;
     if (record.kind === 'relative') return this.resolveRelative(importer, spec, [dirOf(importer)]);

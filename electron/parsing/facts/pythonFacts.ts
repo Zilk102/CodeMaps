@@ -1,3 +1,5 @@
+// Facts of a Python file: imports, classes, functions with their methods, and `module.name` uses.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { EntityCollector, addOwnedFunction, namedOf, fieldChildren } from './astUtils';
@@ -20,6 +22,10 @@ const readPlainImport = (statement: Node): ImportRecord[] =>
     return [{ path: entry.text, importedEntities: [] }];
   });
 
+/**
+ * `from m import a, b as c, *` as one import of module `m` listing the original names (the `as`
+ * alias is not kept) and `*` for a wildcard. Empty when the module cannot be read.
+ */
 const readFromImport = (statement: Node): ImportRecord[] => {
   const module = statement.childForFieldName('module_name');
   if (!module) return [];
@@ -35,6 +41,10 @@ const readFromImport = (statement: Node): ImportRecord[] => {
 const definitionOf = (member: Node): Node | null =>
   member.type === 'decorated_definition' ? member.childForFieldName('definition') : member;
 
+/**
+ * Registers the methods of a class as `Class.method` entities, including decorated ones. Nested
+ * functions and other statements in the body are ignored.
+ */
 const addClassMembers = (classNode: Node, entities: EntityCollector): void => {
   const className = classNode.childForFieldName('name')?.text;
   const body = classNode.childForFieldName('body');
@@ -76,6 +86,10 @@ const HANDLERS: Record<string, NodeHandler<PythonState>> = {
   attribute: qualifiedUseHandler('.', 'object', 'attribute'),
 };
 
+/**
+ * Facts of a Python file. Methods are named `Class.method`; only module-level functions keep their
+ * plain name.
+ */
 export const extractPythonFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: PythonState = { acc: new FactsAccumulator() };
   walkWithHandlers(root, state, HANDLERS);

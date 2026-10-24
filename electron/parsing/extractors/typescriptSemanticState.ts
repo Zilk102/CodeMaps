@@ -1,7 +1,10 @@
+// Mutable collector filled by the TypeScript AST visitors while they walk one file.
+
 import ts from 'typescript';
 import { ParseResult, SourceLocation } from '../types';
 import { resolveTypeScriptModule } from '../semantic/typescriptProjectService';
 
+/** 1-based line and column range of a node. */
 export const getSourceLocation = (sourceFile: ts.SourceFile, node: ts.Node): SourceLocation => {
   const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
@@ -37,6 +40,10 @@ export class TypeScriptSemanticState {
     private readonly baseDir?: string
   ) {}
 
+  /**
+   * Records the entities a module re-exports, merging repeated re-exports of one specifier. The
+   * resolved path is computed on first sight; blank specifiers are ignored.
+   */
   addReExport(moduleSpecifier: string, entities: Set<string>) {
     const specifier = moduleSpecifier.trim();
     if (!specifier) return;
@@ -48,6 +55,10 @@ export class TypeScriptSemanticState {
     this.reExportsMap.set(specifier, current);
   }
 
+  /**
+   * Records the entities imported from a module, merging repeated imports of one specifier. The
+   * resolved path is computed on first sight; blank specifiers are ignored.
+   */
   addImport(moduleSpecifier: string, importedEntities: Set<string>) {
     const normalizedSpecifier = moduleSpecifier.trim();
     if (!normalizedSpecifier) return;
@@ -73,6 +84,9 @@ export class TypeScriptSemanticState {
     });
   }
 
+  /**
+   * Records an export once per exported name, local name and default flag. Blank names are ignored.
+   */
   addExport(exportedName?: string, localName?: string, isDefault: boolean = false) {
     const normalizedExportedName = exportedName?.trim();
     if (!normalizedExportedName) return;
@@ -88,6 +102,10 @@ export class TypeScriptSemanticState {
     });
   }
 
+  /**
+   * Registers a declaration as exported when it has the `export` modifier. A default export is
+   * recorded under its own name and under `default`.
+   */
   registerDeclarationExport(node: ts.Node, localName?: string) {
     if (!hasModifierKind(node, ts.SyntaxKind.ExportKeyword) || !localName) return;
     const isDefault = hasModifierKind(node, ts.SyntaxKind.DefaultKeyword);

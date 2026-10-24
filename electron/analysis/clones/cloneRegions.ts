@@ -1,5 +1,9 @@
+// Grows matching token n-grams into maximal copied regions and groups regions that are copies of
+// each other.
+
 import { UnionFind } from './cloneUnionFind';
 
+/** A half-open token range [start, end) inside one token stream (a file). */
 export interface Region {
   stream: number;
   start: number;
@@ -20,6 +24,10 @@ export class RegionMatcher {
     private readonly maxGap: number
   ) {}
 
+  /**
+   * True when the n-grams at the two positions are token for token equal; used to tell real matches
+   * from hash collisions.
+   */
   equalGram(streamA: number, posA: number, streamB: number, posB: number): boolean {
     const a = this.ids[streamA];
     const b = this.ids[streamB];
@@ -29,6 +37,10 @@ export class RegionMatcher {
     return true;
   }
 
+  /**
+   * Union-find node of a region, registering the region on first sight so equal ranges share one
+   * node.
+   */
   private nodeOf(region: Region): number {
     const key = `${region.stream}:${region.start}:${region.end}`;
     let node = this.regionIds.get(key);
@@ -59,6 +71,11 @@ export class RegionMatcher {
     return { left, right };
   }
 
+  /**
+   * Extends the match of two equal n-grams in both directions and records the resulting region
+   * pair. Ignores overlapping n-grams and repetitions inside a single block, and records each pair
+   * once.
+   */
   addPair(streamA: number, posA: number, streamB: number, posB: number): void {
     if (streamA === streamB && Math.abs(posA - posB) < this.gram) return;
     const { left, right } = this.extent(streamA, posA, streamB, posB);

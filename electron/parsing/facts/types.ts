@@ -1,3 +1,5 @@
+// Types of the facts that language extractors read from the syntax tree.
+
 import type { Node } from 'web-tree-sitter';
 import type { EntityRecord, FileResolutionFacts } from '../types';
 

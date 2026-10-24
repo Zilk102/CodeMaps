@@ -1,6 +1,13 @@
+// AST visitors that collect declarations from TypeScript and JavaScript: functions, methods, types,
+// variables and properties, plus the exports they carry.
+
 import ts from 'typescript';
 import type { NodeVisitor } from './typescriptImportExportVisitors';
 
+/**
+ * Text of a declaration name: the literal text for identifiers and string or number keys, the raw
+ * source for computed or destructured names.
+ */
 const getPropertyNameText = (name: ts.PropertyName | ts.BindingName) => {
   if (
     ts.isIdentifier(name) ||
@@ -23,6 +30,10 @@ const visitFunctionDeclaration: NodeVisitor = (node, state) => {
   return true;
 };
 
+/**
+ * Records methods, method signatures and accessors as function entities. Does not mark them as
+ * exports.
+ */
 const visitMethodLike: NodeVisitor = (node, state) => {
   if (
     !ts.isMethodDeclaration(node) &&
@@ -36,6 +47,10 @@ const visitMethodLike: NodeVisitor = (node, state) => {
   return true;
 };
 
+/**
+ * Records classes, interfaces, enums and type aliases as `class` entities, and as exports when they
+ * carry an `export` modifier.
+ */
 const visitTypeDeclaration: NodeVisitor = (node, state) => {
   if (
     !ts.isClassDeclaration(node) &&
@@ -50,6 +65,10 @@ const visitTypeDeclaration: NodeVisitor = (node, state) => {
   return true;
 };
 
+/**
+ * Records a variable name; one initialised with an arrow or function expression is also a function
+ * entity. Registers the export of the enclosing statement when it has the `export` modifier.
+ */
 const visitVariableDeclaration: NodeVisitor = (node, state) => {
   if (!ts.isVariableDeclaration(node)) return false;
   const variableName = node.name.getText(state.sourceFile).trim();
@@ -81,5 +100,6 @@ const DECLARATION_VISITORS: NodeVisitor[] = [
   visitPropertyDeclaration,
 ];
 
+/** Tries each declaration visitor on the node; true when one of them handled it. */
 export const visitDeclarations: NodeVisitor = (node, state) =>
   DECLARATION_VISITORS.some((visit) => visit(node, state));

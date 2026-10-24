@@ -1,3 +1,5 @@
+// Facts of a Java file: package, imports, types, methods and used type names.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import {
@@ -19,6 +21,10 @@ const TYPE_DECLARATIONS = new Set([
   'annotation_type_declaration',
 ]);
 
+/**
+ * One import. A wildcard import keeps the package with `*`; a static import names the class and the
+ * imported member, since the file depends on the class. Null when no name is found.
+ */
 const readImport = (declaration: Node): ImportRecord | null => {
   const name = namedOf(declaration).find((child) => child.type === 'scoped_identifier');
   if (!name) return null;
@@ -83,6 +89,10 @@ const HANDLERS: Record<string, (node: Node, state: JavaState) => boolean> = {
 };
 for (const type of TYPE_DECLARATIONS) HANDLERS[type] = declareType;
 
+/**
+ * Facts of a Java file. Methods are named `Type.method`; used names are type identifiers and
+ * capitalised identifiers (the `Strings` of `Strings.join()`). No qualified uses are reported.
+ */
 export const extractJavaFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: JavaState = {
     imports: [],

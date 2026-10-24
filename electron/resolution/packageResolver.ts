@@ -1,3 +1,5 @@
+// Resolver for languages whose files declare dotted packages or namespaces (Java, Kotlin, C#, PHP).
+
 import { findTypeIn, typeNamesOf } from './packageLookup';
 import {
   entityTarget,
@@ -32,6 +34,7 @@ export class PackageResolver implements LanguageResolver {
     return [file.facts.packageName ?? ''];
   }
 
+  /** Indexes the files of this language and its peers by the packages they declare. */
   async prepare(index: ProjectIndex): Promise<void> {
     this.index = index;
     this.filesByPackage = new Map();
@@ -88,6 +91,10 @@ export class PackageResolver implements LanguageResolver {
     });
   }
 
+  /**
+   * Edges to the types the file imports, plus those it uses from the packages visible without an
+   * import (the same package). Self references are dropped.
+   */
   resolve(file: FileEntry): ResolvedEdge[] {
     const used = new Set(file.facts.usedNames);
     // Classes of the same package are visible without an import.

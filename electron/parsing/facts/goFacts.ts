@@ -1,3 +1,6 @@
+// Facts of a Go file: package name, imports with aliases, types, functions and methods, and
+// `pkg.Name` uses.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { addOwnedFunction, unquote, namedOf } from './astUtils';
@@ -10,6 +13,10 @@ import {
 } from './factsAccumulator';
 import type { LanguageFactsWithDeclarations } from './types';
 
+/**
+ * Name of the type a method is declared on, looking through `*T` and generic `T[P]`; undefined when
+ * it cannot be determined.
+ */
 const receiverTypeName = (method: Node): string | undefined => {
   const receiver = method.childForFieldName('receiver');
   let type = receiver?.namedChildren[0]?.childForFieldName('type') ?? null;
@@ -21,6 +28,7 @@ const receiverTypeName = (method: Node): string | undefined => {
   return type?.type === 'type_identifier' ? type.text : undefined;
 };
 
+/** One import spec; keeps the alias (including `.` and `_`) verbatim. Null without a path. */
 const readImport = (spec: Node): ImportRecord | null => {
   const pathNode = spec.childForFieldName('path');
   if (!pathNode) return null;
@@ -74,6 +82,9 @@ const HANDLERS: Record<string, NodeHandler<GoState>> = {
   },
 };
 
+/**
+ * Facts of a Go file. Methods are named `Type.method`, and the package clause gives `packageName`.
+ */
 export const extractGoFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: GoState = { acc: new FactsAccumulator() };
   walkWithHandlers(root, state, HANDLERS);

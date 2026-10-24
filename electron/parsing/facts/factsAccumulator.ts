@@ -1,3 +1,5 @@
+// Shared state and node handlers for the AST-walking fact extractors.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord, QualifiedUse } from '../types';
 import {
@@ -25,10 +27,15 @@ export class FactsAccumulator {
     if (node.text.length > 1) this.usedNames.add(node.text, node.text);
   }
 
+  /** Records a use of `qualifier<separator>name`, such as `fmt.Println`, once. */
   noteQualified(separator: string, qualifier: string, name: string): void {
     this.qualifiedUses.add(`${qualifier}${separator}${name}`, { qualifier, name });
   }
 
+  /**
+   * Final facts of the file: collected imports, entities, declarations, qualified uses and used
+   * names, plus language-specific `extra` fields.
+   */
   toFacts<Extra extends object>(extra: Extra): LanguageFactsWithDeclarations & Extra {
     return {
       imports: this.imports,

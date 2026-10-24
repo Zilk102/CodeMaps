@@ -1,3 +1,6 @@
+// Public shapes of the duplication report returned by the MCP tool.
+
+/** Location of one copy of duplicated code. */
 export interface DuplicateCopy {
   /** Project-relative, forward slashes. */
   file: string;
@@ -6,8 +9,13 @@ export interface DuplicateCopy {
   test: boolean;
 }
 
+/**
+ * Kind of refactoring proposed for a group: pull out a function, move code to a shared module, or
+ * keep one identical copy.
+ */
 export type DuplicateAction = 'extract_function' | 'extract_shared_module' | 'merge_into_one';
 
+/** Where and how to remove a group of copies. */
 export interface DuplicateSuggestion {
   action: DuplicateAction;
   sameFile: boolean;
@@ -20,6 +28,7 @@ export interface DuplicateSuggestion {
   reason: string;
 }
 
+/** One set of copies of the same code with the advice for removing it. */
 export interface DuplicateGroup {
   id: string;
   lineCount: number;
@@ -30,6 +39,10 @@ export interface DuplicateGroup {
   differences: string[];
 }
 
+/**
+ * The duplicated code of a project, worst groups first, with totals that cover groups beyond the
+ * `limit`.
+ */
 export interface DuplicateReport {
   totalGroups: number;
   /** Sum over groups of lineCount * (copies - 1): the lines that removing the copies saves. */
@@ -39,6 +52,9 @@ export interface DuplicateReport {
   omittedGroups: number;
 }
 
+/**
+ * Filters of the report; omitted fields mean no filter (default `limit` is 10, tests are excluded).
+ */
 export interface DuplicateReportOptions {
   limit?: number;
   minLines?: number;

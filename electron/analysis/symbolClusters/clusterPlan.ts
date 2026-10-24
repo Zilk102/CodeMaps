@@ -1,9 +1,16 @@
+// Turns the clustered groups into the public plan: cluster names and file names, cohesion,
+// confidence and advice.
+
 import * as path from 'path';
 import type { SplitCluster, SplitPlan, SymbolGraph, SymbolInfo } from './types';
 import type { Analysis } from './clusterEdges';
 import type { Group } from './clusterCommunities';
 import { fileNameFor, simpleName } from './clusterTokens';
 
+/**
+ * Picks a name for a cluster from its most telling word, else from its largest symbol. Adds `_2`,
+ * `_3`... until the name is not in `taken`, and records it there.
+ */
 const nameCluster = (
   members: number[],
   symbols: SymbolInfo[],
@@ -18,6 +25,10 @@ const nameCluster = (
   return candidate;
 };
 
+/**
+ * The word that best names a cluster: frequent among its members and rare in the rest of the file;
+ * ties favour longer words. Empty when the members share no word.
+ */
 const bestToken = (
   members: number[],
   tokensOf: string[][],
@@ -83,6 +94,11 @@ const countOutgoingUse = (
   return { helperUse, talksTo };
 };
 
+/**
+ * Builds the public cluster entries: name, suggested file, line and symbol counts, the first
+ * `listLimit` symbols, the shared helpers the cluster calls (at most 6) and the other clusters it
+ * depends on, most used first.
+ */
 export const describeClusters = (
   analysis: Analysis,
   groups: Group[],
@@ -122,6 +138,10 @@ export const describeClusters = (
   });
 };
 
+/**
+ * Confidence that the split is clean: low with fewer than two clusters, cohesion below 0.45 or one
+ * cluster holding over 60% of the lines; medium below 0.7 cohesion, otherwise high.
+ */
 export const rateConfidence = (
   clusterCount: number,
   cohesion: number,
@@ -131,6 +151,10 @@ export const rateConfidence = (
   return cohesion < 0.7 ? 'medium' : 'high';
 };
 
+/**
+ * One sentence of guidance matching the outcome: no real split, one dominant cluster, weakly
+ * separated clusters, or a clean split.
+ */
 export const adviceFor = (
   clusterCount: number,
   largestShare: number,
@@ -148,6 +172,10 @@ export const adviceFor = (
   return 'Move each cluster to its own file; keep shared helpers in the original file or a small shared file, and update imports.';
 };
 
+/**
+ * Up to three largest symbols that span at least 40 lines; one huge function or table is often the
+ * real problem.
+ */
 export const heaviestSymbols = (symbols: SymbolInfo[]): SplitPlan['heaviest'] =>
   [...symbols]
     .sort((a, b) => b.lineCount - a.lineCount)

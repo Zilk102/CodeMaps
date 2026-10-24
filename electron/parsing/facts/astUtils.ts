@@ -1,3 +1,6 @@
+// Tree-sitter helpers shared by the per-language fact extractors: location conversion, tree walks
+// and bounded collectors.
+
 import type { Node } from 'web-tree-sitter';
 import type { EntityRecord, SourceLocation } from '../types';
 import type { DeclarationNode } from './types';
@@ -5,6 +8,7 @@ import type { DeclarationNode } from './types';
 export const MAX_USED_NAMES = 600;
 export const MAX_QUALIFIED_USES = 400;
 
+/** 1-based line and column range of a syntax node. */
 export const toLocation = (node: Node): SourceLocation => ({
   startLine: node.startPosition.row + 1,
   startColumn: node.startPosition.column + 1,
@@ -27,12 +31,15 @@ export const walkNamed = (root: Node, visit: (node: Node) => boolean | void): vo
 export const namedOf = (node: Node): Node[] =>
   node.namedChildren.filter((child): child is Node => !!child);
 
+/** All children of a node, anonymous tokens included, without the nullable holes of the typings. */
 export const allChildren = (node: Node): Node[] =>
   node.children.filter((child): child is Node => !!child);
 
+/** Children stored under a grammar field name. */
 export const fieldChildren = (node: Node, field: string): Node[] =>
   node.childrenForFieldName(field).filter((child): child is Node => !!child);
 
+/** Strips one leading and one trailing quote character (`"`, `'` or backtick). */
 export const unquote = (value: string): string => value.replace(/^["'`]|["'`]$/g, '');
 
 /** Collects entities once per `type:name`, like the query extractor does. */
@@ -49,6 +56,10 @@ export class EntityCollector {
    */
   constructor(private readonly uniqueNames = false) {}
 
+  /**
+   * Records an entity unless one with the same key was added; blank names are ignored. Also keeps
+   * the node that declares it.
+   */
   add(type: EntityRecord['type'], name: string, node: Node): void {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -65,11 +76,13 @@ export class BoundedSet<T> {
   private readonly values = new Map<string, T>();
   constructor(private readonly limit: number) {}
 
+  /** Stores the value unless the set is full or the key exists already. */
   add(key: string, value: T): void {
     if (this.values.size >= this.limit || this.values.has(key)) return;
     this.values.set(key, value);
   }
 
+  /** The stored values in insertion order. */
   toArray(): T[] {
     return [...this.values.values()];
   }

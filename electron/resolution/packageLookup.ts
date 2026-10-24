@@ -1,3 +1,5 @@
+// Lookup of types by qualified name in a package-to-files table.
+
 import { hasEntity, type FileEntry, type ProjectIndex } from './types';
 
 /** Top-level type names of a file: nested members are labelled `Outer.member`, so plain names. */

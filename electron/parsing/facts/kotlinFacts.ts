@@ -1,3 +1,6 @@
+// Facts of a Kotlin file: package, imports with aliases, classes, objects and functions, and used
+// names.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { namedOf } from './astUtils';
@@ -19,6 +22,7 @@ interface KotlinState {
 const childOfType = (node: Node, type: string): Node | undefined =>
   namedOf(node).find((child) => child.type === type);
 
+/** One import header. A `.*` import gets `*`, an `as` alias is kept; null without a path. */
 const readImport = (header: Node): ImportRecord | null => {
   const path = childOfType(header, 'identifier')?.text;
   if (!path) return null;
@@ -79,6 +83,10 @@ const HANDLERS: Record<string, NodeHandler<KotlinState>> = {
   },
 };
 
+/**
+ * Facts of a Kotlin file. Member functions are named `Owner.fn`; functions nested inside other
+ * functions are skipped. Used names are types, callees and capitalised identifiers.
+ */
 export const extractKotlinFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: KotlinState = { acc: new FactsAccumulator(true) };
   walkWithHandlers(root, state, HANDLERS);

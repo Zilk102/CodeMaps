@@ -1,7 +1,13 @@
+// Detects which supported languages a project uses.
+
 import * as path from 'path';
 import { getLanguageByExtension } from './languageRegistry';
 import { ProjectLanguageProfile } from './types';
 
+/**
+ * Counts files per supported language by extension. `activeLanguageIds` lists the languages
+ * present, most files first, ties by id.
+ */
 export const detectProjectLanguages = (filePaths: string[]): ProjectLanguageProfile => {
   const languageFileCounts: Record<string, number> = {};
 

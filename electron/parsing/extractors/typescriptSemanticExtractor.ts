@@ -1,3 +1,6 @@
+// TypeScript and JavaScript extractor built on the TypeScript compiler API: declarations, imports
+// with resolved paths, exports and calls.
+
 import ts from 'typescript';
 import { LanguageDefinition, ParseResult } from '../types';
 import { visitDeclarations } from './typescriptDeclarationVisitors';
@@ -22,6 +25,11 @@ const walk = (node: ts.Node, state: TypeScriptSemanticState): void => {
   ts.forEachChild(node, (child) => walk(child, state));
 };
 
+/**
+ * Parses one TS/JS file and walks its AST. Import and re-export specifiers are resolved to files
+ * with the project's tsconfig (within `baseDir` when given). Comments are taken with a regex over
+ * the raw text, so a comment-like string literal is included too.
+ */
 export const extractWithTypeScriptSemantic = (
   filePath: string,
   text: string,

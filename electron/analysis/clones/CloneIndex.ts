@@ -39,6 +39,11 @@ export class CloneIndex {
     return this.refresh(graph.projectRoot ?? '', files, includeTests);
   }
 
+  /**
+   * Recomputes the groups for an explicit file list, de-duplicating concurrent calls per project.
+   * Tests (unless `includeTests`) and generated files are dropped and the list is capped at 4000
+   * files.
+   */
   refresh(root: string, files: string[], includeTests = false): Promise<CloneGroup[]> {
     // Groups with and without tests are different results, so they are cached apart.
     const key = includeTests ? `${root}::tests` : root;
@@ -53,11 +58,17 @@ export class CloneIndex {
     });
   }
 
+  /** Forgets every cached token stream and result, so the next refresh starts cold. */
   clear() {
     this.streams.clear();
     this.results.clear();
   }
 
+  /**
+   * Detects clones for one cache key. Returns the previous groups untouched when no file changed
+   * (same path, mtime and size), otherwise re-tokenizes only the changed files and runs detection
+   * again.
+   */
   private async compute(key: string, files: string[]): Promise<CloneGroup[]> {
     const present = await statFiles(files, STAT_CONCURRENCY);
     const signature = present

@@ -1,3 +1,6 @@
+// Resolves C and C++ `#include` directives to project files and links sources to the headers they
+// implement.
+
 import type { ImportRecord } from '../parsing/types';
 import {
   bucketsBy,
@@ -31,6 +34,10 @@ interface CppTables {
 const suffixTable = (files: FileEntry[], root: string) =>
   bucketsBy(files, (entry) => pathSuffixes(entry.path, root));
 
+/**
+ * C/C++ resolver. Finds included files by include-path search, then by path suffix, and links the
+ * declarations of the header that the includer uses or defines.
+ */
 export class CppResolver extends IndexedResolver<CppTables> {
   readonly languageId = 'cpp';
 

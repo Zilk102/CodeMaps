@@ -1,3 +1,6 @@
+// Regex-and-brace fallback that measures classes and functions when the TypeScript analysis yields
+// nothing. Reports line counts only: complexity and nesting are fixed placeholders.
+
 import {
   findMatchingBrace,
   findNextOpenBrace,
@@ -21,6 +24,10 @@ const CLASS_REGEX = /\bclass\s+([A-Za-z_$][\w$]*)/gu;
 const METHOD_REGEX =
   /(?:^|\n)\s*(?:(public|protected|private)\s+)?(?:(?:static|abstract|override|readonly|async|get|set)\s+)*(?!if\b|for\b|while\b|switch\b|catch\b|else\b|do\b|try\b)([A-Za-z_$][\w$]*)\s*(?:=\s*(?:async\s*)?\([^)]*\)\s*=>|\([^;=\n]*\)\s*(?::[^{=\n]+)?\s*)\{/gmu;
 
+/**
+ * Finds the methods in the body of one class and counts the public ones (no modifier or `public`).
+ * Methods whose braces do not balance are skipped.
+ */
 function analyzeClassBody(bodyText: string): {
   methods: SourceFunctionMetric[];
   publicMethodCount: number;
@@ -60,6 +67,10 @@ function analyzeClassBody(bodyText: string): {
   };
 }
 
+/**
+ * Metric for a function whose body spans the two braces. Only the line count and body hash are
+ * measured; the line range is 0 and complexity 1 because regexes cannot know them.
+ */
 function createRegexFunctionMetric(
   name: string,
   text: string,
@@ -85,6 +96,10 @@ interface RegexClassScan {
   maxMethodLineCount: number;
 }
 
+/**
+ * Finds every class with balanced braces and measures it. Returns the source range of each class
+ * too, so top-level function detection can skip code inside classes.
+ */
 function scanClassesWithRegex(text: string): RegexClassScan {
   const scan: RegexClassScan = {
     ranges: [],
@@ -132,6 +147,10 @@ function scanClassesWithRegex(text: string): RegexClassScan {
   return scan;
 }
 
+/**
+ * Finds `function` declarations and arrow functions assigned to a variable that are not inside one
+ * of the class ranges. Returns their line counts and body hashes.
+ */
 function scanTopLevelFunctionsWithRegex(
   text: string,
   classRanges: Array<{ start: number; end: number }>
@@ -166,6 +185,10 @@ function scanTopLevelFunctionsWithRegex(
   return topLevelFunctions;
 }
 
+/**
+ * One synthetic `Class::*` entry per class that has a long method, because this fallback cannot
+ * name the method; it carries the class's longest method length.
+ */
 function longClassMethodPlaceholders(classMetrics: SourceClassMetric[]): SourceFunctionMetric[] {
   return classMetrics
     .filter((classMetric) => classMetric.maxMethodLineCount >= LONG_METHOD_LINES)
@@ -180,6 +203,10 @@ function longClassMethodPlaceholders(classMetrics: SourceClassMetric[]): SourceF
     }));
 }
 
+/**
+ * Structure metrics of a JS/TS file computed with regexes. Returns empty metrics for empty or
+ * missing text and never reports complex methods.
+ */
 export function analyzeSourceFileStructureWithRegex(text: string | null): SourceFileMetrics {
   if (!text) {
     return emptyMetrics();

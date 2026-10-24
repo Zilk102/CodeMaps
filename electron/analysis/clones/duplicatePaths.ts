@@ -1,3 +1,4 @@
+/** Converts Windows separators to forward slashes. */
 export const toPosix = (value: string) => value.replace(/\\/g, '/');
 
 /** `file` relative to `root` with forward slashes; unchanged when it lies outside the root. */

@@ -1,7 +1,11 @@
+// Token-based clone detector: finds copied code across files with winnowed n-gram hashes and reports
+// it as groups of copies.
+
 import type { TokenStream } from './tokenize';
 import { collectBuckets, internStreams } from './cloneWinnowing';
 import { matchBuckets, maximalRegions, RegionMatcher, type Region } from './cloneRegions';
 
+/** One copy of a clone group: its file, line range and token range. */
 export interface CloneInstance {
   file: string;
   startLine: number;
@@ -11,6 +15,7 @@ export interface CloneInstance {
   tokenEnd: number;
 }
 
+/** A set of two or more copies of the same code, all cut to the same token length. */
 export interface CloneGroup {
   /** Tokens in one copy. */
   tokenCount: number;
@@ -19,6 +24,10 @@ export interface CloneGroup {
   instances: CloneInstance[];
 }
 
+/**
+ * Tuning of the detector; `DEFAULT_CLONE_OPTIONS` holds the values used in production and tests may
+ * override single fields.
+ */
 export interface CloneOptions {
   /** Length of the token n-gram that is hashed. */
   gram: number;
@@ -86,6 +95,11 @@ const sharedLength = (
   return { distinct: [], length: 0 };
 };
 
+/**
+ * Turns the regions of one match class into a reported group. Returns null when fewer than two
+ * distinct copies share `minTokens` tokens, the code has no control flow (pure data) or the copies
+ * are shorter than `minLines`.
+ */
 const toGroup = (
   members: Region[],
   streams: TokenStream[],

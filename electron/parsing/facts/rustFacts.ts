@@ -1,3 +1,6 @@
+// Facts of a Rust file: `use` imports, `mod x;` declarations, types, functions and impl methods, and
+// `a::b` uses.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { addOwnedFunction, namedOf } from './astUtils';
@@ -101,6 +104,10 @@ const HANDLERS: Record<string, NodeHandler<RustState>> = {
   type_identifier: identifierHandler,
 };
 
+/**
+ * Facts of a Rust file. `use` trees are flattened to one import per leaf, impl methods are named
+ * `Type::method` and `mod name;` declarations (without a body) list the child module files.
+ */
 export const extractRustFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: RustState = { acc: new FactsAccumulator(), moduleDeclarations: [] };
   walkWithHandlers(root, state, HANDLERS, declareItems);
