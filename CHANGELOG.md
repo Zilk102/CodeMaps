@@ -1,5 +1,15 @@
 # CodeMaps Changelog
 
+## v1.1.58 (2026-10-24)
+
+### Added
+
+- **Documentation control for all languages.** CodeMaps measures how well code is explained: a header for every file and a comment on every public symbol and every function of 10 lines or more, in JS/TS/TSX/Vue, Python, Go, Rust, Java, Kotlin, C/C++, C#, PHP, Ruby, Zig, Swift and Bash (each language's own convention: JSDoc, docstrings, `///`, Javadoc, PHPDoc, YARD and so on). It also catches echo comments ("Gets the user" above getUser), comments that are too short, and commented-out code. Tests and generated files are not counted.
+- **The 23rd MCP tool, `check_documentation`,** returns coverage, per-language stats, the worst files and the list of undocumented symbols with a hint of what the comment should say. `validate_architecture_changes` now reports a `missing_documentation` finding for changed files, the change and review contexts carry a `documentation` section, and the health score includes coverage (a penalty of up to 5 points below 80% coverage).
+- **A "Documentation" tab in the Workspace panel:** coverage, undocumented symbols, files without a header, empty comments, per-language bars and the worst files; clicking a file selects it in the graph.
+- **A strict guardian:** `npm run docs` exits with code 1 on any finding and is part of `npm run verify` and CI. All CodeMaps code (about 400 files, 1749 required symbols) is documented: 100% coverage. The agent skill tells agents to document every new and changed file and public symbol (purpose, contract, why) and to call `check_documentation` after writing code.
+- `declarationsTypeScript` and `ReviewContextService` were split. Tests: 527 -> 702.
+
 ## v1.1.57 (2026-10-24)
 
 ### Changed
