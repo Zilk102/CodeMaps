@@ -9,6 +9,7 @@ export const ORACLE_IGNORE_GLOBS = [
   '**/dist/**',
   '**/dist-electron/**',
   '**/dist-renderer/**',
+  '**/dist-guard/**',
   '**/build/**',
   '**/release/**',
   '**/.git/**',

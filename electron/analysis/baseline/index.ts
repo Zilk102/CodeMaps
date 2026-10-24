@@ -13,6 +13,7 @@ export {
   BASELINE_FILE_NAME,
   baselineFromFindings,
   baselinePath,
+  parseBaseline,
   readBaseline,
   shrinkBaseline,
   writeBaseline,

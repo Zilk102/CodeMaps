@@ -22,7 +22,7 @@ export function registerSetupTools(server: McpServer) {
       name: 'setup_project',
       title: 'Setup Project',
       description:
-        'Configure the project for AI agents in one call. Detects the stack, its test/lint/build commands and the agent in use, then writes the guardrails: an AGENTS.md section, the agent rules (CLAUDE.md, Cursor, Copilot, Gemini, Windsurf, Cline), the CodeMaps skill, an edit-validation hook, .codemaps/config.json and a baseline that freezes legacy findings. Idempotent, cheap when up to date, never overwrites user content, writes only inside the project.',
+        'Configure the project for AI agents in one call. Detects the stack, its test/lint/build commands and the agent in use, then writes the guardrails: an AGENTS.md section, the agent rules (CLAUDE.md, Cursor, Copilot, Gemini, Windsurf, Cline), the CodeMaps skill, an edit-validation hook, .codemaps/config.json, a baseline that freezes legacy findings and the CI wiring of the headless codemaps-guard (a GitHub Actions workflow, or a portable script). Idempotent, cheap when up to date, never overwrites user content, writes only inside the project.',
       inputSchema: {
         projectPath: projectPathField,
         agents: z

@@ -57,6 +57,7 @@ Call `setup_project` once per project, before anything else. It is idempotent an
 
 - `.codemaps/baseline.json` freezes the findings the project already had when `setup_project` ran. Only new or worsened findings are reported (`legacyDebt` summarizes the rest), so fix what you introduced and leave old debt alone unless the task is to pay it down.
 - Never edit the baseline by hand and never add to it. After paying debt down, call `validate_architecture_changes` with `refreshBaseline: true`, which only ever shrinks it, and tell the user to commit the smaller file.
+- CI enforces the same rules: pull requests run `codemaps-guard` (`.github/workflows/codemaps-guard.yml` or `.codemaps/ci/`), which fails on new or worsened findings and when the baseline grows. A clean `validate_architecture_changes` and `check_documentation` run keeps it green.
 - `.codemaps/config.json` holds the project's rules (`mode`, `exclude`, `thresholds`, `documentation`). Change it only when the user asks.
 
 ## Refactoring Legacy Code

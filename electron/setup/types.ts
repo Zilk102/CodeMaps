@@ -94,10 +94,12 @@ export interface BaselineSummary {
   byKind?: Record<string, number>;
 }
 
-/** A CI suggestion; CodeMaps never writes workflow files. */
+/** What `setup_project` did about CI: which provider it wired, in which files, and what is left to do by hand. */
 export interface CiSuggestion {
   provider: string;
   text: string;
+  /** The CI files CodeMaps owns for this project (the workflow, or the snippet and script). */
+  files: string[];
 }
 
 /** The compact, bounded result of `setup_project`. */

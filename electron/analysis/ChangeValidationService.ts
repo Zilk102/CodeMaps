@@ -81,6 +81,17 @@ const ADVISORY_PATTERNS = new Set(['hub_nodes']);
 const MAX_PROJECT_FINDINGS = 10;
 const MAX_EVIDENCE = 5;
 
+/**
+ * Whether a finding makes a validation fail: high severity, except for advisory patterns such as
+ * hubs. Exported so other front ends (the headless CI guard) decide exactly like the MCP tool.
+ */
+export const isBlockingFinding = (finding: Pick<ChangeFinding, 'id' | 'severity'>): boolean =>
+  finding.severity === 'high' && !ADVISORY_PATTERNS.has(finding.id);
+
+/** Whether a finding is only information (a hub): nothing an edit to the file could fix. */
+export const isAdvisoryFinding = (finding: Pick<ChangeFinding, 'id'>): boolean =>
+  ADVISORY_PATTERNS.has(finding.id);
+
 const normalize = (value: string) => value.replace(/\\/g, '/').toLowerCase();
 const fileOf = (nodeId: string) => nodeId.split('#')[0];
 /**
@@ -183,9 +194,7 @@ const judge = (input: {
     .concat(documentationFindingForChanges(input.documentation, input.changedFiles) ?? []);
 
   // Who depends on a file is not something an edit to it can fix, so a hub never blocks.
-  const blocking = findings.filter(
-    (finding) => finding.severity === 'high' && !ADVISORY_PATTERNS.has(finding.id)
-  );
+  const blocking = findings.filter(isBlockingFinding);
 
   return {
     scope: 'changed',

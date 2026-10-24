@@ -12,6 +12,7 @@ import { detectProject } from './detectProject';
 import { planFiles } from './planFiles';
 import { isSameFile, resolveInsideRoot, UnsafePathError } from './projectFiles';
 import { withProjectLock } from './projectLock';
+import { ciFilePaths } from './ciFiles';
 import { buildNextSteps, ciSuggestionFor } from './setupAdvice';
 import type {
   BaselineSummary,
@@ -87,7 +88,10 @@ const execute = async (
 ): Promise<RunState> => {
   const detected = detectProject(options.root);
   const agents = detectAgents(options.root, options.clientName, options.agents);
-  const outcomes = applyAll(planFiles(options.root, agents.selected, detected), env);
+  const outcomes = applyAll(
+    planFiles(options.root, agents.selected, detected, options.version),
+    env
+  );
   outcomes.push(configStep(env));
   const baseline = await baselineStep(env, deps.createBaseline);
   if (baseline.created) outcomes.push({ path: baseline.summary.path, action: 'created' });
@@ -129,8 +133,9 @@ const report = (options: SetupOptions, state: RunState): SetupResult => {
       warnings,
       baseline,
       agents: agents.selected,
+      ciFiles: ciFilePaths(options.root, detected),
     }),
-    ciSuggestion: ciSuggestionFor(detected),
+    ciSuggestion: ciSuggestionFor(options.root, detected),
   };
 };
 

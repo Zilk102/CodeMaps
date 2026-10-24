@@ -70,7 +70,16 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 - **That is all you configure.** The server tells the agent to call `setup_project` first. It detects the stack and the agent, writes `AGENTS.md`, the agent rules, the `codemaps-agent-autopilot` skill and an edit-validation hook, and freezes the findings an old codebase already has in `.codemaps/baseline.json`, so only new problems are reported. Re-running it changes nothing. See [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) for every file it writes and how to remove them.
 
 Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
-| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) | What `setup_project` writes for each agent, and how to remove it |
+
+### CI guard: the same rules without the app
+
+`setup_project` also writes the CI wiring (`.github/workflows/codemaps-guard.yml`, or a GitLab snippet and a portable script under `.codemaps/ci/`). Pull requests then run `codemaps-guard`, a standalone Node bundle with no app, no Electron and no network access, that fails on new or worsened findings and on a baseline that grew. Try it by hand with the `codemaps-guard.tgz` release asset:
+
+```bash
+tar -xzf codemaps-guard.tgz && node guard/guard.mjs check --base origin/main
+```
+
+See [docs/CI_GUARD.md](docs/CI_GUARD.md).
 
 ## Supported languages
 
@@ -89,6 +98,8 @@ Cross-file dependency accuracy is highest for the semantic tier; for the others 
 | Document                                                 | About                                                  |
 | -------------------------------------------------------- | ------------------------------------------------------ |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code and Desktop setup, skill, validation hook  |
+| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md)               | What `setup_project` writes for each agent and CI      |
+| [docs/CI_GUARD.md](docs/CI_GUARD.md)                     | The headless `codemaps-guard` for any project's CI     |
 | [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Reference for all 24 tools and 4 resources (generated) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | How CodeMaps is built and why                          |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | Development setup, checks, release process             |

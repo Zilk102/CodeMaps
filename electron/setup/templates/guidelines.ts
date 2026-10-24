@@ -47,6 +47,10 @@ ${commandsSection(detected)}
 
 \`.codemaps/baseline.json\` freezes the findings the project already had. Only new or worsened findings are reported, so fix those and leave old debt alone unless the task is to pay it down. Never edit the baseline by hand.
 
+### CI
+
+Pull requests run \`codemaps-guard\` (see \`.github/workflows/codemaps-guard.yml\` or \`.codemaps/ci/\`), which applies the same rules headlessly: it fails on new or worsened findings and when the baseline grows. Passing \`validate_architecture_changes\` and \`check_documentation\` locally keeps CI green.
+
 ### Large changes and legacy refactoring
 
 - Cross-cutting migrations: \`prepare_change_campaign\`, then work wave by wave.

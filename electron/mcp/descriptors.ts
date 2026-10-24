@@ -72,7 +72,7 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     name: 'setup_project',
     title: 'Setup Project',
     description:
-      'Configures the project for AI agents in one call: detects the stack, its commands and the agent in use, then writes an AGENTS.md section, agent rules, the CodeMaps skill, an edit-validation hook, .codemaps/config.json and a baseline that freezes legacy findings. Idempotent, never overwrites user content, writes only inside the project.',
+      'Configures the project for AI agents in one call: detects the stack, its commands and the agent in use, then writes an AGENTS.md section, agent rules, the CodeMaps skill, an edit-validation hook, .codemaps/config.json, a baseline that freezes legacy findings and the CI wiring of the headless codemaps-guard (a GitHub Actions workflow, or a portable script). Idempotent, never overwrites user content, writes only inside the project.',
     preferredForAgents: true,
     recommendedWhen:
       'First thing in every project (idempotent and cheap; it reports upToDate), so the user never configures anything by hand.',

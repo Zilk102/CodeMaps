@@ -87,3 +87,11 @@ jobs:
 
       - name: Documentation coverage
         run: npm run docs
+
+      # Dogfood: the standalone headless guard (the one setup_project wires into other projects'
+      # CI) is bundled from this checkout and must pass on the CodeMaps repo itself.
+      - name: Build the headless guard
+        run: npm run build:guard
+
+      - name: Headless guard on this repo
+        run: node dist-guard/guard/guard.mjs check --root . --format github

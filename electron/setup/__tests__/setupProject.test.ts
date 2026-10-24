@@ -41,6 +41,8 @@ describe('setupProject: first run', () => {
         '.claude/skills/codemaps-agent-autopilot/SKILL.md',
         '.codemaps/.gitignore',
         '.codemaps/baseline.json',
+        '.codemaps/ci/gitlab-ci.yml',
+        '.codemaps/ci/guard.sh',
         '.codemaps/config.json',
         '.codemaps/hooks/validate.mjs',
         '.codemaps/setup.json',

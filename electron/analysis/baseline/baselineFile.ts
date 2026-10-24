@@ -22,18 +22,26 @@ const isMeasureMap = (value: unknown): value is Record<string, number> =>
   !Array.isArray(value) &&
   Object.values(value).every((measure) => typeof measure === 'number');
 
-/** The baseline of a project, or null when there is none or the file is not a valid baseline. */
-export const readBaseline = (root: string | undefined): Baseline | null => {
-  if (!root) return null;
+/** The baseline a file's text describes, or null when the text is not a valid baseline. */
+export const parseBaseline = (text: string): Baseline | null => {
   try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(baselinePath(root), 'utf-8'));
-    const candidate = parsed as Partial<Baseline> | null;
+    const candidate = JSON.parse(text) as Partial<Baseline> | null;
     if (!candidate || !isMeasureMap(candidate.entries)) return null;
     return {
       version: 1,
       createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : '',
       entries: candidate.entries,
     };
+  } catch {
+    return null;
+  }
+};
+
+/** The baseline of a project, or null when there is none or the file is not a valid baseline. */
+export const readBaseline = (root: string | undefined): Baseline | null => {
+  if (!root) return null;
+  try {
+    return parseBaseline(fs.readFileSync(baselinePath(root), 'utf-8'));
   } catch {
     return null;
   }

@@ -141,8 +141,51 @@ jobs:
             release/latest*.yml
           retention-days: 1
 
+  # The headless guard (codemaps-guard) is released next to the installers: setup_project writes CI
+  # workflows that download codemaps-guard-<version>.tgz and its .sha256 from this release.
+  build-guard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'yarn'
+
+      - name: Update version from tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          jq ".version = \"$VERSION\"" package.json > package.json.tmp && mv package.json.tmp package.json
+          echo "Set version to: $VERSION"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build the guard
+        run: npm run build:guard
+
+      - name: Smoke test the packed guard
+        run: |
+          mkdir smoke
+          tar -xzf dist-guard/codemaps-guard.tgz -C smoke
+          node smoke/guard/guard.mjs version
+
+      - name: Upload guard artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-builds
+          path: |
+            dist-guard/codemaps-guard*.tgz
+            dist-guard/codemaps-guard*.sha256
+          retention-days: 1
+
   publish:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-guard]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -187,6 +230,7 @@ jobs:
           files: |
             artifacts/CodeMaps-*
             artifacts/latest*.yml
+            artifacts/codemaps-guard*
           generate_release_notes: true
           draft: false
           prerelease: false

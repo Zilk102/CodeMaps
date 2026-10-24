@@ -102,7 +102,7 @@
     "tools": {
       "setup_project": {
         "title": "项目设置",
-        "description": "一次调用即可为 AI 代理配置项目：检测技术栈、其命令和正在使用的代理，然后写入 AGENTS.md 段落、代理规则、CodeMaps 技能、编辑验证钩子、.codemaps/config.json，以及冻结历史问题的基线。幂等，从不覆盖用户内容，只在项目内写入。",
+        "description": "一次调用即可为 AI 代理配置项目：检测技术栈、其命令和正在使用的代理，然后写入 AGENTS.md 段落、代理规则、CodeMaps 技能、编辑验证钩子、.codemaps/config.json、冻结历史问题的基线，以及无界面 codemaps-guard 的 CI 接入（GitHub Actions 工作流或可移植脚本）。幂等，从不覆盖用户内容，只在项目内写入。",
         "recommendedWhen": "在每个项目中首先调用（幂等且开销很小，会报告 upToDate），用户无需手动配置任何内容。"
       },
       "analyze_project": {

@@ -11,8 +11,18 @@ let initPromise: Promise<void> | null = null;
 const loadedLanguages = new Map<string, Language>();
 const loadingLanguages = new Map<string, Promise<Language>>();
 
+/** Environment variable that points at a folder holding the grammars and `tree-sitter.wasm`; the bundled CI guard ships its own copy there. */
+export const WASM_DIR_ENV = 'CODEMAPS_WASM_DIR';
+
 const getWasmDirectory = () =>
+  process.env[WASM_DIR_ENV] ??
   path.join(__dirname, '..', '..', 'node_modules', 'tree-sitter-wasms', 'out');
+
+/** Runtime options: with a configured folder the core `tree-sitter.wasm` is looked up there too, because a bundle has no node_modules next to it. */
+const runtimeOptions = () =>
+  process.env[WASM_DIR_ENV]
+    ? { locateFile: (name: string) => path.join(getWasmDirectory(), name) }
+    : undefined;
 
 // Language.load() reaches into the Emscripten runtime that Parser.init() sets up,
 // so every entry point has to go through this before touching web-tree-sitter.
@@ -22,7 +32,7 @@ const getWasmDirectory = () =>
  */
 const ensureRuntimeInitialized = async (): Promise<void> => {
   if (!initPromise) {
-    initPromise = Parser.init().catch((error) => {
+    initPromise = Parser.init(runtimeOptions()).catch((error) => {
       initPromise = null;
       throw error;
     });

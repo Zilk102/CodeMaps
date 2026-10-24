@@ -12,7 +12,7 @@ export const MAX_INSTRUCTIONS_LENGTH = 1200;
 /** What every connected agent reads first. */
 export const SERVER_INSTRUCTIONS = `CodeMaps indexes the open codebase into a dependency graph and answers architecture questions with bounded tools.
 
-First thing in a project: call \`setup_project\` (idempotent and cheap; it reports upToDate). It detects the stack and your agent, then writes the guardrails itself (AGENTS.md section, agent rules, skill, edit hook, .codemaps config, and a baseline that freezes legacy findings), so the user never has to configure anything.
+First thing in a project: call \`setup_project\` (idempotent and cheap; it reports upToDate). It detects the stack and your agent, then writes the guardrails itself (AGENTS.md section, agent rules, skill, edit hook, .codemaps config, a baseline that freezes legacy findings, and a CI job that enforces the same rules), so the user never has to configure anything.
 
 Core loop:
 1. \`prepare_task_context\` with the user's request before coding.

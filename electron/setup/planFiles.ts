@@ -5,6 +5,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { planCiFiles } from './ciFiles';
 import { HOOK_COMMAND, HOOK_SCRIPT_PATH } from './claudeSettings';
 import { FILE_MARKER_TOKEN } from './markers';
 import { HOOK_TEMPLATE } from './templates/hookTemplate';
@@ -103,17 +104,19 @@ const CODEMAPS_GITIGNORE: PlannedFile = {
 
 /**
  * The files to write for `agents`: AGENTS.md always (the universal file), the per-agent files for
- * every selected agent, and the `.codemaps` cache ignore. Paths are unique and relative to `root`.
+ * every selected agent, the CI wiring of the guard (pinned to `version`) and the `.codemaps` cache
+ * ignore. Paths are unique and relative to `root`.
  */
 export const planFiles = (
   root: string,
   agents: AgentId[],
-  detected: DetectedProject
+  detected: DetectedProject,
+  version: string
 ): PlannedFile[] => {
   const guidance = buildGuidelines(detected);
   const files: PlannedFile[] = [block('AGENTS.md', guidance)];
   for (const agent of agents) files.push(...AGENT_PLANNERS[agent](root, guidance));
-  files.push(CODEMAPS_GITIGNORE);
+  files.push(...planCiFiles(root, detected, version), CODEMAPS_GITIGNORE);
   const seen = new Set<string>();
   return files.filter((file) => !seen.has(file.path) && Boolean(seen.add(file.path)));
 };

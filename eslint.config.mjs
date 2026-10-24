@@ -13,6 +13,7 @@ export default [
       'dist/**',
       'dist-electron/**',
       'dist-renderer/**',
+      'dist-guard/**',
       'release/**',
       'node_modules/**',
       // Compiled tree-sitter runtime copies that electron-builder drops next to sources.
