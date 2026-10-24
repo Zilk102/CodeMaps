@@ -37,6 +37,22 @@ const TABS: Array<{ id: SettingsTab; labelKey: string }> = [
 const GEAR_PATH =
   'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z';
 
+const GearIcon: React.FC = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="var(--accent)"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d={GEAR_PATH}></path>
+  </svg>
+);
+
 export const McpSettingsHeader: React.FC<{
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
@@ -60,19 +76,7 @@ export const McpSettingsHeader: React.FC<{
           gap: '8px',
         }}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d={GEAR_PATH}></path>
-        </svg>
+        <GearIcon />
         {t('mcpSettings.title')}
       </h2>
       <div
@@ -97,14 +101,32 @@ export const McpSettingsHeader: React.FC<{
   );
 };
 
-export const McpSettingsBody: React.FC<{
-  activeTab: SettingsTab;
+interface BodyProps {
   status: McpStatus | null;
   endpoint: string;
   graphData: GraphData | null;
   copiedKey: string | null;
   copyText: (key: string, text?: string) => void;
-}> = ({ activeTab, status, endpoint, graphData, copiedKey, copyText }) => (
+}
+
+const TAB_VIEWS: Record<SettingsTab, (props: BodyProps) => React.ReactNode> = {
+  overview: (props) => <McpSettingsOverview {...props} />,
+  tools: ({ status }) => <McpSettingsTools toolDetails={status?.toolDetails || []} />,
+  resources: ({ status }) => (
+    <McpSettingsResources resourceDetails={status?.resourceDetails || []} />
+  ),
+  clients: ({ endpoint, copiedKey, copyText }) => (
+    <McpSettingsClients endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
+  ),
+  'agent-skill': ({ endpoint, copiedKey, copyText }) => (
+    <McpSettingsAgentSkill endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
+  ),
+};
+
+export const McpSettingsBody: React.FC<BodyProps & { activeTab: SettingsTab }> = ({
+  activeTab,
+  ...props
+}) => (
   <div
     style={{
       padding: '18px 20px 20px',
@@ -115,24 +137,6 @@ export const McpSettingsBody: React.FC<{
       background: 'transparent',
     }}
   >
-    {activeTab === 'overview' && (
-      <McpSettingsOverview
-        status={status}
-        endpoint={endpoint}
-        graphData={graphData}
-        copiedKey={copiedKey}
-        copyText={copyText}
-      />
-    )}
-    {activeTab === 'tools' && <McpSettingsTools toolDetails={status?.toolDetails || []} />}
-    {activeTab === 'resources' && (
-      <McpSettingsResources resourceDetails={status?.resourceDetails || []} />
-    )}
-    {activeTab === 'clients' && (
-      <McpSettingsClients endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
-    )}
-    {activeTab === 'agent-skill' && (
-      <McpSettingsAgentSkill endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
-    )}
+    {TAB_VIEWS[activeTab](props)}
   </div>
 );

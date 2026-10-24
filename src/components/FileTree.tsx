@@ -92,18 +92,24 @@ const ProjectTree: React.FC<{
   );
 };
 
+const ExplorerBody: React.FC<ReturnType<typeof useFileTreeState>> = (state) => {
+  const { error, tree } = state;
+  if (error) return <ErrorBanner error={error} />;
+  if (!tree) return <EmptyState isLoading={state.isLoading} openProject={state.openProject} />;
+  return (
+    <ProjectTree
+      tree={tree}
+      expandedFolders={state.expandedFolders}
+      toggleFolder={state.toggleFolder}
+      selectedPath={state.selectedPath}
+      onSelect={state.handleSelect}
+    />
+  );
+};
+
 export const FileTree: React.FC = () => {
   const { t } = useTranslation();
-  const {
-    selectedPath,
-    isLoading,
-    error,
-    openProject,
-    expandedFolders,
-    toggleFolder,
-    handleSelect,
-    tree,
-  } = useFileTreeState();
+  const state = useFileTreeState();
 
   return (
     <div
@@ -131,19 +137,7 @@ export const FileTree: React.FC = () => {
         }}
         className="sidebar-scroll"
       >
-        {error ? (
-          <ErrorBanner error={error} />
-        ) : tree ? (
-          <ProjectTree
-            tree={tree}
-            expandedFolders={expandedFolders}
-            toggleFolder={toggleFolder}
-            selectedPath={selectedPath}
-            onSelect={handleSelect}
-          />
-        ) : (
-          <EmptyState isLoading={isLoading} openProject={openProject} />
-        )}
+        <ExplorerBody {...state} />
       </div>
     </div>
   );

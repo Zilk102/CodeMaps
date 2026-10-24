@@ -90,6 +90,37 @@ The agent should behave like it has a project-aware architectural map:
 export const buildSkillSnippet = (endpoint: string): string =>
   SKILL_TEMPLATE.split('__ENDPOINT__').join(endpoint);
 
+const HowToUse: React.FC<{ copied: boolean; onCopy: () => void }> = ({ copied, onCopy }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        ...commonSectionStyle,
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        gap: '12px',
+        alignItems: 'start',
+      }}
+    >
+      <div>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+          {t('mcpSettings.howToUse')}
+        </div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
+          {t('mcpSettings.skillSetupStep1')}
+          <br />
+          {t('mcpSettings.skillSetupStep2')}
+          <br />
+          {t('mcpSettings.skillSetupStep3')}
+        </div>
+      </div>
+      <button className="btn-glass" onClick={onCopy}>
+        {copied ? t('mcpSettings.copied') : t('mcpSettings.copySkillMd')}
+      </button>
+    </div>
+  );
+};
+
 export const McpSettingsAgentSkill: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
   const { t } = useTranslation();
 
@@ -106,31 +137,10 @@ export const McpSettingsAgentSkill: React.FC<Props> = ({ endpoint, copiedKey, co
         </div>
       </div>
 
-      <div
-        style={{
-          ...commonSectionStyle,
-          display: 'grid',
-          gridTemplateColumns: '1fr auto',
-          gap: '12px',
-          alignItems: 'start',
-        }}
-      >
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
-            {t('mcpSettings.howToUse')}
-          </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
-            {t('mcpSettings.skillSetupStep1')}
-            <br />
-            {t('mcpSettings.skillSetupStep2')}
-            <br />
-            {t('mcpSettings.skillSetupStep3')}
-          </div>
-        </div>
-        <button className="btn-glass" onClick={() => copyText('agent-skill', skillSnippet)}>
-          {copiedKey === 'agent-skill' ? t('mcpSettings.copied') : t('mcpSettings.copySkillMd')}
-        </button>
-      </div>
+      <HowToUse
+        copied={copiedKey === 'agent-skill'}
+        onCopy={() => copyText('agent-skill', skillSnippet)}
+      />
 
       <div style={commonSectionStyle}>
         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>

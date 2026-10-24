@@ -77,3 +77,10 @@ jobs:
           npm run build:electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # CodeMaps guards its own repo: both commands exit 1 when they list anything.
+      - name: Code quality (complexity and size)
+        run: npm run quality
+
+      - name: Duplicate code
+        run: npm run duplicates

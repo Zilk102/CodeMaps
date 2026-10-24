@@ -45,3 +45,58 @@ export const MetricCard = ({
     {hint && <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{hint}</div>}
   </div>
 );
+
+/** Card heading: the title, with an optional pill (for example "recommended for agents"). */
+export const CardTitle = ({
+  title,
+  badge,
+  id,
+}: {
+  title: string;
+  badge?: string | false;
+  /** Technical identifier shown under the title (tool name or resource URI). */
+  id: string;
+}) => (
+  <div>
+    <div
+      style={{
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flexWrap: 'wrap',
+      }}
+    >
+      <span>{title}</span>
+      {badge && (
+        <span
+          style={{
+            fontSize: '10px',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            background: 'var(--accbg)',
+            border: '1px solid var(--acc)',
+            color: 'var(--acc)',
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+    <div style={{ fontSize: '11px', color: 'var(--acc)', marginTop: '2px' }}>{id}</div>
+  </div>
+);
+
+export const CardDescription = ({ children }: { children: React.ReactNode }) => (
+  <div
+    style={{
+      marginTop: '8px',
+      color: 'var(--text-secondary)',
+      fontSize: '12px',
+      lineHeight: 1.45,
+    }}
+  >
+    {children}
+  </div>
+);

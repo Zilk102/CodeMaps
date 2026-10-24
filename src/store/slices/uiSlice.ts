@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { LayoutResult } from '../../utils/layoutEngine';
-import type { WorkspaceTab } from '../../components/panels/toolsPanelData';
+import type { WorkspaceTab } from '../../types/workspace';
 
 export interface UISlice {
   layoutData: LayoutResult | null;

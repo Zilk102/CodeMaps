@@ -17,16 +17,28 @@ interface PanelHeaderProps {
   eyebrow: string;
   title: string;
   description: string;
+  /** Controls shown beside the title (below it on narrow widths). */
+  actions?: React.ReactNode;
 }
 
-/** Intro card at the top of a tool panel: eyebrow, title and description. */
-export const PanelHeader: React.FC<PanelHeaderProps> = ({ eyebrow, title, description }) => (
+/** Intro card at the top of a tool panel: eyebrow, title, description and optional controls. */
+export const PanelHeader: React.FC<PanelHeaderProps> = ({
+  eyebrow,
+  title,
+  description,
+  actions,
+}) => (
   <PanelCard className="p-4">
     <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-(--t3)">
       {eyebrow}
     </div>
-    <h3 className="mt-2 text-[16px] font-semibold text-(--t0)">{title}</h3>
-    <p className="mt-2 text-[13px] leading-6 text-(--t2)">{description}</p>
+    <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div>
+        <h3 className="text-[16px] font-semibold text-(--t0)">{title}</h3>
+        <p className="mt-2 text-[13px] leading-6 text-(--t2)">{description}</p>
+      </div>
+      {actions}
+    </div>
   </PanelCard>
 );
 

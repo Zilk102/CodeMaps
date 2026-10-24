@@ -15,7 +15,7 @@ const { analyzeSourceFileStructure } = require(
 
 const TEST = /(\.test\.|\.spec\.|__tests__)/;
 const MAX_LINES = Number(process.env.QUALITY_MAX_LINES ?? 60);
-const MAX_COMPLEXITY = Number(process.env.QUALITY_MAX_COMPLEXITY ?? 10);
+const MAX_COMPLEXITY = Number(process.env.QUALITY_MAX_COMPLEXITY ?? 8);
 
 const files = sourceFilesOfArguments('quality-report.mjs', process.argv.slice(2));
 
@@ -54,3 +54,5 @@ for (const row of rows) {
   );
 }
 console.log(`\n${rows.length} item(s) over ${MAX_LINES} lines or complexity ${MAX_COMPLEXITY}`);
+// A guardian, not a report: any finding fails `npm run quality`, `npm run verify` and CI.
+if (rows.length > 0) process.exitCode = 1;

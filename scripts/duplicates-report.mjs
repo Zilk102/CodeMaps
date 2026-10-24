@@ -23,3 +23,5 @@ for (const group of groups) {
   console.log(`${group.lineCount} lines x${group.instances.length}: ${copies}`);
 }
 console.log(`\n${groups.length} duplicate group(s)`);
+// A guardian, not a report: any group fails `npm run duplicates`, `npm run verify` and CI.
+if (groups.length > 0) process.exitCode = 1;

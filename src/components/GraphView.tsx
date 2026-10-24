@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import type { GraphData } from '../types/graph';
 import { useGraphViewModel } from '../hooks/useGraphViewModel';
 import { GraphControls, GraphHint } from './graph/GraphControls';
 import { GraphToolbar } from './graph/GraphToolbar';
@@ -47,21 +48,43 @@ const GraphHud: React.FC<{ fit: () => void; zoomBy: (factor: number) => void }> 
   </>
 );
 
+type ViewModel = ReturnType<typeof useGraphViewModel>;
+
+const GraphScene: React.FC<{ graphData: GraphData; model: ViewModel }> = ({ graphData, model }) => {
+  const { layoutMode, setSelectedNode, selectedNode, layoutData, isCalculating } = model;
+  const { transformRef, containerRef, fit, zoomBy, markUserMoved } = model.viewport;
+  return (
+    <div className="w-full h-full bg-(--bg0) relative flex overflow-hidden">
+      <GraphToolbar modeDescription={model.modeDescription} help={<GraphLegend />} />
+      {isCalculating && <CalculatingBadge />}
+      {selectedNode && (
+        <DetailsDock
+          graph={graphData}
+          node={selectedNode}
+          onSelect={setSelectedNode}
+          onClose={() => setSelectedNode(null)}
+        />
+      )}
+      <GraphHud fit={fit} zoomBy={zoomBy} />
+
+      <GraphCanvas
+        layoutData={layoutData}
+        layoutMode={layoutMode}
+        graphInsights={model.graphInsights}
+        selectedNode={selectedNode}
+        onSelectNode={setSelectedNode}
+        transformRef={transformRef}
+        containerRef={containerRef}
+        onUserMove={markUserMoved}
+      />
+    </div>
+  );
+};
+
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
-  const {
-    graphData,
-    error,
-    layoutMode,
-    setSelectedNode,
-    selectedNode,
-    layoutData,
-    isCalculating,
-    graphInsights,
-    viewport,
-    modeDescription,
-  } = useGraphViewModel();
-  const { transformRef, containerRef, fit, zoomBy, markUserMoved } = viewport;
+  const model = useGraphViewModel();
+  const { graphData, error } = model;
 
   if (error) {
     return (
@@ -79,30 +102,5 @@ export const GraphView: React.FC = () => {
     );
   }
 
-  return (
-    <div className="w-full h-full bg-(--bg0) relative flex overflow-hidden">
-      <GraphToolbar modeDescription={modeDescription} help={<GraphLegend />} />
-      {isCalculating && <CalculatingBadge />}
-      {selectedNode && (
-        <DetailsDock
-          graph={graphData}
-          node={selectedNode}
-          onSelect={setSelectedNode}
-          onClose={() => setSelectedNode(null)}
-        />
-      )}
-      <GraphHud fit={fit} zoomBy={zoomBy} />
-
-      <GraphCanvas
-        layoutData={layoutData}
-        layoutMode={layoutMode}
-        graphInsights={graphInsights}
-        selectedNode={selectedNode}
-        onSelectNode={setSelectedNode}
-        transformRef={transformRef}
-        containerRef={containerRef}
-        onUserMove={markUserMoved}
-      />
-    </div>
-  );
+  return <GraphScene graphData={graphData} model={model} />;
 };

@@ -8,6 +8,7 @@ import {
   createElkNode,
   getNodeDimensions,
   normalizeFlatNodes,
+  orZero,
   resolveVisibleNodeId,
 } from './layoutShared';
 import {
@@ -25,6 +26,20 @@ const linkEndpointId = (end: GraphLink['source']) => (typeof end === 'string' ? 
 const touchesProjectRoot = (sourceId: string, targetId: string) =>
   sourceId === PROJECT_ROOT_ID || targetId === PROJECT_ROOT_ID;
 
+/** Visible [source, target] ids of a link, or null when it is not drawn. */
+const resolveRenderedEndpoints = (
+  link: GraphLink,
+  visibleNodeIds: Set<string>,
+  nodeIndex: Map<string, GraphNode>,
+  includeProjectRoot: boolean
+): [string, string] | null => {
+  const sourceId = resolveVisibleNodeId(linkEndpointId(link.source), visibleNodeIds, nodeIndex);
+  const targetId = resolveVisibleNodeId(linkEndpointId(link.target), visibleNodeIds, nodeIndex);
+  if (!sourceId || !targetId || sourceId === targetId) return null;
+  if (includeProjectRoot && touchesProjectRoot(sourceId, targetId)) return null;
+  return [sourceId, targetId];
+};
+
 const buildRenderedEdges = (
   graphData: GraphData,
   validNodes: Map<string, GraphNode>,
@@ -36,11 +51,9 @@ const buildRenderedEdges = (
   const visibleNodeIds = new Set(validNodes.keys());
 
   graphData.links.forEach((link, idx) => {
-    const sourceId = resolveVisibleNodeId(linkEndpointId(link.source), visibleNodeIds, nodeIndex);
-    const targetId = resolveVisibleNodeId(linkEndpointId(link.target), visibleNodeIds, nodeIndex);
-
-    if (!sourceId || !targetId || sourceId === targetId) return;
-    if (includeProjectRoot && touchesProjectRoot(sourceId, targetId)) return;
+    const endpoints = resolveRenderedEndpoints(link, visibleNodeIds, nodeIndex, includeProjectRoot);
+    if (!endpoints) return;
+    const [sourceId, targetId] = endpoints;
 
     const sourceNode = nodeLayoutIndex.get(sourceId);
     const targetNode = nodeLayoutIndex.get(targetId);
@@ -64,6 +77,19 @@ const sortElkChildren = (children: ElkNode[], validNodes: Map<string, GraphNode>
   );
 };
 
+/** Id of the closest ancestor of `node` that is itself visible, if any. */
+const nearestVisibleAncestorId = (
+  node: GraphNode,
+  validNodes: Map<string, GraphNode>,
+  nodeIndex: Map<string, GraphNode>
+) => {
+  let parentId = node.parentId;
+  while (parentId && !validNodes.has(parentId)) {
+    parentId = nodeIndex.get(parentId)?.parentId;
+  }
+  return parentId;
+};
+
 /** Nests every visible node under its nearest visible ancestor; the rest become roots. */
 export const buildElkHierarchy = (
   validNodes: Map<string, GraphNode>,
@@ -77,21 +103,13 @@ export const buildElkHierarchy = (
   const rootChildren: ElkNode[] = [];
   validNodes.forEach((node) => {
     if (node.id === PROJECT_ROOT_ID) return;
-    const elkNode = elkNodesMap.get(node.id);
-    let parentId = node.parentId;
-
-    while (parentId && !validNodes.has(parentId)) {
-      parentId = nodeIndex.get(parentId)?.parentId;
-    }
-
-    if (parentId && elkNodesMap.has(parentId)) {
-      const parentElkNode = elkNodesMap.get(parentId);
-      if (parentElkNode) {
-        if (!parentElkNode.children) parentElkNode.children = [];
-        if (elkNode) parentElkNode.children.push(elkNode);
-      }
+    const elkNode = elkNodesMap.get(node.id)!;
+    const parentId = nearestVisibleAncestorId(node, validNodes, nodeIndex);
+    const parentElkNode = parentId ? elkNodesMap.get(parentId) : undefined;
+    if (parentElkNode) {
+      (parentElkNode.children ??= []).push(elkNode);
     } else {
-      if (elkNode) rootChildren.push(elkNode);
+      rootChildren.push(elkNode);
     }
   });
 
@@ -145,6 +163,8 @@ const assignLeafDimensions = (node: ElkNode, validNodes: Map<string, GraphNode>)
   }
 };
 
+const CONTAINER_TYPES = new Set(['project', 'directory', 'file']);
+
 /** Walks the laid-out ELK tree and returns every visible node with absolute coordinates. */
 export const flattenElkTree = (
   layouted: ElkNode,
@@ -152,24 +172,24 @@ export const flattenElkTree = (
 ): LayoutNode[] => {
   const flatNodes: LayoutNode[] = [];
   const computeAbsolute = (node: ElkNode, absX: number, absY: number) => {
-    const x = absX + (node.x || 0);
-    const y = absY + (node.y || 0);
+    const x = absX + orZero(node.x);
+    const y = absY + orZero(node.y);
+    const data = node.id ? validNodes.get(node.id) : undefined;
 
-    if (node.id && validNodes.has(node.id)) {
+    if (data) {
+      const { width, height } = node;
       flatNodes.push({
         id: node.id,
         x,
         y,
-        width: node.width || 0,
-        height: node.height || 0,
-        data: validNodes.get(node.id)!,
-        isContainer: ['project', 'directory', 'file'].includes(validNodes.get(node.id)!.type),
+        width: orZero(width),
+        height: orZero(height),
+        data,
+        isContainer: CONTAINER_TYPES.has(data.type),
       });
     }
 
-    if (node.children) {
-      node.children.forEach((c: ElkNode) => computeAbsolute(c, x, y));
-    }
+    node.children?.forEach((c: ElkNode) => computeAbsolute(c, x, y));
   };
 
   layouted.children?.forEach((c: ElkNode) => computeAbsolute(c, 0, 0));

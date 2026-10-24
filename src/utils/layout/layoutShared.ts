@@ -21,60 +21,48 @@ export const resolveVisibleNodeId = (
   return currentId;
 };
 
-export const buildOrthogonalSections = (source: LayoutNode, target: LayoutNode) => {
-  const sourceCenterX = source.x + source.width / 2;
-  const sourceCenterY = source.y + source.height / 2;
-  const targetCenterX = target.x + target.width / 2;
-  const targetCenterY = target.y + target.height / 2;
+/** A missing or NaN measurement counts as 0. */
+export const orZero = (value: number | undefined) => value || 0;
 
-  const horizontalDominant =
-    Math.abs(targetCenterX - sourceCenterX) >= Math.abs(targetCenterY - sourceCenterY);
+const centerOf = (node: LayoutNode) => ({
+  x: node.x + node.width / 2,
+  y: node.y + node.height / 2,
+});
 
-  if (horizontalDominant) {
-    const sourceOnRight = targetCenterX >= sourceCenterX;
-    const startPoint = {
-      x: sourceOnRight ? source.x + source.width : source.x,
-      y: sourceCenterY,
-    };
-    const endPoint = {
-      x: sourceOnRight ? target.x : target.x + target.width,
-      y: targetCenterY,
-    };
-    const midX = (startPoint.x + endPoint.x) / 2;
-
-    return [
-      {
-        startPoint,
-        bendPoints: [
-          { x: midX, y: startPoint.y },
-          { x: midX, y: endPoint.y },
-        ],
-        endPoint,
-      },
-    ];
-  }
-
-  const sourceOnBottom = targetCenterY >= sourceCenterY;
-  const startPoint = {
-    x: sourceCenterX,
-    y: sourceOnBottom ? source.y + source.height : source.y,
-  };
-  const endPoint = {
-    x: targetCenterX,
-    y: sourceOnBottom ? target.y : target.y + target.height,
-  };
-  const midY = (startPoint.y + endPoint.y) / 2;
-
-  return [
-    {
-      startPoint,
-      bendPoints: [
-        { x: startPoint.x, y: midY },
-        { x: endPoint.x, y: midY },
-      ],
-      endPoint,
-    },
+const horizontalSection = (source: LayoutNode, target: LayoutNode) => {
+  const sourceCenter = centerOf(source);
+  const targetCenter = centerOf(target);
+  const sourceOnRight = targetCenter.x >= sourceCenter.x;
+  const startPoint = { x: sourceOnRight ? source.x + source.width : source.x, y: sourceCenter.y };
+  const endPoint = { x: sourceOnRight ? target.x : target.x + target.width, y: targetCenter.y };
+  const midX = (startPoint.x + endPoint.x) / 2;
+  const bendPoints = [
+    { x: midX, y: startPoint.y },
+    { x: midX, y: endPoint.y },
   ];
+  return [{ startPoint, bendPoints, endPoint }];
+};
+
+const verticalSection = (source: LayoutNode, target: LayoutNode) => {
+  const sourceCenter = centerOf(source);
+  const targetCenter = centerOf(target);
+  const sourceOnBottom = targetCenter.y >= sourceCenter.y;
+  const startPoint = { x: sourceCenter.x, y: sourceOnBottom ? source.y + source.height : source.y };
+  const endPoint = { x: targetCenter.x, y: sourceOnBottom ? target.y : target.y + target.height };
+  const midY = (startPoint.y + endPoint.y) / 2;
+  const bendPoints = [
+    { x: startPoint.x, y: midY },
+    { x: endPoint.x, y: midY },
+  ];
+  return [{ startPoint, bendPoints, endPoint }];
+};
+
+export const buildOrthogonalSections = (source: LayoutNode, target: LayoutNode) => {
+  const sourceCenter = centerOf(source);
+  const targetCenter = centerOf(target);
+  const horizontalDominant =
+    Math.abs(targetCenter.x - sourceCenter.x) >= Math.abs(targetCenter.y - sourceCenter.y);
+  return horizontalDominant ? horizontalSection(source, target) : verticalSection(source, target);
 };
 
 const FILTER_FLAG_BY_TYPE: Partial<Record<string, keyof GraphFilters>> = {
@@ -199,7 +187,7 @@ export const buildLayoutResult = (
   return {
     nodes,
     edges,
-    width: Math.max(layouted.width || 0, canvasBounds.width),
-    height: Math.max(layouted.height || 0, canvasBounds.height),
+    width: Math.max(orZero(layouted.width), canvasBounds.width),
+    height: Math.max(orZero(layouted.height), canvasBounds.height),
   };
 };
