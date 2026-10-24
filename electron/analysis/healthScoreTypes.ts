@@ -67,5 +67,20 @@ export interface HealthScoreResult {
   issues: HealthScoreIssue[];
 }
 
+/**
+ * The module quality findings reduced to counts, plus the average design smell score over all
+ * modules: the input of the maintainability and SOLID scores.
+ */
+export interface QualityCounts {
+  oversizedModules: number;
+  godFiles: number;
+  godClasses: number;
+  longMethods: number;
+  complexMethods: number;
+  codeClones: number;
+  mixedResponsibilityModules: number;
+  avgDesignSmellScore: number;
+}
+
 /** The measured values the scoring rules read: the summary without the project-settings notes. */
 export type HealthScoreMetricSnapshot = Omit<HealthScoreSummary, 'legacyDebt' | 'configWarnings'>;

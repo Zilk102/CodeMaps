@@ -4,8 +4,8 @@
  * `validateChanges` the MCP tool uses; this file only gives them coordinates.
  */
 import {
-  isAdvisoryFinding,
   isBlockingFinding,
+  isStrictBlockingFinding,
   type ChangeFinding,
 } from '../analysis/ChangeValidationService';
 import { relativeToRoot } from '../analysis/projectConfig/projectPaths';
@@ -23,9 +23,9 @@ const lineOf = (graph: GraphData, evidence: ChangeFinding['evidence'][number]): 
   return known ?? Number(/\((?:line |L)(\d+)/.exec(evidence.message)?.[1] ?? 1);
 };
 
-/** Under `--strict` every finding fails the run except pure information; otherwise only blocking ones do. */
+/** Under `--strict` every finding of a health-score kind fails the run, whatever its severity; otherwise only blocking ones do. */
 const blocks = (finding: ChangeFinding, strict: boolean): boolean =>
-  strict ? !isAdvisoryFinding(finding) : isBlockingFinding(finding);
+  strict ? isStrictBlockingFinding(finding) : isBlockingFinding(finding);
 
 /** One issue for a piece of evidence (`file` or `file#symbol`) of a finding. */
 const issueFor = (

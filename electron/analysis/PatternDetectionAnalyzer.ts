@@ -5,33 +5,36 @@
 
 import { GraphData } from '../store/types';
 import { buildGraphAdjacency } from './graphAnalysisUtils';
-import { ArchitectureInsightService } from './ArchitectureInsightService';
-import type { ArchitectureOverview } from './architectureTypes';
-import { analyzeModuleQuality, type ModuleQualitySummary } from './moduleQualityMetrics';
+import type { ArchitectureInsightService } from './ArchitectureInsightService';
+import { analyzeModuleQuality } from './moduleQualityMetrics';
 import {
   buildQualityPatterns,
   buildRuntimePatterns,
   buildStructuralPatterns,
 } from './patternDetectionPolicies';
-import type { PatternDetectionResult } from './patternDetectionTypes';
+import {
+  createPatternDetectionServices,
+  type PatternDetectionServices,
+} from './patternDetectionServices';
+import type { PatternDetectionResult, PatternDetectionSources } from './patternDetectionTypes';
 export type {
   DetectedPattern,
   PatternDetectionResult,
   PatternEvidence,
 } from './patternDetectionTypes';
 
-/** The patterns together with the analyses they were derived from, for callers that need both. */
-export interface PatternDetectionSources extends PatternDetectionResult {
-  quality: ModuleQualitySummary;
-  architecture: ArchitectureOverview;
-}
-
 /**
  * Detects architectural and code quality patterns (hubs, god files, violations, clones and
  * similar) in a graph.
  */
 export class PatternDetectionAnalyzer {
-  constructor(private readonly architectureInsightService = new ArchitectureInsightService()) {}
+  private readonly services: PatternDetectionServices;
+
+  constructor(architectureInsightService?: ArchitectureInsightService) {
+    this.services = createPatternDetectionServices(
+      architectureInsightService ? { architectureInsightService } : {}
+    );
+  }
 
   /**
    * Runs the architecture and module quality analyses once and feeds them to the structural,
@@ -46,7 +49,7 @@ export class PatternDetectionAnalyzer {
    * a caller that needs them (change validation) does not compute them a second time.
    */
   analyzeWithSources(graph: GraphData): PatternDetectionSources {
-    const architecture = this.architectureInsightService.analyze(graph);
+    const architecture = this.services.architectureInsightService.analyze(graph);
     const quality = analyzeModuleQuality(graph);
     const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } =
       buildGraphAdjacency(graph);

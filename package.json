@@ -77,7 +77,7 @@
     "build": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && node scripts/patch-tree-sitter-wasms.js && electron-builder",
     "build:portable": "npm run clean:build && npm run typecheck && npm run build:renderer && npm run build:electron && npm run package:portable",
     "build:guard": "node scripts/build-guard.mjs",
-    "guard": "npm run build:guard && node dist-guard/guard/guard.mjs check --root .",
+    "guard": "npm run build:guard && node dist-guard/guard/guard.mjs check --root . --strict",
     "mcp:smoke": "node scripts/mcp-smoke-test.mjs",
     "test:shutdown:e2e": "npm run build:electron && node scripts/e2e-shutdown-test.mjs",
     "test": "vitest run",

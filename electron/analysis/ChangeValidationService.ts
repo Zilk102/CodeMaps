@@ -77,7 +77,20 @@ const SIZE_PATTERNS = new Set([
   'complex_methods',
   'mixed_responsibility_modules',
 ]);
-const ADVISORY_PATTERNS = new Set(['hub_nodes']);
+/** Information only: who depends on a file, or how many files it needs, is not something an edit to it fixes. */
+const ADVISORY_PATTERNS = new Set(['hub_nodes', 'high_fan_out_files']);
+/** The kinds of finding that lower the health score; a strict run fails on every one of them, whatever its severity. */
+const HEALTH_SCORE_PATTERNS = new Set([
+  'god_files',
+  'god_classes',
+  'oversized_modules',
+  'long_methods',
+  'complex_methods',
+  'mixed_responsibility_modules',
+  'code_clones',
+  'layer_violations',
+  'missing_documentation',
+]);
 /** Rules that block even at medium severity: new duplicates and missing docs are exactly what the guardrails exist to stop (in ratchet mode only fresh ones are reported). */
 const ALWAYS_BLOCKING_PATTERNS = new Set(['code_clones', 'missing_documentation']);
 const MAX_PROJECT_FINDINGS = 10;
@@ -90,6 +103,14 @@ const MAX_EVIDENCE = 5;
 export const isBlockingFinding = (finding: Pick<ChangeFinding, 'id' | 'severity'>): boolean =>
   (finding.severity === 'high' || ALWAYS_BLOCKING_PATTERNS.has(finding.id)) &&
   !ADVISORY_PATTERNS.has(finding.id);
+
+/**
+ * Whether a finding fails a strict run: everything that blocks normally, plus every finding of a
+ * kind that lowers the health score (structure, clones, layers, documentation) at any severity.
+ * Hubs and high fan-out stay information.
+ */
+export const isStrictBlockingFinding = (finding: Pick<ChangeFinding, 'id' | 'severity'>): boolean =>
+  isBlockingFinding(finding) || HEALTH_SCORE_PATTERNS.has(finding.id);
 
 /** Whether a finding is only information (a hub): nothing an edit to the file could fix. */
 export const isAdvisoryFinding = (finding: Pick<ChangeFinding, 'id'>): boolean =>
