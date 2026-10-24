@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## Unreleased
+
+### Added
+
+- **Zero-config agent setup.** The MCP server now sends every client an `instructions` text that tells the agent to call the new 24th tool, `setup_project`, first. The tool detects the stack, its commands, the CI provider and the agent in use (existing agent files plus the MCP `clientInfo.name`) and writes the guardrails itself: an `AGENTS.md` section, `CLAUDE.md`, the `codemaps-agent-autopilot` skill, a `PostToolUse` edit-validation hook (`.codemaps/hooks/validate.mjs`, merged into `.claude/settings.json`), Cursor, Copilot, Gemini, Windsurf and Cline rules, `.codemaps/config.json` and a baseline that freezes the findings a legacy project already has. It is idempotent (a second run writes nothing), safe to call concurrently, never overwrites user content (version-marked blocks, JSON merge, symlink and `..` escapes rejected), and `apply: false` previews the plan. See `docs/AGENT_SETUP.md`.
+- A "Zero-config setup" card in the MCP settings, the skill now covers `setup_project`, documentation rules, the ratchet and legacy refactoring, and `npm run sync:templates` regenerates the shipped copies of the skill and the hook from their sources.
+
 ## v1.1.59 (2026-10-24)
 
 ### Added

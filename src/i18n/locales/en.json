@@ -100,6 +100,11 @@
     "toolsTab": "Tools",
     "resourcesTab": "Resources",
     "tools": {
+      "setup_project": {
+        "title": "Setup Project",
+        "description": "Configures the project for AI agents in one call: detects the stack, its commands and the agent in use, then writes an AGENTS.md section, agent rules, the CodeMaps skill, an edit-validation hook, .codemaps/config.json and a baseline that freezes legacy findings. Idempotent, never overwrites user content, writes only inside the project.",
+        "recommendedWhen": "First thing in every project (idempotent and cheap; it reports upToDate), so the user never configures anything by hand."
+      },
       "analyze_project": {
         "title": "Analyze Project",
         "description": "Indexes the project and loads the graph into CodeMaps. Usually, the agent should call this automatically when changing projects.",
@@ -283,7 +288,9 @@
     "error": {
       "port_in_use": "Port {{port}} is already in use (another CodeMaps window or program). MCP is unavailable here; start with CODEMAPS_MCP_PORT set to another port.",
       "listen_failed": "The MCP server could not start. See the application log for details."
-    }
+    },
+    "zeroConfigTitle": "Zero-config setup",
+    "zeroConfigBody": "Connect CodeMaps over MCP, and that is all. On first contact the agent calls setup_project, which detects the project and the agent, writes the rules, skill and edit hook, and freezes existing findings in a baseline so only new problems are reported. Commit .codemaps/ and the agent files afterwards."
   },
   "filterPanel": {
     "filters": "Filters",

@@ -100,6 +100,11 @@
     "toolsTab": "工具",
     "resourcesTab": "资源",
     "tools": {
+      "setup_project": {
+        "title": "项目设置",
+        "description": "一次调用即可为 AI 代理配置项目：检测技术栈、其命令和正在使用的代理，然后写入 AGENTS.md 段落、代理规则、CodeMaps 技能、编辑验证钩子、.codemaps/config.json，以及冻结历史问题的基线。幂等，从不覆盖用户内容，只在项目内写入。",
+        "recommendedWhen": "在每个项目中首先调用（幂等且开销很小，会报告 upToDate），用户无需手动配置任何内容。"
+      },
       "analyze_project": {
         "title": "分析项目",
         "description": "索引项目并将图加载到 CodeMaps 中。通常，代理在更改项目时应自动调用此功能。",
@@ -283,7 +288,9 @@
     "error": {
       "port_in_use": "端口 {{port}} 已被占用（另一个 CodeMaps 窗口或其他程序）。此处 MCP 不可用；请通过 CODEMAPS_MCP_PORT 设置其他端口后启动。",
       "listen_failed": "MCP 服务器无法启动。详见应用日志。"
-    }
+    },
+    "zeroConfigTitle": "零配置设置",
+    "zeroConfigBody": "只需通过 MCP 连接 CodeMaps。首次接触时代理会调用 setup_project：检测项目和代理，写入规则、技能和编辑钩子，并把现有问题冻结到基线中，之后只报告新增问题。随后提交 .codemaps/ 和代理文件即可。"
   },
   "filterPanel": {
     "filters": "筛选器",

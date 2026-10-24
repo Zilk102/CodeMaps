@@ -53,7 +53,7 @@ const parseFirstTextPayload = (response, toolName) => {
 const expectOk = (payload, toolName) => {
   if (payload.status === undefined) return; // Some tools (e.g. get_graph_context) don't return status
   assert(
-    payload.status === 'ok',
+    payload.status === 'ok' || payload.status === 'dry-run',
     `${toolName}: expected status 'ok', got ${JSON.stringify(payload.status)}`
   );
 };
@@ -112,6 +112,7 @@ try {
   console.log(`[MCP] Resources (${resourceUris.length}): ${resourceUris.join(', ')}`);
 
   const expectedTools = [
+    'setup_project',
     'analyze_activity_heatmap',
     'analyze_decomposition',
     'analyze_pr_impact',
@@ -263,6 +264,16 @@ try {
   for (const item of docs?.undocumented?.items || []) {
     assert(typeof item.hint === 'string', 'check_documentation: every symbol needs a hint');
   }
+  // ─── 11g. setup_project (dry run: writes nothing) ──────────────
+  const setup = await runTool('setup_project', { apply: false });
+  assert(setup?.status === 'dry-run', 'setup_project: expected a dry run');
+  assert(Array.isArray(setup?.nextSteps), 'setup_project: expected nextSteps');
+  assert(Array.isArray(setup?.detected?.languages), 'setup_project: expected detected languages');
+  assert(
+    client.getInstructions()?.includes('setup_project'),
+    'server instructions should send the agent to setup_project'
+  );
+
   await runTool('analyze_activity_heatmap', {});
   await runTool('calculate_blast_radius_v2', { nodeId: blastTarget.id });
   await runTool('analyze_pr_impact', { baseBranch: 'HEAD~1', headBranch: 'HEAD' });

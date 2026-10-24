@@ -12,21 +12,11 @@ import { ReviewContextService } from '../analysis/ReviewContextService';
 import { SecurityScanner } from '../analysis/SecurityScanner';
 import { SignatureSearchService } from '../analysis/SignatureSearchService';
 import { TaskIntelligenceService } from '../analysis/TaskIntelligenceService';
+import { resolveAppVersion } from './appVersion';
 import { registerResources } from './resources';
 import { ServiceRegistry } from './ServiceRegistry';
+import { SERVER_INSTRUCTIONS } from './serverInstructions';
 import { registerTools } from './tools';
-
-/** Version reported to MCP clients: the Electron app version, or `0.0.0` when Electron is unavailable (unit tests, plain Node). */
-const resolveAppVersion = (): string => {
-  try {
-    // Lazy require keeps this module loadable in unit tests, where Electron is unavailable.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { app } = require('electron') as typeof import('electron');
-    return app?.getVersion?.() || '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-};
 
 /**
  * Creates one `McpServer` named `codemaps-mcp` with all services registered and every resource and tool attached.
@@ -43,6 +33,7 @@ export const createMcpServerInstance = () => {
       capabilities: {
         logging: {},
       },
+      instructions: SERVER_INSTRUCTIONS,
     }
   );
 

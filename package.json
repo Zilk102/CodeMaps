@@ -87,7 +87,8 @@
     "quality": "npm run build:electron && node scripts/quality-report.mjs electron src",
     "duplicates": "npm run build:electron && node scripts/duplicates-report.mjs electron src scripts",
     "docs": "npm run build:electron && node scripts/docs-report.mjs electron src scripts vite.config.ts vitest.config.ts vitest.global-setup.ts eslint.config.mjs",
-    "docs:mcp": "npm run build:electron && node scripts/generate-mcp-docs.mjs"
+    "docs:mcp": "npm run build:electron && node scripts/generate-mcp-docs.mjs",
+    "sync:templates": "node scripts/sync-agent-templates.mjs"
   },
   "build": {
     "productName": "CodeMaps",

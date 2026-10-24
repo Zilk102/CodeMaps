@@ -17,7 +17,7 @@
 CodeMaps는 프로젝트를 디렉터리, 파일, 클래스, 함수와 그 사이의 연결로 이루어진 그래프로 인덱싱하고, 이를 두 가지 방식으로 제공합니다.
 
 - **사람에게**는 인터랙티브 지도로: 새로 합류한 개발자가 무엇이 무엇과 연결되어 있는지, 파일을 건드리기 전에 무엇이 그 파일에 의존하는지 볼 수 있습니다.
-- **AI 에이전트**(Claude Code, Claude Desktop, Cursor, Trae 및 모든 MCP 클라이언트)에게는 크기가 제한된 23개의 도구로: 저장소 전체를 읽지 않고도 _이걸 바꾸면 무엇이 깨지는지_, _이미 쓸 만한 헬퍼가 있는지_, _내 수정이 거대한 파일이나 복제 코드를 늘리지 않았는지_ 에 답합니다.
+- **AI 에이전트**(Claude Code, Claude Desktop, Cursor, Trae 및 모든 MCP 클라이언트)에게는 크기가 제한된 24개의 도구로: 저장소 전체를 읽지 않고도 _이걸 바꾸면 무엇이 깨지는지_, _이미 쓸 만한 헬퍼가 있는지_, _내 수정이 거대한 파일이나 복제 코드를 늘리지 않았는지_ 에 답합니다.
 
 모든 것이 로컬에서 실행되며, 소스 코드는 컴퓨터 밖으로 나가지 않습니다.
 
@@ -55,7 +55,7 @@ grep과 파일 읽기만 가진 에이전트는 헤맵니다. CodeMaps는 프로
 
 macOS 빌드는 아직 배포하지 않습니다. `PATH`의 Node.js 22+는 Kuzu 그래프 데이터베이스를 사용하는 세 도구(`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`)에만 필요하며, 나머지는 없어도 동작합니다.
 
-CodeMaps는 분석한 각 프로젝트 안의 `.codemaps/` 폴더에 파생 캐시를 저장합니다. 해당 프로젝트의 `.gitignore`에 추가하세요.
+CodeMaps는 분석한 각 프로젝트 안의 `.codemaps/` 폴더에 파생 캐시(`graph.db`)를 저장합니다. `setup_project`가 이를 위한 `.codemaps/.gitignore`를 추가하며, 폴더의 나머지 파일(`config.json`, `baseline.json`)은 커밋하는 것을 전제로 합니다.
 
 ## AI 에이전트 연결
 
@@ -67,9 +67,10 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
 - **Claude Desktop**은 `mcp-remote` 브리지로, **Cursor**와 **Trae**는 URL로 연결합니다. 앱의 **MCP 설정 → 연결**에 복사 버튼이 있는 스니펫이 준비되어 있습니다.
-- 에이전트가 `prepare_task_context`부터 시작하도록 `codemaps-agent-autopilot` 스킬(`.claude/skills/`)을 추가하고, 모든 수정을 자동으로 검증하는 선택형 **훅**도 사용할 수 있습니다.
+- **설정할 것은 이게 전부입니다.** 서버가 에이전트에게 가장 먼저 `setup_project`를 호출하라고 알려 줍니다. 스택과 에이전트를 감지하여 `AGENTS.md`, 에이전트 규칙, `codemaps-agent-autopilot` 스킬, 수정 검증 훅을 작성하고, 오래된 코드베이스에 이미 있는 지적 사항은 `.codemaps/baseline.json`에 고정하므로 새 문제만 보고됩니다. 다시 실행해도 아무것도 바뀌지 않습니다. 작성하는 파일과 제거 방법은 [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md)를 참고하세요.
 
 전체 가이드: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)
+| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) | `setup_project`가 에이전트별로 작성하는 파일과 제거 방법 |
 
 ## 지원 언어
 
@@ -88,7 +89,7 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 | 문서                                                     | 내용                                       |
 | -------------------------------------------------------- | ------------------------------------------ |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code와 Desktop 설정, 스킬, 검증 훅  |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 23개 도구와 4개 리소스 레퍼런스(자동 생성) |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 24개 도구와 4개 리소스 레퍼런스(자동 생성) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps의 구성과 그 이유                  |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | 개발 환경, 검사, 릴리스 절차               |
 | [CHANGELOG.md](CHANGELOG.md)                             | 버전별 변경 사항                           |

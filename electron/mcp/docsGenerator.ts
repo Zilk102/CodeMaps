@@ -17,7 +17,13 @@ export const TOOL_CATEGORIES: Array<{ title: string; intro: string; tools: strin
   {
     title: 'Project graph',
     intro: 'Open a project and navigate its dependency graph.',
-    tools: ['analyze_project', 'get_graph_context', 'get_node_dependencies', 'search_graph'],
+    tools: [
+      'setup_project',
+      'analyze_project',
+      'get_graph_context',
+      'get_node_dependencies',
+      'search_graph',
+    ],
   },
   {
     title: 'Reading code cheaply',

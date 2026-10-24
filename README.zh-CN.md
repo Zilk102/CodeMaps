@@ -17,7 +17,7 @@
 CodeMaps 会把项目索引成由目录、文件、类和函数及其关联组成的图，并以两种方式提供这张图：
 
 - **给人**：交互式地图。新成员能看清什么与什么相连，以及修改某个文件之前有哪些依赖它。
-- **给 AI 智能体**（Claude Code、Claude Desktop、Cursor、Trae 以及任何 MCP 客户端）：23 个有大小限制的工具，可回答_改这里会破坏什么？_、_是否已经有现成的辅助函数？_、_我的改动是否引入了 god 文件或代码克隆？_，而无需通读整个仓库；`check_documentation` 还会指出哪些公共符号和文件仍缺注释。
+- **给 AI 智能体**（Claude Code、Claude Desktop、Cursor、Trae 以及任何 MCP 客户端）：24 个有大小限制的工具，可回答_改这里会破坏什么？_、_是否已经有现成的辅助函数？_、_我的改动是否引入了 god 文件或代码克隆？_，而无需通读整个仓库；`check_documentation` 还会指出哪些公共符号和文件仍缺注释。
 
 一切都在本地运行，源代码不会离开你的机器。
 
@@ -55,7 +55,7 @@ MCP 服务器及其工具，随时可供任何智能体使用：
 
 暂未发布 macOS 版本。只有基于 Kuzu 图数据库的三个工具（`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact`）需要 `PATH` 中有 Node.js 22+；其余功能无需它。
 
-CodeMaps 会在每个被分析的项目内的 `.codemaps/` 文件夹中保存派生缓存，请把它加入该项目的 `.gitignore`。
+CodeMaps 会在每个被分析项目内的 `.codemaps/` 文件夹中保存派生缓存（`graph.db`）。`setup_project` 会为它添加 `.codemaps/.gitignore`；该文件夹中的其他文件（`config.json`、`baseline.json`）应当提交。
 
 ## 连接 AI 智能体
 
@@ -67,9 +67,10 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
 - **Claude Desktop** 通过 `mcp-remote` 桥接连接，**Cursor** 和 **Trae** 通过 URL 连接。应用内 **MCP 设置 → 连接** 提供带“复制”按钮的现成配置。
-- 添加 `codemaps-agent-autopilot` 技能（`.claude/skills/`），让智能体从 `prepare_task_context` 开始；还可选用**钩子**，自动校验每一次编辑。
+- **除此之外无需任何配置。** 服务器会提示智能体首先调用 `setup_project`。它检测技术栈和智能体，写入 `AGENTS.md`、智能体规则、`codemaps-agent-autopilot` 技能和编辑校验钩子，并把旧代码库已有的问题冻结到 `.codemaps/baseline.json`，因此只会报告新增问题。重复运行不会产生任何改动。它写入的所有文件及删除方法见 [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md)。
 
 完整指南：[docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)。
+| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) | `setup_project` 为每个智能体写入哪些文件，以及如何删除 |
 
 ## 支持的语言
 
@@ -88,7 +89,7 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 | 文档                                                     | 内容                                        |
 | -------------------------------------------------------- | ------------------------------------------- |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code 与 Desktop 配置、技能、校验钩子 |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 23 个工具和 4 个资源的参考（自动生成）      |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 24 个工具和 4 个资源的参考（自动生成）      |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps 的构成及原因                       |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | 开发环境、检查、发布流程                    |
 | [CHANGELOG.md](CHANGELOG.md)                             | 各版本的变更                                |

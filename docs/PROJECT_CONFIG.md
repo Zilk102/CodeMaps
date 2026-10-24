@@ -83,6 +83,8 @@ The health score stays honest: it never looks at the baseline. The edit hook (`s
 
 ## For a setup tool
 
+Agents do not need this by hand: the `setup_project` MCP tool does exactly the steps below (see [AGENT_SETUP.md](AGENT_SETUP.md)).
+
 ```ts
 import { writeDefaultProjectConfig } from 'electron/analysis/projectConfig';
 import { createProjectBaseline } from 'electron/analysis/baseline';

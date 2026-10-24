@@ -17,6 +17,10 @@ Do not wait until after file inspection to use it.
 - Server name: `codemaps`
 - MCP endpoint: `http://127.0.0.1:3005/mcp`
 
+## First Contact
+
+Call `setup_project` once per project, before anything else. It is idempotent and cheap: it reports `upToDate` when nothing needs to change. It detects the stack and your agent, writes the guardrails (AGENTS.md section, agent rules, this skill, the edit hook, `.codemaps/config.json`) and freezes the findings the project already has in `.codemaps/baseline.json`, so nobody has to configure anything by hand. Read its `nextSteps` and `warnings`, and tell the user to commit `.codemaps/` and the agent files.
+
 ## Default Flow
 
 1. If the project is not analyzed yet, call `analyze_project`.
@@ -35,30 +39,48 @@ Do not wait until after file inspection to use it.
 - Duplicated or copy-pasted code, "remove duplication":
   Call `find_duplicates` (pass `filePath` to focus on one file). Each group lists the copies with line ranges, `parameters` (how many values differ, i.e. the arguments of the function to extract), sample `differences` and a `suggestion` with the action and a target file. Extract the shared code there, then call `find_duplicates` again to confirm the group is gone.
 - Writing or changing code in any language:
-  Document every new or changed file and public symbol before answering. Open the file with a header comment, and put a doc comment above every exported symbol and every function of 10 or more lines. State the purpose, the contract (inputs, result, failures) and why it exists; never repeat the name, and never leave commented-out code behind. Then call `check_documentation` (pass `filePath` to focus on the files you touched) and fix every symbol it lists; each item has a `hint` saying what its comment must state.
+  Follow the Documentation Rules below, then call `check_documentation`.
 - Broad migration, replace SDK/library everywhere, cross-cutting refactor:
   Start with `prepare_task_context` and follow `prepare_change_campaign` if selected.
-
-## Guardrails (Mandatory)
-
-- ALWAYS start by calling `analyze_project` with the ABSOLUTE path to the current project directory if the graph is not already loaded. Never assume CodeMaps knows the workspace directory automatically.
-- BEFORE responding to the user with completed changes, you MUST run `validate_architecture_changes` to ensure you haven't introduced cyclical dependencies, God classes, or broken SOLID boundaries. If violations are found, fix them before answering.
 - Localized feature/refactor with a clear code area:
   Start with `prepare_task_context`, then follow `prepare_change_context`.
 - Review, architecture audit, security review, stabilization:
   Start with `prepare_task_context`, then follow `prepare_review_context`.
+
+## Documentation Rules
+
+- Open every new or changed file with a header comment, and put a doc comment above every exported symbol and every function of 10 or more lines.
+- State the purpose, the contract (inputs, result, failures) and why the code exists. Never repeat the name ("Gets the user" above `getUser`), and never leave commented-out code behind.
+- Call `check_documentation` (pass `filePath` to focus on the files you touched) and fix every symbol it lists; each item has a `hint` saying what its comment must state. `validate_architecture_changes` also reports `missing_documentation` for the files you changed.
+
+## Legacy Code and the Ratchet
+
+- `.codemaps/baseline.json` freezes the findings the project already had when `setup_project` ran. Only new or worsened findings are reported (`legacyDebt` summarizes the rest), so fix what you introduced and leave old debt alone unless the task is to pay it down.
+- Never edit the baseline by hand and never add to it. After paying debt down, call `validate_architecture_changes` with `refreshBaseline: true`, which only ever shrinks it, and tell the user to commit the smaller file.
+- `.codemaps/config.json` holds the project's rules (`mode`, `exclude`, `thresholds`, `documentation`). Change it only when the user asks.
+
+## Refactoring Legacy Code
+
+- Start with `analyze_decomposition` on the worst file to get split plans, and `find_duplicates` to see what can be extracted.
+- For a migration or any change that touches many files, call `prepare_change_campaign` and work wave by wave instead of editing ad hoc.
+- Validate after every wave with `validate_architecture_changes`; a finished refactor leaves fewer findings than it started with.
+
+## Token Efficiency
+
+- Read the structure of a large file with `get_semantic_skeleton` before opening it, and find declarations with `search_signatures` instead of grepping.
+- Prefer one `prepare_*` call over several low-level calls. Responses are size-bounded: when `_compaction` is present some lists were cut, so raise `limit` (up to 50) or use a low-level tool for the omitted part.
+- Pass `filePath` or `changedFiles` so tools look at your change instead of the whole project.
 
 ## Mandatory Behavior
 
 - Use CodeMaps before making non-trivial code decisions.
 - Prefer CodeMaps composite contexts over raw graph tools.
 - Do not guess target files when CodeMaps cannot resolve them confidently.
+- If the project is not loaded in CodeMaps, call `analyze_project` with the ABSOLUTE path of the project. Never assume CodeMaps knows the workspace directory.
 - For large changes, work in waves from `prepare_change_campaign` instead of editing many files ad hoc.
 - Re-check CodeMaps after meaningful edits if the architectural context may have changed.
-- Run `validate_architecture_changes` before declaring a non-trivial change finished.
+- BEFORE telling the user a non-trivial change is finished, run `validate_architecture_changes` and fix every violation it reports (cycles, God classes, clones, broken layer boundaries).
 - Before writing new code that resembles existing code, call `find_duplicates` (with `filePath` of the similar file) and reuse or extract instead of copy-pasting; after a refactor, call it again to confirm the duplication is gone.
-- Run `check_documentation` after writing code: every new or changed file needs a header comment and every public symbol a doc comment (purpose, contract, why; never echo the name; no commented-out code). `validate_architecture_changes` also reports `missing_documentation` for the files you changed.
-- `prepare_*` responses are size-bounded. If `_compaction` is present, some lists were cut; raise `limit` (up to 50) or use a low-level tool for the omitted part.
 
 ## Low-Level Fallback Tools
 
@@ -71,14 +93,12 @@ Use these only if the selected composite context is insufficient:
 - `get_health_score`
 - `detect_patterns`
 - `analyze_decomposition`
-- `find_duplicates` (copy-pasted code with how to extract it: parameters, differences and a target file; run it before writing similar code and after a refactor)
-- `check_documentation` (documentation coverage with a hint per undocumented symbol on what its comment must state; run it after writing code)
-- `get_semantic_skeleton`
-- `validate_architecture_changes`
+- `find_duplicates` (copy-pasted code with how to extract it: parameters, differences and a target file)
+- `check_documentation` (documentation coverage with a hint per undocumented symbol)
 - `run_security_scan`
 - `search_signatures`
 - `get_semantic_skeleton` (read a file's structure without bodies, to save tokens)
-- `validate_architecture_changes` (checks only the files you changed in git, returns problems with fix hints; run before finishing edits)
+- `validate_architecture_changes` (checks only the files you changed, returns problems with fix hints)
 
 ## Expected Outcome
 

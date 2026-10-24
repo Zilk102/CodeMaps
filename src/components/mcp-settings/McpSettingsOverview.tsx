@@ -113,6 +113,21 @@ const EndpointSection: React.FC<{
   );
 };
 
+/** Card that explains the zero-config flow: connecting is the only manual step, the agent runs `setup_project` itself. */
+const ZeroConfigSection: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ ...commonSectionStyle }}>
+      <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+        {t('mcpSettings.zeroConfigTitle')}
+      </div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5 }}>
+        {t('mcpSettings.zeroConfigBody')}
+      </div>
+    </div>
+  );
+};
+
 /** Chips with the names of the tools marked as preferred for agents. */
 const PreferredToolsSection: React.FC<{ status: McpStatus | null }> = ({ status }) => {
   const { t } = useTranslation();
@@ -162,6 +177,7 @@ export const McpSettingsOverview: React.FC<Props> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <MetricsSection status={status} graphData={graphData} />
       <EndpointSection endpoint={endpoint} copiedKey={copiedKey} copyText={copyText} />
+      <ZeroConfigSection />
 
       <div style={{ ...commonSectionStyle }}>
         <div style={labelStyle}>{t('mcpSettings.websocketUI')}</div>

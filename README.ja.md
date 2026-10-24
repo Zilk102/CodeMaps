@@ -17,7 +17,7 @@
 CodeMaps はプロジェクトを、ディレクトリ・ファイル・クラス・関数とそれらの関係からなるグラフとしてインデックス化し、次の 2 通りで提供します。
 
 - **人に対して**はインタラクティブなマップとして。新しいメンバーが、何が何とつながっているか、ファイルを変更する前に何がそれに依存しているかを確認できます。
-- **AI エージェント**（Claude Code、Claude Desktop、Cursor、Trae、その他の MCP クライアント）に対しては、23 個のサイズ制限付きツールとして。リポジトリ全体を読まずに、_これを変えると何が壊れるか_、_すでに使えるヘルパーはあるか_、_自分の変更が巨大ファイルやクローンを増やしていないか_ に答えます。
+- **AI エージェント**（Claude Code、Claude Desktop、Cursor、Trae、その他の MCP クライアント）に対しては、24 個のサイズ制限付きツールとして。リポジトリ全体を読まずに、_これを変えると何が壊れるか_、_すでに使えるヘルパーはあるか_、_自分の変更が巨大ファイルやクローンを増やしていないか_ に答えます。
 
 すべてローカルで動作し、ソースコードがマシンの外に出ることはありません。
 
@@ -55,7 +55,7 @@ grep とファイル読み込みだけのエージェントは迷子になりま
 
 macOS 向けビルドはまだ公開していません。Node.js 22+ が `PATH` に必要なのは、Kuzu グラフデータベースを使う 3 つのツール（`calculate_blast_radius_v2`、`analyze_activity_heatmap`、`analyze_pr_impact`）だけで、それ以外は不要です。
 
-CodeMaps は解析した各プロジェクト内の `.codemaps/` フォルダーに派生キャッシュを保存します。そのプロジェクトの `.gitignore` に追加してください。
+CodeMaps は解析した各プロジェクト内の `.codemaps/` フォルダーに派生キャッシュ（`graph.db`）を保存します。`setup_project` がそのための `.codemaps/.gitignore` を追加します。フォルダー内のほかのファイル（`config.json`、`baseline.json`）はコミットする想定です。
 
 ## AI エージェントに接続する
 
@@ -67,9 +67,10 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
 - **Claude Desktop** は `mcp-remote` ブリッジ経由、**Cursor** と **Trae** は URL で接続します。アプリの **MCP 設定 → 接続** に、コピーボタン付きのスニペットがあります。
-- エージェントが `prepare_task_context` から始めるよう `codemaps-agent-autopilot` スキル（`.claude/skills/`）を追加し、すべての編集を自動で検証する任意の**フック**も利用できます。
+- **設定はこれだけです。** サーバーがエージェントに最初に `setup_project` を呼ぶよう伝えます。スタックとエージェントを検出し、`AGENTS.md`、エージェント用ルール、`codemaps-agent-autopilot` スキル、編集検証フックを書き込み、古いコードベースが既に持つ指摘を `.codemaps/baseline.json` に固定するため、新しい問題だけが報告されます。再実行しても何も変わりません。書き込まれるファイルと削除方法は [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) を参照してください。
 
 詳しいガイド：[docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)
+| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) | `setup_project` がエージェントごとに書き込むファイルと削除方法 |
 
 ## 対応言語
 
@@ -88,7 +89,7 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 | ドキュメント                                             | 内容                                                     |
 | -------------------------------------------------------- | -------------------------------------------------------- |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code と Desktop の設定、スキル、検証フック        |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 23 個のツールと 4 個のリソースのリファレンス（自動生成） |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 24 個のツールと 4 個のリソースのリファレンス（自動生成） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps の構成とその理由                                |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | 開発環境、チェック、リリース手順                         |
 | [CHANGELOG.md](CHANGELOG.md)                             | 各バージョンの変更内容                                   |

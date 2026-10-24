@@ -17,7 +17,7 @@
 CodeMaps indexes a project into a graph of directories, files, classes and functions and the links between them. It then serves that graph two ways:
 
 - **To people**, as an interactive map: a new developer sees what is connected to what, and what depends on a file before touching it.
-- **To AI agents** (Claude Code, Claude Desktop, Cursor, Trae and any other MCP client), as 23 bounded tools that answer questions like _what breaks if I change this?_, _is there already a helper for this?_ and _did my edit add a god file or a clone?_ without reading the whole repository. `check_documentation` also tells them which public symbols and files still need a comment.
+- **To AI agents** (Claude Code, Claude Desktop, Cursor, Trae and any other MCP client), as 24 bounded tools that answer questions like _what breaks if I change this?_, _is there already a helper for this?_ and _did my edit add a god file or a clone?_ without reading the whole repository. `check_documentation` also tells them which public symbols and files still need a comment.
 
 Everything runs locally. Source code never leaves your machine.
 
@@ -55,7 +55,7 @@ Download the latest build from [Releases](https://github.com/Zilk102/CodeMaps/re
 
 macOS builds are not published yet. Node.js 22+ on `PATH` is needed only for the three tools backed by the Kuzu graph database (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`); everything else works without it.
 
-CodeMaps stores a derived cache in a `.codemaps/` folder inside each analysed project; add it to that project's `.gitignore`.
+CodeMaps keeps a derived cache (`graph.db`) in a `.codemaps/` folder inside each analysed project. `setup_project` adds a `.codemaps/.gitignore` for it; the other files there (`config.json`, `baseline.json`) are meant to be committed.
 
 ## Connect an AI agent
 
@@ -67,9 +67,10 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
 - **Claude Desktop** connects through the `mcp-remote` bridge, **Cursor** and **Trae** by URL. Ready snippets with a Copy button are in the app under **MCP Settings → Connection**.
-- Add the `codemaps-agent-autopilot` skill (`.claude/skills/`) so the agent starts from `prepare_task_context`, and the optional **hook** that validates every edit automatically.
+- **That is all you configure.** The server tells the agent to call `setup_project` first. It detects the stack and the agent, writes `AGENTS.md`, the agent rules, the `codemaps-agent-autopilot` skill and an edit-validation hook, and freezes the findings an old codebase already has in `.codemaps/baseline.json`, so only new problems are reported. Re-running it changes nothing. See [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) for every file it writes and how to remove them.
 
 Full guide: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
+| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) | What `setup_project` writes for each agent, and how to remove it |
 
 ## Supported languages
 
@@ -88,7 +89,7 @@ Cross-file dependency accuracy is highest for the semantic tier; for the others 
 | Document                                                 | About                                                  |
 | -------------------------------------------------------- | ------------------------------------------------------ |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code and Desktop setup, skill, validation hook  |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Reference for all 23 tools and 4 resources (generated) |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Reference for all 24 tools and 4 resources (generated) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | How CodeMaps is built and why                          |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | Development setup, checks, release process             |
 | [CHANGELOG.md](CHANGELOG.md)                             | What changed in each version                           |

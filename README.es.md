@@ -17,7 +17,7 @@
 CodeMaps indexa un proyecto como un grafo de carpetas, archivos, clases y funciones y de los vínculos entre ellos, y lo ofrece de dos maneras:
 
 - **A las personas**, como un mapa interactivo: quien se incorpora ve qué está conectado con qué y qué depende de un archivo antes de tocarlo.
-- **A los agentes de IA** (Claude Code, Claude Desktop, Cursor, Trae y cualquier cliente MCP), como 23 herramientas acotadas que responden a _¿qué se rompe si cambio esto?_, _¿ya existe una función auxiliar para esto?_ y _¿mi cambio añadió un archivo gigante o un clon?_ sin leer todo el repositorio.
+- **A los agentes de IA** (Claude Code, Claude Desktop, Cursor, Trae y cualquier cliente MCP), como 24 herramientas acotadas que responden a _¿qué se rompe si cambio esto?_, _¿ya existe una función auxiliar para esto?_ y _¿mi cambio añadió un archivo gigante o un clon?_ sin leer todo el repositorio.
 
 Todo se ejecuta en local. El código fuente nunca sale de tu máquina.
 
@@ -55,7 +55,7 @@ Descarga la última versión desde [Releases](https://github.com/Zilk102/CodeMap
 
 Aún no se publican versiones para macOS. Node.js 22+ en el `PATH` solo hace falta para las tres herramientas basadas en la base de grafos Kuzu (`calculate_blast_radius_v2`, `analyze_activity_heatmap`, `analyze_pr_impact`); todo lo demás funciona sin él.
 
-CodeMaps guarda una caché derivada en una carpeta `.codemaps/` dentro de cada proyecto analizado; añádela al `.gitignore` de ese proyecto.
+CodeMaps guarda una caché derivada (`graph.db`) en una carpeta `.codemaps/` dentro de cada proyecto analizado. `setup_project` añade un `.codemaps/.gitignore` para ella; los demás archivos (`config.json`, `baseline.json`) están pensados para commitearse.
 
 ## Conectar un agente de IA
 
@@ -67,9 +67,10 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
 - **Claude Desktop** se conecta mediante el puente `mcp-remote`; **Cursor** y **Trae** por URL. Hay fragmentos listos con botón de copiar en la aplicación: **Ajustes MCP → Conexión**.
-- Añade la skill `codemaps-agent-autopilot` (`.claude/skills/`) para que el agente empiece con `prepare_task_context`, y el **hook** opcional que valida cada edición automáticamente.
+- **No hay nada más que configurar.** El servidor indica al agente que llame primero a `setup_project`. Detecta el stack y el agente, escribe `AGENTS.md`, las reglas del agente, la skill `codemaps-agent-autopilot` y un hook que valida cada edición, y congela en `.codemaps/baseline.json` los hallazgos que ya tiene un código antiguo, de modo que solo se informa de los problemas nuevos. Volver a ejecutarlo no cambia nada. En [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) están todos los archivos que escribe y cómo quitarlos.
 
 Guía completa: [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md).
+| [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) | Qué escribe `setup_project` para cada agente y cómo quitarlo |
 
 ## Lenguajes admitidos
 
@@ -88,7 +89,7 @@ La precisión de las dependencias entre archivos es mayor en el nivel semántico
 | Documento                                                | Contenido                                                         |
 | -------------------------------------------------------- | ----------------------------------------------------------------- |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Configuración de Claude Code y Desktop, skill, hook de validación |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Referencia de las 23 herramientas y 4 recursos (generada)         |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Referencia de las 24 herramientas y 4 recursos (generada)         |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | Cómo está construido CodeMaps y por qué                           |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | Entorno de desarrollo, comprobaciones, proceso de publicación     |
 | [CHANGELOG.md](CHANGELOG.md)                             | Qué cambió en cada versión                                        |

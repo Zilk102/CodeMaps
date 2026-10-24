@@ -2,6 +2,10 @@
 
 CodeMaps must be running; it serves MCP over Streamable HTTP at `http://127.0.0.1:3005/mcp`. The same snippets are available with one-click copy in **MCP Settings → Clients** inside the app.
 
+## Zero configuration
+
+Connecting is the only manual step. CodeMaps sends every client a short `instructions` text on connect that tells the agent to call `setup_project` first. That tool detects the project and the agent (Claude Code is recognized from the MCP client name), writes `AGENTS.md`, `CLAUDE.md`, the `codemaps-agent-autopilot` skill and the edit-validation hook, creates `.codemaps/config.json` and a baseline of the findings the project already has, and is safe to call again. [AGENT_SETUP.md](AGENT_SETUP.md) lists every file and how to remove it. The sections below describe the same pieces if you prefer to set them up by hand.
+
 ## Claude Code
 
 Register once for every project:
@@ -31,9 +35,11 @@ Restart Claude Desktop.
 
 ## Agent skill
 
-Copy `.claude/skills/codemaps-agent-autopilot/SKILL.md` to `~/.claude/skills/codemaps-agent-autopilot/SKILL.md` (all projects) or keep it in a project's `.claude/skills/`. It tells the agent to start from `prepare_task_context` and to run `validate_architecture_changes` before finishing. That tool checks only the files changed in the git working tree (or against `baseRef`) and returns just the problems in them with a fix hint, so legacy debt elsewhere does not block your edit; pass `scope: "project"` for the whole project. It also reports `missing_documentation` for changed files, and the skill makes the agent call `check_documentation` after writing code so every new file has a header comment and every public symbol a doc comment that states its purpose, contract and why.
+`setup_project` writes this skill into the project's `.claude/skills/` for you. To install it by hand, copy `.claude/skills/codemaps-agent-autopilot/SKILL.md` to `~/.claude/skills/codemaps-agent-autopilot/SKILL.md` (all projects) or keep it in a project's `.claude/skills/`. It tells the agent to start from `prepare_task_context` and to run `validate_architecture_changes` before finishing. That tool checks only the files changed in the git working tree (or against `baseRef`) and returns just the problems in them with a fix hint, so legacy debt elsewhere does not block your edit; pass `scope: "project"` for the whole project. It also reports `missing_documentation` for changed files, and the skill makes the agent call `check_documentation` after writing code so every new file has a header comment and every public symbol a doc comment that states its purpose, contract and why.
 
 ## Automatic validation after every edit (Claude Code hook)
+
+`setup_project` installs this hook as `.codemaps/hooks/validate.mjs` and merges the entry into `.claude/settings.json` without touching your other hooks. The manual steps:
 
 A skill only helps if the agent remembers to run it. A `PostToolUse` hook does not depend on memory: after Claude Code edits a source file, it asks the running CodeMaps to validate that file and returns the problems (god files, clones, long or complex methods, hubs, mixed responsibilities) to Claude with a fix hint, so they get fixed in the same turn.
 

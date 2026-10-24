@@ -80,6 +80,15 @@ const analyzeWithTimeout = (targetPath: string) =>
 const resolveTargetPath = (projectPath: string | undefined, baseDir: string | undefined) =>
   projectPath ? resolveRequestedPath(projectPath) : resolveDefaultPath(baseDir);
 
+/**
+ * The absolute project directory a tool should work on: `projectPath` when given, otherwise the
+ * project CodeMaps has open (or the server's working directory). Unlike `ensureGraphLoaded` it
+ * does not index anything, so tools that only need files on disk stay fast. Throws for a missing
+ * directory or when no project is open and the working directory is the app install.
+ */
+export const resolveProjectRoot = (projectPath?: string): string =>
+  resolveTargetPath(projectPath, oracleStore.getState().baseDir);
+
 /** A project must be (re)analyzed when none is open or a different one was requested. */
 const needsAnalysis = (
   projectPath: string | undefined,

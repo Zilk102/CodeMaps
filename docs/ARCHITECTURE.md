@@ -54,6 +54,8 @@ The report feeds four consumers: the health score (`documentation_gaps` issue an
 - Composite `prepare_*` tools assemble a project, change, review or campaign context so an agent needs one call instead of many.
 - `validate_architecture_changes` narrows project-wide findings to the files you changed (`electron/analysis/ChangeValidationService.ts`) and waits for the indexer first.
 - A Claude Code hook (`scripts/codemaps-validate-hook.mjs`) calls that tool after each edit and feeds the result back to the agent.
+- `electron/mcp/serverInstructions.ts` is the MCP `instructions` text every client shows its model: it sends the agent to `setup_project`.
+- `setup_project` (`electron/setup/`) is the zero-config entry point. `detectProject` and `detectAgents` read the project and the MCP `clientInfo.name`; `planFiles` turns them into a list of files; `applyPlannedFile` writes each one by its strategy (a marker block in shared Markdown, a merged hook entry in `.claude/settings.json`, or a version-marked file CodeMaps owns), always through `resolveInsideRoot`, which rejects `..` and symlink escapes. `setupProject` serializes calls per project, creates `.codemaps/config.json` and the baseline once, and records what it wrote in `.codemaps/setup.json`. The skill and hook it ships are generated from `.claude/skills/.../SKILL.md` and `scripts/codemaps-validate-hook.mjs` (`npm run sync:templates`). See [AGENT_SETUP.md](AGENT_SETUP.md).
 
 ## Kuzu worker
 

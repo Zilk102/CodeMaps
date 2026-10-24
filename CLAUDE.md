@@ -21,7 +21,7 @@ Electron + React + TypeScript desktop app that builds a dependency graph of a co
 ## Conventions
 
 - Adding an MCP tool: register it in `electron/mcp/register*.ts`, describe it in `electron/mcp/descriptors.ts`, and add `mcpSettings.tools.<name>` to all three locale files (the locale test enforces key parity).
-- Keep the agent skill in sync across `.claude/skills/codemaps-agent-autopilot/SKILL.md`, `.trae/skills/...` and the template in `src/components/mcp-settings/McpSettingsAgentSkill.tsx`.
+- Keep the agent skill in sync across `.claude/skills/codemaps-agent-autopilot/SKILL.md`, `.trae/skills/...` and the template in `src/components/mcp-settings/McpSettingsAgentSkill.tsx`. `SKILL.md` and `scripts/codemaps-validate-hook.mjs` are the sources of the copies `setup_project` writes into projects: after editing either, run `npm run sync:templates` and `npm run format` (a test fails on drift).
 - Prettier formatting is enforced in CI; run `npm run format` before committing.
 
 ## Using CodeMaps from Claude
