@@ -1,7 +1,10 @@
+// Global setup of the test run: isolates app data in .artifacts, makes sure the Electron binary is
+// installed and compiles the main process, which the parse workers load from dist-electron.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** Installs the Electron binary into a project-local cache when it is missing, so tests that start the app never depend on a prior manual install. */
 function ensureElectronInstalled() {
   const electronDir = path.join(process.cwd(), 'node_modules', 'electron');
   const electronCacheDir = path.join(process.cwd(), '.artifacts', 'electron-cache');
@@ -37,6 +40,7 @@ function ensureElectronInstalled() {
 // Invoke tsc through `node …/tsc.js` rather than `npx`: on Windows `execFileSync`
 // cannot resolve `npx.cmd` without `shell: true`, which produced spawnSync ENOENT
 // in CI.
+/** Vitest global setup: redirects app data to .artifacts, ensures Electron is installed and builds electron/ once before the suites. */
 export default function setup() {
   const testLocalAppData = path.join(process.cwd(), '.artifacts', 'test-localappdata');
   fs.mkdirSync(testLocalAppData, { recursive: true });

@@ -1,3 +1,5 @@
+// Vite configuration of the renderer: React and Tailwind plugins, the `@` alias for src/ and the
+// fixed dev-server port that the Electron dev script waits for.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';

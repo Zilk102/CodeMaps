@@ -1,3 +1,5 @@
+// Vitest configuration: node environment, the test files of electron/ and src/, and the global
+// setup that compiles the main process before any suite runs.
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
