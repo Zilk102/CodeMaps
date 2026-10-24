@@ -1,3 +1,6 @@
+// Builds the weighted graph the clustering runs on: call edges plus the weaker pull of shared name
+// words and shared data, and the roles (hub, orchestrator) of symbols.
+
 import type { SymbolInfo } from './types';
 import { tokenize } from './clusterTokens';
 
@@ -5,14 +8,25 @@ const TOKEN_EDGE_WEIGHT = 0.5;
 const DATA_EDGE_WEIGHT = 0.4;
 const MAX_TOKEN_GROUP = 40;
 
+/**
+ * Undirected weighted graph as adjacency maps; entry `i` maps a neighbour index to the edge weight.
+ */
 export type WeightedGraph = Array<Map<number, number>>;
 
+/**
+ * Adds `weight` to the undirected edge between two nodes, creating it if needed. Self-edges are
+ * ignored.
+ */
 export const addEdge = (graph: WeightedGraph, a: number, b: number, weight: number) => {
   if (a === b) return;
   graph[a].set(b, (graph[a].get(b) ?? 0) + weight);
   graph[b].set(a, (graph[b].get(a) ?? 0) + weight);
 };
 
+/**
+ * Inverts a feature table: for each distinct feature, the members that have it. Repeated features
+ * of one member count once.
+ */
 const groupMembersByFeature = (members: number[], featuresOf: string[][]) => {
   const membersByFeature = new Map<string, number[]>();
   for (const index of members) {
@@ -81,11 +95,17 @@ export interface Analysis {
   linesOf: (members: number[]) => number;
 }
 
+/** Graph with `size` nodes and no edges. */
 export const emptyGraph = (size: number): WeightedGraph =>
   Array.from({ length: size }, () => new Map<number, number>());
 
+/** The indexes 0 .. size-1. */
 export const indexRange = (size: number) => Array.from({ length: size }, (_, index) => index);
 
+/**
+ * For every symbol, the indexes of the other symbols of the file it refers to by name. Names that
+ * match no symbol and self references are dropped.
+ */
 export const buildReferences = (symbols: SymbolInfo[]): Array<Set<number>> => {
   const indexByName = new Map(symbols.map((symbol, index) => [symbol.name, index]));
   const references = symbols.map(() => new Set<number>());

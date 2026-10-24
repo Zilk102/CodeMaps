@@ -22,6 +22,10 @@ const shorten = (text: string): string => {
 export class StreamCache {
   private readonly streams = new Map<string, Promise<TextTokenStream | null>>();
 
+  /**
+   * Raw token stream of a file, tokenized on first request and shared afterwards; null when the
+   * file cannot be read or tokenized.
+   */
   get(file: string): Promise<TextTokenStream | null> {
     let stream = this.streams.get(file);
     if (!stream) {
@@ -86,6 +90,11 @@ const collectParameters = (slices: CopySlice[]): Alignment => {
   return { parameters: seen.size, differences };
 };
 
+/**
+ * Compares the raw tokens of all copies of a group position by position. `parameters` is the number
+ * of distinct differing value tuples (the arguments of a function to extract), -1 when the copies
+ * are not token-aligned or a file cannot be read; `differences` holds a few readable samples.
+ */
 export const alignCopies = async (
   cache: StreamCache,
   instances: CloneInstance[]

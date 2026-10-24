@@ -1,3 +1,6 @@
+// Measures classes and functions of a JS/TS file with the TypeScript compiler API: line spans,
+// cyclomatic complexity and nesting.
+
 import ts from 'typescript';
 import {
   SUPPORTED_SOURCE_FILE_REGEX,
@@ -20,6 +23,7 @@ function getScriptKind(filePath: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
+/** Type guard for declarations that have a `name` (function, method, class, interface). */
 function isNamedDeclaration(
   node: ts.Node
 ): node is
@@ -82,6 +86,10 @@ function isShortCircuitOperator(node: ts.Node): boolean {
   );
 }
 
+/**
+ * Cyclomatic complexity of a body: 1 plus each branching statement and each `&&`, `||` or `??`.
+ * Nesting depth counts branching nodes only, not short-circuit operators.
+ */
 function analyzeControlFlowComplexity(body: ts.Node): {
   complexity: number;
   branchCount: number;
@@ -151,6 +159,10 @@ class TypeScriptStructureCollector {
     return this.toMetrics();
   }
 
+  /**
+   * Dispatches one top-level statement: classes, named function declarations and variables
+   * initialised with a function are measured, everything else is ignored.
+   */
   private visitTopLevel(node: ts.Node): void {
     if (ts.isClassDeclaration(node) && node.name) {
       this.collectClass(node, node.name.text);
@@ -167,6 +179,10 @@ class TypeScriptStructureCollector {
     }
   }
 
+  /**
+   * Registers the arrow functions and function expressions assigned to variables of a statement as
+   * top-level functions.
+   */
   private collectVariableFunctions(statement: ts.VariableStatement): void {
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
@@ -186,6 +202,10 @@ class TypeScriptStructureCollector {
     this.topLevelFunctions.push(this.analyzeFunctionLikeNode(name, body));
   }
 
+  /**
+   * Measures a function body: line span, range, complexity and hash. Also updates the file-wide
+   * longest-method value.
+   */
   private analyzeFunctionLikeNode(name: string, body: ts.Node): SourceFunctionMetric {
     const lineCount = getLineSpan(this.sourceFile, body);
     const range = getLineRange(this.sourceFile, body);
@@ -204,6 +224,10 @@ class TypeScriptStructureCollector {
     };
   }
 
+  /**
+   * Measures every method and accessor with a body in the class and adds the class metric. Public
+   * means no `private` or `protected` modifier.
+   */
   private collectClass(node: ts.ClassDeclaration, className: string): void {
     this.classCount += 1;
     const methodMetrics: SourceFunctionMetric[] = [];
@@ -228,6 +252,7 @@ class TypeScriptStructureCollector {
     );
   }
 
+  /** Assembles the class metric from the measured methods and the class's own line span. */
   private buildClassMetric(
     node: ts.ClassDeclaration,
     className: string,
@@ -247,6 +272,10 @@ class TypeScriptStructureCollector {
     };
   }
 
+  /**
+   * Final file metrics. A class is a god class by size or by complexity; long and complex lists
+   * include both top-level functions and class methods.
+   */
   private toMetrics(): SourceFileMetrics {
     const allFunctions = [...this.topLevelFunctions, ...this.classMethodMetrics];
     return {
@@ -264,6 +293,7 @@ class TypeScriptStructureCollector {
   }
 }
 
+/** Structure metrics of a JS/TS file, or null when the path is not a supported script extension. */
 export function analyzeSourceFileStructureWithTypeScript(
   filePath: string,
   text: string

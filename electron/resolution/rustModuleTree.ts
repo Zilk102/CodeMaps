@@ -1,7 +1,14 @@
+// Rust crate and module tree: reads Cargo.toml and follows `mod` declarations to find which file
+// each module lives in.
+
 import { baseName, dirOf, joinPath, type ProjectIndex } from './types';
 
 const MODULE_ROOT_FILES = new Set(['lib.rs', 'main.rs', 'mod.rs']);
 
+/**
+ * A crate from Cargo.toml: its name with `-` as `_`, its directory and the entry files (library and
+ * binaries).
+ */
 export interface CrateInfo {
   name: string;
   dir: string;
@@ -38,6 +45,11 @@ const applyCargoPair = (fields: CargoFields, section: string, key: string, value
   if (section === 'bin' && key === 'path') fields.binPaths.push(value);
 };
 
+/**
+ * Crate described by a Cargo.toml text: package name plus lib and bin roots (defaults `src/lib.rs`
+ * and `src/main.rs`). Null without a package name. Only simple `key = "value"` lines are read,
+ * which covers these keys.
+ */
 export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
   const { name, libPath, binPaths } = readCargoFields(text);
   if (!name) return null;
@@ -53,6 +65,7 @@ export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
 
 const stemOf = (path: string) => baseName(path).replace(/\.rs$/, '');
 
+/** Where a `use` path begins: the module file and the segments left to walk from it. */
 export interface ModuleStart {
   module: string;
   rest: string[];
@@ -69,6 +82,7 @@ export class RustModuleTree {
   private ownerRoot = new Map<string, string>();
   private isRoot = new Set<string>();
 
+  /** Rebuilds the tree from the Cargo manifests of the index, discarding earlier state. */
   async build(index: ProjectIndex): Promise<void> {
     this.index = index;
     this.crates = [];
@@ -86,6 +100,10 @@ export class RustModuleTree {
     for (const crate of this.crates) this.indexCrate(crate);
   }
 
+  /**
+   * Registers the existing entry files of a crate and walks their `mod` tree. The library root
+   * represents the crate for `use crate_name::...`.
+   */
   private indexCrate(crate: CrateInfo): void {
     for (const root of crate.roots.filter((candidate) => this.index.files.has(candidate))) {
       this.isRoot.add(root);
@@ -97,6 +115,10 @@ export class RustModuleTree {
     }
   }
 
+  /**
+   * Records the owning crate root and parent module of every module file reachable from `file`
+   * through `mod name;` declarations. Cycles are cut by `seen`.
+   */
   private indexModuleTree(file: string, root: string, seen = new Set<string>()): void {
     if (seen.has(file)) return;
     seen.add(file);
@@ -110,6 +132,11 @@ export class RustModuleTree {
     }
   }
 
+  /**
+   * File of the child module `name` declared in `parent` (`name.rs` or `name/mod.rs`), or null.
+   * Crate roots and `mod.rs` keep children beside them, other files in a folder named after the
+   * file.
+   */
   childFile(parent: string, name: string): string | null {
     const directory = dirOf(parent);
     const ownsDirectory = this.isRoot.has(parent) || MODULE_ROOT_FILES.has(baseName(parent));

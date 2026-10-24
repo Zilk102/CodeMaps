@@ -1,3 +1,6 @@
+// Catalog of the languages CodeMaps can parse, with their extensions, parser engine and support
+// tier.
+
 import { languageQueries } from './queries';
 import { LanguageDefinition } from './types';
 

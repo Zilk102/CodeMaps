@@ -1,3 +1,6 @@
+// Base class for resolvers that look imports up in tables rebuilt from the project index on every
+// pass.
+
 import type { ImportRecord } from '../parsing/types';
 import {
   edgesOfImports,
@@ -14,6 +17,7 @@ export abstract class IndexedResolver<Tables> implements LanguageResolver {
   protected index!: ProjectIndex;
   protected tables!: Tables;
 
+  /** Stores the index and rebuilds the lookup tables from the files of this language. */
   async prepare(index: ProjectIndex): Promise<void> {
     this.index = index;
     this.tables = this.buildTables(filesOfLanguage(index, this.languageId));
@@ -31,6 +35,10 @@ export abstract class IndexedResolver<Tables> implements LanguageResolver {
   /** Edges the file earns without importing anything (an implementation of a header, autoloading). */
   protected abstract inferredEdges(file: FileEntry): ResolvedEdge[];
 
+  /**
+   * Edges of a file: those of its imports that resolve to project files, then the inferred ones
+   * that need no import.
+   */
   resolve(file: FileEntry): ResolvedEdge[] {
     const imported = edgesOfImports(
       file,

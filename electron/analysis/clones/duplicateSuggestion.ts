@@ -1,8 +1,14 @@
+// Chooses the refactoring (merge, extract function, extract shared module) that fits where the
+// copies live.
+
 import * as path from 'path';
 import type { DuplicateCopy, DuplicateSuggestion } from './duplicateReportTypes';
 
 // ---- Suggestions ------------------------------------------------------------------------
 
+/**
+ * Longest shared directory prefix of the files, or an empty string when they have none in common.
+ */
 const commonDirectory = (files: string[]): string => {
   const parts = files.map((file) =>
     path.posix
@@ -28,6 +34,11 @@ const parameterNote = (parameters: number): string =>
     ? 'compare them by hand to find the parameters, because the copies were edited after being pasted and could not be aligned'
     : `pass the ${plural(parameters, 'differing value')} as parameters`;
 
+/**
+ * Picks the action from the copies' location. Identical copies (`parameters` 0) in one directory
+ * merge into the first; other copies in one directory become one function; copies spread over
+ * directories go to a new `shared` module under their common directory.
+ */
 export const chooseSuggestion = (
   copies: DuplicateCopy[],
   parameters: number

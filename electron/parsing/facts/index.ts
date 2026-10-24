@@ -1,3 +1,6 @@
+// Registry of the languages that have an AST facts extractor, with serializable and in-process entry
+// points.
+
 import type { Node } from 'web-tree-sitter';
 import { extractCppFacts } from './cppFacts';
 import { extractCSharpFacts } from './csharpFacts';

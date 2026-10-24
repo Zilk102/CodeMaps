@@ -1,3 +1,6 @@
+// Builds the agent-facing duplication report from raw clone groups: copy locations, differing values
+// and a refactoring suggestion.
+
 import { createHash } from 'crypto';
 import type { GraphData } from '../../store/types';
 import { isTestFile } from '../testFiles';
@@ -55,6 +58,10 @@ const toCandidate = (
   };
 };
 
+/**
+ * True when any copy of the candidate is the given file; the file may be absolute or
+ * project-relative and is compared case-insensitively.
+ */
 const touchesFile = (root: string, candidate: Candidate, filePath: string): boolean => {
   const wanted = toPosix(filePath).toLowerCase();
   const wantedRelative = relativeToRoot(root, filePath).toLowerCase();
@@ -72,6 +79,10 @@ const groupId = (group: CloneGroup, first: DuplicateCopy): string =>
     .digest('hex')
     .slice(0, 10);
 
+/**
+ * Re-reads the candidate's files to align its copies, then assembles the public group with a stable
+ * id, the suggestion and the difference samples.
+ */
 const toDuplicateGroup = async (
   cache: StreamCache,
   candidate: Candidate

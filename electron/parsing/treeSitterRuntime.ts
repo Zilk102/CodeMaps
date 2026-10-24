@@ -1,3 +1,6 @@
+// Shared web-tree-sitter runtime: one initialisation, one parser instance and a cache of loaded
+// grammars.
+
 import * as path from 'path';
 import type { LanguageDefinition } from './types';
 
@@ -13,6 +16,10 @@ const getWasmDirectory = () =>
 
 // Language.load() reaches into the Emscripten runtime that Parser.init() sets up,
 // so every entry point has to go through this before touching web-tree-sitter.
+/**
+ * Initialises the web-tree-sitter runtime once. A failed initialisation is not cached, so the next
+ * call retries.
+ */
 const ensureRuntimeInitialized = async (): Promise<void> => {
   if (!initPromise) {
     initPromise = Parser.init().catch((error) => {
@@ -24,6 +31,10 @@ const ensureRuntimeInitialized = async (): Promise<void> => {
   return initPromise;
 };
 
+/**
+ * The single shared parser. Callers must call `setLanguage` right before each parse, since the
+ * instance is reused for every language.
+ */
 export const getParserInstance = async (): Promise<Parser> => {
   await ensureRuntimeInitialized();
 
@@ -34,6 +45,10 @@ export const getParserInstance = async (): Promise<Parser> => {
   return parserInstance;
 };
 
+/**
+ * Loads the grammar of a language from the bundled wasm files, once: parallel calls share one load.
+ * Null for languages without a grammar.
+ */
 export const loadTreeSitterLanguage = async (
   definition: LanguageDefinition
 ): Promise<Language | null> => {

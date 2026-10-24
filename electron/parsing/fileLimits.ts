@@ -5,6 +5,10 @@ import * as fs from 'fs/promises';
 // push the main process into an out-of-memory crash.
 export const MAX_ANALYZED_FILE_SIZE = 300 * 1024;
 
+/**
+ * Text of the file, or null when it is larger than `MAX_ANALYZED_FILE_SIZE`. Rejects when the file
+ * cannot be stat'ed or read.
+ */
 export const readFileWithinLimit = async (filePath: string): Promise<string | null> => {
   const stat = await fs.stat(filePath);
   if (stat.size > MAX_ANALYZED_FILE_SIZE) {

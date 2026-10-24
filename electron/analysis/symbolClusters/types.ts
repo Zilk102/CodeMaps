@@ -1,3 +1,6 @@
+// Shapes of the symbol graph extracted from one file and of the split plan built from it.
+
+/** Coarse category of a declaration. */
 export type SymbolKind = 'function' | 'class' | 'type' | 'const';
 
 /** One declaration of a file with the other declarations of the same file it refers to. */
@@ -15,6 +18,7 @@ export interface SymbolInfo {
   uses?: string[];
 }
 
+/** The declarations of one source file with their mutual references. */
 export interface SymbolGraph {
   filePath: string;
   language: string;
@@ -22,12 +26,14 @@ export interface SymbolGraph {
   symbols: SymbolInfo[];
 }
 
+/** Brief entry of a symbol in a cluster listing. */
 export interface PlannedSymbol {
   name: string;
   kind: SymbolKind;
   lines: number;
 }
 
+/** One proposed new file: the symbols that belong together and how they connect to the rest. */
 export interface SplitCluster {
   /** What the cluster is about, e.g. `auth` or `admin_users`. */
   name: string;
@@ -42,6 +48,10 @@ export interface SplitCluster {
   dependsOn: string[];
 }
 
+/**
+ * Proposal for splitting one large file into several, with the evidence behind it. Only advice:
+ * nothing is moved.
+ */
 export interface SplitPlan {
   file: string;
   language: string;

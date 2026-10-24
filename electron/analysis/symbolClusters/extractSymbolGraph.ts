@@ -1,3 +1,5 @@
+// Language dispatch that extracts the declarations of a file and how they refer to each other.
+
 import { MAX_ANALYZED_FILE_SIZE } from '../../parsing/fileLimits';
 import { extractTypeScript } from './extractTsSymbolGraph';
 import { extractWithTreeSitter } from './extractTreeSitterSymbolGraph';

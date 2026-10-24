@@ -16,6 +16,10 @@ const nodeLines = (node: Node) => ({
   end: node.endPosition.row + 1,
 });
 
+/**
+ * Collects distinct class and function captures of the language query as declarations; the node is
+ * the capture's parent, i.e. the whole declaration rather than just its name.
+ */
 const declarationsFromQuery = (query: Query, root: Node): DeclarationNode[] => {
   const seen = new Set<string>();
   const result: DeclarationNode[] = [];
@@ -134,6 +138,12 @@ const collectDeclarationUsage = (
   return { refs, uses, nestedLines };
 };
 
+/**
+ * Builds the symbol graph from declarations: adds large uncovered top-level blocks as constants,
+ * resolves references by simple name (names shared by more than two symbols are ignored as
+ * ambiguous) and measures each symbol without its nested declarations. At most 800 declarations are
+ * used.
+ */
 const buildFromDeclarations = (
   filePath: string,
   language: string,
@@ -175,6 +185,10 @@ const buildFromDeclarations = (
   return { filePath, language, lineCount: root.endPosition.row + 1, symbols };
 };
 
+/**
+ * Symbol graph of a file in a tree-sitter language. Null when the language has no tree-sitter
+ * grammar or query, or the grammar or parse fails.
+ */
 export const extractWithTreeSitter = async (
   filePath: string,
   text: string,

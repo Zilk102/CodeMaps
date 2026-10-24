@@ -1,3 +1,5 @@
+// Turns source files of any supported language into normalized token streams for clone detection.
+
 import ts from 'typescript';
 import type { Node } from 'web-tree-sitter';
 import { getLanguageByExtension } from '../../parsing/languageRegistry';
@@ -84,6 +86,10 @@ const skippedRanges = (source: ts.SourceFile) =>
 const isJsxFile = (filePath: string) =>
   /\.[cm]?[jt]sx$/.test(filePath) || /\.[cm]?js$/.test(filePath);
 
+/**
+ * Scans TypeScript or JavaScript with the compiler scanner (no full parse) and skips imports and
+ * re-exports.
+ */
 const tokenizeTypeScript = (filePath: string, text: string): TextTokenStream => {
   const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, false);
   const skipped = skippedRanges(source);
@@ -129,6 +135,10 @@ const pushChildrenReversed = (stack: Node[], node: Node): void => {
   }
 };
 
+/**
+ * Walks the syntax tree depth first, emitting one token per leaf or literal and skipping comments
+ * and import-like nodes.
+ */
 const tokenizeTree = (filePath: string, root: Node): TextTokenStream => {
   const stream: TextTokenStream = { file: filePath, tokens: [], lines: [], texts: [] };
   const stack: Node[] = [root];
@@ -147,6 +157,10 @@ const tokenizeTree = (filePath: string, root: Node): TextTokenStream => {
   return stream;
 };
 
+/**
+ * Reads and tokenizes a file with the right tokenizer. Returns null for oversized, unreadable or
+ * unsupported files.
+ */
 const tokenizeWithText = async (filePath: string): Promise<TextTokenStream | null> => {
   const source = await readSourceText(filePath, MAX_FILE_BYTES);
   if (!source) return null;

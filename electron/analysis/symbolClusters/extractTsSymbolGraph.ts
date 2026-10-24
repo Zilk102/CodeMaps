@@ -1,3 +1,6 @@
+// Extracts the declarations of a TypeScript or JavaScript file and which of them use which, with the
+// TypeScript compiler API.
+
 import ts from 'typescript';
 import { lineCountOf, MAX_SYMBOLS, MAX_USES } from './symbolGraphCommon';
 import type { SymbolGraph, SymbolInfo, SymbolKind } from './types';
@@ -47,6 +50,10 @@ const classSymbols = (statement: ts.ClassDeclaration, className: string): TsSymb
   return [newSymbol(className, 'class', statement, { skip }), ...members];
 };
 
+/**
+ * One symbol per identifier-named variable of a variable statement. Arrow and function expressions
+ * are functions, anything else a constant.
+ */
 const variableSymbols = (statement: ts.VariableStatement): TsSymbol[] =>
   statement.declarationList.declarations.flatMap((declaration) =>
     ts.isIdentifier(declaration.name)
@@ -60,6 +67,10 @@ const variableSymbols = (statement: ts.VariableStatement): TsSymbol[] =>
       : []
   );
 
+/**
+ * Symbols declared by a top-level statement: functions, classes with their callable members,
+ * variables, and interface, type alias and enum declarations. Other statements yield none.
+ */
 const statementSymbols = (statement: ts.Statement): TsSymbol[] => {
   if (ts.isFunctionDeclaration(statement) && statement.name) {
     return [newSymbol(statement.name.text, 'function', statement)];
@@ -108,6 +119,11 @@ interface UsageState {
   uses: Set<string>;
 }
 
+/**
+ * Records a `a.b` access. Inside a class member, `this.x` refers to the sibling member `Class.x`
+ * when it exists; any other property name is noted as a use, and the object expression is visited
+ * as well.
+ */
 const visitPropertyAccess = (state: UsageState, node: ts.PropertyAccessExpression) => {
   const { symbol, context, refs, uses } = state;
   const member = symbol.owner ? `${symbol.owner}.${node.name.text}` : undefined;
@@ -158,6 +174,10 @@ const ownedLines = (source: ts.SourceFile, symbol: TsSymbol, start: number, end:
   return Math.max(1, owned);
 };
 
+/**
+ * Converts a raw symbol into the public record with its line range, own line count (nested members
+ * excluded), references and used names.
+ */
 const toSymbolInfo = (
   source: ts.SourceFile,
   symbol: TsSymbol,
@@ -177,6 +197,7 @@ const toSymbolInfo = (
   };
 };
 
+/** Symbol graph of a TypeScript or JavaScript source text. Keeps at most 800 symbols. */
 export const extractTypeScript = (filePath: string, text: string): SymbolGraph => {
   const scriptKind = /\.[cm]?jsx?$/.test(filePath) ? ts.ScriptKind.JS : undefined;
   const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, scriptKind);

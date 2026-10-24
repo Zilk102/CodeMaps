@@ -1,9 +1,26 @@
+// Shared shapes of the parsing layer: what a parse returns, how languages are described and how
+// adapters plug in.
+
+/** Kind of declaration the parser reports. */
 export type EntityType = 'class' | 'function';
+/**
+ * Backend that parses a language: tree-sitter queries, the Markdown ADR reader, or the TypeScript
+ * compiler API.
+ */
 export type ParserEngine = 'tree-sitter' | 'markdown-adr' | 'typescript-semantic';
+/**
+ * How much a language yields: `semantic` (compiler-grade, TS/JS), `structural` (tree-sitter
+ * declarations, imports and calls), `limited` (markup and styles) or `metadata` (config and docs).
+ */
 export type LanguageSupportTier = 'semantic' | 'structural' | 'limited' | 'metadata';
+/** Identifier of a language adapter; there is one per parser engine. */
 export type LanguageAdapterId =
   'tree-sitter-query-adapter' | 'markdown-adr-adapter' | 'typescript-semantic-adapter';
 
+/**
+ * An import statement of a file. `path` is the specifier as written; `resolvedPath` is filled in
+ * later, once the project files are known.
+ */
 export interface ImportRecord {
   path: string;
   importedEntities: string[];
@@ -50,12 +67,17 @@ export interface ReExportRecord {
   entities: string[];
 }
 
+/**
+ * A class-like or function-like declaration of a file, with its position when the parser provides
+ * one.
+ */
 export interface EntityRecord {
   type: EntityType;
   name: string;
   location?: SourceLocation;
 }
 
+/** Source range of a declaration; lines and columns are as reported by the parser. */
 export interface SourceLocation {
   startLine: number;
   startColumn: number;
@@ -63,12 +85,20 @@ export interface SourceLocation {
   endColumn: number;
 }
 
+/**
+ * A name a file exports. `localName` is set when it differs from `exportedName` (`export { a as b
+ * }`).
+ */
 export interface ExportRecord {
   exportedName: string;
   localName?: string;
   isDefault?: boolean;
 }
 
+/**
+ * Everything extracted from one file. `sizeExceeded` means the file was too large and nothing else
+ * was read; an unsupported or unreadable file yields the same empty result.
+ */
 export interface ParseResult {
   sizeExceeded: boolean;
   imports: ImportRecord[];
@@ -84,6 +114,7 @@ export interface ParseResult {
   detectedLanguage?: string;
 }
 
+/** Input of a language adapter: one file's text plus the language definition it was matched to. */
 export interface ParseContext {
   filePath: string;
   text: string;
@@ -92,6 +123,10 @@ export interface ParseContext {
   baseDir?: string;
 }
 
+/**
+ * Which kinds of facts a language can produce; a false flag means the field stays empty rather than
+ * that the file has none.
+ */
 export interface LanguageCapabilities {
   entities: boolean;
   imports: boolean;
@@ -100,6 +135,10 @@ export interface LanguageCapabilities {
   comments: boolean;
 }
 
+/**
+ * Static description of a supported language: how to find its files (`extensions`), which adapter
+ * and engine parse it, and its grammar and query.
+ */
 export interface LanguageDefinition {
   id: string;
   displayName: string;
@@ -112,17 +151,26 @@ export interface LanguageDefinition {
   capabilities: LanguageCapabilities;
 }
 
+/** Languages found in a project, most common first, with the number of files of each. */
 export interface ProjectLanguageProfile {
   activeLanguageIds: string[];
   languageFileCounts: Record<string, number>;
 }
 
+/**
+ * Request to parse one file. When `activeLanguageIds` is non-empty, files of other languages are
+ * skipped.
+ */
 export interface ParseWorkerInput {
   filePath: string;
   activeLanguageIds?: string[];
   baseDir?: string;
 }
 
+/**
+ * Parser backend for a family of languages. `supports` says whether it can handle a definition and
+ * `parse` turns a file into a `ParseResult`.
+ */
 export interface LanguageAdapter {
   id: LanguageAdapterId;
   parserEngines: ParserEngine[];

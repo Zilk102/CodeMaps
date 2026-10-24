@@ -22,6 +22,10 @@ import {
 
 /** Reasons start with the language id, which is how resolver-owned links are recognised. */
 const OWNED_REASON = /^(go|python|java|rust|cpp|c_sharp|kotlin|php|ruby):/;
+/**
+ * True for import links created by a language resolver (reason prefixed with a language id), as
+ * opposed to links from the generic parser. Used to replace exactly those links on each pass.
+ */
 export const isResolverLink = (link: GraphLink): boolean =>
   link.type === 'import' && !!link.reason && OWNED_REASON.test(link.reason);
 
@@ -32,6 +36,7 @@ const MANIFEST_IGNORE = [
 
 const MANIFEST_CACHE_MS = 5_000;
 
+/** Outcome of one resolution pass. */
 export interface ImportResolutionResult {
   linksAdded: number;
   filesResolved: number;
@@ -46,6 +51,10 @@ type ResolverFileNode = GraphNode & {
 const isResolverFile = (node: GraphNode, languages: Set<string>): node is ResolverFileNode =>
   node.type === 'file' && !!node.resolution && !!node.language && languages.has(node.language);
 
+/**
+ * Splits the graph nodes into the resolvers' input: files of resolver languages that carry facts,
+ * those files by directory, and entity labels by file. The `root` parameter is not used.
+ */
 const collectIndex = (
   nodes: Map<string, GraphNode>,
   root: string,
@@ -96,6 +105,11 @@ const collectResolverLinks = async (
   return links;
 };
 
+/**
+ * Resolves imports of package- and module-based languages (Go, Python, Java, Rust, C/C++, C#,
+ * Kotlin, PHP, Ruby) to files and symbols of the project, after indexing, because their import
+ * statements do not name relative paths.
+ */
 export class ImportResolutionService {
   private readonly resolvers: LanguageResolver[];
 
@@ -129,6 +143,10 @@ export class ImportResolutionService {
     return value;
   }
 
+  /**
+   * Finds the go.mod, Cargo.toml and composer.json files under the root, at most 6 directories
+   * deep, using the oracle ignore globs plus `vendor` (Rust `target` folders are not ignored).
+   */
   private async globManifests(root: string): Promise<ProjectIndex['manifests']> {
     const find = async (name: string) =>
       (await fg(`**/${name}`, { cwd: root, absolute: true, ignore: MANIFEST_IGNORE, deep: 6 })).map(

@@ -1,3 +1,5 @@
+// AST visitors that collect imports, exports, re-exports and calls from TypeScript and JavaScript.
+
 import ts from 'typescript';
 import type { TypeScriptSemanticState } from './typescriptSemanticState';
 
@@ -40,6 +42,10 @@ const visitImportDeclaration: NodeVisitor = (node, state) => {
   return true;
 };
 
+/**
+ * Handles `export ... from 'x'`: records the named or `*` entities as an import and a re-export of
+ * the module, and the named ones as exports.
+ */
 const visitReExportDeclaration: NodeVisitor = (node, state) => {
   if (
     !ts.isExportDeclaration(node) ||
@@ -62,6 +68,10 @@ const visitReExportDeclaration: NodeVisitor = (node, state) => {
   return true;
 };
 
+/**
+ * Handles `export { a, b as c }` without a module: records each name as an export. `export ...
+ * from` is left to the re-export visitor.
+ */
 const visitLocalExportDeclaration: NodeVisitor = (node, state) => {
   if (
     !ts.isExportDeclaration(node) ||
@@ -74,6 +84,10 @@ const visitLocalExportDeclaration: NodeVisitor = (node, state) => {
   return true;
 };
 
+/**
+ * Handles the less common import forms: `import x = require('m')` and `import('m')` in a type
+ * position.
+ */
 const visitDynamicImportForms: NodeVisitor = (node, state) => {
   if (
     ts.isImportEqualsDeclaration(node) &&
@@ -109,6 +123,7 @@ const IMPORT_EXPORT_VISITORS: NodeVisitor[] = [
   visitExportAssignment,
 ];
 
+/** Tries each import and export visitor on the node; true when one of them handled it. */
 export const visitImportsAndExports: NodeVisitor = (node, state) =>
   IMPORT_EXPORT_VISITORS.some((visit) => visit(node, state));
 
@@ -124,6 +139,10 @@ const registerRuntimeImport = (node: ts.CallExpression, state: TypeScriptSemanti
   }
 };
 
+/**
+ * Records the called name of a call expression and treats `import('x')` and `require('x')` as
+ * imports. True for every call expression.
+ */
 export const visitCalls: NodeVisitor = (node, state) => {
   if (!ts.isCallExpression(node)) return false;
   const callName = getCallName(node.expression);

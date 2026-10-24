@@ -1,3 +1,6 @@
+// Facts of a PHP file: namespaces, `use` imports, `require`/`include` paths, classes, functions and
+// methods, and used names.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { addOwnedFunction, allChildren, namedOf } from './astUtils';
@@ -137,6 +140,10 @@ const visitDeclaration: NodeHandler<PhpState> = (node, state) => {
   return declareClasses(node, state);
 };
 
+/**
+ * Facts of a PHP file. Only literal include paths are kept (`require 'a.php'`, `__DIR__ .
+ * '/a.php'`), as relative file imports. The first namespace doubles as the package name.
+ */
 export const extractPhpFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: PhpState = { acc: new FactsAccumulator(true), namespaces: [] };
   walkWithHandlers(root, state, HANDLERS, visitDeclaration);

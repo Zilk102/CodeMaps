@@ -1,3 +1,6 @@
+// Top-level orchestration of the split planner: classify symbols, build the graph, cluster and
+// describe the result.
+
 import type { SplitPlan, SymbolGraph } from './types';
 import type { Analysis } from './clusterEdges';
 import { buildAffinity, buildReferences, classifyRoles, indexRange } from './clusterEdges';

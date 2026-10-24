@@ -1,5 +1,8 @@
+// Go module metadata (go.mod) and import-path to directory mapping.
+
 import { joinPath, normalizeSegments } from './types';
 
+/** A Go module: where its go.mod lives, its module path and local replacements. */
 export interface GoModule {
   dir: string;
   modulePath: string;
@@ -7,6 +10,11 @@ export interface GoModule {
   replacements: Array<{ from: string; dir: string }>;
 }
 
+/**
+ * Reads the module path and the `replace ... => ./dir` directives that point inside the repository
+ * from a go.mod text. Null when there is no `module` line. Replacements to remote modules are
+ * ignored.
+ */
 export const parseGoMod = (dir: string, text: string): GoModule | null => {
   const module = /^\s*module\s+("?)([^\s"]+)\1/m.exec(text);
   if (!module) return null;
@@ -19,6 +27,7 @@ export const parseGoMod = (dir: string, text: string): GoModule | null => {
   return { dir, modulePath: module[2], replacements };
 };
 
+/** True for Go test files (`_test.go`). */
 export const isTestFile = (path: string) => path.endsWith('_test.go');
 
 /** `foo/v2` exposes package foo. */

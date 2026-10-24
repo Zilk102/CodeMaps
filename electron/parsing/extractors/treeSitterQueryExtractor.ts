@@ -1,3 +1,6 @@
+// Generic extractor that runs a language's tree-sitter query and collects entities, imports,
+// variables, calls and comments from the captures.
+
 import { Query, Tree, Language } from 'web-tree-sitter';
 import { extractLanguageFacts } from '../facts';
 import { LanguageDefinition, ParseResult, SourceLocation } from '../types';
@@ -103,6 +106,7 @@ class QueryCollector {
   }
 }
 
+/** Result with no facts, tagged with the language and ADR reference. */
 const emptyResult = (definition: LanguageDefinition, adr?: string): ParseResult => ({
   sizeExceeded: false,
   imports: [],
@@ -115,6 +119,11 @@ const emptyResult = (definition: LanguageDefinition, adr?: string): ParseResult 
   detectedLanguage: definition.id,
 });
 
+/**
+ * Extracts facts from a parsed tree with the language's query. For languages with a facts extractor
+ * (Go, Python, Java, Rust and others) its entities replace the query's, its imports are kept raw in
+ * `resolution` and `imports` is left empty. Returns an empty result when the language has no query.
+ */
 export const extractWithTreeSitterQuery = (
   tree: Tree,
   language: Language,

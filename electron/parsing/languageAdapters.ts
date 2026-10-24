@@ -1,3 +1,5 @@
+// The built-in language adapters, one per parser engine, and their lookup by language definition.
+
 import { extractMarkdownAdr } from './extractors/markdownAdrExtractor';
 import { extractWithTreeSitterQuery } from './extractors/treeSitterQueryExtractor';
 import { extractWithTypeScriptSemantic } from './extractors/typescriptSemanticExtractor';
@@ -54,7 +56,9 @@ const BUILTIN_LANGUAGE_ADAPTERS: Record<LanguageAdapterId, LanguageAdapter> = {
   'tree-sitter-query-adapter': treeSitterAdapter,
 };
 
+/** All built-in adapters. */
 export const getBuiltinLanguageAdapters = () => Object.values(BUILTIN_LANGUAGE_ADAPTERS);
 
+/** The adapter a language definition names, or undefined if its `adapterId` is unknown. */
 export const getLanguageAdapter = (definition: LanguageDefinition) =>
   BUILTIN_LANGUAGE_ADAPTERS[definition.adapterId];

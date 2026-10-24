@@ -1,3 +1,5 @@
+// Resolves Rust `use` paths and `mod` declarations to module files and items.
+
 import { RustModuleTree } from './rustModuleTree';
 import {
   entityTarget,
@@ -20,11 +22,16 @@ const entityUseEdge = (module: string, name: string): ResolvedEdge => ({
   reason: 'rust:use',
 });
 
+/**
+ * Rust resolver: links `mod x;` to the module file, walks `use` paths through the module tree to a
+ * module or item, follows `pub use` re-exports and handles glob imports.
+ */
 export class RustResolver implements LanguageResolver {
   readonly languageId = 'rust';
   private index!: ProjectIndex;
   private tree = new RustModuleTree();
 
+  /** Rebuilds the module tree for the current project index. */
   async prepare(index: ProjectIndex): Promise<void> {
     this.index = index;
     this.tree = new RustModuleTree();
@@ -48,6 +55,11 @@ export class RustResolver implements LanguageResolver {
     return null;
   }
 
+  /**
+   * Follows a path from the module it starts in. Reaching a module gives a module edge (and the
+   * module); an item that is not a module gives an edge to the item, or to the last module if the
+   * item is unknown. Null when the path starts outside the project.
+   */
   private walk(
     file: string,
     segments: string[],
@@ -69,6 +81,10 @@ export class RustResolver implements LanguageResolver {
     return { edge: moduleEdge(current), module: current };
   }
 
+  /**
+   * Edges from `mod` declarations, from `use` paths, and from `module::item` uses of an imported or
+   * declared module.
+   */
   resolve(file: FileEntry): ResolvedEdge[] {
     const edges: ResolvedEdge[] = [];
     /** Names that refer to a module file, for `module::function` uses. */
@@ -86,6 +102,10 @@ export class RustResolver implements LanguageResolver {
     return edges;
   }
 
+  /**
+   * Edges to the child files of the file's `mod name;` declarations. Also remembers which name
+   * stands for which file.
+   */
   private resolveModuleDeclarations(
     file: FileEntry,
     edges: ResolvedEdge[],
@@ -99,6 +119,11 @@ export class RustResolver implements LanguageResolver {
     }
   }
 
+  /**
+   * Edges for each `use` of the file, skipping paths that resolve to the file itself. Glob imports
+   * link the names actually used; other imports link the resolved target and remember the name for
+   * `module::item` uses.
+   */
   private resolveImports(
     file: FileEntry,
     edges: ResolvedEdge[],

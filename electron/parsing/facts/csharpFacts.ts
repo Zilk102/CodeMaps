@@ -1,3 +1,6 @@
+// Facts of a C# file: `using` imports, namespaces, types, methods and used names, for resolving
+// imports against the project.
+
 import type { Node } from 'web-tree-sitter';
 import type { ImportRecord } from '../types';
 import { addOwnedFunction, allChildren, namedOf } from './astUtils';
@@ -118,6 +121,10 @@ const HANDLERS: Record<string, NodeHandler<CSharpState>> = {
   },
 };
 
+/**
+ * Facts of a C# file. Namespaces (nested ones joined with dots) are collected and the first doubles
+ * as the package name; only capitalised identifiers count as used names.
+ */
 export const extractCSharpFacts = (root: Node): LanguageFactsWithDeclarations => {
   const state: NamespaceState = { acc: new FactsAccumulator(true), namespaces: [] };
   walkWithHandlers(root, state, HANDLERS, declareTypes);

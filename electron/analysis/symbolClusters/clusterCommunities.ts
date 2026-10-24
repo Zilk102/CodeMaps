@@ -1,3 +1,6 @@
+// Groups the symbols of a file into clusters with a deterministic modularity optimisation, then
+// merges and caps the groups to a reviewable number.
+
 import type { Analysis, WeightedGraph } from './clusterEdges';
 import { addDataEdges, addEdge, addTokenEdges, emptyGraph, indexRange } from './clusterEdges';
 
@@ -102,6 +105,10 @@ const moveToBestCommunity = (state: ModularityState, node: number, k: number): b
   return true;
 };
 
+/**
+ * A set of symbol indexes proposed as one new file. `misc` marks the catch-all group for symbols
+ * tied to nothing.
+ */
 export interface Group {
   members: number[];
   /** Leftovers that are tied to nothing: they share one catch-all file. */

@@ -1,3 +1,5 @@
+// Resolves Go imports to the files and symbols of the packages they name.
+
 import type { ImportRecord } from '../parsing/types';
 import {
   directoryForImport,
@@ -16,11 +18,19 @@ import {
   type ResolvedEdge,
 } from './types';
 
+/**
+ * Go resolver: maps import paths to directories through go.mod, links the symbols an import uses,
+ * and connects files of one package.
+ */
 export class GoResolver implements LanguageResolver {
   readonly languageId = 'go';
   private modules: GoModule[] = [];
   private index!: ProjectIndex;
 
+  /**
+   * Reads every go.mod; the module with the longest path comes first so nested modules shadow their
+   * parent.
+   */
   async prepare(index: ProjectIndex): Promise<void> {
     this.index = index;
     const modules: GoModule[] = [];
@@ -71,6 +81,11 @@ export class GoResolver implements LanguageResolver {
     return names;
   }
 
+  /**
+   * Edges for one import: the package symbols the file refers to through the import qualifier (or
+   * any used name for a dot import). When none match, one edge to the package's primary file.
+   * External packages give none.
+   */
   private edgesForImport(file: FileEntry, record: ImportRecord): ResolvedEdge[] {
     const directory = directoryForImport(this.modules, record.path);
     if (!directory) return [];
@@ -123,6 +138,7 @@ export class GoResolver implements LanguageResolver {
     return edges;
   }
 
+  /** Edges from the file's imports and from the other files of its package. */
   resolve(file: FileEntry): ResolvedEdge[] {
     return [...this.importEdges(file), ...this.samePackageEdges(file)];
   }
