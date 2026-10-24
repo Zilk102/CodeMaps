@@ -1,6 +1,9 @@
+/** Copies the application graph into the Kuzu database, translating node and link types. */
+
 import { KuzuGraphService, GraphNode, GraphEdge } from './KuzuGraphService';
 import type { GraphData } from '../store';
 
+/** Persists a project's `GraphData` into its Kuzu database so it can be queried with Cypher (blast radius, PR impact). */
 export class KuzuIntegration {
   private service: KuzuGraphService;
 
@@ -8,10 +11,12 @@ export class KuzuIntegration {
     this.service = new KuzuGraphService(projectPath);
   }
 
+  /** Opens the underlying database. */
   async init(): Promise<void> {
     await this.service.init();
   }
 
+  /** Replaces the database contents with `graphData`: clears it, then inserts every node and every link. Slow for large graphs, since rows are written one at a time. */
   async storeGraph(graphData: GraphData): Promise<void> {
     await this.service.clear();
 
@@ -50,18 +55,22 @@ export class KuzuIntegration {
     console.log('[KuzuIntegration] Stored graph:', stats);
   }
 
+  /** Nodes directly linked to `nodeId` in either direction. */
   async getNodeNeighbors(nodeId: string): Promise<any[]> {
     return this.service.queryNeighbors(nodeId);
   }
 
+  /** Number of nodes and edges currently stored. */
   async getStats(): Promise<{ nodes: number; edges: number }> {
     return this.service.getStats();
   }
 
+  /** Closes the underlying database. */
   async close(): Promise<void> {
     await this.service.close();
   }
 
+  /** Maps an application node type to a database node type; unknown types become `file`. */
   private mapNodeType(type?: string): GraphNode['type'] {
     const mapping: Record<string, GraphNode['type']> = {
       file: 'file',
@@ -76,6 +85,7 @@ export class KuzuIntegration {
     return mapping[type || ''] || 'file';
   }
 
+  /** Maps an application link type to a database edge type: structure becomes `contains`, import `imports`, adr `references`, everything else `depends_on`. */
   private mapLinkType(type?: string): GraphEdge['type'] {
     const mapping: Record<string, GraphEdge['type']> = {
       structure: 'contains',

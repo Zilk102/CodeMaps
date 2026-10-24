@@ -13,6 +13,7 @@ const analyzeLimit = async <T>(fn: () => Promise<T>): Promise<T> => {
   return result;
 };
 
+/** Converts backslashes to forward slashes (graph ids always use `/`); passes `undefined` through. */
 export const normalizePath = (value?: string) => value?.replace(/\\/g, '/');
 
 /** A mistyped path would otherwise index nothing and look like a successful, empty analysis. */
@@ -39,6 +40,7 @@ const resolveRequestedPath = (projectPath: string): string => {
   return targetPath;
 };
 
+/** Whether `targetPath` lies in the app's own install or resources directory, which would index CodeMaps itself instead of a project. False when the Electron `app` API is unavailable. */
 const isInsideElectronInstall = (targetPath: string): boolean => {
   try {
     const exeDir = normalizePath(path.dirname(app.getPath('exe')));
@@ -84,6 +86,10 @@ const needsAnalysis = (
   target: string
 ) => !baseDir || Boolean(projectPath && normalizePath(baseDir) !== target);
 
+/**
+ * Returns the graph for `projectPath`, analyzing the project first when none is open or a different one was requested; otherwise returns the current oracle graph.
+ * Throws for a missing directory, or when no project is open and the working directory is the app install. Analysis is serialized and capped at 60 seconds. The clone index is refreshed before returning.
+ */
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
   const { baseDir } = oracleStore.getState();
   const targetPath = resolveTargetPath(projectPath, baseDir);

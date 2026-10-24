@@ -1,3 +1,5 @@
+/** Typed wrappers around `McpServer.registerTool` so tool handlers get arguments inferred from their schema. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
 import { GraphData } from '../store';

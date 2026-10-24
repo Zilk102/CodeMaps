@@ -1,15 +1,20 @@
+/** Shares one Kuzu database and connection per database path inside a process, with recovery from a corrupted database. */
+
 import { Connection, Database } from 'kuzu';
 import { isRecoverableCorruption, quarantineDatabaseFiles } from './KuzuRecovery';
 
+/** An open database and connection plus the number of users currently holding them. */
 export interface SharedKuzuState {
   db: Database;
   conn: Connection;
   refCount: number;
 }
 
+/** Reference-counted registry of open Kuzu connections, keyed by database path. */
 export class KuzuConnectionManager {
   private static sharedConnections = new Map<string, SharedKuzuState>();
 
+  /** Returns the shared connection for `dbPath`, opening the database on first use and counting the caller as a user. A damaged database is moved aside and recreated empty, since it only caches the graph. Pair with `releaseConnection`. */
   static async getConnection(dbPath: string): Promise<{ db: Database; conn: Connection }> {
     const sharedState = this.sharedConnections.get(dbPath);
     if (sharedState) {
@@ -32,6 +37,7 @@ export class KuzuConnectionManager {
     }
   }
 
+  /** Opens the database and a connection and registers them with one user. Closes the database again if setup fails. */
   private static async open(dbPath: string): Promise<{ db: Database; conn: Connection }> {
     const db = new Database(dbPath);
     try {
@@ -47,6 +53,7 @@ export class KuzuConnectionManager {
     }
   }
 
+  /** Drops one user of the connection and closes it when the last user is gone. On Windows with Node 22 or newer connections stay open, because closing them there is unreliable. */
   static async releaseConnection(dbPath: string): Promise<void> {
     const sharedState = this.sharedConnections.get(dbPath);
     if (!sharedState) return;

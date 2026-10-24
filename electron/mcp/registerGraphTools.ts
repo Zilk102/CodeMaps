@@ -1,3 +1,5 @@
+/** Registers the basic graph tools: opening a project, reading the graph, dependencies, search and blast radius. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as path from 'path';
 import * as z from 'zod/v4';
@@ -12,6 +14,7 @@ import { lookupNode, okStatusToolResult } from './toolSupport';
 const MAX_FULL_GRAPH_NODES = 1000;
 const MAX_FULL_GRAPH_LINKS = 2000;
 
+/** Registers the five basic graph tools on `server`. */
 export function registerGraphTools(server: McpServer, context: McpToolContext) {
   registerAnalyzeProject(server);
   registerGetGraphContext(server);
@@ -20,6 +23,7 @@ export function registerGraphTools(server: McpServer, context: McpToolContext) {
   registerGetBlastRadius(server, context);
 }
 
+/** Registers `analyze_project`: loads the project and records it in the recent-projects list. */
 function registerAnalyzeProject(server: McpServer) {
   defineGraphTool(
     server,
@@ -48,6 +52,7 @@ function registerAnalyzeProject(server: McpServer) {
   );
 }
 
+/** Registers `get_graph_context`: a summary, or with `includeFullGraph` the graph cut to the first 1000 nodes and 2000 links with a `truncated` flag. */
 function registerGetGraphContext(server: McpServer) {
   defineGraphTool(
     server,
@@ -76,6 +81,7 @@ function registerGetGraphContext(server: McpServer) {
   );
 }
 
+/** Registers `get_node_dependencies` for one node id, path or relative path. */
 function registerGetNodeDependencies(server: McpServer) {
   defineGraphTool(
     server,
@@ -104,6 +110,7 @@ function registerGetNodeDependencies(server: McpServer) {
   );
 }
 
+/** Registers `search_graph`: case-insensitive search of node labels and ids, best matches first. */
 function registerSearchGraph(server: McpServer) {
   defineGraphTool(
     server,
@@ -126,6 +133,7 @@ function registerSearchGraph(server: McpServer) {
   );
 }
 
+/** Registers `get_blast_radius`, returning a summarized impact by default or the raw node-level result with `detail` "full". */
 function registerGetBlastRadius(server: McpServer, context: McpToolContext) {
   defineGraphTool(
     server,

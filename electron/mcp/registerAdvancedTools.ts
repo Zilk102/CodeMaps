@@ -1,3 +1,5 @@
+/** Registers the tools that run on the Kuzu graph database and git history: PR impact, activity heatmap and blast radius v2. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
 import type { GraphData } from '../store';
@@ -94,6 +96,7 @@ const REGISTRATIONS: Registration[] = [
   }),
 ];
 
+/** Registers `analyze_pr_impact`, `analyze_activity_heatmap` and `calculate_blast_radius_v2` on `server`. */
 export function registerAdvancedTools(server: McpServer) {
   for (const register of REGISTRATIONS) register(server);
 }

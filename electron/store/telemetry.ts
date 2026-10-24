@@ -1,3 +1,5 @@
+/** Pure functions that update refresh telemetry and derive trends and a degradation verdict from it. */
+
 import {
   RecentProjectTelemetrySnapshot,
   RefreshMode,
@@ -42,6 +44,7 @@ const computeLatencyTrend = (recentLatencyMs: number[]): TrendState => {
   return 'stable';
 };
 
+/** Derives the rates and trends from raw counters: coalescing ratio, skip and runtime-priority rates, batch-size and latency trends and whether enrichment is degraded. */
 const buildRefreshTrends = (
   telemetry: Omit<RefreshTelemetry, 'trends'>
 ): RefreshTelemetry['trends'] => {
@@ -68,6 +71,7 @@ const buildRefreshTrends = (
   };
 };
 
+/** Heuristic verdict that enrichment refresh is struggling: latency is rising or at least 50 ms on average, directory rebuilds are slow, or many rebuilds are runtime-path driven. */
 const isEnrichmentDegraded = (
   enrichment: RefreshTelemetry['enrichment'],
   latencyTrend: TrendState,
@@ -116,6 +120,7 @@ export const initialRefreshTelemetry: RefreshTelemetry = {
   },
 };
 
+/** Returns new telemetry that counts one watcher flush of `batchSize` events (more than one event counts as coalesced). The input is not modified. */
 export const recordWatcherFlush = (
   telemetry: RefreshTelemetry,
   batchSize: number,
@@ -140,6 +145,7 @@ export const recordWatcherFlush = (
   };
 };
 
+/** Returns new telemetry that counts one enrichment refresh, updating the running average latency and the reason counters. The input is not modified. */
 export const recordEnrichmentRefresh = (
   telemetry: RefreshTelemetry,
   entry: {
@@ -181,6 +187,7 @@ export const recordEnrichmentRefresh = (
   };
 };
 
+/** Condenses live telemetry into the stored snapshot, stamped with the current time. */
 export const buildRecentProjectTelemetrySnapshot = (
   refreshTelemetry: RefreshTelemetry
 ): RecentProjectTelemetrySnapshot => ({

@@ -1,3 +1,5 @@
+/** Tuning of the indexer's thread and concurrency limits, derived from the CPU count and overridable through environment variables. */
+
 import * as os from 'os';
 
 const DEFAULT_PROGRESS_BATCH_SIZE = 10;
@@ -32,6 +34,7 @@ const readEnvInteger = (name: string) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+/** Resolved limits: worker threads for parsing, how many parses and stats run at once, and how often indexing progress is reported. */
 export interface OraclePerformanceConfig {
   availableParallelism: number;
   workerThreads: {
@@ -48,6 +51,7 @@ export interface OraclePerformanceConfig {
   };
 }
 
+/** Worker thread bounds: by default at most 8 and one fewer than the CPU count, at least 1; `CODEMAPS_INDEXER_MAX_THREADS` and `CODEMAPS_INDEXER_MIN_THREADS` override them, clamped to a valid range. */
 const resolveWorkerThreads = (availableParallelism: number) => {
   const defaultWorkerMax = Math.max(
     1,
@@ -66,6 +70,7 @@ const resolveWorkerThreads = (availableParallelism: number) => {
   return { workerMin, workerMax };
 };
 
+/** Builds the configuration from the machine and the `CODEMAPS_INDEXER_*` / `CODEMAPS_CACHE_STAT_CONCURRENCY` environment variables. Every value is clamped to a safe range. */
 export const getOraclePerformanceConfig = (): OraclePerformanceConfig => {
   const availableParallelism = getAvailableParallelism();
   const { workerMin, workerMax } = resolveWorkerThreads(availableParallelism);

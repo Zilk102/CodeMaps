@@ -1,3 +1,5 @@
+/** Tracks which languages the indexed project uses and how many files each has. */
+
 import * as path from 'path';
 import { getLanguageByExtension } from '../parsing/languageRegistry';
 import { ProjectLanguageProfile } from '../parsing/types';
@@ -9,10 +11,12 @@ export class LanguageProfileTracker {
     languageFileCounts: {},
   };
 
+  /** Current profile: language ids ordered by file count, and the count per language. */
   get(): ProjectLanguageProfile {
     return this.profile;
   }
 
+  /** Replaces the profile wholesale, after a full index of a project. */
   replace(profile: ProjectLanguageProfile) {
     this.profile = profile;
   }

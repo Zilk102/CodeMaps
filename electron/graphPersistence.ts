@@ -1,3 +1,5 @@
+/** Saves the in-memory graph into the Kuzu database without overlapping writes. */
+
 import { GraphData } from './store';
 import type { KuzuIntegration as KuzuIntegrationInstance } from './services/KuzuIntegration';
 
@@ -38,6 +40,7 @@ export function createSerializedPersister(run: (graphData: GraphData) => Promise
   };
 }
 
+/** Writes `graphData` into the project's Kuzu database. Never throws: failures and a missing Kuzu integration are logged and the call returns normally. */
 export async function persistGraphToKuzu(
   graphData: GraphData,
   loadKuzuIntegrationCtor: () => Promise<KuzuIntegrationCtor | null>,

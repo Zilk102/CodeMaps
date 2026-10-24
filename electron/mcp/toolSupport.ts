@@ -1,7 +1,10 @@
+/** Shared building blocks for MCP tool handlers: result envelopes, size bounding and lookup guards. */
+
 import { GraphData } from '../store';
 import { compactPayload, CompactOptions } from './compactPayload';
 import { createTextContent, resolveNodeReference } from './utils';
 
+/** Wraps `payload` as a successful text tool response; strings pass through, other values become indented JSON. No size bounding is applied. */
 export const okToolResult = (payload: unknown) => ({
   content: [
     {
@@ -11,6 +14,7 @@ export const okToolResult = (payload: unknown) => ({
   ],
 });
 
+/** Controls how `okStatusToolResult` bounds the response size. */
 export interface ToolResultOptions {
   /** Longest list kept in the response. */
   limit?: number;
@@ -71,6 +75,7 @@ export const okCompactStatusToolResult = (
   };
 };
 
+/** Tool response with `isError` set and a JSON body of `{ status: "error", message }`. */
 export const errorToolResult = (message: string) => ({
   content: [
     {
@@ -81,6 +86,7 @@ export const errorToolResult = (message: string) => ({
   isError: true,
 });
 
+/** Returns the graph's project root, throwing "Project root is required to <action>" when no project is loaded. */
 export const requireProjectRoot = (graph: GraphData, action: string) => {
   if (!graph.projectRoot) {
     throw new Error(`Project root is required to ${action}`);

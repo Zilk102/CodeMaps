@@ -18,6 +18,7 @@ const CORRUPTION_PATTERNS = [
   /magic bytes/i,
 ];
 
+/** Whether an error means the database file is damaged and can be replaced. A lock held by another process is deliberately not treated as damage. */
 export const isRecoverableCorruption = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   if (/could not set lock|lock on file/i.test(message)) return false;
@@ -32,6 +33,7 @@ export const isRecoverableCorruption = (error: unknown): boolean => {
 const NATIVE_CRASH_EXIT =
   /exited with code (3221225477|3221226505|139|134)|exited with signal (SIGSEGV|SIGABRT|SIGBUS)/;
 
+/** Whether an error message says the Kuzu worker died from a native crash (access violation, abort, segmentation fault). */
 export const isWorkerCrash = (error: unknown): boolean =>
   NATIVE_CRASH_EXIT.test(error instanceof Error ? error.message : String(error));
 

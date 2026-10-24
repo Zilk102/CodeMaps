@@ -1,5 +1,8 @@
+/** Static catalogue of the MCP tools and resources, and the status object the UI and docs generator read from it. */
+
 import { GraphData } from '../store';
 
+/** Public description of one MCP tool, as shown in the settings UI and the generated tools reference. */
 export interface McpStatusToolDescriptor {
   name: string;
   title: string;
@@ -8,6 +11,7 @@ export interface McpStatusToolDescriptor {
   recommendedWhen?: string;
 }
 
+/** Public description of one MCP resource. */
 export interface McpStatusResourceDescriptor {
   uri: string;
   title: string;
@@ -15,6 +19,7 @@ export interface McpStatusResourceDescriptor {
   preferredForAgents?: boolean;
 }
 
+/** Snapshot of the MCP server for the UI: connection details, the tools and resources it exposes and the size of the loaded graph. */
 export interface McpStatus {
   enabled: boolean;
   host: string;
@@ -232,6 +237,7 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
   },
 ];
 
+/** Combines the connection `config` with the descriptor catalogue and the loaded `graph`. `enabled` is false exactly when `config.listenError` is set, and `error` carries that reason. */
 export const buildMcpStatus = (
   graph: GraphData,
   config: {

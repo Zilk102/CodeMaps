@@ -1,3 +1,5 @@
+/** On-disk cache of an analyzed project (nodes, links and file modification times) so unchanged files are not parsed again. */
+
 import log from 'electron-log/main';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
@@ -9,12 +11,14 @@ import { GraphLink, GraphNode, oracleStore } from '../store';
 import { getOraclePerformanceConfig, OraclePerformanceConfig } from './performanceConfig';
 import { ORACLE_CACHE_VERSION } from './shared';
 
+/** What is stored per project: the graph plus the modification time of every file at save time, used to decide which files need re-parsing. */
 export interface ProjectCacheSnapshot {
   fileStats: Record<string, number>;
   nodes: GraphNode[];
   links: GraphLink[];
 }
 
+/** Reads and writes one cache file per project, named from a hash of the project path and the cache format version (so a version bump discards old caches). */
 export class CacheManager {
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private readonly performanceConfig: OraclePerformanceConfig;
@@ -23,6 +27,7 @@ export class CacheManager {
     this.performanceConfig = performanceConfig;
   }
 
+  /** Cache folder inside Electron's userData, or a per-user fallback when Electron is unavailable (tests, plain Node). */
   private getCacheDir() {
     try {
       if (typeof app?.getPath === 'function') {
@@ -47,6 +52,7 @@ export class CacheManager {
     };
   }
 
+  /** Returns the cache stored for `baseDir`, or null when it is missing or unreadable. */
   async load(baseDir: string): Promise<ProjectCacheSnapshot | null> {
     const { cacheFile } = this.getCacheFile(baseDir);
     try {
@@ -57,6 +63,7 @@ export class CacheManager {
     }
   }
 
+  /** Writes the current store contents as the cache of `baseDir`. Files that vanished since indexing are left out of `fileStats`, so they get re-checked next time. Throws on write errors. */
   async save(baseDir: string) {
     const { cacheDir, cacheFile } = this.getCacheFile(baseDir);
     const state = oracleStore.getState();
@@ -88,6 +95,7 @@ export class CacheManager {
     );
   }
 
+  /** Schedules `save` one second from now, restarting the timer on every call so a burst of changes writes once. Write errors are logged. */
   saveDebounced(baseDir: string) {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
@@ -103,6 +111,7 @@ export class CacheManager {
     }, 1000);
   }
 
+  /** Cancels a pending debounced save and, when `baseDir` is given, saves immediately so the latest state survives shutdown. Errors are logged, not thrown. */
   async close(baseDir?: string) {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);

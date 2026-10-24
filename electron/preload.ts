@@ -1,3 +1,5 @@
+/** Preload bridge: exposes the typed `window.api` IPC surface to the sandboxed renderer and nothing else. */
+
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { ElectronAPI } from '../src/types/electron';
 

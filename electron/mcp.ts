@@ -1,3 +1,8 @@
+/**
+ * The local MCP server: Streamable HTTP endpoint for agents, WebSocket feed of graph updates for the UI,
+ * and legacy REST routes, all bound to loopback only.
+ */
+
 import cors from 'cors';
 import express from 'express';
 import * as http from 'http';
@@ -40,6 +45,7 @@ type McpServiceHandle = {
 let mcpService: McpServiceHandle | null = null;
 let listenError: McpListenError | null = null;
 
+/** Status built from the current graph and listen state; used both before the server exists and by the running service. */
 const getMcpStatusInternal = (): McpStatus => {
   return buildMcpStatus(getGraphSnapshot(), {
     host: MCP_HOST,
@@ -51,10 +57,12 @@ const getMcpStatusInternal = (): McpStatus => {
   });
 };
 
+/** Current MCP status for the UI: delegates to the running service, or reports the configuration (with any listen error) when it is not running. */
 export const getMcpStatus = (): McpStatus => {
   return mcpService?.getStatus() || getMcpStatusInternal();
 };
 
+/** Whether a browser `Origin` header value points at this machine (localhost, 127.0.0.1 or ::1). Malformed origins are rejected. */
 export const isLoopbackOrigin = (origin: string): boolean => {
   try {
     const { hostname } = new URL(origin);
@@ -74,6 +82,7 @@ type TransportMap = Record<string, McpTransportRecord>;
 // MCP clients are local processes and send no Origin header. Browsers always do,
 // so allowing only loopback origins keeps a random web page the user has open from
 // reading the indexed codebase off this port.
+/** CORS policy that admits requests without an Origin (local MCP clients) and loopback origins only, so web pages cannot read the index; exposes `Mcp-Session-Id`. */
 const corsMiddleware = () =>
   cors({
     origin: (origin, callback) => {
@@ -87,6 +96,7 @@ const corsMiddleware = () =>
     allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Mcp-Session-Id', 'Last-Event-ID'],
   });
 
+/** Registers the pre-MCP REST endpoints `/mcp/status`, `/mcp/context` and `/mcp/dependencies`, kept for older integrations. */
 const registerLegacyRoutes = (app: express.Express) => {
   app.get('/mcp/status', (_req, res) => {
     res.json({ status: 'ok', ...getMcpStatusInternal() });
@@ -130,6 +140,7 @@ const registerLegacyRoutes = (app: express.Express) => {
   });
 };
 
+/** Tracks WebSocket clients in `clients` and sends each new client the current graph immediately when a project is open, so it needs no extra request. */
 const attachWebSocketClients = (wss: WebSocketServer, clients: Set<WebSocket>) => {
   wss.on('connection', (ws) => {
     clients.add(ws);
@@ -150,6 +161,7 @@ const attachWebSocketClients = (wss: WebSocketServer, clients: Set<WebSocket>) =
   });
 };
 
+/** Creates a server and a transport for a new MCP session. The session is stored in `transports` once the client finishes initialization, and removed when the transport closes. */
 const createSessionRecord = (transports: TransportMap): McpTransportRecord => {
   // The session callback can fire before the enclosing statement finishes, so the
   // server instance has to exist before the transport is constructed.
@@ -174,6 +186,7 @@ const createSessionRecord = (transports: TransportMap): McpTransportRecord => {
   return { transport, server: mcpServer };
 };
 
+/** Answers with a JSON-RPC internal error (HTTP 500) unless a response was already started. */
 const sendInternalError = (res: express.Response) => {
   if (res.headersSent) return;
   res.status(500).json({
@@ -186,6 +199,7 @@ const sendInternalError = (res: express.Response) => {
   });
 };
 
+/** Express handler for MCP POST requests: routes them to the session named by `Mcp-Session-Id`, or starts a new session when an initialize request carries no session id. Anything else is rejected with a session error. */
 const createPostHandler =
   (transports: TransportMap) => async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'];
@@ -207,6 +221,7 @@ const createPostHandler =
   };
 
 // GET (SSE stream) and DELETE (session teardown) both just delegate to the session transport.
+/** Express handler for GET (event stream) and DELETE (session end): hands the request to the existing session transport, or rejects an unknown session. */
 const createSessionHandler =
   (transports: TransportMap) => async (req: express.Request, res: express.Response) => {
     const sessionId = req.headers['mcp-session-id'];
@@ -233,6 +248,7 @@ const broadcast = (clients: Set<WebSocket>, message: string) => {
   }
 };
 
+/** Tells every connected MCP session that its resource and tool lists changed, after the graph was updated. A failing session is logged and skipped. */
 const notifyListChanged = (transports: TransportMap) => {
   for (const sessionId in transports) {
     const record = transports[sessionId];
@@ -249,6 +265,7 @@ const notifyListChanged = (transports: TransportMap) => {
   }
 };
 
+/** Builds the oracle event handlers that forward graph updates (with the accumulated diff) and parsing progress to WebSocket clients and MCP sessions. The caller subscribes and unsubscribes them. */
 const createGraphListeners = (clients: Set<WebSocket>, transports: TransportMap) => {
   const onGraphUpdated = (graphData: ReturnType<typeof oracle.getGraph>) => {
     const diff = oracleStore.getState().getAndResetDiff();
@@ -272,6 +289,7 @@ const createGraphListeners = (clients: Set<WebSocket>, transports: TransportMap)
   return { onGraphUpdated, onParsingProgress };
 };
 
+/** Records and logs a bind failure once; the HTTP and WebSocket servers report the same error, so repeats of the same kind are ignored. */
 const reportListenError = (kind: McpListenError, error: Error) => {
   // The HTTP server and the ws server both report the same failure.
   if (listenError === kind) return;
@@ -283,6 +301,10 @@ const reportListenError = (kind: McpListenError, error: Error) => {
   );
 };
 
+/**
+ * Starts the MCP server on 127.0.0.1 (port 3005 unless `CODEMAPS_MCP_PORT` is set) and returns its handle.
+ * Idempotent: a second call returns the running service. A bind failure does not throw; it shows up in `getMcpStatus().error`.
+ */
 export function setupMcpServer() {
   if (mcpService) {
     return mcpService;
@@ -333,6 +355,7 @@ export function setupMcpServer() {
   return mcpService;
 }
 
+/** Stops the MCP server and forgets it; does nothing when it is not running. */
 export async function shutdownMcpServer() {
   const service = mcpService;
   if (!service) {

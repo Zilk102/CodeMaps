@@ -1,3 +1,5 @@
+/** Loading, validating and saving the recent-projects list in the user data directory. */
+
 import log from 'electron-log/main';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -35,6 +37,7 @@ const asRefreshReason = (value: unknown): RefreshReason | null =>
     ? value
     : null;
 
+/** Electron's userData directory, or a per-user fallback when Electron is unavailable (tests, plain Node). */
 function getUserDataDir(): string {
   try {
     if (typeof app?.getPath === 'function') {
@@ -50,6 +53,7 @@ function getRecentProjectsFile(): string {
   return path.join(getUserDataDir(), 'codemaps-recent-projects.json');
 }
 
+/** Uses forward slashes so the same folder is always spelled one way. */
 export const normalizeProjectPath = (projectPath: string) => projectPath.replace(/\\/g, '/');
 
 /** Identity of a project: Windows paths differ only by drive-letter or folder case. */
@@ -69,6 +73,7 @@ export const dedupeRecentProjects = (projects: RecentProject[]): RecentProject[]
     });
 };
 
+/** Rebuilds a stored telemetry snapshot field by field, replacing wrong or missing values with defaults. Returns undefined if the value is not an object. */
 const normalizeRecentProjectTelemetry = (
   value: unknown
 ): RecentProjectTelemetrySnapshot | undefined => {
@@ -92,6 +97,7 @@ const normalizeRecentProjectTelemetry = (
   };
 };
 
+/** Validates one stored entry read from disk. Returns null when path, name or lastOpened is missing. */
 const normalizeRecentProject = (value: unknown): RecentProject | null => {
   if (!isRecord(value)) {
     return null;
@@ -113,6 +119,7 @@ const normalizeRecentProject = (value: unknown): RecentProject | null => {
   };
 };
 
+/** Reads the list from disk, dropping invalid entries and duplicates and keeping the 10 most recent. A missing or corrupt file yields an empty list. */
 export function loadRecentProjects(): RecentProject[] {
   try {
     const data = fs.readFileSync(getRecentProjectsFile(), 'utf-8');
@@ -130,6 +137,7 @@ export function loadRecentProjects(): RecentProject[] {
   return [];
 }
 
+/** Writes the list to disk as JSON. Failures are logged and swallowed, since losing the list is not worth interrupting the user. */
 export function saveRecentProjects(projects: RecentProject[]) {
   try {
     const file = getRecentProjectsFile();

@@ -9,8 +9,10 @@ import * as z from 'zod/v4';
 export const boundedInt = (max: number, description: string) =>
   z.number().int().min(1).max(max).optional().describe(description);
 
+/** Optional string input field with the given description. */
 export const optionalString = (description: string) => z.string().optional().describe(description);
 
+/** Optional boolean input field with the given description. */
 export const optionalBoolean = (description: string) =>
   z.boolean().optional().describe(description);
 
@@ -24,6 +26,7 @@ export const includeClassificationsField = optionalBoolean(
 
 export const nodeIdField = z.string().describe('Exact node id from the graph');
 
+/** Optional input field restricted to the change task modes `bugfix`, `feature`, `refactor` and `explore`. */
 export const changeTaskModeField = (description: string) =>
   z.enum(['bugfix', 'feature', 'refactor', 'explore']).optional().describe(description);
 

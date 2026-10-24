@@ -1,9 +1,13 @@
+/** Counts how often git history touched each file, as the change-frequency signal for the graph. */
+
 import log from 'electron-log/main';
 import * as path from 'path';
 import simpleGit from 'simple-git';
 import { normalizePath } from './shared';
 
+/** Derives per-file churn (number of commits touching the file) from git history. */
 export class ChurnAnalyzer {
+  /** Maps the normalized absolute path of every file that ever appeared in history to its commit count. Empty when `baseDir` is not a git repository or history cannot be read (logged). */
   async analyze(baseDir: string) {
     const git = simpleGit(baseDir);
     const isRepo = await git.checkIsRepo();

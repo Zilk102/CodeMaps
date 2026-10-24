@@ -1,11 +1,21 @@
+/** Shared data model of the graph store: nodes, links, refresh telemetry, recent projects and the store's state shape. */
+
 import type { FileResolutionFacts } from '../parsing/types';
 
+/** Direction of a measured series: `improving`, `degrading`, or `stable` when changes are small or there are too few samples. */
 export type TrendState = 'stable' | 'improving' | 'degrading';
+/** Kind of file-system change the watcher reports (chokidar event names). */
 export type RefreshEvent = 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+/** Outcome of an enrichment refresh: `skipped` when the change cannot affect the stack graph, `rebuilt` when the links were recomputed. */
 export type RefreshMode = 'skipped' | 'rebuilt';
+/** Why an enrichment refresh was skipped or rebuilt: no impact, a changed directory structure, or a changed runtime/stack path. */
 export type RefreshReason =
   'no_stack_impact' | 'directory_structure_changed' | 'stack_runtime_path_changed';
 
+/**
+ * A directory, file, symbol or ADR in the project graph. Ids are forward-slash paths; a symbol is `<file id>#<name>`.
+ * `group` and `parentId` are layout/containment data, `churn` the git change count of the file.
+ */
 export interface GraphNode {
   id: string;
   label: string;
@@ -36,6 +46,7 @@ export interface GraphNode {
   resolution?: FileResolutionFacts;
 }
 
+/** A directed relation from `source` to `target` (node ids). `type` names the relation (for example `structure` for containment), `reason` explains inferred links and `value` is the weight. */
 export interface GraphLink {
   source: string;
   target: string;
@@ -44,6 +55,7 @@ export interface GraphLink {
   reason?: string;
 }
 
+/** Counters and derived trends describing how well incremental refresh keeps up: watcher batching on one side, enrichment rebuilds on the other. `recent*` arrays hold only the last few samples. */
 export interface RefreshTelemetry {
   watcher: {
     flushCount: number;
@@ -79,6 +91,7 @@ export interface RefreshTelemetry {
   };
 }
 
+/** A complete graph snapshot as served to the renderer and MCP tools; `projectRoot` is empty when no project is open. */
 export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
@@ -86,6 +99,7 @@ export interface GraphData {
   refreshTelemetry?: RefreshTelemetry;
 }
 
+/** Refresh telemetry condensed for storage next to a recent project, so the project list can flag projects with slow or unstable updates. */
 export interface RecentProjectTelemetrySnapshot {
   updatedAt: string;
   degraded: boolean;
@@ -101,6 +115,7 @@ export interface RecentProjectTelemetrySnapshot {
   lastRefreshReason: RefreshReason | null;
 }
 
+/** An entry of the persisted recent-projects list. `lastOpened` is an ISO timestamp. */
 export interface RecentProject {
   path: string;
   name: string;
@@ -108,6 +123,7 @@ export interface RecentProject {
   telemetry?: RecentProjectTelemetrySnapshot;
 }
 
+/** Changes accumulated since the last time the diff was taken; links are listed by value, nodes removed by id. */
 export interface GraphDiff {
   nodesAdded: GraphNode[];
   nodesRemoved: string[];
@@ -115,6 +131,7 @@ export interface GraphDiff {
   linksRemoved: GraphLink[];
 }
 
+/** State and actions of the graph store. The revision counters increase on every change of nodes, links or telemetry so derived data can be cached cheaply; mutating actions also record into `pendingDiff`. */
 export interface OracleState {
   baseDir: string;
   nodes: Map<string, GraphNode>;
@@ -164,6 +181,7 @@ export interface OracleState {
   clearRecentProjects: () => void;
 }
 
+/** The slice of `OracleState` needed to build a `GraphData` snapshot. */
 export interface GraphSnapshotState {
   baseDir: string;
   nodes: Map<string, GraphNode>;

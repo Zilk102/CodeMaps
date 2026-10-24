@@ -1,6 +1,9 @@
+/** Direct Kuzu database access for the graph tables (nodes and edges) and the Cypher queries over them. */
+
 import { Connection, QueryResult } from 'kuzu';
 import { KuzuConnectionManager } from './KuzuConnectionManager';
 
+/** A node row of the Kuzu graph. `meta` is stored as JSON text. */
 export interface GraphNode {
   id: string;
   type: 'file' | 'class' | 'function' | 'method' | 'interface' | 'variable' | 'adr' | 'directory';
@@ -12,6 +15,7 @@ export interface GraphNode {
   meta?: Record<string, unknown>;
 }
 
+/** An edge row of the Kuzu graph between two node ids. `meta` is stored as JSON text. */
 export interface GraphEdge {
   sourceId: string;
   targetId: string;
@@ -59,6 +63,7 @@ async function createSchema(run: (query: string) => Promise<unknown>): Promise<v
   }
 }
 
+/** Runs one Cypher statement and returns its single result. Throws if the connection is not initialized or the statement yields several results. */
 async function runQuery(
   conn: Connection | undefined,
   dbDir: string,
@@ -82,6 +87,7 @@ function getAll(result: QueryResult): Promise<Record<string, unknown>[]> {
   return result.getAll() as Promise<Record<string, unknown>[]>;
 }
 
+/** Reads and writes one project's graph database. Methods initialize it on first use; values are escaped before they are placed into Cypher text. */
 export class KuzuGraphRepository {
   private conn: Connection | undefined;
   private initialized = false;
@@ -91,6 +97,7 @@ export class KuzuGraphRepository {
     private readonly dbDir: string
   ) {}
 
+  /** Acquires the shared connection and creates the node and edge tables if needed. Safe to call repeatedly. */
   async init(): Promise<void> {
     if (this.initialized) return;
 
@@ -102,6 +109,7 @@ export class KuzuGraphRepository {
     this.initialized = true;
   }
 
+  /** Inserts a node row; fails if a node with the same id exists. */
   async addNode(node: GraphNode): Promise<void> {
     if (!this.initialized) await this.init();
 
@@ -121,6 +129,7 @@ export class KuzuGraphRepository {
     await runQuery(this.conn, this.dbDir, query);
   }
 
+  /** Inserts an edge between two existing nodes; does nothing if either node is missing. */
   async addEdge(edge: GraphEdge): Promise<void> {
     if (!this.initialized) await this.init();
 
@@ -133,6 +142,7 @@ export class KuzuGraphRepository {
     await runQuery(this.conn, this.dbDir, query);
   }
 
+  /** Rows for nodes, optionally filtered by node `type` and/or `filePath`. */
   async queryNodes(type?: string, filePath?: string): Promise<Record<string, unknown>[]> {
     if (!this.initialized) await this.init();
 
@@ -152,6 +162,7 @@ export class KuzuGraphRepository {
     return getAll(result);
   }
 
+  /** Nodes directly linked to `nodeId` in either direction, with the type of the connecting edge as `edgeType`. */
   async queryNeighbors(nodeId: string): Promise<Record<string, unknown>[]> {
     if (!this.initialized) await this.init();
 
@@ -170,12 +181,14 @@ export class KuzuGraphRepository {
     return getAll(result);
   }
 
+  /** Runs an arbitrary Cypher query and returns its rows. */
   async query(cypherQuery: string): Promise<Record<string, unknown>[]> {
     if (!this.initialized) await this.init();
     const result = await runQuery(this.conn, this.dbDir, cypherQuery);
     return getAll(result);
   }
 
+  /** Total number of nodes and edges. */
   async getStats(): Promise<{ nodes: number; edges: number }> {
     if (!this.initialized) await this.init();
 
@@ -187,12 +200,14 @@ export class KuzuGraphRepository {
     };
   }
 
+  /** Deletes all edges and nodes. Does nothing before initialization. */
   async clear(): Promise<void> {
     if (!this.initialized) return;
     await runQuery(this.conn, this.dbDir, 'MATCH ()-[r:FileEdge]->() DELETE r');
     await runQuery(this.conn, this.dbDir, 'MATCH (n:FileNode) DELETE n');
   }
 
+  /** Releases this repository's share of the connection. Does nothing before initialization. */
   async close(): Promise<void> {
     if (!this.initialized) return;
 

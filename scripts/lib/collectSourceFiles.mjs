@@ -5,6 +5,7 @@ import * as path from 'node:path';
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const SKIPPED_DIRS = new Set(['node_modules', 'dist-electron', 'dist-renderer', '.git', 'release']);
 
+/** Recursively lists the JS/TS source files under a file or folder, skipping dependency, build and VCS folders. */
 export const collectSourceFiles = (target) => {
   const stat = fs.statSync(target);
   if (stat.isFile()) return SOURCE.test(target) ? [target] : [];

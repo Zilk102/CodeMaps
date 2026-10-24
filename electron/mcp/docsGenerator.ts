@@ -47,6 +47,7 @@ export const TOOL_CATEGORIES: Array<{ title: string; intro: string; tools: strin
 
 const ENDPOINT = 'http://127.0.0.1:3005/mcp';
 
+/** Renders the Markdown tools reference: tools grouped by `TOOL_CATEGORIES` (names missing from `tools` are skipped), then all resources. Output is deterministic and ends with a newline. */
 export const renderToolsReference = (
   tools: McpStatusToolDescriptor[],
   resources: McpStatusResourceDescriptor[]

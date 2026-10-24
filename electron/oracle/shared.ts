@@ -1,3 +1,5 @@
+/** Constants and path helpers shared by the oracle modules: cache version, ignore rules and path normalization. */
+
 import * as path from 'path';
 
 export const ORACLE_CACHE_VERSION = 11;
@@ -62,6 +64,7 @@ export const ORACLE_IGNORE_GLOBS = [
   '**/LICENSES.chromium.html',
 ];
 
+/** Converts backslashes to forward slashes, the spelling graph ids use. */
 export const normalizePath = (value: string) => value.replace(/\\/g, '/');
 
 const IGNORED_DIRECTORY_SEGMENTS = [
@@ -87,6 +90,7 @@ const IGNORED_FILE_SUFFIXES = [
   '.log',
 ];
 
+/** Whether a path lies in an excluded folder (dependencies, build output, VCS) or has an excluded suffix (binary or database files). Used for watcher events, which bypass the glob filter. */
 export const shouldIgnorePath = (filePath: string) => {
   const normalized = normalizePath(filePath).toLowerCase();
   return (
@@ -96,7 +100,9 @@ export const shouldIgnorePath = (filePath: string) => {
   );
 };
 
+/** Whether an import specifier is a file path (relative, absolute or drive-letter) rather than a package name. */
 export const isLocalSpecifier = (specifier: string) =>
   specifier.startsWith('.') || specifier.startsWith('/') || /^[A-Za-z]:[\\/]/.test(specifier);
 
+/** Parent directory of a path, with forward slashes. */
 export const getParentDir = (targetPath: string) => normalizePath(path.dirname(targetPath));

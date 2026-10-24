@@ -1,3 +1,5 @@
+/** Builds consistent graph snapshots from store state: normalizes cached nodes and repairs links whose targets moved or are barrel re-exports. */
+
 import { GraphData, GraphLink, GraphNode, GraphSnapshotState } from './types';
 
 const POSSIBLE_EXTS = [
@@ -26,6 +28,7 @@ const parentDirectoryWithin = (baseDir: string, normalizedId: string): string | 
   return hasParent ? parentDir : undefined;
 };
 
+/** Parent id for a normalized node: the folder for directories, files and ADRs (none at the project root), the owning file for a `file#symbol` id, otherwise the cached parent. */
 const normalizedParentOf = (
   baseDir: string,
   node: GraphNode,
@@ -40,6 +43,7 @@ const normalizedParentOf = (
   return normalizedParentId;
 };
 
+/** Converts ids and parents of nodes loaded from the on-disk cache to forward slashes and recomputes parents, since caches may come from another platform or older version. */
 export const normalizeCachedNodes = (baseDir: string, nodes: GraphNode[]) =>
   nodes.map((node) => {
     const normalizedId = node.id.replace(/\\/g, '/');
@@ -64,12 +68,14 @@ type NodeMap = Map<string, GraphNode>;
 
 const MAX_REEXPORT_DEPTH = 6;
 
-// Finds the node of `filePath` that a re-export can forward `symbolName` to, trying the
-// exact specifier first and then the extension / index fallbacks.
+// Finds the file node that a re-export `specifier` points at, trying the exact specifier
+// first and then the extension / index fallbacks.
 const resolveReExportFile = (nodes: NodeMap, specifier: string): string | undefined =>
   [specifier, ...POSSIBLE_EXTS.map((ext) => specifier + ext)].find((file) => nodes.has(file));
 
-// Resolves a symbol the file declares itself (directly or through an `export { local as x }`).
+/**
+ * Resolves a symbol the file declares itself (directly or through an `export { local as x }`).
+ */
 const resolveOwnSymbol = (
   nodes: NodeMap,
   fileNode: GraphNode,
@@ -94,7 +100,9 @@ const reExportsName = (
   name: string
 ): boolean => reExport.entities.includes('*') || reExport.entities.includes(name);
 
-// Follows the file's re-exports that forward `name` to the file that declares it.
+/**
+ * Follows the file's re-exports that forward `name` to the file that declares it.
+ */
 const resolveThroughReExports = (
   nodes: NodeMap,
   fileNode: GraphNode,
@@ -111,9 +119,12 @@ const resolveThroughReExports = (
   return undefined;
 };
 
-// Looks up the node a name really refers to, following barrel re-exports
-// (`export * from`, `export { a as b } from`) so dependents link to the declaration
-// instead of the barrel file.
+/**
+ * Looks up the node a name really refers to, following barrel re-exports
+ * (`export * from`, `export { a as b } from`) so dependents link to the declaration
+ * instead of the barrel file.
+ * Gives up (returns undefined) on cycles and after `MAX_REEXPORT_DEPTH` hops.
+ */
 const resolveSymbolTarget = (
   nodes: NodeMap,
   filePath: string,
@@ -141,7 +152,9 @@ const resolveSymbolTarget = (
   return resolveThroughReExports(nodes, fileNode, own.originalName, visited);
 };
 
-// Tries `<file><ext>` for every known extension, returning the first non-undefined result.
+/**
+ * Tries `<file><ext>` for every known extension, returning the first non-undefined result.
+ */
 const firstWithExtension = (
   file: string,
   resolve: (candidate: string) => string | undefined
@@ -153,6 +166,7 @@ const firstWithExtension = (
   return undefined;
 };
 
+/** Resolves a `file#symbol` link target: the exact node, the declaration behind re-exports (also trying extension variants of the file), then the file itself. Undefined when nothing matches. */
 const resolveSymbolLinkTarget = (nodes: NodeMap, target: string): string | undefined => {
   if (nodes.has(target)) return target;
 
@@ -174,6 +188,7 @@ const resolveLinkTarget = (nodes: NodeMap, target: string): string | undefined =
   return firstWithExtension(target, (candidate) => (nodes.has(candidate) ? candidate : undefined));
 };
 
+/** Snapshot of the store as `GraphData`: links with dangling targets are dropped, targets that only needed an extension or re-export lookup are rewritten to the real node id, and import-resolution facts are stripped from the nodes. */
 export const buildValidGraphSnapshot = (state: GraphSnapshotState): GraphData => {
   const validLinks: GraphLink[] = [];
 

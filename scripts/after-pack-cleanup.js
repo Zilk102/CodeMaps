@@ -1,3 +1,5 @@
+/** electron-builder afterPack hook: verifies the Kuzu native module was packaged and strips its build leftovers from the unpacked app. */
+
 const fs = require('fs/promises');
 const path = require('path');
 

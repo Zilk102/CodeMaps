@@ -1,3 +1,5 @@
+/** Fills the version into the release notes template: `node scripts/generate-release-body.mjs <version>` writes `.github/release-body.generated.md`. */
+
 import fs from 'node:fs';
 import path from 'node:path';
 

@@ -1,3 +1,5 @@
+/** Electron main process: application lifecycle, the main window, crash handlers and orderly shutdown. */
+
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -25,6 +27,7 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Loads the Kuzu integration module lazily, once, so a missing native database does not stop the app from starting. Resolves to null (and logs) when loading fails. */
 function loadKuzuIntegrationCtor(): Promise<KuzuIntegrationCtor | null> {
   if (!kuzuIntegrationCtorPromise) {
     kuzuIntegrationCtorPromise = import('./services/KuzuIntegration.js')
@@ -41,6 +44,7 @@ function loadKuzuIntegrationCtor(): Promise<KuzuIntegrationCtor | null> {
   return kuzuIntegrationCtorPromise;
 }
 
+/** Restores a valid working directory when the current one was deleted (for example after an update), trying a list of known-good locations in order. Does nothing if the cwd exists. */
 function ensureSafeProcessCwd(): void {
   try {
     const currentCwd = process.cwd();
@@ -105,6 +109,7 @@ let mainWindow: BrowserWindow | null = null;
 let shutdownStarted = false;
 let updateInstallStarted = false;
 
+/** Runs the graceful shutdown sequence once; repeated calls return immediately. */
 async function shutdownApplication() {
   if (shutdownStarted) {
     return;
@@ -120,6 +125,7 @@ async function shutdownApplication() {
   });
 }
 
+/** Quits and installs the downloaded update. Runs once at a time; if the request throws, the guard is reset so the user can retry, and the error is rethrown. */
 async function installDownloadedUpdate() {
   if (updateInstallStarted) {
     return;
@@ -140,9 +146,12 @@ async function installDownloadedUpdate() {
 
 const DEV_SERVER_ORIGIN = 'http://localhost:5173';
 
-// The renderer only ever needs its own bundle. Anything else — a link in an ADR
-// comment, an injected iframe — must go to the user's browser rather than gain a
-// window that shares this app's preload bridge.
+/**
+ * The renderer only ever needs its own bundle. Anything else, such as a link in an ADR
+ * comment or an injected iframe, must go to the user's browser rather than gain a
+ * window that shares this app's preload bridge. Blocks in-window navigation to foreign
+ * URLs, denies new windows (opening http(s) links externally) and forbids webviews.
+ */
 function hardenWebContents(window: BrowserWindow) {
   const isAllowedInternalUrl = (url: string) =>
     url.startsWith('file://') ||
@@ -168,6 +177,7 @@ function hardenWebContents(window: BrowserWindow) {
   });
 }
 
+/** Creates the frameless, sandboxed main window and loads the dev server, the packaged bundle or, in the shutdown e2e test, a placeholder page. */
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,

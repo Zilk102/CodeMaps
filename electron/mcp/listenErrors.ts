@@ -1,9 +1,13 @@
+/** Classifies failures to bind the MCP port so the app can report them instead of crashing. */
+
+/** Why the MCP server could not listen: the port is taken by another process, or any other bind failure. */
 export type McpListenError = 'port_in_use' | 'listen_failed';
 
 type ErrorEmitter = {
   on: (event: 'error', listener: (error: Error & { code?: string }) => void) => unknown;
 };
 
+/** Maps a Node listen error to `port_in_use` for `EADDRINUSE` and `listen_failed` for everything else. */
 export const classifyListenError = (error: Error & { code?: string }): McpListenError =>
   error.code === 'EADDRINUSE' ? 'port_in_use' : 'listen_failed';
 
