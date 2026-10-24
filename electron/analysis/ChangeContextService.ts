@@ -13,6 +13,7 @@ import {
   normalizeChangeTaskMode,
   resolveTargetClassification,
 } from './changeContextRuntimeSupport';
+import { withoutUndefined } from './serviceWiring';
 import { createChangeContextServices, ChangeContextServices } from './changeContextServices';
 import { collectChangeEvidence } from './changeContextEvidence';
 import { assembleChangeContextResult } from './changeContextAssembly';
@@ -80,10 +81,4 @@ export class ChangeContextService {
       ...evidence,
     });
   }
-}
-
-function withoutUndefined<T extends object>(value: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entry]) => entry !== undefined)
-  ) as Partial<T>;
 }
