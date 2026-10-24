@@ -86,6 +86,7 @@
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build:renderer && npm run build:electron && npm run quality && npm run duplicates",
     "quality": "npm run build:electron && node scripts/quality-report.mjs electron src",
     "duplicates": "npm run build:electron && node scripts/duplicates-report.mjs electron src scripts",
+    "docs": "npm run build:electron && node scripts/docs-report.mjs electron src scripts",
     "docs:mcp": "npm run build:electron && node scripts/generate-mcp-docs.mjs"
   },
   "build": {
