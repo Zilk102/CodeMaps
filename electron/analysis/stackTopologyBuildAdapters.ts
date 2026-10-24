@@ -1,3 +1,6 @@
+/**
+ * The list of built-in build-system adapters (Vite, workspaces, Bazel, OpenAPI, protobuf, Maven, Gradle, Cargo, .NET).
+ */
 export * from './stackTopologySupport';
 
 import { StackAdapter } from './stackTopologySupport';

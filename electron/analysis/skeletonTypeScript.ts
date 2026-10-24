@@ -1,3 +1,7 @@
+/**
+ * Prints a TS/JS source with every function body replaced by an empty block, keeping signatures,
+ * types and imports.
+ */
 import ts from 'typescript';
 import * as path from 'path';
 
@@ -34,6 +38,11 @@ function hideBody(node: ts.Node, context: ts.TransformationContext): ts.Node | n
   );
 }
 
+/**
+ * Returns `code` with all function, method, constructor, accessor and arrow bodies replaced by
+ * an empty block holding the comment "implementation hidden". Only the file's base name is used,
+ * to pick TS or JS parsing.
+ */
 export function buildTypeScriptSkeleton(code: string, fileName: string): string {
   const sourceFile = ts.createSourceFile(
     path.basename(fileName),

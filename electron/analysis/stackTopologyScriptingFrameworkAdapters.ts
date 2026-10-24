@@ -1,3 +1,4 @@
+/** Topology adapters for scripting-language web frameworks: FastAPI, Django, Rails and Laravel. */
 import {
   basename,
   buildNamedSymbolToFileMap,

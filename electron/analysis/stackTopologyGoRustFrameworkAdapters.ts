@@ -1,3 +1,7 @@
+/**
+ * Topology adapters for Go (Gin, Fiber, Echo, Chi, gRPC-Go) and Rust (Axum, Actix Web) web frameworks:
+ * entry files, route-bearing modules and the handlers they register.
+ */
 import {
   buildNamedSymbolToFileMap,
   buildSymbolToFileMap,
@@ -80,6 +84,10 @@ interface GoWebOptions {
   routeVerbs: string;
 }
 
+/**
+ * Adapter for a Go router framework: files with the framework's entry call are linked to the
+ * files registering routes with its verbs (`.GET(path, handler)`) and to the handlers, plus go.mod.
+ */
 const createGoWebAdapter = (options: GoWebOptions) =>
   createRouterAdapter({
     stackId: options.stackId,

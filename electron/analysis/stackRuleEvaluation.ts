@@ -1,3 +1,4 @@
+/** Evaluates catalog detection rules against a project and returns the evidence they found. */
 import { StackDetectionRule } from './stackCatalog';
 import {
   includesCaseInsensitive,
@@ -40,6 +41,9 @@ const evidenceFor = (
 ): string[] =>
   candidates.filter((candidate) => matches(candidate)).map((candidate) => `${prefix}:${candidate}`);
 
+/**
+ * Evidence for each listed dependency name found as a key in any of the manifest's sections (for example `devDependencies`).
+ */
 async function evaluateJsonDependency(
   context: StackDetectionContext,
   rule: RuleOf<'json_dependency'>
@@ -66,6 +70,9 @@ async function evaluateJsonDependency(
   return matches;
 }
 
+/**
+ * Evidence for each candidate contained, ignoring case, in a string field of a JSON manifest; non-string fields never match.
+ */
 async function evaluateJsonFieldIncludes(
   context: StackDetectionContext,
   rule: RuleOf<'json_field_includes'>
@@ -87,6 +94,7 @@ async function evaluateJsonFieldIncludes(
   );
 }
 
+/** Evidence for each candidate contained, ignoring case, in the text of one root-level file. */
 async function evaluateTextContains(
   context: StackDetectionContext,
   rule: RuleOf<'text_contains'>
@@ -103,6 +111,9 @@ async function evaluateTextContains(
   );
 }
 
+/**
+ * Evidence for each candidate contained, ignoring case, in at least one file with one of the given suffixes.
+ */
 async function evaluateTextContainsInSuffix(
   context: StackDetectionContext,
   rule: RuleOf<'text_contains_in_suffix'>

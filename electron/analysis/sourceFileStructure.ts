@@ -13,6 +13,9 @@ export type {
   SourceFunctionMetric,
 } from './sourceStructure/structureTypes';
 
+/**
+ * Source text of a supported source file, or null when the extension is unsupported or the file cannot be read.
+ */
 function readText(filePath: string): string | null {
   if (!SUPPORTED_SOURCE_FILE_REGEX.test(filePath)) {
     return null;
@@ -25,6 +28,10 @@ function readText(filePath: string): string | null {
   }
 }
 
+/**
+ * Structure metrics of one file. Uses the TypeScript compiler API and falls back to the regex
+ * analyzer when that fails; an unreadable or unsupported file yields the regex result for no text.
+ */
 export function analyzeSourceFileStructure(filePath: string): SourceFileMetrics {
   const text = readText(filePath);
   return (

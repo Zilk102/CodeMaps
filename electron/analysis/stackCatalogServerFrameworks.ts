@@ -1,3 +1,6 @@
+/**
+ * Catalog entries for server frameworks of Python, JVM and .NET (Django, FastAPI, Spring Boot, Ktor, ASP.NET Core, ...).
+ */
 import type { StackDefinition } from './stackCatalogTypes';
 
 export const SERVER_FRAMEWORK_STACKS: StackDefinition[] = [

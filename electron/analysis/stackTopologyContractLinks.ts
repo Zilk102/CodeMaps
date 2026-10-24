@@ -1,3 +1,6 @@
+/**
+ * Links from API contract files (OpenAPI, protobuf) to the generated or hand-written code that implements them.
+ */
 import {
   createRelationship,
   resolveSymbolEndpoint,

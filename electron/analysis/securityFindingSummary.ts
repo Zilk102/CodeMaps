@@ -1,5 +1,9 @@
+/**
+ * Severity counting for security findings, shared by the scanner and the tools that report its results.
+ */
 import type { SecurityFinding } from './SecurityScanner';
 
+/** Number of security findings in total and for each severity level. */
 export interface SecurityFindingSummary {
   total: number;
   critical: number;

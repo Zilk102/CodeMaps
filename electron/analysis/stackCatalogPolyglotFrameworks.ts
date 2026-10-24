@@ -1,3 +1,6 @@
+/**
+ * Catalog entries for frameworks of Ruby, PHP, Go, Rust and Dart (Rails, Laravel, Gin, gRPC, Axum, Flutter, ...).
+ */
 import type { StackDefinition } from './stackCatalogTypes';
 
 export const POLYGLOT_FRAMEWORK_STACKS: StackDefinition[] = [

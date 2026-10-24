@@ -1,8 +1,15 @@
+/**
+ * Searches declaration lines (classes, functions, methods, ...) of the project's files for a text or
+ * regex query and maps hits back to graph symbols.
+ */
 import { GraphData } from '../store/types';
 import { readFileWithinLimit } from '../parsing/fileLimits';
 
 import safeRegex from 'safe-regex';
 
+/**
+ * One declaration line that matched the query, with the graph symbol it belongs to when one was found.
+ */
 export interface SignatureSearchMatch {
   nodeId: string;
   symbolId?: string;
@@ -13,6 +20,9 @@ export interface SignatureSearchMatch {
   preview: string;
 }
 
+/**
+ * Matches of a signature search; `count` equals `matches.length`, which is capped by the limit.
+ */
 export interface SignatureSearchResult {
   count: number;
   matches: SignatureSearchMatch[];
@@ -43,6 +53,9 @@ interface SignatureSearchOptions {
   filePath?: string;
 }
 
+/**
+ * Groups the symbol nodes (ids of the form `file#symbol`) of a graph by the file that contains them.
+ */
 const groupSymbolsByFile = (graph: GraphData) => {
   const symbolByFile = new Map<string, FileSymbol[]>();
   for (const node of graph.nodes) {
@@ -62,7 +75,14 @@ const selectFileNodes = (graph: GraphData, filePath?: string) => {
   );
 };
 
+/**
+ * Finds declarations by their signature text, which is cheaper and more precise than grepping files.
+ */
 export class SignatureSearchService {
+  /**
+   * Scans the (optionally path-filtered) files for declaration-like lines matching `query`. Stops at
+   * `limit` matches (default 20). Throws for a regex that safe-regex rejects; unreadable files are skipped.
+   */
   async search(
     graph: GraphData,
     query: string,
@@ -104,6 +124,11 @@ export class SignatureSearchService {
     };
   }
 
+  /**
+   * Appends matches from one file's lines to `matches`, in file order, until `limit` is reached. A line
+   * counts only if it looks like a declaration and matches the pattern; with `type`, the symbol found
+   * on the line must have that type.
+   */
   private collectFileMatches(input: {
     fileId: string;
     lines: string[];
@@ -133,6 +158,10 @@ export class SignatureSearchService {
     }
   }
 
+  /**
+   * Compiles the query into a case-(in)sensitive RegExp. Regex input is checked with safe-regex first
+   * to prevent catastrophic backtracking; plain text is escaped and matched literally.
+   */
   private createPattern(query: string, regex: boolean, caseSensitive: boolean) {
     if (regex) {
       if (!safeRegex(query)) {

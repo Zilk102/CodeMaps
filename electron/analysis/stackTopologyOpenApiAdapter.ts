@@ -1,3 +1,7 @@
+/**
+ * Topology adapter for OpenAPI: links spec files to codegen configs, generated modules and the
+ * runtime code that implements their operations.
+ */
 import {
   buildIdentifierVariants,
   findMatchingIdentifierSymbols,

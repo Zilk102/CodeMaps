@@ -1,3 +1,6 @@
+/**
+ * Builds the plain-language next steps returned to an agent after task routing, depending on the context that was selected.
+ */
 import { GraphNode } from '../store/types';
 import { hasOperationalRefreshSignals } from './taskIntelligenceIntent';
 import type {
@@ -19,6 +22,9 @@ function pushWhen(steps: string[], condition: boolean, message: string | (() => 
   if (condition) steps.push(typeof message === 'function' ? message() : message);
 }
 
+/**
+ * Steps for a change: read the risks first, then notes on extraction seams and runtime or contract wiring if the target has them.
+ */
 function buildChangeNextSteps(context: ChangeContext) {
   const steps = [
     'Next, the agent should read change-context risks, blast radius, and recommendedFilesToInspect before editing.',
@@ -42,6 +48,10 @@ function buildChangeNextSteps(context: ChangeContext) {
   return steps;
 }
 
+/**
+ * Steps for a campaign: phase the migration, start from DI wiring or the first refactoring wave if
+ * present, and stay in stabilization while quality gates block.
+ */
 function buildCampaignNextSteps(context: CampaignContext) {
   const steps = [
     'Next, the agent should read execution waves, affected files, and campaign risks, then perform the migration in phases.',
@@ -66,6 +76,10 @@ function buildCampaignNextSteps(context: CampaignContext) {
   return steps;
 }
 
+/**
+ * Steps for a review, adding advice for refresh pipelines, maintainability debt, the top
+ * decomposition candidate and blocking quality gates when the review found them.
+ */
 function buildReviewNextSteps(context: ReviewContext, route: TaskRoutePlan) {
   const steps = [
     'Next, the agent should read review priorities, patterns, and architecture summary before diving deep into the code.',
@@ -98,6 +112,9 @@ function buildReviewNextSteps(context: ReviewContext, route: TaskRoutePlan) {
   return steps;
 }
 
+/**
+ * Dispatches on the kind of selected context; with none selected, asks the agent to choose a focus query.
+ */
 function buildContextNextSteps(selectedContext: SelectedContext, route: TaskRoutePlan) {
   switch (selectedContext?.kind) {
     case 'change':
@@ -113,6 +130,10 @@ function buildContextNextSteps(selectedContext: SelectedContext, route: TaskRout
   }
 }
 
+/**
+ * Complete next-step list: the understood intent and tool, the first target (or a hint to refine
+ * the scope), then the steps specific to the selected context.
+ */
 export function buildTaskNextSteps(
   inferredIntent: TaskIntentInference,
   route: TaskRoutePlan,

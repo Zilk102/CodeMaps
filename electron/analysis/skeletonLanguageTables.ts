@@ -57,20 +57,33 @@ const FUNCTION_BODY_QUERIES: Record<string, string> = {
         `,
 };
 
+/**
+ * Whether `ext` (with the dot, lower-case) is a TypeScript or JavaScript file handled by the compiler API.
+ */
 export function isJsOrTsExtension(ext: string): boolean {
   return JS_TS_EXTENSIONS.includes(ext);
 }
 
+/**
+ * File extension that selects the grammar for a tree-sitter language id; '.txt' when the id is unknown.
+ */
 export function getExtensionForLanguageId(languageId: string): string {
   return EXTENSION_BY_LANGUAGE_ID[languageId] ?? '.txt';
 }
 
+/**
+ * Placeholder that replaces a function body: a `pass` line for indentation-based languages, a
+ * commented empty block for brace languages.
+ */
 export function getHiddenCommentForLanguage(languageId: string): string {
   return languageId === 'python' || languageId === 'ruby'
     ? ' pass # implementation hidden '
     : '{ /* implementation hidden */ }';
 }
 
+/**
+ * Tree-sitter query capturing function bodies as `@body`, or null when the language has no skeleton support.
+ */
 export function getFunctionBodyQuery(languageId: string): string | null {
   return Object.prototype.hasOwnProperty.call(FUNCTION_BODY_QUERIES, languageId)
     ? FUNCTION_BODY_QUERIES[languageId]

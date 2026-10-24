@@ -1,5 +1,10 @@
+/** Creates normalized stack insights, so equal findings always serialize in the same order. */
 import { StackAdapterCategory, StackStructuralInsight } from './stackTopologyTypes';
 
+/**
+ * Builds an insight whose lists are deduplicated and sorted; relationships are deduplicated on
+ * source, target, type and reason and sorted by the same keys.
+ */
 export const createInsight = (
   adapterId: string,
   displayName: string,

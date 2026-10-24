@@ -13,6 +13,7 @@ export const TS_EXTENSIONS = new Set([
   '.cts',
 ]);
 
+/** A source file's text with its lower-cased extension, so callers can choose a parser. */
 export interface SourceText {
   /** Lower-cased, with the dot. */
   extension: string;

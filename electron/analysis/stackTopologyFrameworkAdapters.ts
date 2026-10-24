@@ -1,3 +1,6 @@
+/**
+ * Registry of the built-in framework adapters, plus the ASP.NET Core adapter (controllers, minimal APIs, service registrations).
+ */
 export * from './stackTopologySupport';
 
 import {

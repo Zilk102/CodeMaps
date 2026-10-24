@@ -1,3 +1,6 @@
+/**
+ * Catalog entries for JavaScript and TypeScript web frameworks (React, Next.js, Vue, Angular, NestJS).
+ */
 import type { StackDefinition } from './stackCatalogTypes';
 
 export const WEB_FRAMEWORK_STACKS: StackDefinition[] = [

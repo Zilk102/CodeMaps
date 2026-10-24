@@ -1,3 +1,7 @@
+/**
+ * Topology adapters for JavaScript build tooling: Vite entries and config, and the pnpm, Nx and
+ * Turborepo workspaces with their packages and package-to-package dependencies.
+ */
 import * as path from 'path';
 import {
   createRelationship,
@@ -62,6 +66,7 @@ type WorkspacePackageManifest = {
   scripts: string[];
 };
 
+/** Parses text as a JSON object; null for invalid JSON, arrays and scalars. */
 const parseJsonObject = (text: string): ParsedJsonValue => {
   try {
     const value = JSON.parse(text);
@@ -81,6 +86,10 @@ const getObjectRecord = (value: unknown) =>
 const getStringArray = (value: unknown) =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 
+/**
+ * Glob patterns that a root package.json declares for its workspace packages, written either as
+ * `workspaces: [...]` or as `workspaces: { packages: [...] }`. Empty for invalid JSON.
+ */
 const extractPackageJsonWorkspacePatterns = (text: string) => {
   const parsed = parseJsonObject(text);
   if (!parsed) {
@@ -96,6 +105,10 @@ const extractPackageJsonWorkspacePatterns = (text: string) => {
   return workspaceRecord ? getStringArray(workspaceRecord.packages) : [];
 };
 
+/**
+ * Package globs from the `packages:` list of pnpm-workspace.yaml. A minimal line scanner, not a YAML
+ * parser: it reads `- pattern` items until the next unindented line.
+ */
 const extractPnpmWorkspacePatterns = (text: string) => {
   const lines = text.split(/\r?\n/);
   const patterns: string[] = [];
@@ -138,6 +151,11 @@ const matchesWorkspacePattern = (relativePackageJsonPath: string, pattern: strin
   return matcher.test(packageDirectory) || matcher.test(normalizedPath);
 };
 
+/**
+ * Reads every nested package.json that matches a workspace pattern (the root manifest is skipped) and
+ * returns the manifests (name, dependency names, script names), a name lookup and the raw entries read.
+ * The name falls back to the package directory name.
+ */
 const collectWorkspacePackageManifests = async (
   context: StackAdapterContext,
   workspacePatterns: string[]

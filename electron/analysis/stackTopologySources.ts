@@ -36,6 +36,10 @@ export const readRelativeEntries = async (
   }));
 };
 
+/**
+ * Reads the project's files whose root-relative path matches `extensions` and indexes them, together
+ * with the graph's symbols, for the adapters.
+ */
 export const loadSources = async (
   context: StackAdapterContext,
   extensions: RegExp
@@ -53,6 +57,7 @@ export const loadSources = async (
   };
 };
 
+/** Text of a file by root-relative path; an empty string when the file was not loaded. */
 export const textOf = (sources: AdapterSources, filePath: string) =>
   sources.contentByRelativePath.get(filePath) || '';
 

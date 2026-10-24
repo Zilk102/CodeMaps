@@ -1,3 +1,7 @@
+/**
+ * Finds the graph nodes a task request most likely refers to, and decides whether the request is
+ * broad enough to need a multi-file campaign plan instead of a single-target change context.
+ */
 import { GraphData, GraphNode } from '../store/types';
 import { compareScoredNodes, toStructuralNodeId } from './AgentContextUtils';
 import type { ProjectInsightResult } from './projectInsightTypes';
@@ -24,6 +28,11 @@ const createCandidateBonus = (normalizedRequest: string, runtimeRootIds: Set<str
     (wantsRefreshServices && OPERATIONAL_NODE_PATTERN.test(node.id) ? 140 : 0);
 };
 
+/**
+ * Up to six best-matching nodes for the candidate queries. A node's score is its best text match
+ * over all queries (favoring functions and classes over files) plus bonuses for runtime roots or
+ * refresh services when the request is about them; nodes scoring 0 are dropped.
+ */
 export function findTargetCandidates(
   graph: GraphData,
   candidateQueries: string[],
@@ -54,6 +63,11 @@ const BROAD_RUNTIME_SCOPE =
   /(services|providers|registrations|bindings|contracts|modules|сервисы|провайдер|регистрац|контракт|модули)/u;
 const EXPLICIT_FILE_MENTION = /[\p{L}\p{N}_./-]+\.(?:ts|tsx|js|jsx|json|css|md|cs|java|kt)/u;
 
+/**
+ * Whether the request needs a campaign plan (a coordinated migration over many files) rather than one
+ * change context. A request that names one file never does; otherwise campaign wording, DI wiring over
+ * several candidates, or a refactor with at least three candidates does.
+ */
 export function shouldUseCampaignContext(
   userRequest: string,
   inferredIntent: TaskIntentInference,

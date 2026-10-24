@@ -1,3 +1,7 @@
+/**
+ * Produces token-cheap views of source files: skeletons with function bodies removed and outlines of
+ * declarations with their original line numbers.
+ */
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getLanguageByExtension } from '../parsing/languageRegistry';
@@ -14,6 +18,9 @@ import { buildTypeScriptSkeleton } from './skeletonTypeScript';
 
 export type { SkeletonOutlineEntry };
 
+/**
+ * Builds skeletons and outlines of source files so an agent can read a file's shape without its bodies.
+ */
 export class SemanticSkeletonService {
   /**
    * Generates a structural skeleton of a file.
@@ -40,6 +47,11 @@ export class SemanticSkeletonService {
     return code;
   }
 
+  /**
+   * Tree-sitter skeleton for non-TS languages: finds function body ranges with the language's query and
+   * replaces them with a placeholder comment. Returns the code unchanged if the grammar, parser or query
+   * is unavailable.
+   */
   private async generateSkeletonWithTreeSitter(code: string, languageId: string): Promise<string> {
     const languageDef = getLanguageByExtension(getExtensionForLanguageId(languageId));
     if (!languageDef) return code;
@@ -94,6 +106,9 @@ export class SemanticSkeletonService {
     return this.generateOutlineFromCode(code, filePath);
   }
 
+  /**
+   * Outline of declarations in already loaded TS/JS source; `fileName` only selects the parser dialect.
+   */
   public generateOutlineFromCode(
     code: string,
     fileName: string = 'file.ts'
@@ -101,6 +116,7 @@ export class SemanticSkeletonService {
     return buildOutline(code, fileName);
   }
 
+  /** Skeleton of already loaded TS/JS source; `fileName` only selects the parser dialect. */
   public generateSkeletonFromCode(code: string, fileName: string = 'file.ts'): string {
     return buildTypeScriptSkeleton(code, fileName);
   }

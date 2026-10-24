@@ -1,3 +1,7 @@
+/**
+ * Topology adapters for the JavaScript/TypeScript server and web frameworks Next.js (app-router
+ * pages, layouts and API routes) and NestJS (modules, controllers, providers).
+ */
 import {
   basename,
   buildGraphSymbolIndex,

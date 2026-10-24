@@ -1,3 +1,4 @@
+/** Registry of the Python, Ruby, PHP, Go and Rust framework adapters. */
 export * from './stackTopologySupport';
 
 import type { StackAdapter } from './stackTopologySupport';

@@ -1,3 +1,7 @@
+/**
+ * Topology adapters for package-based build systems: Maven and Gradle modules, Cargo workspaces and
+ * .NET solutions, with the links between manifests, modules and their dependencies.
+ */
 import * as path from 'path';
 import {
   createRelationship,
@@ -160,6 +164,9 @@ const extractMavenModules = (text: string) =>
 const extractMavenTagValue = (text: string, tag: string) =>
   text.match(new RegExp(`<${tag}>([^<]+)<\\/${tag}>`))?.[1]?.trim() || '';
 
+/**
+ * Maven `artifactId` and `groupId` of a pom.xml (the group falls back to the parent's); null when there is no artifactId.
+ */
 const extractMavenCoordinates = (text: string) => {
   const artifactId = extractMavenTagValue(text, 'artifactId');
   const directGroupId = extractMavenTagValue(text, 'groupId');
@@ -188,6 +195,9 @@ const toMavenPomPath = (sourceRelativePath: string, modulePath: string) =>
     path.posix.join(path.posix.dirname(sourceRelativePath), modulePath, 'pom.xml')
   );
 
+/**
+ * Gradle module paths (`:app`, `:libs:core`) named by `include` calls in a settings file, without duplicates.
+ */
 const extractGradleIncludes = (text: string) => {
   const matches = Array.from(
     text.matchAll(
@@ -219,6 +229,10 @@ const extractGradleProjectDependencies = (text: string) =>
 const gradleModuleNotationToPath = (moduleNotation: string) =>
   moduleNotation.replace(/^:/, '').replace(/:/g, '/');
 
+/**
+ * Build script of a Gradle module (`build.gradle.kts` preferred over `build.gradle`) relative to the
+ * settings file's directory, or null when the project has neither.
+ */
 const resolveGradleModuleDescriptor = (
   context: StackAdapterContext,
   settingsRelativePath: string,

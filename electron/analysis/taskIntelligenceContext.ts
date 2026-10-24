@@ -1,3 +1,6 @@
+/**
+ * Picks the specialised context service for a routed task (campaign, change or review) and runs it.
+ */
 import { GraphData, GraphNode } from '../store/types';
 import type { ProjectInsightResult } from './projectInsightTypes';
 import { shouldUseCampaignContext } from './taskIntelligenceCandidates';
@@ -35,6 +38,7 @@ function sharedChangeOptions({ input, inferredIntent }: SelectionRequest) {
   };
 }
 
+/** Campaign context, or null when the request does not call for a campaign. */
 async function selectCampaign(
   services: TaskIntelligenceServices,
   request: SelectionRequest
@@ -57,6 +61,9 @@ async function selectCampaign(
   return { kind: 'campaign', context };
 }
 
+/**
+ * Change context for the best target candidate, or null when the intent is not a change or no target was found.
+ */
 async function selectChange(
   services: TaskIntelligenceServices,
   request: SelectionRequest
@@ -71,6 +78,10 @@ async function selectChange(
   return { kind: 'change', context };
 }
 
+/**
+ * Review context focused on the best candidate (or first query), or null when the intent is not a
+ * review and there are no candidate queries either.
+ */
 async function selectReview(
   services: TaskIntelligenceServices,
   request: SelectionRequest

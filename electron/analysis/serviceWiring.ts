@@ -1,3 +1,7 @@
+/**
+ * Tiny dependency-injection helper: builds a bundle of services from classes so tests can swap members.
+ */
+
 type ServiceClasses = Record<string, new () => object>;
 
 /** The instances a map of service classes builds. */

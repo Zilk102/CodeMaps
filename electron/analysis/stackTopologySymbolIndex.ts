@@ -1,3 +1,7 @@
+/**
+ * Maps graph symbols and file contents to the link endpoints used in stack relationships
+ * (`file` or `file#symbol`), and finds which files mention which symbols.
+ */
 import * as path from 'path';
 import { GraphData } from '../store/types';
 import { StackRelationshipType, StackStructuralRelationship } from './stackTopologyTypes';
@@ -8,6 +12,9 @@ import {
   inferSymbolsForFile,
 } from './stackTopologyIdentifiers';
 
+/**
+ * Index of class and function symbol names per file (keyed by project-relative path) built from the graph's `file#symbol` node ids.
+ */
 export const buildGraphSymbolIndex = (graph: GraphData): GraphSymbolIndex => {
   const index = new Map<string, Set<string>>();
 
@@ -34,6 +41,11 @@ export const buildGraphSymbolIndex = (graph: GraphData): GraphSymbolIndex => {
   return index;
 };
 
+/**
+ * Endpoint id of a file for a relationship: `file#symbol` when the graph knows the symbol, otherwise
+ * the file path. The symbol is the first of `preferredSymbols`, then of the ones inferred from
+ * `text`, that the file has; with neither, it is the file's only symbol, if it has exactly one.
+ */
 export const resolveSymbolEndpoint = (
   relativeFilePath: string,
   symbolIndex: GraphSymbolIndex,
@@ -60,6 +72,7 @@ export const resolveSymbolEndpoint = (
 const onlyElement = (items: string[]): string | undefined =>
   items.length === 1 ? items[0] : undefined;
 
+/** Maps each symbol the extractor finds to the first file that declares it (first one wins). */
 export const buildNamedSymbolToFileMap = (
   entries: FileContentEntry[],
   extractor: (text: string, filePath: string) => string[]
@@ -77,6 +90,10 @@ export const buildNamedSymbolToFileMap = (
   return symbolToFile;
 };
 
+/**
+ * Symbols from `symbolToFileMap` that `text` mentions as whole words, skipping symbols that belong
+ * to `excludeFiles`, sorted by file and symbol.
+ */
 export const findReferencedSymbolMatches = (
   text: string,
   symbolToFileMap: Map<string, string>,
@@ -100,6 +117,7 @@ export const findReferencedSymbolMatches = (
   );
 };
 
+/** Builds a relationship record. */
 export const createRelationship = (
   source: string,
   target: string,
@@ -112,8 +130,10 @@ export const createRelationship = (
   reason,
 });
 
+/** File contents keyed by their path. */
 export const getContentByRelativePath = (entries: FileContentEntry[]) =>
   new Map(entries.map((entry) => [entry.filePath, entry.text]));
 
+/** Maps symbols guessed from each file (its name and declared types) to that file. */
 export const buildSymbolToFileMap = (entries: FileContentEntry[]) =>
   buildNamedSymbolToFileMap(entries, (text, filePath) => inferSymbolsForFile(filePath, text));

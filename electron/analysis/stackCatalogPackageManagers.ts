@@ -1,3 +1,6 @@
+/**
+ * Catalog entries for package managers (npm, pnpm, Yarn, Bun, Poetry, pip, Composer, Bundler, NuGet).
+ */
 import type { StackDefinition } from './stackCatalogTypes';
 
 export const PACKAGE_MANAGER_STACKS: StackDefinition[] = [

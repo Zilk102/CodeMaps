@@ -1,3 +1,7 @@
+/**
+ * Builders of stack relationships (links between files and symbols) that adapters share: fan-out
+ * links, reference links, handler links and config-to-entry links.
+ */
 import {
   createRelationship,
   findReferencedSymbolMatches,
@@ -25,6 +29,7 @@ export const classEndpoint = (sources: AdapterSources, filePath: string) =>
     preferredSymbols: inferClassSymbolsForFile(textOf(sources, filePath)),
   });
 
+/** Graph endpoint for a file, or for `symbol` inside it when the graph has such a symbol. */
 export const fileEndpoint = (sources: AdapterSources, filePath: string, symbol?: string) =>
   resolveSymbolEndpoint(
     filePath,

@@ -1,3 +1,7 @@
+/**
+ * Catalog entries for build systems and contract tooling (Vite, monorepo tools, Bazel, OpenAPI,
+ * Protocol Buffers, Maven, Gradle, Cargo, Go modules, .NET, SwiftPM).
+ */
 import type { StackDefinition } from './stackCatalogTypes';
 
 export const BUILD_SYSTEM_STACKS: StackDefinition[] = [

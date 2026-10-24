@@ -1,3 +1,7 @@
+/** Regex helper shared by the per-language extractors that read names out of source text. */
+/**
+ * Sorted, deduplicated first capture groups of all matches of the given global patterns in `text`.
+ */
 export const extractMethodNames = (text: string, patterns: RegExp[]) => {
   const names = new Set<string>();
 

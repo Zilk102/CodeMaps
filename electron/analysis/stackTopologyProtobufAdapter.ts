@@ -1,3 +1,7 @@
+/**
+ * Topology adapter for Protocol Buffers: links .proto files and Buf configs to generated modules
+ * (including Connect and gRPC-Web flavours) and to the server or client code that uses their services.
+ */
 import * as path from 'path';
 import {
   buildIdentifierVariants,

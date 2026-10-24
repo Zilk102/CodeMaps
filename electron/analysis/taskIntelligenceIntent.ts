@@ -1,3 +1,7 @@
+/**
+ * Infers what kind of task a free-text request describes (bugfix, feature, refactor, review, ...) from
+ * keyword hints in English and Russian, and extracts the search terms to look for in the graph.
+ */
 import { ChangeTaskMode } from './ChangeContextService';
 import { ReviewTaskMode } from './ReviewContextService';
 import { RoutedTaskKind, TaskIntentInference } from './taskIntelligenceTypes';
@@ -254,6 +258,10 @@ const INTENT_RULES: IntentRule[] = [
   },
 ];
 
+/**
+ * Classifies a request by keyword hints. Bugfix signals win first, then broad-change signals
+ * (migration or new feature), then the remaining rules in order; with no signal it is 'explore' with low confidence.
+ */
 export function inferTaskIntent(userRequest: string): TaskIntentInference {
   const normalized = userRequest.trim().toLowerCase();
   const extractedKeywords = extractCandidateQueries(userRequest);
@@ -285,6 +293,9 @@ type IntentResultFactory = (
   ...reasoning: string[]
 ) => TaskIntentInference;
 
+/**
+ * Bugfix intent, upgraded to 'security' when the request also carries security wording (unless it says something "breaks").
+ */
 function inferBugfixIntent(
   normalized: string,
   has: HintMatcher,
@@ -335,6 +346,10 @@ const OPERATIONAL_REFRESH_TERMS = [
 const addTerms = (target: Set<string>, terms: string[]) =>
   terms.forEach((term) => target.add(term));
 
+/**
+ * Search terms from a request: quoted phrases, file-like names and words of three or more letters
+ * minus stop words, expanded with related terms for auth, DI wiring and refresh topics, capped at the keyword limit.
+ */
 export function extractCandidateQueries(userRequest: string) {
   const normalized = userRequest.toLowerCase();
   const quoted = Array.from(normalized.matchAll(/["'`](.+?)["'`]/gu), (match) => match[1].trim());
@@ -358,18 +373,29 @@ export function extractCandidateQueries(userRequest: string) {
   return Array.from(expanded).filter(Boolean).slice(0, MAX_KEYWORDS);
 }
 
+/**
+ * Whether the text mentions runtime dependency-injection wiring (composition roots, providers, bindings).
+ */
 export function hasDiRuntimeSignals(text: string) {
   return DI_RUNTIME_HINTS.some((hint) => text.includes(hint));
 }
 
+/**
+ * Whether the text mentions incremental refresh behavior (file watching, batching, rebuild latency).
+ */
 export function hasOperationalRefreshSignals(text: string) {
   return OPERATIONAL_REFRESH_HINTS.some((hint) => text.includes(hint));
 }
 
+/** Whether the task kind modifies code (bugfix, feature or refactor). */
 export function isChangeIntent(taskKind: RoutedTaskKind) {
   return taskKind === 'bugfix' || taskKind === 'feature' || taskKind === 'refactor';
 }
 
+/**
+ * Whether the task kind is answered with a review-style context: review, architecture, security,
+ * stabilization, and also 'explore', which has no specific target.
+ */
 export function isReviewIntent(taskKind: RoutedTaskKind) {
   return (
     taskKind === 'review' ||

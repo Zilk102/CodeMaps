@@ -1,3 +1,4 @@
+/** Small combinators for building the list of recommended next steps from independent rules. */
 /** A rule that yields one next-step sentence, or null when it does not apply. */
 export type StepRule<I> = (input: I) => string | null;
 

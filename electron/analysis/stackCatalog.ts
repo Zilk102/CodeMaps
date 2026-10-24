@@ -1,3 +1,7 @@
+/**
+ * The built-in catalog of detectable stacks: package managers, build systems and frameworks,
+ * assembled from the per-category catalog files.
+ */
 import type { StackDefinition } from './stackCatalogTypes';
 import { PACKAGE_MANAGER_STACKS } from './stackCatalogPackageManagers';
 import { BUILD_SYSTEM_STACKS } from './stackCatalogBuildSystems';

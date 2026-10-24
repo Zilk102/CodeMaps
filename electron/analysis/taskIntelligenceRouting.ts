@@ -1,3 +1,6 @@
+/**
+ * Chooses the composite MCP tool for a task (campaign, change, review or project context) and explains the choice.
+ */
 import { GraphNode } from '../store/types';
 import type { ProjectInsightResult } from './projectInsightTypes';
 import { hasDiRuntimeSignals, hasOperationalRefreshSignals } from './taskIntelligenceIntent';
@@ -11,6 +14,9 @@ type SelectedContext = TaskContextResult['selectedContext'];
 type CampaignContext = Extract<SelectedContext, { kind: 'campaign' }>['context'];
 type ChangeContext = Extract<SelectedContext, { kind: 'change' }>['context'];
 
+/**
+ * Route for a campaign context; the rationale differs when runtime composition roots are in scope.
+ */
 function buildCampaignRoute(context: CampaignContext): TaskRoutePlan {
   return {
     initialTool: 'prepare_task_context',
@@ -44,6 +50,9 @@ function buildChangeRoute(context: ChangeContext): TaskRoutePlan {
   };
 }
 
+/**
+ * Explains why a review-style context was chosen: refresh behavior with watcher telemetry, a found focus area, or no clear target.
+ */
 function describeReviewRoute(
   keywords: string,
   targetCandidates: GraphNode[],
@@ -62,6 +71,9 @@ function describeReviewRoute(
   return 'The request could not be strictly linked to a single code target yet, so it is safer to start with a review-style context.';
 }
 
+/**
+ * Route for a review context; the code should be inspected right away only when a target was found.
+ */
 function buildReviewRoute(
   keywords: string,
   targetCandidates: GraphNode[],
@@ -76,6 +88,9 @@ function buildReviewRoute(
   };
 }
 
+/**
+ * Explains why the broad project context was chosen: vague runtime wiring, vague refresh behavior, or a generally unspecific request.
+ */
 function describeProjectRoute(keywords: string, projectContext: ProjectInsightResult) {
   if (
     projectContext.mentalModel.runtimeCompositionRoots.length > 0 &&
@@ -102,6 +117,10 @@ function buildProjectRoute(keywords: string, projectContext: ProjectInsightResul
   };
 }
 
+/**
+ * Picks the route from the selected context: campaign, change or review; with none selected,
+ * the project context, which does not ask to inspect code yet.
+ */
 export function buildTaskRoute(
   inferredIntent: TaskIntentInference,
   targetCandidates: GraphNode[],

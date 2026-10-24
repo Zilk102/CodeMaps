@@ -1,3 +1,7 @@
+/**
+ * Topology adapters for the Bazel and Pants monorepo tools: workspace files, BUILD files and the
+ * source and dependency targets that BUILD files reference.
+ */
 import * as path from 'path';
 import {
   createRelationship,
@@ -94,6 +98,10 @@ const splitBazelLabel = (label: string, sourceDir: string) => {
   return { packagePath: sourceDir === '.' ? '' : sourceDir, target: label.slice(1) };
 };
 
+/**
+ * Resolves a Bazel label (`//pkg:name`, `:name` or a plain file name) found in a BUILD file to a
+ * source file or the BUILD file of the target package. External (`@repo`) labels are not resolved.
+ */
 const resolveBazelLabel: TargetResolver = (context, sourceRelativePath, rawLabel) => {
   const label = rawLabel.trim();
   if (!label || label.startsWith('@')) {
@@ -108,6 +116,10 @@ const resolveBazelLabel: TargetResolver = (context, sourceRelativePath, rawLabel
   return resolveInPackage(context, packagePath, target, ['BUILD.bazel', 'BUILD']);
 };
 
+/**
+ * Resolves a Pants address (`path:name` or a plain file name) found in a BUILD file to a source
+ * file or the BUILD file of the target package. `//` and `@` addresses are not resolved.
+ */
 const resolvePantsAddress: TargetResolver = (context, sourceRelativePath, rawAddress) => {
   const address = rawAddress.trim();
   if (!address || address.startsWith('//') || address.includes('@')) {

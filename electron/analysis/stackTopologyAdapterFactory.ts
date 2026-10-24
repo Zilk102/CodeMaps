@@ -1,3 +1,7 @@
+/**
+ * Factories that build stack topology adapters from a short description, so each adapter only states
+ * what it finds and the stack check, evidence and insight creation are shared.
+ */
 import {
   createInsight,
   toRelativeList,
@@ -13,6 +17,9 @@ type InsightDetails = Partial<
   Omit<StackStructuralInsight, 'adapterId' | 'displayName' | 'category' | 'summary'>
 >;
 
+/**
+ * What an adapter found: a summary line and the structure details (routes, modules, links, ...).
+ */
 export interface AdapterFindings {
   /** The summary line. */
   summary: string;

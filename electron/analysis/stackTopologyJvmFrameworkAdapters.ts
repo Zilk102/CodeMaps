@@ -1,3 +1,7 @@
+/**
+ * Topology adapters for JVM frameworks (Spring Boot, Ktor, Micronaut, Quarkus): entry points,
+ * controllers/routes and dependency-injection links.
+ */
 import {
   buildNamedSymbolToFileMap,
   createRelationship,

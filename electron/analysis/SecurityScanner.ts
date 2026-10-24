@@ -1,6 +1,11 @@
+/**
+ * Heuristic security scan over the file nodes of the graph: suspicious file names and locations
+ * plus a few regex rules on file content. It reports candidates for review, not proven vulnerabilities.
+ */
 import { GraphData } from '../store/types';
 import { readFileWithinLimit } from '../parsing/fileLimits';
 
+/** One suspected security issue; `nodeId` is the path of the file it was found in. */
 export interface SecurityFinding {
   ruleId: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
@@ -8,6 +13,9 @@ export interface SecurityFinding {
   message: string;
 }
 
+/**
+ * All findings of a scan with per-severity counts, so callers can show a summary without re-counting.
+ */
 export interface SecurityScanResult {
   findings: SecurityFinding[];
   summary: {
@@ -83,6 +91,10 @@ function toFinding(rule: ContentRule, nodeId: string): SecurityFinding {
   return { ruleId: rule.ruleId, severity: rule.severity, nodeId, message: rule.message };
 }
 
+/**
+ * Path-only checks for a file node: secret-like names, secret files under `/public/`, and
+ * infrastructure files inside `/src/`. Reads no file content.
+ */
 function scanPath(node: GraphData['nodes'][number]): SecurityFinding[] {
   const findings: SecurityFinding[] = [];
   const normalizedId = node.id.toLowerCase();
@@ -119,6 +131,10 @@ function scanPath(node: GraphData['nodes'][number]): SecurityFinding[] {
   return findings;
 }
 
+/**
+ * True when some line contains an `http://` URL that is not localhost, a template placeholder or an
+ * XML/W3C namespace, i.e. a URL that probably should be HTTPS.
+ */
 function hasInsecureRemoteHttp(content: string): boolean {
   return content
     .split(/\r?\n/)
@@ -131,6 +147,11 @@ function hasInsecureRemoteHttp(content: string): boolean {
     );
 }
 
+/**
+ * Content checks for one file. Code rules run on text with comments and string literals blanked out
+ * (so a mention in a string is no finding); the credential rule runs on the raw text because it must
+ * see the string value.
+ */
 function scanContent(nodeId: string, content: string): SecurityFinding[] {
   const sanitizedContent = stripStringsAndComments(content);
   const findings = [
@@ -149,6 +170,7 @@ function scanContent(nodeId: string, content: string): SecurityFinding[] {
   return findings;
 }
 
+/** Counts findings in total and per severity. */
 function summarizeFindings(findings: SecurityFinding[]): SecurityScanResult['summary'] {
   const count = (severity: SecurityFinding['severity']) =>
     findings.filter((finding) => finding.severity === severity).length;
@@ -161,6 +183,10 @@ function summarizeFindings(findings: SecurityFinding[]): SecurityScanResult['sum
   };
 }
 
+/**
+ * Findings for one file node: path checks first, then content checks. An unreadable or too large
+ * file only loses its content checks.
+ */
 async function scanFileNode(node: GraphData['nodes'][number]): Promise<SecurityFinding[]> {
   const findings = scanPath(node);
   try {
@@ -172,7 +198,13 @@ async function scanFileNode(node: GraphData['nodes'][number]): Promise<SecurityF
   return findings;
 }
 
+/**
+ * Scans every file node of a graph, skipping build output directories to avoid noise from compiled code.
+ */
 export class SecurityScanner {
+  /**
+   * Scans all non-generated file nodes of `graph` and returns the findings with a severity summary.
+   */
   async analyze(graph: GraphData): Promise<SecurityScanResult> {
     const findings: SecurityFinding[] = [];
 
