@@ -196,7 +196,7 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
     name: 'validate_architecture_changes',
     title: 'Validate Architecture Changes',
     description:
-      'Checks only the files you changed (git working tree or baseRef) against SOLID and duplication heuristics and returns the problems in them, each with a fix hint; falls back to the whole project.',
+      'Checks only the files you changed (git working tree or baseRef) against SOLID, duplication and documentation rules and returns the problems in them, each with a fix hint; falls back to the whole project. With a project baseline (ratchet mode) only new or worsened problems are reported and old debt is summarized in legacyDebt.',
     recommendedWhen:
       'Before finalizing code changes, to be sure your edits add no god files, clones or complexity.',
   },

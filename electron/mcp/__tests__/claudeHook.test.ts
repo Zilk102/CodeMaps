@@ -48,6 +48,21 @@ describe('buildReport', () => {
     ).toBeNull();
   });
 
+  it('never reports legacy debt, which ratchet mode only summarizes', () => {
+    const validation = {
+      findings: [],
+      isValid: true,
+      legacyDebt: {
+        total: 120,
+        byKind: { long_function: 120 },
+        paidDown: { total: 3 },
+        worsened: 0,
+      },
+    };
+
+    expect(buildReport(validation, 'D:/proj', 'D:/proj/src/a.ts')).toBeNull();
+  });
+
   it('lists problems with project-relative paths and a fix', () => {
     const report = buildReport({ findings: [finding()] }, 'D:/proj', 'D:/proj/src/Big.ts')!;
 

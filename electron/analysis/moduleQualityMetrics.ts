@@ -6,6 +6,8 @@
 
 import { cloneIndex } from './clones/CloneIndex';
 import { computeFileCoupling } from './couplingMetrics';
+import { loadProjectConfig } from './projectConfig/configLoader';
+import { structureLimitsOf, type StructureLimits } from './projectConfig/structureLimits';
 import { isTestFile } from './testFiles';
 import { GraphData, GraphNode } from '../store/types';
 import {
@@ -57,6 +59,8 @@ export interface ModuleQualityMetric {
  */
 export interface ModuleQualitySummary {
   metrics: ModuleQualityMetric[];
+  /** The function limits the metrics were measured with; the built-in ones when absent. */
+  limits?: StructureLimits;
   oversizedModules: ModuleQualityMetric[];
   godFiles: ModuleQualityMetric[];
   godClasses: Array<ModuleQualityMetric & { matchedClasses: SourceClassMetric[] }>;
@@ -167,7 +171,8 @@ const labelOrder = (left: ModuleQualityMetric, right: ModuleQualityMetric) =>
 const buildModuleMetric = (
   node: GraphNode,
   adjacency: ReturnType<typeof buildGraphAdjacency>,
-  coupling: ReturnType<typeof computeFileCoupling>
+  coupling: ReturnType<typeof computeFileCoupling>,
+  limits: StructureLimits
 ): ModuleQualityMetric => {
   const links = [
     ...(adjacency.incomingByTarget.get(node.id) || []),
@@ -182,7 +187,7 @@ const buildModuleMetric = (
     stackAwareDegree: links.filter((link) => isStackAwareLink(link)).length,
     diRuntimeDegree: links.filter((link) => isDiRuntimeLink(link)).length,
     contractDegree: links.filter((link) => isContractSemanticLink(link)).length,
-    sourceMetrics: analyzeSourceFileStructure(node.id),
+    sourceMetrics: analyzeSourceFileStructure(node.id, limits),
   };
   const responsibilityAxisCount = createResponsibilityAxisCount(baseMetric);
   const mixedResponsibilities = isMixedResponsibility(baseMetric, responsibilityAxisCount);
@@ -200,16 +205,20 @@ const buildModuleMetric = (
 };
 
 /**
+ * Whether a module is oversized: 600+ lines or 25+ symbols. Files that could not be read and have
+ * no symbols do not qualify.
+ */
+export const isOversizedModule = (metric: ModuleQualityMetric): boolean =>
+  ((metric.lineCount || 0) >= 600 || metric.symbolCount >= 25) &&
+  (metric.lineCount !== null || metric.symbolCount > 0);
+
+/**
  * Top modules by size: 600+ lines or 25+ symbols qualify, largest first. Files that could not be
  * read and have no symbols are skipped.
  */
 const findOversizedModules = (metrics: ModuleQualityMetric[]) =>
   metrics
-    .filter(
-      (metric) =>
-        ((metric.lineCount || 0) >= 600 || metric.symbolCount >= 25) &&
-        (metric.lineCount !== null || metric.symbolCount > 0)
-    )
+    .filter(isOversizedModule)
     .sort(
       (left, right) =>
         (right.lineCount || right.symbolCount * 20) - (left.lineCount || left.symbolCount * 20) ||
@@ -238,7 +247,8 @@ const hasGodFileSignals = (metric: ModuleQualityMetric): boolean => {
   );
 };
 
-const isGodFile = (metric: ModuleQualityMetric): boolean =>
+/** Whether a module is a god file: huge, or large with a second sign such as coupling or churn. */
+export const isGodFile = (metric: ModuleQualityMetric): boolean =>
   isHugeModule(metric) || (isLargeModule(metric) && hasGodFileSignals(metric));
 
 const godFileWeight = (metric: ModuleQualityMetric) =>
@@ -325,21 +335,27 @@ const findStructuralClones = (projectRoot: string | undefined): CloneGroups | nu
 
 /**
  * Analyzes all files of the graph: builds the metrics, then ranks the worst files per smell,
- * ignoring test files for the rankings. Reads files from disk for line counts and structure.
+ * ignoring test files and the files the project config excludes for the rankings. Reads files
+ * from disk for line counts and structure.
  */
 export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
   const adjacency = buildGraphAdjacency(graph);
   const coupling = computeFileCoupling(graph);
+  const projectConfig = loadProjectConfig(graph.projectRoot);
+  const limits = structureLimitsOf(projectConfig.config);
   const metrics = graph.nodes
     .filter((node) => node.type === 'file')
-    .map((node) => buildModuleMetric(node, adjacency, coupling));
+    .map((node) => buildModuleMetric(node, adjacency, coupling, limits));
 
   // A test file is long by nature (one describe per behaviour); size and complexity findings
   // are about code someone has to maintain in production, so tests stay in `metrics` only.
-  const production = metrics.filter((metric) => !isTestFile(metric.node.id));
+  const production = metrics.filter(
+    (metric) => !isTestFile(metric.node.id) && !projectConfig.isExcluded(metric.node.id)
+  );
 
   return {
     metrics,
+    limits,
     oversizedModules: findOversizedModules(production),
     godFiles: findGodFiles(production),
     godClasses: rankByWorstMatch(

@@ -2,6 +2,7 @@
 // TypeScript compiler API and a regex fallback. Scoring modules on top of it lives in
 // moduleQualityMetrics.ts. The work is split across ./sourceStructure/*.
 import * as fs from 'fs';
+import { DEFAULT_STRUCTURE_LIMITS, type StructureLimits } from './projectConfig/structureLimits';
 import { analyzeSourceFileStructureWithRegex } from './sourceStructure/regexStructure';
 import { SUPPORTED_SOURCE_FILE_REGEX } from './sourceStructure/structureRules';
 import type { SourceFileMetrics } from './sourceStructure/structureTypes';
@@ -31,11 +32,16 @@ function readText(filePath: string): string | null {
 /**
  * Structure metrics of one file. Uses the TypeScript compiler API and falls back to the regex
  * analyzer when that fails; an unreadable or unsupported file yields the regex result for no text.
+ * `limits` say from which size a function counts as long, complex or deep (the project's own
+ * limits, or the built-in ones).
  */
-export function analyzeSourceFileStructure(filePath: string): SourceFileMetrics {
+export function analyzeSourceFileStructure(
+  filePath: string,
+  limits: StructureLimits = DEFAULT_STRUCTURE_LIMITS
+): SourceFileMetrics {
   const text = readText(filePath);
   return (
-    (text ? analyzeSourceFileStructureWithTypeScript(filePath, text) : null) ||
-    analyzeSourceFileStructureWithRegex(text)
+    (text ? analyzeSourceFileStructureWithTypeScript(filePath, text, limits) : null) ||
+    analyzeSourceFileStructureWithRegex(text, limits)
   );
 }

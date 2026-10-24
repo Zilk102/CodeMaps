@@ -5,6 +5,8 @@ import * as path from 'path';
 import * as z from 'zod/v4';
 import { documentationIndex } from '../analysis/documentation';
 import { validateChanges } from '../analysis/ChangeValidationService';
+import { loadRatchet, refreshBaseline } from '../analysis/baseline';
+import { loadProjectConfig } from '../analysis/projectConfig';
 import { GitService } from '../services/GitService';
 import { oracle } from '../oracle';
 import { defineGraphTool } from './defineTool';
@@ -261,6 +263,9 @@ function registerValidateChanges(server: McpServer, context: McpToolContext) {
           .enum(['auto', 'changed', 'project'])
           .optional()
           .describe('auto (default): changed files when any, otherwise the whole project.'),
+        refreshBaseline: optionalBoolean(
+          'Ratchet mode: after reporting, lower the project baseline to the findings that still exist (paid-down debt is removed, nothing is ever added). Default false.'
+        ),
       },
     },
     (args: ValidateChangesArgs) => validateArchitectureChanges(context, args)
@@ -271,34 +276,49 @@ interface ValidateChangesArgs {
   changedFiles?: string[];
   baseRef?: string;
   scope?: 'auto' | 'changed' | 'project';
+  refreshBaseline?: boolean;
 }
 
 /**
  * Handler of `validate_architecture_changes`: checks the changed files (explicit list, or detected through git) against the detected patterns.
  * With `scope` "project", or when no changed file is found, nothing is filtered and the whole project is validated. Waits for the indexer to catch up with just-saved edits first.
+ * In ratchet mode (the default) with a baseline, only new or worsened findings are reported and the old debt is summarized in `legacyDebt`; `refreshBaseline` then lowers the baseline.
  */
 async function validateArchitectureChanges(
   context: McpToolContext,
-  { changedFiles, baseRef, scope = 'auto' }: ValidateChangesArgs
+  { changedFiles, baseRef, scope = 'auto', refreshBaseline: shrink = false }: ValidateChangesArgs
 ) {
   // The edits being validated were probably saved a moment ago; wait for the indexer.
   await oracle.whenIdle();
   const graph = await ensureGraphLoaded();
   const health = context.healthScoreAnalyzer.analyze(graph);
-  const patterns = context.patternDetectionAnalyzer.analyze(graph);
+  const detection = context.patternDetectionAnalyzer.analyzeWithSources(graph);
 
   const root = graph.projectRoot ?? '';
   const resolved = scope === 'project' ? [] : filesToValidate(root, changedFiles, baseRef);
+  const documentation = documentationIndex.peek(graph.projectRoot);
+  const sources = {
+    graph,
+    quality: detection.quality,
+    architecture: detection.architecture,
+    documentation,
+  };
 
   const result = validateChanges({
-    patterns: patterns.patterns,
+    patterns: detection.patterns,
     changedFiles: resolved,
     healthScore: health.score,
-    documentation: documentationIndex.peek(graph.projectRoot),
+    documentation,
+    ratchet: loadRatchet(sources),
   });
+  const { config, warnings } = loadProjectConfig(root);
+  const baselineUpdate =
+    shrink && config.mode === 'ratchet' ? { baselineRefresh: refreshBaseline(sources) } : {};
 
   return okStatusToolResult({
     ...result,
+    ...(warnings.length > 0 ? { configWarnings: warnings } : {}),
+    ...baselineUpdate,
     projectHealth: { score: health.score, grade: health.grade },
   });
 }

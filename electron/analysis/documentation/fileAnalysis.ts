@@ -20,10 +20,12 @@ import { assessDocQuality, docWords } from './docQuality';
 import { compareText } from './ordering';
 import { parseSource, type ParsedFile } from './fileParsing';
 import {
+  DEFAULT_DOCUMENTATION_LIMITS,
   HEADER_MAX_START_LINE,
   isDocumentationRequired,
   isHeaderRequired,
   MIN_HEADER_WORDS,
+  type DocumentationLimits,
 } from './policy';
 import { findUnownedTodos } from './todoFindings';
 import type { ExemptReason, FileDocumentation, HeaderStatus, SymbolDocumentation } from './types';
@@ -45,19 +47,26 @@ const docTextAbove = (
 };
 
 /** Turns a raw declaration and its doc text into the reported symbol: whether the policy requires documentation for it and how good the existing comment is. */
-const toSymbol = (declaration: RawDeclaration, docText: string | null): SymbolDocumentation => {
+const toSymbol = (
+  declaration: RawDeclaration,
+  docText: string | null,
+  limits: DocumentationLimits
+): SymbolDocumentation => {
   const lineCount = declaration.endLine - declaration.line + 1;
   return {
     name: declaration.name,
     kind: declaration.kind,
     line: declaration.line,
     exported: declaration.exported,
-    required: isDocumentationRequired({
-      kind: declaration.kind,
-      exported: declaration.exported,
-      exempt: declaration.exempt,
-      lineCount,
-    }),
+    required: isDocumentationRequired(
+      {
+        kind: declaration.kind,
+        exported: declaration.exported,
+        exempt: declaration.exempt,
+        lineCount,
+      },
+      limits
+    ),
     documented: docText !== null,
     quality: docText === null ? 'ok' : assessDocQuality(declaration.name, docText),
   };
@@ -67,7 +76,8 @@ const toSymbol = (declaration: RawDeclaration, docText: string | null): SymbolDo
 const documentSymbols = (
   declarations: RawDeclaration[],
   index: CommentIndex,
-  convention: DocConvention
+  convention: DocConvention,
+  limits: DocumentationLimits
 ): SymbolDocumentation[] =>
   declarations
     .map((declaration) =>
@@ -75,7 +85,8 @@ const documentSymbols = (
         declaration,
         declaration.docstring !== undefined
           ? declaration.docstring
-          : docTextAbove(index, convention, declaration.anchorLine)
+          : docTextAbove(index, convention, declaration.anchorLine),
+        limits
       )
     )
     .sort((a, b) => a.line - b.line || compareText(a.name, b.name));
@@ -115,9 +126,10 @@ const headerOf = (
   parsed: ParsedFile,
   comments: SourceComment[],
   convention: DocConvention,
-  lineCount: number
+  lineCount: number,
+  limits: DocumentationLimits
 ): HeaderStatus => {
-  if (!isHeaderRequired(lineCount)) return 'n/a';
+  if (!isHeaderRequired(lineCount, limits)) return 'n/a';
   const documented = convention.docstring
     ? hasHeaderWords(parsed.scan.moduleDocstring ?? '')
     : commentHeader(comments, parsed.scan.declarations, convention);
@@ -150,11 +162,13 @@ const sortByLine = (raw: RawComment[]): RawComment[] =>
 /**
  * Measures the documentation of one source file given its text. Returns null for files in a
  * language the engine does not measure (Markdown, HTML, CSS, YAML, JSON, unknown extensions)
- * and for files that cannot be parsed. Test and generated files come back as exempt.
+ * and for files that cannot be parsed. Test and generated files come back as exempt. `limits`
+ * are the project's header and function size limits (the defaults when omitted).
  */
 export const analyzeDocumentationSource = async (
   file: string,
-  text: string
+  text: string,
+  limits: DocumentationLimits = DEFAULT_DOCUMENTATION_LIMITS
 ): Promise<FileDocumentation | null> => {
   const extension = path.extname(file).toLowerCase();
   const resolved = conventionForFile(extension);
@@ -172,8 +186,8 @@ export const analyzeDocumentationSource = async (
     file,
     language,
     exempt: false,
-    header: headerOf(parsed, comments, convention, lines.length),
-    symbols: documentSymbols(parsed.scan.declarations, index, convention),
+    header: headerOf(parsed, comments, convention, lines.length, limits),
+    symbols: documentSymbols(parsed.scan.declarations, index, convention, limits),
     commentedOutCode: findCommentedOutCode(comments),
     unownedTodos: findUnownedTodos(comments),
   };

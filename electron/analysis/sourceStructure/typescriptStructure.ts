@@ -2,11 +2,12 @@
 // cyclomatic complexity and nesting.
 
 import ts from 'typescript';
+import { DEFAULT_STRUCTURE_LIMITS, type StructureLimits } from '../projectConfig/structureLimits';
 import {
   SUPPORTED_SOURCE_FILE_REGEX,
   hashBody,
   isComplexFunction,
-  LONG_METHOD_LINES,
+  isLongFunction,
   isGodClassByComplexity,
   isGodClassBySize,
   maxOf,
@@ -152,7 +153,10 @@ class TypeScriptStructureCollector {
   private classCount = 0;
   private maxMethodLineCount = 0;
 
-  constructor(private readonly sourceFile: ts.SourceFile) {}
+  constructor(
+    private readonly sourceFile: ts.SourceFile,
+    private readonly limits: StructureLimits
+  ) {}
 
   collect(): SourceFileMetrics {
     this.sourceFile.forEachChild((node) => this.visitTopLevel(node));
@@ -265,8 +269,9 @@ class TypeScriptStructureCollector {
       ...getLineRange(this.sourceFile, node),
       methodCount: methodMetrics.length,
       publicMethodCount,
-      longMethodCount: methodMetrics.filter((item) => item.lineCount >= LONG_METHOD_LINES).length,
-      complexMethodCount: methodMetrics.filter(isComplexFunction).length,
+      longMethodCount: methodMetrics.filter((item) => isLongFunction(item, this.limits)).length,
+      complexMethodCount: methodMetrics.filter((item) => isComplexFunction(item, this.limits))
+        .length,
       maxMethodLineCount: maxOf(methodMetrics, (item) => item.lineCount),
       maxMethodComplexity: maxOf(methodMetrics, (item) => item.complexity),
     };
@@ -286,8 +291,8 @@ class TypeScriptStructureCollector {
       godClasses: this.classMetrics.filter(
         (classMetric) => isGodClassBySize(classMetric) || isGodClassByComplexity(classMetric)
       ),
-      longMethods: allFunctions.filter((item) => item.lineCount >= LONG_METHOD_LINES),
-      complexMethods: allFunctions.filter(isComplexFunction),
+      longMethods: allFunctions.filter((item) => isLongFunction(item, this.limits)),
+      complexMethods: allFunctions.filter((item) => isComplexFunction(item, this.limits)),
       allFunctions,
     };
   }
@@ -296,7 +301,8 @@ class TypeScriptStructureCollector {
 /** Structure metrics of a JS/TS file, or null when the path is not a supported script extension. */
 export function analyzeSourceFileStructureWithTypeScript(
   filePath: string,
-  text: string
+  text: string,
+  limits: StructureLimits = DEFAULT_STRUCTURE_LIMITS
 ): SourceFileMetrics | null {
   if (!SUPPORTED_SOURCE_FILE_REGEX.test(filePath)) {
     return null;
@@ -310,5 +316,5 @@ export function analyzeSourceFileStructureWithTypeScript(
     getScriptKind(filePath)
   );
 
-  return new TypeScriptStructureCollector(sourceFile).collect();
+  return new TypeScriptStructureCollector(sourceFile, limits).collect();
 }

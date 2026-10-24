@@ -2,6 +2,12 @@
  * Checks whether an agent's edits introduced or touched code problems, by narrowing project-wide
  * pattern findings to the changed files.
  */
+import {
+  applyRatchetToDocumentation,
+  applyRatchetToPatterns,
+  type RatchetContext,
+} from './baseline/ratchet';
+import type { LegacyDebtSummary } from './baseline/types';
 import type { DocumentationReport } from './documentation';
 import {
   documentationFindingForChanges,
@@ -26,7 +32,9 @@ export interface ChangeFinding {
 
 /**
  * Verdict of a validation. `scope` is 'changed' when it covers the given files and 'project' when
- * no files were given; `isValid` is false when blocking findings exist.
+ * no files were given; `isValid` is false when blocking findings exist. In ratchet mode `findings`
+ * holds only new or worsened problems and `legacyDebt` summarizes the old ones; `configWarnings`
+ * lists problems found in the project's config file.
  */
 export interface ChangeValidationResult {
   scope: 'changed' | 'project';
@@ -34,6 +42,8 @@ export interface ChangeValidationResult {
   isValid: boolean;
   findings: ChangeFinding[];
   recommendation: string;
+  legacyDebt?: LegacyDebtSummary;
+  configWarnings?: string[];
 }
 
 const FIX_HINTS: Record<string, string> = {
@@ -93,15 +103,18 @@ const toFinding = (
 
 /**
  * Fallback when no changed files are known: reports the high-severity patterns of the whole
- * project (up to 10) and is valid only without them and with a health score above 60.
+ * project (up to 10) and is valid only without them and with a health score above 60 (the score
+ * is not consulted in ratchet mode).
  */
 const validateWholeProject = (
   patterns: DetectedPattern[],
   healthScore: number,
-  documentation: DocumentationReport | null
+  documentation: DocumentationReport | null,
+  ratchetActive: boolean
 ): ChangeValidationResult => {
   const high = patterns.filter((pattern) => pattern.severity === 'high');
-  const isValid = high.length === 0 && healthScore > 60;
+  // The health score counts the old debt a ratchet accepts, so it cannot veto a ratchet run.
+  const isValid = high.length === 0 && (ratchetActive || healthScore > 60);
   return {
     scope: 'project',
     changedFiles: [],
@@ -124,7 +137,8 @@ const validateWholeProject = (
 
 /**
  * Narrows project-wide pattern findings to the files an agent just changed, so a legacy
- * codebase does not block unrelated work and the answer stays short.
+ * codebase does not block unrelated work and the answer stays short. With a `ratchet` only
+ * findings that are new or worse than the baseline count and the old debt is summarized.
  */
 export const validateChanges = (input: {
   patterns: DetectedPattern[];
@@ -132,17 +146,41 @@ export const validateChanges = (input: {
   healthScore: number;
   /** Documentation coverage of the project; leave out when it was not measured. */
   documentation?: DocumentationReport | null;
+  /** The baseline classification of the project; leave out in strict mode or without a baseline. */
+  ratchet?: RatchetContext | null;
+}): ChangeValidationResult => {
+  const { ratchet } = input;
+  const patterns = ratchet ? applyRatchetToPatterns(input.patterns, ratchet) : input.patterns;
+  const documentation = ratchet
+    ? applyRatchetToDocumentation(input.documentation ?? null, ratchet)
+    : (input.documentation ?? null);
+  const result = judge({ ...input, patterns, documentation, ratchetActive: !!ratchet });
+  return ratchet ? { ...result, legacyDebt: ratchet.legacyDebt } : result;
+};
+
+/** The verdict over already ratcheted (or untouched) patterns and documentation. */
+const judge = (input: {
+  patterns: DetectedPattern[];
+  changedFiles: string[];
+  healthScore: number;
+  documentation: DocumentationReport | null;
+  ratchetActive: boolean;
 }): ChangeValidationResult => {
   const changed = new Set(input.changedFiles.map(normalize));
 
   if (changed.size === 0) {
-    return validateWholeProject(input.patterns, input.healthScore, input.documentation ?? null);
+    return validateWholeProject(
+      input.patterns,
+      input.healthScore,
+      input.documentation,
+      input.ratchetActive
+    );
   }
 
   const findings = input.patterns
     .filter((pattern) => !IGNORED_PATTERNS.has(pattern.id))
     .flatMap((pattern) => findingsForChangedFiles(pattern, changed))
-    .concat(documentationFindingForChanges(input.documentation ?? null, input.changedFiles) ?? []);
+    .concat(documentationFindingForChanges(input.documentation, input.changedFiles) ?? []);
 
   // Who depends on a file is not something an edit to it can fix, so a hub never blocks.
   const blocking = findings.filter(

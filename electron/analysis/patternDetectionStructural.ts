@@ -70,14 +70,16 @@ function buildHubNodesPattern({ graph }: StructuralArgs): DetectedPattern | null
   return buildPattern(highFanInNodes, HUB_NODES);
 }
 
-interface FanOutFile {
+/** A file with a high fan-out and the scale that was applied to its limit. */
+export interface FanOutFile {
   node: GraphNode;
   /** How many times the usual fan-out the file may have before it is a finding. */
   scale: number;
   fanOut: number;
 }
 
-const isExtremeFanOut = ({ fanOut, scale }: FanOutFile) => fanOut >= 20 * scale;
+/** Whether a fan-out is extreme enough for the high-fan-out finding to be high severity. */
+export const isExtremeFanOut = ({ fanOut, scale }: FanOutFile) => fanOut >= 20 * scale;
 
 const HIGH_FAN_OUT: PatternSpec<FanOutFile> = {
   id: 'high_fan_out_files',
@@ -89,19 +91,20 @@ const HIGH_FAN_OUT: PatternSpec<FanOutFile> = {
 };
 
 /**
- * Finds files that depend on 12 or more other files (siblings in the same folder count for less).
- * Composition roots are ignored and files that wire things together get a higher limit; 20 or more
- * (scaled the same way) makes it high severity.
+ * Files that depend on 12 or more other files (siblings in the same folder count for less),
+ * highest fan-out first, at most `limit` of them. Composition roots are ignored and files that wire
+ * things together get a higher limit.
  */
-function buildHighFanOutPattern({
-  graph,
-  childrenByParentId,
-}: StructuralArgs): DetectedPattern | null {
+export function findHighFanOutFiles(
+  graph: GraphData,
+  childrenByParentId: Map<string, GraphData['nodes']>,
+  limit = 10
+): FanOutFile[] {
   const coupling = computeFileCoupling(graph);
   // A file that builds the object graph or the routes depends on much by design.
   const wiringScale = (node: GraphNode) =>
     declaresWiring(childrenByParentId.get(node.id) ?? []) ? WIRING_FAN_OUT_SCALE : 1;
-  const highFanOutFiles = topBy(
+  return topBy(
     graph.nodes
       .filter((node) => node.type === 'file' && !isCompositionRoot(node.id))
       .map((node) => ({
@@ -110,9 +113,17 @@ function buildHighFanOutPattern({
         fanOut: coupling.get(node.id)?.fanOut ?? 0,
       })),
     ({ fanOut, scale }) => fanOut >= 12 * scale,
-    ({ fanOut }) => fanOut
+    ({ fanOut }) => fanOut,
+    limit
   );
-  return buildPattern(highFanOutFiles, HIGH_FAN_OUT);
+}
+
+/** The high-fan-out pattern; 20 or more (scaled the same way) makes it high severity. */
+function buildHighFanOutPattern({
+  graph,
+  childrenByParentId,
+}: StructuralArgs): DetectedPattern | null {
+  return buildPattern(findHighFanOutFiles(graph, childrenByParentId), HIGH_FAN_OUT);
 }
 
 const DEEP_NESTING: PatternSpec<GraphNode> = {

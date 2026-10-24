@@ -7,13 +7,8 @@ import {
   getLineCountForRange,
   isInsideRanges,
 } from './braceScanner';
-import {
-  LONG_METHOD_LINES,
-  emptyMetrics,
-  hashBody,
-  isGodClassBySize,
-  maxOf,
-} from './structureRules';
+import { DEFAULT_STRUCTURE_LIMITS, type StructureLimits } from '../projectConfig/structureLimits';
+import { emptyMetrics, hashBody, isGodClassBySize, isLongFunction, maxOf } from './structureRules';
 import type { SourceClassMetric, SourceFileMetrics, SourceFunctionMetric } from './structureTypes';
 
 const TOP_LEVEL_FUNCTION_REGEX =
@@ -100,7 +95,7 @@ interface RegexClassScan {
  * Finds every class with balanced braces and measures it. Returns the source range of each class
  * too, so top-level function detection can skip code inside classes.
  */
-function scanClassesWithRegex(text: string): RegexClassScan {
+function scanClassesWithRegex(text: string, limits: StructureLimits): RegexClassScan {
   const scan: RegexClassScan = {
     ranges: [],
     metrics: [],
@@ -135,7 +130,7 @@ function scanClassesWithRegex(text: string): RegexClassScan {
       endLine: 0,
       methodCount: methods.length,
       publicMethodCount,
-      longMethodCount: methods.filter((item) => item.lineCount >= LONG_METHOD_LINES).length,
+      longMethodCount: methods.filter((item) => isLongFunction(item, limits)).length,
       complexMethodCount: 0,
       maxMethodLineCount: classMaxMethodLineCount,
       maxMethodComplexity: 1,
@@ -189,9 +184,12 @@ function scanTopLevelFunctionsWithRegex(
  * One synthetic `Class::*` entry per class that has a long method, because this fallback cannot
  * name the method; it carries the class's longest method length.
  */
-function longClassMethodPlaceholders(classMetrics: SourceClassMetric[]): SourceFunctionMetric[] {
+function longClassMethodPlaceholders(
+  classMetrics: SourceClassMetric[],
+  limits: StructureLimits
+): SourceFunctionMetric[] {
   return classMetrics
-    .filter((classMetric) => classMetric.maxMethodLineCount >= LONG_METHOD_LINES)
+    .filter((classMetric) => classMetric.maxMethodLineCount >= limits.longMinLines)
     .map((classMetric) => ({
       name: `${classMetric.name}::*`,
       lineCount: classMetric.maxMethodLineCount,
@@ -207,12 +205,15 @@ function longClassMethodPlaceholders(classMetrics: SourceClassMetric[]): SourceF
  * Structure metrics of a JS/TS file computed with regexes. Returns empty metrics for empty or
  * missing text and never reports complex methods.
  */
-export function analyzeSourceFileStructureWithRegex(text: string | null): SourceFileMetrics {
+export function analyzeSourceFileStructureWithRegex(
+  text: string | null,
+  limits: StructureLimits = DEFAULT_STRUCTURE_LIMITS
+): SourceFileMetrics {
   if (!text) {
     return emptyMetrics();
   }
 
-  const classes = scanClassesWithRegex(text);
+  const classes = scanClassesWithRegex(text, limits);
   const topLevelFunctions = scanTopLevelFunctionsWithRegex(text, classes.ranges);
   const maxMethodLineCount = Math.max(
     classes.maxMethodLineCount,
@@ -226,8 +227,8 @@ export function analyzeSourceFileStructureWithRegex(text: string | null): Source
     maxMethodLineCount,
     godClasses: classes.metrics.filter(isGodClassBySize),
     longMethods: topLevelFunctions
-      .filter((item) => item.lineCount >= LONG_METHOD_LINES)
-      .concat(longClassMethodPlaceholders(classes.metrics)),
+      .filter((item) => isLongFunction(item, limits))
+      .concat(longClassMethodPlaceholders(classes.metrics, limits)),
     complexMethods: [],
     allFunctions: topLevelFunctions,
   };

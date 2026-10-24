@@ -36,6 +36,20 @@ export const YIELD_EVERY = 15;
 /** The top offenders list holds at most this many files. */
 export const MAX_TOP_OFFENDERS = 25;
 
+/** The two size limits a project can tune; the others are fixed for every project. */
+export interface DocumentationLimits {
+  /** Files with fewer lines than this need no header comment. */
+  headerMinLines: number;
+  /** A private function or method of at least this many lines must be documented. */
+  functionMinLines: number;
+}
+
+/** The limits used when a project does not configure any. */
+export const DEFAULT_DOCUMENTATION_LIMITS: DocumentationLimits = {
+  headerMinLines: MIN_HEADER_FILE_LINES,
+  functionMinLines: MIN_PRIVATE_DOC_LINES,
+};
+
 /** The facts the policy needs to decide whether a symbol must be documented. */
 export interface RequirementInput {
   kind: SymbolKind;
@@ -47,12 +61,18 @@ export interface RequirementInput {
 }
 
 /** Whether the policy demands a doc comment for a symbol. */
-export const isDocumentationRequired = (input: RequirementInput): boolean => {
+export const isDocumentationRequired = (
+  input: RequirementInput,
+  limits: DocumentationLimits = DEFAULT_DOCUMENTATION_LIMITS
+): boolean => {
   if (input.exempt) return false;
   if (input.exported) return true;
   const isFunction = input.kind === 'function' || input.kind === 'method';
-  return isFunction && input.lineCount >= MIN_PRIVATE_DOC_LINES;
+  return isFunction && input.lineCount >= limits.functionMinLines;
 };
 
 /** Whether a file of this length must open with a header comment. */
-export const isHeaderRequired = (lineCount: number): boolean => lineCount >= MIN_HEADER_FILE_LINES;
+export const isHeaderRequired = (
+  lineCount: number,
+  limits: DocumentationLimits = DEFAULT_DOCUMENTATION_LIMITS
+): boolean => lineCount >= limits.headerMinLines;

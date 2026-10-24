@@ -2,6 +2,7 @@ import type { GraphData } from '../../store/types';
 import { type FileStat, statFiles } from '../fileStats';
 import { isGeneratedPath } from '../generatedFiles';
 import { InflightRuns } from '../inflightRuns';
+import { loadProjectConfig } from '../projectConfig/configLoader';
 import { isTestFile } from '../testFiles';
 import { detectClones, type CloneGroup } from './detectClones';
 import { tokenizeFile, type TokenStream } from './tokenize';
@@ -33,9 +34,15 @@ export class CloneIndex {
     return root ? (this.results.get(root)?.groups ?? null) : null;
   }
 
-  /** `includeTests` adds test files to the search; they are left out by default. */
+  /**
+   * `includeTests` adds test files to the search; they are left out by default. Files the project
+   * config excludes are never searched.
+   */
   refreshFor(graph: GraphData, includeTests = false): Promise<CloneGroup[]> {
-    const files = graph.nodes.filter((node) => node.type === 'file').map((node) => node.id);
+    const { isExcluded } = loadProjectConfig(graph.projectRoot);
+    const files = graph.nodes
+      .filter((node) => node.type === 'file' && !isExcluded(node.id))
+      .map((node) => node.id);
     return this.refresh(graph.projectRoot ?? '', files, includeTests);
   }
 

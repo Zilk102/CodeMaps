@@ -14,7 +14,9 @@ import {
 } from './graphAnalysisUtils';
 import { documentationIndex, type DocumentationIndex } from './documentation';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
+import { loadRatchet } from './baseline/baselineService';
 import { analyzeModuleQuality } from './moduleQualityMetrics';
+import { loadProjectConfig } from './projectConfig/configLoader';
 import {
   buildHealthScoreResult,
   calculateMaintainabilityScore,
@@ -217,6 +219,28 @@ function buildArchitectureMetrics(
   };
 }
 
+/**
+ * Adds what the project's settings say next to the score: the summary of the accepted old debt
+ * (ratchet mode with a baseline) and the warnings about its config file. The score itself is left
+ * untouched, so it stays an honest measure of the whole code.
+ */
+function withProjectSettings(
+  result: HealthScoreResult,
+  sources: Parameters<typeof loadRatchet>[0]
+): HealthScoreResult {
+  const ratchet = loadRatchet(sources);
+  const { warnings } = loadProjectConfig(sources.graph.projectRoot);
+  if (!ratchet && warnings.length === 0) return result;
+  return {
+    ...result,
+    summary: {
+      ...result.summary,
+      ...(ratchet ? { legacyDebt: ratchet.legacyDebt } : {}),
+      ...(warnings.length > 0 ? { configWarnings: warnings } : {}),
+    },
+  };
+}
+
 /** Computes the health score of a graph with the architecture and module quality analyzers. */
 export class HealthScoreAnalyzer {
   constructor(
@@ -234,7 +258,8 @@ export class HealthScoreAnalyzer {
       architecture.classifications.map((record) => [record.nodeId, record.layer])
     );
     const adjacency = buildGraphAdjacency(graph);
-    const counts = summarizeQuality(analyzeModuleQuality(graph));
+    const quality = analyzeModuleQuality(graph);
+    const counts = summarizeQuality(quality);
     const fileCount = graph.nodes.filter((node) => node.type === 'file').length;
     const symbolCount = graph.nodes.filter((node) => node.id.includes('#')).length;
     const orphanCount = graph.nodes.filter((node) =>
@@ -262,6 +287,11 @@ export class HealthScoreAnalyzer {
       ...buildRefreshMetrics(graph),
     };
 
-    return buildHealthScoreResult(metrics);
+    return withProjectSettings(buildHealthScoreResult(metrics), {
+      graph,
+      quality,
+      architecture,
+      documentation: this.documentation.peek(graph.projectRoot),
+    });
   }
 }

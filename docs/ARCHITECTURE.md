@@ -39,6 +39,12 @@ Duplicated code is found by `electron/analysis/clones/`: every supported file is
 
 The report feeds four consumers: the health score (`documentation_gaps` issue and a penalty of at most 5 points, only below 80% coverage, also lowering the maintainability score), `validate_architecture_changes` (a `missing_documentation` finding for the changed files, or the worst offenders for the whole project), a short `documentation` section in `prepare_change_context` and `prepare_review_context`, and the `check_documentation` tool (`toolReport.ts`: coverage, per-language stats, top offenders and a bounded list of undocumented symbols, each with a hint on what its comment must state). The Documentation tab of the Workspace panel shows the same report through the `check-documentation` IPC call. `npm run docs` turns the report into a gate for this repository.
 
+## Project configuration and baseline
+
+`electron/analysis/projectConfig/` loads the optional `<project>/.codemaps/config.json` (mode, exclusion globs, function thresholds, documentation policy) tolerantly and cached by modification time. `CloneIndex.refreshFor`, `DocumentationIndex.refreshFor` and `analyzeModuleQuality` read it, so exclusions and thresholds apply wherever files are selected; a project without the file behaves as before.
+
+`electron/analysis/baseline/` implements the ratchet for legacy code. `collectFindings` turns the quality, clone, architecture and documentation reports into findings with line-free fingerprints (`kind|file|symbol`) and a measure; `<project>/.codemaps/baseline.json` stores them. In ratchet mode `validate_architecture_changes` rebuilds the baselined patterns from the fresh and worsened findings only and adds a compact `legacyDebt` summary; `get_health_score` ignores the baseline and only reports `legacyDebt` and `configWarnings` next to the score. See [PROJECT_CONFIG.md](PROJECT_CONFIG.md).
+
 ## MCP server
 
 `electron/mcp.ts` is an Express app speaking MCP Streamable HTTP on `127.0.0.1` (port `3005`, overridable with `CODEMAPS_MCP_PORT`) plus a WebSocket channel for the UI. It only listens on the loopback interface and accepts browser requests only from loopback origins. If the port is taken the server reports `Unavailable` with the reason instead of crashing the app.

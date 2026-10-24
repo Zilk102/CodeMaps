@@ -1,4 +1,5 @@
 /** Types of the project health score: its issues, metric summary and result. */
+import type { LegacyDebtSummary } from './baseline/types';
 
 /** One problem found by the health check, with a stable code, a severity and an explanation. */
 export interface HealthScoreIssue {
@@ -49,6 +50,10 @@ export interface HealthScoreSummary {
   runtimePriorityRate: number;
   refreshLatencyTrend: 'stable' | 'improving' | 'degrading';
   refreshPipelineDegraded: boolean;
+  /** Old debt a project baseline accepts; present only in ratchet mode with a baseline. The score ignores it. */
+  legacyDebt?: LegacyDebtSummary;
+  /** Problems found in `.codemaps/config.json`; present only when there are any. */
+  configWarnings?: string[];
 }
 
 /**
@@ -62,5 +67,5 @@ export interface HealthScoreResult {
   issues: HealthScoreIssue[];
 }
 
-/** The measured values the scoring rules read; same shape as the summary. */
-export type HealthScoreMetricSnapshot = HealthScoreSummary;
+/** The measured values the scoring rules read: the summary without the project-settings notes. */
+export type HealthScoreMetricSnapshot = Omit<HealthScoreSummary, 'legacyDebt' | 'configWarnings'>;

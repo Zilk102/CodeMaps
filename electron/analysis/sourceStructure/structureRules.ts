@@ -2,11 +2,15 @@
 // class.
 
 import * as crypto from 'crypto';
+import type { StructureLimits } from '../projectConfig/structureLimits';
 import type { SourceClassMetric, SourceFileMetrics, SourceFunctionMetric } from './structureTypes';
 
 export const SUPPORTED_SOURCE_FILE_REGEX = /\.(?:[cm]?[jt]sx?)$/iu;
 
-export const LONG_METHOD_LINES = 70;
+/** Whether a function is long under the limits of the project. */
+export function isLongFunction(item: SourceFunctionMetric, limits: StructureLimits): boolean {
+  return item.lineCount >= limits.longMinLines;
+}
 
 /**
  * MD5 of the body with all whitespace removed, so reformatted copies of a function hash the same.
@@ -61,7 +65,10 @@ export function isGodClassByComplexity(classMetric: SourceClassMetric): boolean 
   return classMetric.maxMethodComplexity >= 12 || classMetric.complexMethodCount >= 2;
 }
 
-/** A function is complex at cyclomatic complexity 10 or more, or nesting depth 4 or more. */
-export function isComplexFunction(item: SourceFunctionMetric): boolean {
-  return item.complexity >= 10 || item.maxNesting >= 4;
+/**
+ * A function is complex or deep under the limits of the project; by default at cyclomatic
+ * complexity 10 or more, or nesting depth 4 or more.
+ */
+export function isComplexFunction(item: SourceFunctionMetric, limits: StructureLimits): boolean {
+  return item.complexity >= limits.complexMinComplexity || item.maxNesting >= limits.deepMinNesting;
 }

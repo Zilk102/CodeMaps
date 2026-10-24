@@ -6,9 +6,44 @@ import type {
 } from './moduleQualityMetrics';
 import type { DetectedPattern } from './patternDetectionTypes';
 import { buildPattern, highWhenAny, runBuilders, type PatternSpec } from './patternBuilderRunner';
+import { DEFAULT_STRUCTURE_LIMITS, type StructureLimits } from './projectConfig/structureLimits';
 
 // Every copy of every group is evidence, so a change to any file can find the copies it touches.
 const MAX_CLONE_EVIDENCE = 120;
+
+/** Whether a module is big enough that the oversized-modules finding is high severity. */
+export const isSevereOversizedModule = ({
+  lineCount,
+  symbolCount,
+}: Pick<ModuleQualityMetric, 'lineCount' | 'symbolCount'>): boolean =>
+  (lineCount || 0) >= 1200 || symbolCount >= 40;
+
+/** Whether a class is large enough that the god-classes finding is high severity. */
+export const isSevereClass = (item: SourceClassMetric): boolean =>
+  item.lineCount >= 400 || item.methodCount >= 16;
+
+/** Whether a function is long enough, under the project's limits, for high severity. */
+export const isSevereLongFunction = (
+  item: SourceFunctionMetric,
+  limits: StructureLimits = DEFAULT_STRUCTURE_LIMITS
+): boolean => item.lineCount >= limits.severeLines;
+
+/** Whether a function is complex or deep enough, under the project's limits, for high severity. */
+export const isSevereComplexFunction = (
+  item: SourceFunctionMetric,
+  limits: StructureLimits = DEFAULT_STRUCTURE_LIMITS
+): boolean => item.complexity >= limits.severeComplexity || item.maxNesting >= limits.severeNesting;
+
+/** Whether a module mixes responsibilities so much that the finding is high severity. */
+export const isSevereMixedResponsibility = ({
+  responsibilityAxisCount,
+  lineCount,
+}: Pick<ModuleQualityMetric, 'responsibilityAxisCount' | 'lineCount'>): boolean =>
+  responsibilityAxisCount >= 6 || (lineCount || 0) >= 800;
+
+/** Whether a group of copies is big or wide enough for the clone finding to be high severity. */
+export const isSevereClone = (lineCount: number, copies: number): boolean =>
+  lineCount >= 30 || copies >= 4;
 
 type QualityBuilder = (quality: ModuleQualitySummary) => DetectedPattern | null;
 type ClassFindings = ModuleQualitySummary['godClasses'][number];
@@ -54,9 +89,7 @@ const OVERSIZED_MODULES: PatternSpec<ModuleQualityMetric> = {
   title: 'Oversized Modules',
   description:
     'Some files are too large or too symbol-dense, making responsibilities unclear and architectural evolution harder.',
-  severity: highWhenAny(
-    ({ lineCount, symbolCount }) => (lineCount || 0) >= 1200 || symbolCount >= 40
-  ),
+  severity: highWhenAny(isSevereOversizedModule),
   nodeIds: nodeIdsOf,
   evidence: (modules) =>
     modules.slice(0, 5).map(({ node, lineCount, symbolCount }) => ({
@@ -81,9 +114,7 @@ const GOD_CLASSES: PatternSpec<ClassFindings> = {
   title: 'God Classes',
   description:
     'Some classes expose too many methods or span too many lines, suggesting broken encapsulation and SRP violations.',
-  severity: highWhenAny(({ matchedClasses }) =>
-    matchedClasses.some((item) => item.lineCount >= 400 || item.methodCount >= 16)
-  ),
+  severity: highWhenAny(({ matchedClasses }) => matchedClasses.some(isSevereClass)),
   nodeIds: nodeIdsOf,
   evidence: (files) =>
     matchEvidence(
@@ -92,39 +123,38 @@ const GOD_CLASSES: PatternSpec<ClassFindings> = {
     ),
 };
 
-const LONG_METHODS: PatternSpec<MethodFindings> = {
+/** The long-methods pattern, rated high from the project's severe line limit. */
+const longMethodsSpec = (limits: StructureLimits): PatternSpec<MethodFindings> => ({
   id: 'long_methods',
   title: 'Long Methods',
   description:
     'Some files contain methods or functions that are too long, making intent harder to follow and safe refactoring more expensive.',
   severity: highWhenAny(({ matchedMethods }) =>
-    matchedMethods.some((item) => item.lineCount >= 120)
+    matchedMethods.some((item) => isSevereLongFunction(item, limits))
   ),
   nodeIds: nodeIdsOf,
   evidence: methodEvidence,
-};
+});
 
-const COMPLEX_METHODS: PatternSpec<MethodFindings> = {
+/** The complex-methods pattern, rated high from the project's severe complexity or nesting limit. */
+const complexMethodsSpec = (limits: StructureLimits): PatternSpec<MethodFindings> => ({
   id: 'complex_methods',
   title: 'Complex Methods',
   description:
     'Some methods contain too many branches or too much nesting, so behavior is harder to reason about and refactor safely.',
   severity: highWhenAny(({ matchedMethods }) =>
-    matchedMethods.some((item) => item.complexity >= 15 || item.maxNesting >= 5)
+    matchedMethods.some((item) => isSevereComplexFunction(item, limits))
   ),
   nodeIds: nodeIdsOf,
   evidence: methodEvidence,
-};
+});
 
 const MIXED_RESPONSIBILITY: PatternSpec<ModuleQualityMetric> = {
   id: 'mixed_responsibility_modules',
   title: 'Mixed Responsibility Modules',
   description:
     'Some modules mix orchestration, runtime wiring, contracts, and helper logic in one place, making clean layering and future extraction harder.',
-  severity: highWhenAny(
-    ({ responsibilityAxisCount, lineCount }) =>
-      responsibilityAxisCount >= 6 || (lineCount || 0) >= 800
-  ),
+  severity: highWhenAny(isSevereMixedResponsibility),
   nodeIds: nodeIdsOf,
   evidence: (modules) =>
     smellEvidence(
@@ -158,19 +188,22 @@ const CODE_CLONES: PatternSpec<CodeClones[number]> = {
   title: 'Code Clones (Duplication)',
   description:
     'Identical or highly similar code structures were detected across multiple files. LLMs often duplicate logic instead of extracting reusable abstractions, bloating the codebase.',
-  severity: highWhenAny(
-    (clone) => clone.instances[0].lineCount >= 30 || clone.instances.length >= 4
+  severity: highWhenAny((clone) =>
+    isSevereClone(clone.instances[0].lineCount, clone.instances.length)
   ),
   nodeIds: (clones) => Array.from(new Set(clones.flatMap((c) => c.instances.map((i) => i.nodeId)))),
   evidence: cloneEvidence,
 };
 
+const limitsOf = (quality: ModuleQualitySummary): StructureLimits =>
+  quality.limits ?? DEFAULT_STRUCTURE_LIMITS;
+
 const QUALITY_BUILDERS: QualityBuilder[] = [
   (quality) => buildPattern(quality.oversizedModules, OVERSIZED_MODULES),
   (quality) => buildPattern(quality.godFiles, GOD_FILES),
   (quality) => buildPattern(quality.godClasses, GOD_CLASSES),
-  (quality) => buildPattern(quality.longMethods, LONG_METHODS),
-  (quality) => buildPattern(quality.complexMethods, COMPLEX_METHODS),
+  (quality) => buildPattern(quality.longMethods, longMethodsSpec(limitsOf(quality))),
+  (quality) => buildPattern(quality.complexMethods, complexMethodsSpec(limitsOf(quality))),
   (quality) => buildPattern(quality.mixedResponsibilityModules, MIXED_RESPONSIBILITY),
   (quality) => buildPattern(quality.codeClones ?? [], CODE_CLONES),
 ];
@@ -190,10 +223,12 @@ function describeRange(item: { startLine: number; endLine: number }): string {
     : 'line range unavailable';
 }
 
-function describeClassEvidence(fileName: string, item: SourceClassMetric): string {
+/** One evidence line about a class: size, method counts and complexity. */
+export function describeClassEvidence(fileName: string, item: SourceClassMetric): string {
   return `${fileName} -> class ${item.name} (${describeRange(item)}): ${item.lineCount} LOC, ${item.methodCount} methods, ${item.publicMethodCount} public, max complexity ${item.maxMethodComplexity}.`;
 }
 
-function describeMethodEvidence(fileName: string, item: SourceFunctionMetric): string {
+/** One evidence line about a function: size, complexity, branches and nesting. */
+export function describeMethodEvidence(fileName: string, item: SourceFunctionMetric): string {
   return `${fileName} -> ${item.name} (${describeRange(item)}): ${item.lineCount} LOC, complexity ${item.complexity}, branches ${item.branchCount}, max nesting ${item.maxNesting}.`;
 }
