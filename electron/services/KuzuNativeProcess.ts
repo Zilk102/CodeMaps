@@ -1,3 +1,5 @@
+/** Entry point of the child process that owns the native Kuzu database; answers IPC requests from `KuzuProcessManager`. */
+
 import { KuzuGraphRepository, GraphNode, GraphEdge } from './KuzuGraphRepository';
 
 type KuzuAction =
@@ -42,6 +44,7 @@ function getRepository(dbPath: string, dbDir: string): KuzuGraphRepository {
   return repo;
 }
 
+/** Runs `task` after every earlier task for the same database finished (successfully or not), so operations on one database never overlap. */
 function runSerialized<T>(dbPath: string, task: () => Promise<T>): Promise<T> {
   const previous = taskChains.get(dbPath) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(task);
@@ -54,6 +57,7 @@ function runSerialized<T>(dbPath: string, task: () => Promise<T>): Promise<T> {
   });
 }
 
+/** Whether an IPC payload has the shape of a Kuzu request. Other messages are ignored. */
 function isRequest(value: unknown): value is KuzuRequest {
   if (!value || typeof value !== 'object') {
     return false;
@@ -68,6 +72,7 @@ function isRequest(value: unknown): value is KuzuRequest {
   );
 }
 
+/** Converts a thrown value into a plain object that can cross the IPC channel. */
 function serializeError(error: unknown): KuzuResponse['error'] {
   if (error instanceof Error) {
     return {

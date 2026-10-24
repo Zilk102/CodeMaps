@@ -3,6 +3,7 @@ import { oracleStore } from '../store';
 
 /** Writes the graph nodes and links GraphBuilder derives from one parsed file. */
 
+/** Adds a bare file node for a file too large to parse, unless the file already has a node. */
 export const handleSizeExceeded = (
   normalizedPath: string,
   fileName: string,
@@ -25,6 +26,7 @@ export const handleSizeExceeded = (
   }
 };
 
+/** Stores a markdown architecture decision record as an `adr` node labelled with its title. */
 export const handleMarkdownADR = (
   normalizedPath: string,
   adr: string,
@@ -45,6 +47,7 @@ export const handleMarkdownADR = (
   });
 };
 
+/** Links the file to the first ADR node whose path contains the referenced `adr` name (case-insensitive); adds nothing if there is none. */
 export const addADRLink = (normalizedPath: string, adr: string) => {
   const store = oracleStore.getState();
   const adrPathMatch = Array.from(store.nodes.keys()).find(
@@ -57,6 +60,7 @@ export const addADRLink = (normalizedPath: string, adr: string) => {
   }
 };
 
+/** Adds one node per declared entity, with id `<file>#<name>`, the file as parent and its source location. */
 export const processEntities = (
   normalizedPath: string,
   entities: ParseResult['entities'],

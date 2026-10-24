@@ -1,3 +1,6 @@
+/** Size-bounds tool payloads (list caps, string truncation, repeated-subtree pointers) so one MCP response cannot flood an agent's context. */
+
+/** Limits applied by `compactPayload`. */
 export interface CompactOptions {
   /** Longest array that survives; longer ones are cut and the cut is reported. */
   maxItems: number;
@@ -7,6 +10,7 @@ export interface CompactOptions {
   maxChars?: number;
 }
 
+/** What `compactPayload` removed, attached to a response as `_compaction` so the agent knows the data is partial. */
 export interface CompactionReport {
   omittedItems: number;
   truncatedStrings: number;
@@ -37,6 +41,7 @@ const compactString = (value: string, ctx: CompactContext): string => {
   return `${value.slice(0, ctx.maxStringLength)}…`;
 };
 
+/** Keeps the first `maxItems` entries of an array, compacts each of them and records any cut (the first few arrays only) in the report. */
 const compactArray = (value: unknown[], path: string, ctx: CompactContext): unknown => {
   const kept = value.slice(0, ctx.maxItems);
   const { report } = ctx;
@@ -54,6 +59,7 @@ const compactArray = (value: unknown[], path: string, ctx: CompactContext): unkn
   );
 };
 
+/** Compacts every property of an object after slimming graph-node fields, then replaces it with a pointer if an identical subtree was already emitted. */
 const compactObject = (value: Record<string, unknown>, path: string, ctx: CompactContext) =>
   dedupe(
     Object.fromEntries(
@@ -79,8 +85,10 @@ const compactValue = (value: unknown, path: string, ctx: CompactContext): unknow
 const isGraphNode = (value: Record<string, unknown>) =>
   typeof value.id === 'string' && typeof value.label === 'string' && typeof value.type === 'string';
 
-// Graph nodes carry layout and bookkeeping fields that agents never use and that repeat
-// the node id; export lists shrink to their names.
+/**
+ * Graph nodes carry layout and bookkeeping fields that agents never use and that repeat
+ * the node id; export lists shrink to their names. Values that are not graph nodes pass through.
+ */
 const slimGraphNode = (value: Record<string, unknown>): Record<string, unknown> => {
   if (!isGraphNode(value)) return value;
   const { group: _group, parentId: _parentId, resolution: _resolution, ...rest } = value;
@@ -99,8 +107,11 @@ const slimGraphNode = (value: Record<string, unknown>): Record<string, unknown> 
   return slim;
 };
 
-// Composite contexts embed the same architecture/pattern blocks several times; the
-// later copies become a pointer to the first one.
+/**
+ * Composite contexts embed the same architecture/pattern blocks several times; the later copies
+ * become a `{ $sameAs: path }` pointer to the first one. Only subtrees whose JSON is at least
+ * `DEDUPE_MIN_CHARS` long are worth a pointer, and the root (empty path) is never replaced.
+ */
 const dedupe = (
   compacted: unknown,
   path: string,

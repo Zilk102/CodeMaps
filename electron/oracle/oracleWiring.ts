@@ -1,3 +1,5 @@
+/** Assembles the oracle's collaborators (worker pool, indexer, watcher, cache, enrichment). */
+
 import * as path from 'path';
 import Piscina from 'piscina';
 import { CacheManager } from './CacheManager';
@@ -25,6 +27,7 @@ export interface OracleParts {
   languageProfile: LanguageProfileTracker;
 }
 
+/** Starts the worker-thread pool that parses files, sized by the performance config. Tests load the compiled worker from `dist-electron`. */
 function createWorkerPool(performanceConfig: ReturnType<typeof getOraclePerformanceConfig>) {
   const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST;
   const workerPath = isTest
@@ -37,6 +40,7 @@ function createWorkerPool(performanceConfig: ReturnType<typeof getOraclePerforma
   });
 }
 
+/** Creates one fully wired set of oracle collaborators sharing a single `GraphBuilder` and performance config. */
 export function createOracleParts(): OracleParts {
   const performanceConfig = getOraclePerformanceConfig();
   const pool = createWorkerPool(performanceConfig);

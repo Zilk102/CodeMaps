@@ -1,6 +1,9 @@
+/** Read-only queries over the graph for MCP tools: node reference resolution, dependency lookup and search. */
+
 import * as path from 'path';
 import type { GraphData } from '../store';
 
+/** A file linked to a node and how many graph links connect them. */
 export interface NeighbourFile {
   file: string;
   links: number;
@@ -16,14 +19,14 @@ const relativeToRoot = (root: string | undefined, id: string) => {
     : normalized;
 };
 
+/** Drive-letter paths are absolute on every platform; graph ids use them on Windows. */
+const isAbsoluteReference = (value: string) => path.isAbsolute(value) || /^[A-Za-z]:\//.test(value);
+
 /**
  * Agents often pass `internal/app/main.go` instead of the absolute node id. A path relative to
  * the project root (optionally with `./` and a `#symbol`) is mapped to the id the graph uses;
  * anything else is returned unchanged so the caller reports it as not found.
  */
-/** Drive-letter paths are absolute on every platform; graph ids use them on Windows. */
-const isAbsoluteReference = (value: string) => path.isAbsolute(value) || /^[A-Za-z]:\//.test(value);
-
 export const resolveNodeReference = (graph: GraphData, reference: string): string => {
   const normalized = reference.replace(/\\/g, '/');
   if (graph.nodes.some((node) => node.id === normalized)) return normalized;

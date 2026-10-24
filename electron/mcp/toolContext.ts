@@ -1,3 +1,5 @@
+/** Typed bundle of the analysis services that MCP tool registrations depend on. */
+
 import { BlastRadiusAnalyzer } from '../analysis/BlastRadiusAnalyzer';
 import { HealthScoreAnalyzer } from '../analysis/HealthScoreAnalyzer';
 import { PatternDetectionAnalyzer } from '../analysis/PatternDetectionAnalyzer';
@@ -11,6 +13,7 @@ import { TaskIntelligenceService } from '../analysis/TaskIntelligenceService';
 import { ChangeCampaignService } from '../analysis/ChangeCampaignService';
 import { ServiceRegistry } from './ServiceRegistry';
 
+/** The analysis services available to tool handlers, one field per registry entry created in `bootstrap.ts`. */
 export interface McpToolContext {
   blastRadiusAnalyzer: BlastRadiusAnalyzer;
   healthScoreAnalyzer: HealthScoreAnalyzer;
@@ -25,6 +28,7 @@ export interface McpToolContext {
   changeCampaignService: ChangeCampaignService;
 }
 
+/** Looks every service up in `registry` and returns them as a typed context. Throws if one was not registered, so call it only after bootstrap registered them all. */
 export const resolveMcpToolContext = (registry: ServiceRegistry): McpToolContext => ({
   blastRadiusAnalyzer: registry.get<BlastRadiusAnalyzer>('blastRadiusAnalyzer'),
   healthScoreAnalyzer: registry.get<HealthScoreAnalyzer>('healthScoreAnalyzer'),

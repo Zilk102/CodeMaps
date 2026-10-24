@@ -1,3 +1,5 @@
+/** Estimates the architectural impact of a branch or pull request from its changed files and the graph database. */
+
 import { KuzuGraphService } from './KuzuGraphService';
 import { GitService } from './GitService';
 import {
@@ -12,6 +14,7 @@ import {
 
 export type { ChangedFile } from './prImpactSupport';
 
+/** Outcome of a PR analysis: the changed files, the graph nodes they touch, the summed neighbour count, a risk level and advice. */
 export interface PRImpactResult {
   changedFiles: ChangedFile[];
   affectedNodes: string[];
@@ -20,6 +23,7 @@ export interface PRImpactResult {
   recommendations: string[];
 }
 
+/** Combines `git diff` between two revisions with graph lookups in the Kuzu database. */
 export class PRImpactAnalyzer {
   private graphService: KuzuGraphService;
   private gitService: GitService;
@@ -29,10 +33,12 @@ export class PRImpactAnalyzer {
     this.gitService = new GitService(projectPath);
   }
 
+  /** Opens the graph database. */
   async init(): Promise<void> {
     await this.graphService.init();
   }
 
+  /** Analyzes the changes between `baseBranch` and `headBranch` (three-dot diff). Throws "Invalid branch name" for revision names that are unsafe to pass to git; no changes gives a low-risk empty result. */
   async analyzePR(
     baseBranch: string = 'main',
     headBranch: string = 'HEAD'
@@ -71,6 +77,7 @@ export class PRImpactAnalyzer {
     };
   }
 
+  /** For each changed file, finds its nodes in the database and counts their neighbours; deleted files with more than five dependent nodes produce a warning. */
   private async collectGraphImpact(changedFiles: ChangedFile[]) {
     const affectedNodes: string[] = [];
     const recommendations: string[] = [];
@@ -97,6 +104,7 @@ export class PRImpactAnalyzer {
     return { affectedNodes, totalBlastRadius, recommendations };
   }
 
+  /** Files that differ between the two revisions with their line counts and status. Empty if git fails. */
   private getChangedFiles(baseBranch: string, headBranch: string): ChangedFile[] {
     const output = this.gitService.execGit(['diff', '--numstat', `${baseBranch}...${headBranch}`]);
     if (output === null) {
@@ -106,6 +114,7 @@ export class PRImpactAnalyzer {
     return parseNumstat(output, (filePath) => this.getFileStatus(filePath, baseBranch, headBranch));
   }
 
+  /** Classifies a file as added, deleted or modified by checking whether it exists in each revision. */
   private getFileStatus(
     filePath: string,
     baseBranch: string,
@@ -119,6 +128,7 @@ export class PRImpactAnalyzer {
     return 'modified';
   }
 
+  /** Closes the graph database. */
   async close(): Promise<void> {
     await this.graphService.close();
   }

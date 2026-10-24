@@ -1,3 +1,5 @@
+/** Application auto-update: check scheduling, state tracking and the IPC channels the renderer uses to show and install updates. */
+
 import log from 'electron-log/main';
 import { autoUpdater } from 'electron-updater';
 import { app, BrowserWindow, ipcMain } from 'electron';
@@ -25,6 +27,7 @@ interface AutoUpdaterOptions {
   onInstallRequested?: () => Promise<void> | void;
 }
 
+/** Reads the `build.publish` feed settings from the packaged app's package.json, or returns undefined when they are unavailable (development, unreadable file). */
 function getPublishConfig() {
   try {
     const packageJsonPath = path.join(process.resourcesPath, 'app', 'package.json');
@@ -38,12 +41,16 @@ function getPublishConfig() {
   return undefined;
 }
 
-// On macOS the window is destroyed on close and rebuilt on activate, so the cached
-// reference has to be refreshed or update notifications go to a dead webContents.
+/**
+ * Points update notifications at a new window. On macOS the window is destroyed on close and
+ * rebuilt on activate, so the cached reference has to be refreshed or update notifications go
+ * to a dead webContents.
+ */
 export function setAutoUpdaterWindow(window: BrowserWindow) {
   mainWindow = window;
 }
 
+/** Registers the `updater:check`, `updater:install` and `updater:get-state` IPC handlers. Failures are returned as `{ success: false, error }` rather than thrown. Install uses `options.onInstallRequested` when given, so the caller can shut down cleanly first. */
 function registerIpcHandlers(options: AutoUpdaterOptions) {
   ipcMain.handle('updater:check', async () => {
     try {
@@ -81,6 +88,7 @@ function setUpdateState(next: typeof updateState) {
   sendUpdateState();
 }
 
+/** Mirrors electron-updater events into `updateState` (and notifies the renderer). Runs once; later calls do nothing. */
 function registerUpdaterListeners() {
   if (listenersRegistered) return;
 
@@ -112,6 +120,7 @@ function registerUpdaterListeners() {
   listenersRegistered = true;
 }
 
+/** Checks for updates 5 seconds after startup (so launch is not delayed) and then every 4 hours. The timers are cleared by `shutdownAutoUpdater`. */
 function scheduleUpdateChecks() {
   // Check for updates on startup (with a small delay to not block app launch)
   startupCheckTimeout = setTimeout(() => {
@@ -129,6 +138,7 @@ function scheduleUpdateChecks() {
   );
 }
 
+/** Sets up updating for `window`: applies the feed from package.json, registers the IPC handlers and, only in a packaged build, enables auto-download and schedules update checks. */
 export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptions = {}) {
   mainWindow = window;
 
@@ -154,6 +164,7 @@ export function initAutoUpdater(window: BrowserWindow, options: AutoUpdaterOptio
   scheduleUpdateChecks();
 }
 
+/** Cancels the scheduled checks, removes the updater listeners and drops the window reference. Safe to call when nothing was started. */
 export function shutdownAutoUpdater() {
   if (startupCheckTimeout) {
     clearTimeout(startupCheckTimeout);
@@ -179,6 +190,7 @@ function sendUpdateState() {
   }
 }
 
+/** Quits the app and runs the installer of an already downloaded update; the restart is silent and relaunches the app. */
 export function quitAndInstallDownloadedUpdate() {
   log.info('[AutoUpdater] Installing downloaded update');
 

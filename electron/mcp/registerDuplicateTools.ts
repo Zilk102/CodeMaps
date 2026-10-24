@@ -1,3 +1,5 @@
+/** Registers the `find_duplicates` tool on top of the shared clone index. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
 import { cloneIndex } from '../analysis/clones/CloneIndex';
@@ -9,6 +11,7 @@ import { resolveProjectFilePath } from './utils';
 
 const DEFAULT_MIN_LINES = 6;
 
+/** Registers `find_duplicates`: refreshes the clone index for the loaded project and returns up to `limit` duplicate groups of at least `minLines` lines, optionally only those touching `filePath`. */
 export function registerDuplicateTools(server: McpServer) {
   defineGraphTool(
     server,

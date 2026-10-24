@@ -1,3 +1,5 @@
+/** Discovers a project's files and parses them (in a worker pool) into the graph, reusing cached results for unchanged files. */
+
 import fg from 'fast-glob';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -11,12 +13,14 @@ import { GraphBuilder } from './GraphBuilder';
 import { OraclePerformanceConfig } from './performanceConfig';
 import { ORACLE_IGNORE_GLOBS, normalizePath } from './shared';
 
+/** Outcome of a full index: every file found, their modification times and the detected language profile. */
 export interface IndexProjectResult {
   filePaths: string[];
   fileStats: Record<string, number>;
   languageProfile: ProjectLanguageProfile;
 }
 
+/** Drives indexing of a whole project and re-indexing of single files. */
 export class ProjectIndexer {
   constructor(
     private readonly pool: Piscina,
@@ -24,6 +28,7 @@ export class ProjectIndexer {
     private readonly performanceConfig: OraclePerformanceConfig
   ) {}
 
+  /** Absolute paths of all files under `baseDir` that are not excluded by `ORACLE_IGNORE_GLOBS` (dependencies, build output, binaries). */
   async discoverFiles(baseDir: string) {
     return fg('**/*', {
       cwd: baseDir,
@@ -32,10 +37,15 @@ export class ProjectIndexer {
     });
   }
 
+  /** Detects the languages present in the given files. */
   createLanguageProfile(filePaths: string[]) {
     return detectProjectLanguages(filePaths.map((filePath) => normalizePath(filePath)));
   }
 
+  /**
+   * Parses one file in the worker pool and replaces its graph elements with the result.
+   * A failing parse is retried twice with growing delays; if it still fails the file's old elements are removed and the error is only logged.
+   */
   async reindexFile(
     filePath: string,
     baseDir: string,
@@ -74,6 +84,7 @@ export class ProjectIndexer {
     }
   }
 
+  /** Loads a usable cache into the store and removes files that existed when it was saved but are gone now. A cache missing nodes, links or file stats is ignored. */
   private prepareCache(cache: ProjectCacheSnapshot | null, filePaths: string[]) {
     if (!cache?.nodes || !cache.links || !cache.fileStats) return;
 
@@ -97,6 +108,7 @@ export class ProjectIndexer {
     }
   }
 
+  /** Reads the modification time of every file and returns the ones that are new or differ from the cache, along with all the times found. */
   private async collectFilesToParse(
     filePaths: string[],
     cache: ProjectCacheSnapshot | null
@@ -120,6 +132,7 @@ export class ProjectIndexer {
     return { fileStats, filesToParse };
   }
 
+  /** Re-indexes `filesToParse` with bounded concurrency, reporting `indexing_files` progress every few files and a final `indexing_complete`. Reports nothing when there is nothing to parse. */
   private async executeParsing(
     filesToParse: string[],
     baseDir: string,
@@ -171,6 +184,10 @@ export class ProjectIndexer {
     }
   }
 
+  /**
+   * Indexes the whole project: discovers files, restores the cache, rebuilds the directory structure and parses only new or modified files.
+   * Throws when the folder contains no indexable files.
+   */
   async indexProject(
     baseDir: string,
     cache: ProjectCacheSnapshot | null,

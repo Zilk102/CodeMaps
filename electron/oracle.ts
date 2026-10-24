@@ -1,3 +1,5 @@
+/** The oracle: owns the project graph and coordinates indexing, caching, file watching and enrichment. */
+
 import { EventEmitter } from 'events';
 import * as path from 'path';
 import type Piscina from 'piscina';
@@ -9,6 +11,10 @@ import { createOracleParts, type OracleParts } from './oracle/oracleWiring';
 import { cloneIndex } from './analysis/clones/CloneIndex';
 import { normalizePath } from './oracle/shared';
 
+/**
+ * Facade over the indexing pipeline. Emits `graph-updated` with the graph after each analysis or file refresh,
+ * and `parsing-progress` with progress objects, followed by `null` once parsing is finished.
+ */
 export class OracleService extends EventEmitter {
   private pool: Piscina;
   private cacheManager: CacheManager;
@@ -32,6 +38,7 @@ export class OracleService extends EventEmitter {
     return this.fileWatcher.whenIdle();
   }
 
+  /** Current graph; empty before any project was analyzed. */
   public getGraph() {
     return this.parts.graphRepository.getGraph();
   }
@@ -53,6 +60,10 @@ export class OracleService extends EventEmitter {
     }
   }
 
+  /**
+   * Analyzes `baseDir` from scratch: resets state, indexes the files, starts watching for changes and records the project as recent.
+   * Resolves with the finished graph. Starts duplicate detection in the background without waiting for it.
+   */
   public async analyzeProject(baseDir: string) {
     const normalizedBaseDir = normalizePath(baseDir);
     await this.resetForProject(normalizedBaseDir);
@@ -78,6 +89,7 @@ export class OracleService extends EventEmitter {
     return this.getGraph();
   }
 
+  /** Clears the previous project's graph and watcher, then records the new base directory and its git churn. */
   private async resetForProject(baseDir: string) {
     const store = oracleStore.getState();
     this.parts.graphRepository.clear();
@@ -89,6 +101,7 @@ export class OracleService extends EventEmitter {
     store.setChurnMap(await this.parts.churnAnalyzer.analyze(baseDir));
   }
 
+  /** Parses the project (reusing the on-disk cache for unchanged files), resolves imports, builds the enrichment links and schedules a cache save. */
   private async indexProject(baseDir: string) {
     const cache = await this.cacheManager.load(baseDir);
     const indexResult = await this.parts.projectIndexer.indexProject(baseDir, cache, (progress) =>
@@ -101,6 +114,7 @@ export class OracleService extends EventEmitter {
     this.cacheManager.saveDebounced(baseDir);
   }
 
+  /** Starts the file watcher; on each change batch it re-resolves imports, rebuilds the affected enrichment links and emits `graph-updated`. */
   private async startWatching(baseDir: string) {
     const { languageProfile, importResolutionService } = this.parts;
     const stackGraphEnrichmentService = this.stackGraphEnrichmentService;
@@ -122,6 +136,7 @@ export class OracleService extends EventEmitter {
     );
   }
 
+  /** Stops watching, flushes the cache, destroys the worker pool and removes all listeners. Concurrent and repeated calls share one shutdown. */
   public async close() {
     if (this.shutdownPromise) {
       return this.shutdownPromise;

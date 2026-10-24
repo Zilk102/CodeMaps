@@ -1,3 +1,5 @@
+/** Registers the composite `prepare_*` tools, each of which assembles one bounded context for an agent. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
 import { GraphData } from '../store';
@@ -15,6 +17,7 @@ import {
 } from './toolSchemas';
 import { okCompactStatusToolResult } from './toolSupport';
 
+/** Registers the project, task, change campaign, change and review context tools on `server`. */
 export function registerContextTools(server: McpServer, context: McpToolContext) {
   registerProjectContext(server, context);
   registerTaskContext(server, context);
@@ -68,6 +71,7 @@ const contextSwitches = (securityDescription: string) => ({
   limit: contextLimitField(PATTERN_LIMIT_DESCRIPTION),
 });
 
+/** Registers `prepare_project_context`; security findings are off unless requested. */
 function registerProjectContext(server: McpServer, context: McpToolContext) {
   const switches = contextSwitches('When true, include security findings in the project context');
   defineContextTool(
@@ -87,6 +91,7 @@ function registerProjectContext(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `prepare_task_context`, which routes a natural-language request to the matching composite workflow. */
 function registerTaskContext(server: McpServer, context: McpToolContext) {
   const switches = contextSwitches('When true, include security findings in prepared contexts');
   defineContextTool(
@@ -140,6 +145,7 @@ const changeCampaignInputSchema = {
     .describe('Optional pre-extracted candidate queries to bias campaign seed matching.'),
 };
 
+/** Registers `prepare_change_campaign`; the response is capped at the larger of `maxFiles` and `maxSeeds` items per list. */
 function registerChangeCampaign(server: McpServer, context: McpToolContext) {
   defineContextTool(
     server,
@@ -179,6 +185,7 @@ function registerChangeCampaign(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `prepare_change_context` for one target node or query. */
 function registerChangeContext(server: McpServer, context: McpToolContext) {
   defineContextTool(
     server,
@@ -222,6 +229,7 @@ function registerChangeContext(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `prepare_review_context`; security findings are on by default here, unlike the other context tools. */
 function registerReviewContext(server: McpServer, context: McpToolContext) {
   const switches = contextSwitches(
     'When true, include security findings (default true for review contexts)'

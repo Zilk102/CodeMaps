@@ -1,5 +1,8 @@
+/** Ordered, failure-tolerant application shutdown. */
+
 import log from 'electron-log/main';
 
+/** The teardown actions `gracefulShutdown` runs, injected so the sequence can be tested without Electron. */
 export interface ShutdownDependencies {
   shutdownAutoUpdater: () => void;
   shutdownMcpServer: () => Promise<void>;
@@ -8,6 +11,7 @@ export interface ShutdownDependencies {
   logger?: Pick<typeof log, 'info' | 'error'>;
 }
 
+/** Stops the auto-updater first, then the MCP server, the oracle and the Kuzu process in parallel. A failing step is logged and never prevents the others from finishing. */
 export async function gracefulShutdown({
   shutdownAutoUpdater,
   shutdownMcpServer,

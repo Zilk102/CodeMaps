@@ -1,3 +1,5 @@
+/** Watches the project folder and keeps the graph current: re-parses changed files and batches follow-up refreshes. */
+
 import * as path from 'path';
 import { ProjectLanguageProfile } from '../parsing/types';
 import { oracleStore } from '../store';
@@ -48,6 +50,10 @@ const whenWatcherReady = (watcher: ChokidarWatcher) =>
     });
   });
 
+/**
+ * Turns file-system events into graph updates. Each event updates the graph immediately; the expensive follow-up (enrichment rebuild,
+ * graph-updated notification, cache save) is debounced so a burst of events triggers one refresh.
+ */
 export class FileWatcher {
   private watcher: ChokidarWatcher | null = null;
   private refreshTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -65,6 +71,7 @@ export class FileWatcher {
     private readonly cacheManager: CacheManager
   ) {}
 
+  /** Stops watching and drops any pending refresh; callers still waiting for that refresh are released, not failed. */
   async close() {
     if (this.refreshTimeout) {
       clearTimeout(this.refreshTimeout);
@@ -83,6 +90,10 @@ export class FileWatcher {
     }
   }
 
+  /**
+   * Starts watching `baseDir` (replacing a previous watcher) and resolves once the initial scan is done or 15 seconds passed, so files saved after this returns are not missed.
+   * Reports language-count changes through `updateLanguageProfile`; `callbacks` run for every debounced refresh.
+   */
   async start(
     baseDir: string,
     getLanguageProfile: () => ProjectLanguageProfile,
@@ -138,6 +149,7 @@ export class FileWatcher {
     await ready;
   }
 
+  /** Queues `changedPaths` for the next debounced refresh, keeping the most significant event kind seen, and returns a promise that settles when that refresh finishes. */
   private scheduleRefresh(
     baseDir: string,
     callbacks: WatchCallbacks,
@@ -170,6 +182,7 @@ export class FileWatcher {
     return this.pendingRefreshPromise;
   }
 
+  /** Runs one batched refresh: records telemetry, rebuilds enrichment for the collected paths, emits the graph update and schedules a cache save. A failure rejects the promise handed to the callers that queued paths. */
   private async flushRefresh(baseDir: string, callbacks: WatchCallbacks) {
     const paths = Array.from(this.pendingRefreshPaths);
     const event = this.pendingRefreshEvent;

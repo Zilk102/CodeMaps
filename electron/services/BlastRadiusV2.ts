@@ -1,5 +1,8 @@
+/** Breadth-first impact analysis over the Kuzu graph database. */
+
 import { KuzuGraphService } from './KuzuGraphService';
 
+/** One affected node: its distance from the changed node and the path of ids that leads to it. */
 export interface BlastNode {
   id: string;
   label: string;
@@ -8,6 +11,7 @@ export interface BlastNode {
   path: string[];
 }
 
+/** Impact of changing `targetNode`: directly linked nodes, nodes reached through them, the totals, and the longest chains of dependency found. */
 export interface BlastRadiusResult {
   targetNode: string;
   directDependencies: BlastNode[];
@@ -17,6 +21,7 @@ export interface BlastRadiusResult {
   riskPaths: string[][];
 }
 
+/** Computes which nodes are affected by a change, using the project's Kuzu database (which must have been filled with the graph beforehand). */
 export class BlastRadiusV2 {
   private graphService: KuzuGraphService;
 
@@ -24,10 +29,15 @@ export class BlastRadiusV2 {
     this.graphService = new KuzuGraphService(projectPath);
   }
 
+  /** Opens the database. */
   async init(): Promise<void> {
     await this.graphService.init();
   }
 
+  /**
+   * Walks neighbours (both link directions) from `nodeId` breadth-first up to `maxDepth` levels, counting each node once at its shortest distance.
+   * `riskPaths` collects the paths of nodes at distance 3 or more, capped at 10. An unknown node yields an empty result.
+   */
   async calculate(nodeId: string, maxDepth: number = 5): Promise<BlastRadiusResult> {
     const direct: BlastNode[] = [];
     const transitive: BlastNode[] = [];
@@ -77,6 +87,7 @@ export class BlastRadiusV2 {
     return this.toResult(nodeId, direct, transitive, riskPaths);
   }
 
+  /** Builds the result entry for a neighbour reached from `current`, one step further away. */
   private toBlastNode(
     neighbor: Record<string, string>,
     current: { depth: number; path: string[] }
@@ -91,6 +102,7 @@ export class BlastRadiusV2 {
     };
   }
 
+  /** Assembles the final result and its totals; `maxDepth` is the distance of the farthest transitive node (0 if none). */
   private toResult(
     nodeId: string,
     direct: BlastNode[],
@@ -107,6 +119,7 @@ export class BlastRadiusV2 {
     };
   }
 
+  /** Single 0-100 score for a node, from a 3-level walk: 2 points per direct dependency, 1 per transitive one, plus half a point per level of depth. Capped at 100. */
   async getImpactScore(nodeId: string): Promise<number> {
     const result = await this.calculate(nodeId, 3);
 
@@ -118,6 +131,7 @@ export class BlastRadiusV2 {
     return Math.min(100, directWeight + transitiveWeight + depthPenalty);
   }
 
+  /** Closes the database. */
   async close(): Promise<void> {
     await this.graphService.close();
   }

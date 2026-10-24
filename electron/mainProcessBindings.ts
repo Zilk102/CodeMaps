@@ -1,11 +1,16 @@
+/** IPC handlers of the main process: window controls, project opening, analytics and graph forwarding to the renderer. */
+
 import { BrowserWindow, dialog, IpcMain } from 'electron';
 import * as fs from 'fs';
 import { oracle } from './oracle';
 import { oracleStore } from './store';
 import { createSerializedPersister, persistGraphToKuzu } from './graphPersistence';
 
-// Renderer arguments arrive unvalidated over IPC, and every analytics handler feeds
-// its project path straight into git and the filesystem.
+/**
+ * Validates a project path received over IPC and returns it. Renderer arguments arrive
+ * unvalidated, and every analytics handler feeds its project path straight into git and the
+ * filesystem. Throws unless the value is a non-empty string naming an existing directory.
+ */
 function requireProjectDirectory(value: unknown): string {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error('A project path is required');
@@ -18,6 +23,7 @@ function requireProjectDirectory(value: unknown): string {
   return value;
 }
 
+/** Returns `value` when it is a non-empty string, otherwise throws "<label> is required". */
 function requireString(value: unknown, label: string): string {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error(`${label} is required`);
@@ -41,6 +47,7 @@ interface RegisterMainProcessBindingsInput {
   loadKuzuIntegrationCtor: () => Promise<any>;
 }
 
+/** Wires every IPC channel the renderer uses and the oracle-to-renderer event bridges. Call once, before the window loads. */
 export function registerMainProcessBindings(input: RegisterMainProcessBindingsInput) {
   registerWindowBindings(input.ipcMain, input.getMainWindow);
   registerProjectBindings(
@@ -58,6 +65,7 @@ export function registerMainProcessBindings(input: RegisterMainProcessBindingsIn
   );
 }
 
+/** Handles minimize, maximize (toggle) and close for the frameless window. */
 function registerWindowBindings(ipcMain: IpcMain, getMainWindow: () => BrowserWindow | null) {
   ipcMain.handle('window-minimize', () => {
     getMainWindow()?.minimize();
@@ -77,6 +85,7 @@ function registerWindowBindings(ipcMain: IpcMain, getMainWindow: () => BrowserWi
   });
 }
 
+/** Handles folder selection, project analysis, MCP status and the recent-projects list. Analysis errors come back as `{ success: false, error }`. */
 function registerProjectBindings(
   ipcMain: IpcMain,
   getMainWindow: () => BrowserWindow | null,
@@ -117,6 +126,7 @@ function registerProjectBindings(
   );
 }
 
+/** Handles the analytics channels (PR impact, heatmap, blast radius, decomposition, duplicates). Each answers with `{ success, data }` or `{ success: false, error }` and logs failures. */
 function registerAnalyticsBindings(
   ipcMain: IpcMain,
   getErrorMessage: (error: unknown) => string,
@@ -165,6 +175,7 @@ function registerAnalyticsBindings(
   );
 }
 
+/** Duplicate report for the currently loaded graph. `rawProjectPath` is only validated, the analysis always uses the open project. */
 async function runFindDuplicates(rawProjectPath: unknown, limit?: number) {
   requireProjectDirectory(rawProjectPath); // validate
   const graphData = oracleStore.getState().getValidGraph();
@@ -187,6 +198,7 @@ async function withInitializedService<
   return result;
 }
 
+/** Blast radius of the changes between two branches of the repository at `rawProjectPath`; all three arguments are validated first. */
 async function runPrImpact(rawProjectPath: unknown, baseBranch: unknown, headBranch: unknown) {
   const projectPath = requireProjectDirectory(rawProjectPath);
   const { PRImpactAnalyzer } = await import('./services/PRImpactAnalyzer.js');
@@ -198,6 +210,7 @@ async function runPrImpact(rawProjectPath: unknown, baseBranch: unknown, headBra
   );
 }
 
+/** Git churn for the repository at `rawProjectPath`, optionally limited to an ISO date range. */
 async function runActivityHeatmap(rawProjectPath: unknown, since?: string, until?: string) {
   const projectPath = requireProjectDirectory(rawProjectPath);
   const { GitActivityService } = await import('./services/GitActivityService.js');
@@ -206,6 +219,7 @@ async function runActivityHeatmap(rawProjectPath: unknown, since?: string, until
   );
 }
 
+/** Transitive impact of one node, using the repository database; traversal depth defaults to 5. */
 async function runBlastRadius(rawProjectPath: unknown, nodeId: unknown, maxDepth?: number) {
   const projectPath = requireProjectDirectory(rawProjectPath);
   const { BlastRadiusV2 } = await import('./services/BlastRadiusV2.js');
@@ -214,6 +228,7 @@ async function runBlastRadius(rawProjectPath: unknown, nodeId: unknown, maxDepth
   );
 }
 
+/** Decomposition guidance for the currently loaded graph, optionally focused on `focusNodeIds`. `rawProjectPath` is only validated. */
 async function runDecomposition(rawProjectPath: unknown, focusNodeIds?: string[]) {
   requireProjectDirectory(rawProjectPath); // validate
   const { oracleStore } = await import('./store.js');
@@ -224,6 +239,7 @@ async function runDecomposition(rawProjectPath: unknown, focusNodeIds?: string[]
   return service.prepareGuidance(graphData, { focusNodeIds });
 }
 
+/** Forwards oracle progress and graph updates to the renderer, and saves each updated graph to Kuzu through a serialized writer so saves never overlap. */
 function registerOracleBridges(
   getMainWindow: () => BrowserWindow | null,
   loadKuzuIntegrationCtor: () => Promise<any>,

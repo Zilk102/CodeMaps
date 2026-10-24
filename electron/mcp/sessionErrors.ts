@@ -1,3 +1,5 @@
+/** HTTP error answer for MCP requests that carry an unknown or missing session id. */
+
 /**
  * A session id this process does not know (typically one issued before CodeMaps restarted)
  * must be answered with 404 so spec-compliant clients start a fresh session on their own;

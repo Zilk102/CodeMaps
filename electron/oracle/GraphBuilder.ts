@@ -1,3 +1,5 @@
+/** Applies parse results and file-system changes to the graph store. */
+
 import * as path from 'path';
 import { ParseResult } from '../parsing/types';
 import { GraphLink, oracleStore } from '../store';
@@ -10,7 +12,9 @@ import {
   processEntities,
 } from './graphNodeWriters';
 
+/** The only writer of file-derived nodes and links; the indexer and the watcher go through it so the graph stays consistent. */
 export class GraphBuilder {
+  /** Creates the missing directory nodes between `baseDir` and the file (never `baseDir` itself), each pointing at its parent. */
   ensureDirectoryChainForFile(filePath: string, baseDir: string) {
     const store = oracleStore.getState();
     const normalizedBaseDir = normalizePath(baseDir);
@@ -41,12 +45,14 @@ export class GraphBuilder {
     }
   }
 
+  /** Removes a file's outgoing links and its symbol nodes but keeps the file node itself, ready for a fresh parse. */
   removeFileArtifacts(filePath: string) {
     const store = oracleStore.getState();
     store.removeLinksBySource(filePath);
     store.removeNodesPrefix(`${filePath}#`);
   }
 
+  /** Removes a file completely: its node, all links to or from it and its symbol nodes. */
   removeFile(filePath: string) {
     const store = oracleStore.getState();
     store.removeNode(filePath);
@@ -54,16 +60,19 @@ export class GraphBuilder {
     store.removeNodesPrefix(`${filePath}#`);
   }
 
+  /** Removes a directory node and the links attached to it; nodes inside it are removed by their own events. */
   removeDirectory(dirPath: string) {
     const store = oracleStore.getState();
     store.removeNode(dirPath);
     store.removeLinksBySourceOrTarget(dirPath);
   }
 
+  /** Removes every link whose type is in `types`. */
   removeLinksByTypes(types: string[]) {
     oracleStore.getState().removeLinksByTypes(types);
   }
 
+  /** Adds derived (framework/build) links to the graph. */
   applyEnrichmentLinks(links: GraphLink[]) {
     const store = oracleStore.getState();
     for (const link of links) {
@@ -71,6 +80,10 @@ export class GraphBuilder {
     }
   }
 
+  /**
+   * Writes the graph elements of one parsed file: directory chain, the file node (or a bare placeholder for oversized files, or an ADR node for markdown ADRs),
+   * ADR link, import links and one node per declared entity.
+   */
   applyParsedFile(filePath: string, baseDir: string, churn: number, result: ParseResult) {
     const normalizedPath = normalizePath(filePath);
     const fileName = path.basename(normalizedPath);

@@ -1,3 +1,5 @@
+/** Registers the structural analysis tools: health, architecture, patterns, security, signatures, decomposition, skeleton and change validation. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as path from 'path';
 import * as z from 'zod/v4';
@@ -15,6 +17,7 @@ import {
 } from './toolSchemas';
 import { okStatusToolResult } from './toolSupport';
 
+/** Registers every analysis tool on `server`, using the shared analyzers from `context`. */
 export function registerAnalysisTools(server: McpServer, context: McpToolContext) {
   registerHealthScore(server, context);
   registerArchitectureOverview(server, context);
@@ -26,6 +29,7 @@ export function registerAnalysisTools(server: McpServer, context: McpToolContext
   registerValidateChanges(server, context);
 }
 
+/** Registers `get_health_score`, which scores the structural health of the loaded graph. */
 function registerHealthScore(server: McpServer, context: McpToolContext) {
   defineGraphTool(
     server,
@@ -39,6 +43,7 @@ function registerHealthScore(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `get_architecture_overview`; per-node classifications are included only when `includeClassifications` is true. */
 function registerArchitectureOverview(server: McpServer, context: McpToolContext) {
   defineGraphTool(
     server,
@@ -67,6 +72,7 @@ function registerArchitectureOverview(server: McpServer, context: McpToolContext
   );
 }
 
+/** Registers `detect_patterns`, which returns at most `limit` (default 20) architectural patterns. */
 function registerDetectPatterns(server: McpServer, context: McpToolContext) {
   defineGraphTool(
     server,
@@ -88,6 +94,7 @@ function registerDetectPatterns(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `run_security_scan`, which returns the scan summary and at most `limit` (default 100) findings. */
 function registerSecurityScan(server: McpServer, context: McpToolContext) {
   defineGraphTool(
     server,
@@ -109,6 +116,7 @@ function registerSecurityScan(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `search_signatures`, a text or regex search over declaration signatures. */
 function registerSearchSignatures(server: McpServer, context: McpToolContext) {
   defineGraphTool(
     server,
@@ -140,6 +148,7 @@ function registerSearchSignatures(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Registers `analyze_decomposition` (see `analyzeDecomposition`). */
 function registerDecomposition(server: McpServer) {
   server.registerTool(
     'analyze_decomposition',
@@ -162,6 +171,10 @@ function registerDecomposition(server: McpServer) {
   );
 }
 
+/**
+ * Handler of `analyze_decomposition`: lists split candidates and plans how to split files.
+ * Plans cover the requested nodes or file, or else the files of the candidates (methods excluded). The analysis modules load lazily to keep startup fast.
+ */
 async function analyzeDecomposition({
   focusNodeIds,
   filePath,
@@ -194,6 +207,7 @@ async function analyzeDecomposition({
   return okStatusToolResult({ ...result, splitPlans });
 }
 
+/** Registers `get_semantic_skeleton`, which returns a file's declarations without function bodies; failures come back as an error result instead of throwing. */
 function registerSemanticSkeleton(server: McpServer) {
   server.registerTool(
     'get_semantic_skeleton',
@@ -226,6 +240,7 @@ function registerSemanticSkeleton(server: McpServer) {
   );
 }
 
+/** Registers `validate_architecture_changes`, which checks edits against SOLID and duplication heuristics. */
 function registerValidateChanges(server: McpServer, context: McpToolContext) {
   server.registerTool(
     'validate_architecture_changes',
@@ -257,6 +272,10 @@ interface ValidateChangesArgs {
   scope?: 'auto' | 'changed' | 'project';
 }
 
+/**
+ * Handler of `validate_architecture_changes`: checks the changed files (explicit list, or detected through git) against the detected patterns.
+ * With `scope` "project", or when no changed file is found, nothing is filtered and the whole project is validated. Waits for the indexer to catch up with just-saved edits first.
+ */
 async function validateArchitectureChanges(
   context: McpToolContext,
   { changedFiles, baseRef, scope = 'auto' }: ValidateChangesArgs
@@ -292,6 +311,7 @@ const resolveProjectFile = (root: string, file: string) => {
   return path.isAbsolute(file) ? normalized : path.posix.join(root.replace(/\\/g, '/'), normalized);
 };
 
+/** Absolute paths of files that differ from `baseRef` (default HEAD) plus untracked files, via git. Returns an empty list without a project root or for an unsafe revision name. */
 const detectChangedFiles = (root: string, baseRef?: string): string[] => {
   if (!root) return [];
   const git = new GitService(root);

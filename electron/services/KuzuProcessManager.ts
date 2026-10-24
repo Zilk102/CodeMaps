@@ -1,8 +1,11 @@
+/** Parent-side manager of the Kuzu worker process: starts it on demand and correlates requests with responses. */
+
 import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import type { Readable } from 'stream';
 
+/** The operations the Kuzu worker process understands. */
 export type KuzuAction =
   | 'init'
   | 'addNode'
@@ -33,9 +36,11 @@ interface KuzuResponse {
   };
 }
 
+/** Query result rows received from the worker, exposing the same `getAll` method as a native Kuzu result. */
 export class SerializableQueryResult {
   constructor(private readonly rows: Record<string, unknown>[]) {}
 
+  /** All rows of the result. */
   async getAll(): Promise<Record<string, unknown>[]> {
     return this.rows;
   }
@@ -50,6 +55,7 @@ export const resolveWorkerScript = (directory: string): string => {
   return script.replace(/app\.asar(?=[\\/])/, 'app.asar.unpacked');
 };
 
+/** The Node executable used to run the worker: `CODEMAPS_NODE_EXECUTABLE`, then the npm or NODE environment variables if they exist on disk, else plain `node` from PATH. */
 const resolveNodeExecutable = (): string => {
   const candidates = [
     process.env.CODEMAPS_NODE_EXECUTABLE,
@@ -84,6 +90,7 @@ const toWorkerError = (response: Partial<KuzuResponse>): Error => {
   return error;
 };
 
+/** Singleton that owns the single Kuzu worker child process, restarts it when it is gone and fails pending requests if it dies. */
 export class KuzuProcessManager {
   private static instance: KuzuProcessManager | null = null;
 
@@ -98,6 +105,7 @@ export class KuzuProcessManager {
     }
   >();
 
+  /** The shared manager. */
   static getInstance(): KuzuProcessManager {
     if (!this.instance) {
       this.instance = new KuzuProcessManager();
@@ -111,6 +119,7 @@ export class KuzuProcessManager {
     });
   }
 
+  /** Sends an action for the database at `dbPath` to the worker (starting it if needed) and resolves with its result. Rejects with the worker's error, on a send failure, if the worker exits, or after 120 seconds without an answer. */
   async request<T>(
     action: KuzuAction,
     dbPath: string,
@@ -151,6 +160,7 @@ export class KuzuProcessManager {
     });
   }
 
+  /** Rejects all pending requests and kills the worker process. A later request starts a new one. */
   dispose(): void {
     this.rejectAllPending(new Error('Kuzu background worker disposed'));
 
@@ -160,6 +170,7 @@ export class KuzuProcessManager {
     }
   }
 
+  /** Returns the connected worker, forking a new one (and wiring message, exit and error handling plus output forwarding) if there is none. */
   private ensureChild(): ChildProcess {
     if (this.child && this.child.connected) {
       return this.child;
@@ -196,6 +207,7 @@ export class KuzuProcessManager {
     return child;
   }
 
+  /** Settles the pending request that a worker response belongs to. Malformed or unknown responses are ignored. */
   private handleMessage(message: unknown): void {
     if (!message || typeof message !== 'object') {
       return;

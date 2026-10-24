@@ -1,3 +1,5 @@
+/** End-to-end check that the built app shuts down by itself: launches Electron in shutdown-test mode and fails if it exits with an error, too early or not within 15 seconds. */
+
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

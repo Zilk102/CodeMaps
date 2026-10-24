@@ -1,3 +1,5 @@
+/** Smoke test for a running CodeMaps: connects to the MCP endpoint, calls every tool and reads every resource, and reports the failures (see `npm run mcp:smoke`). */
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -22,6 +24,7 @@ const assert = (condition, message) => {
   }
 };
 
+/** Parses the first text item of a tool response as JSON, accepting a fenced ```json block. Throws on an empty or non-JSON payload, or when the payload reports `status: "error"`. */
 const parseFirstTextPayload = (response, toolName) => {
   const textItem = response.content?.find((item) => item.type === 'text');
   if (!textItem?.text) {

@@ -1,14 +1,18 @@
+/** Orderly teardown of the MCP HTTP/WebSocket runtime on app shutdown. */
+
 import * as http from 'http';
 import log from 'electron-log/main';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
+/** One live MCP session: its HTTP transport and the server instance bound to it. */
 export type McpTransportRecord = {
   transport: StreamableHTTPServerTransport;
   server: McpServer;
 };
 
+/** Everything `closeMcpRuntime` has to dismantle: oracle listeners, sessions, WebSocket clients and both servers. */
 export interface McpRuntimeShutdownDependencies {
   oracle: {
     off: (event: string, listener: (...args: any[]) => void) => void;
@@ -22,6 +26,10 @@ export interface McpRuntimeShutdownDependencies {
   logger?: Pick<typeof log, 'error'>;
 }
 
+/**
+ * Detaches the oracle listeners, closes every session transport and server, terminates WebSocket clients and closes both listening servers.
+ * Individual failures are logged and never abort the rest; the session map and client set are emptied in place. Resolves once all closes settled.
+ */
 export async function closeMcpRuntime({
   oracle,
   onGraphUpdated,

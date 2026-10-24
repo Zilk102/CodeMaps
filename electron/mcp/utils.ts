@@ -1,3 +1,5 @@
+/** Graph summary and agent-playbook helpers for MCP responses, plus re-exports of the project loader and graph queries. */
+
 import { GraphData } from '../store';
 import { oracle } from '../oracle';
 
@@ -10,10 +12,12 @@ export {
 } from './graphQueries';
 export type { NeighbourFile } from './graphQueries';
 
+/** Current graph held by the oracle; empty when no project has been analyzed yet. */
 export const getGraphSnapshot = (): GraphData => {
   return oracle.getGraph();
 };
 
+/** Counts nodes per `type` (file, function, class, ...). */
 export const getGraphCountsByType = (graph: GraphData) => {
   return graph.nodes.reduce<Record<string, number>>((acc, node) => {
     acc[node.type] = (acc[node.type] || 0) + 1;
@@ -21,6 +25,7 @@ export const getGraphCountsByType = (graph: GraphData) => {
   }, {});
 };
 
+/** Compact overview of a graph: project root, node and link counts, counts per node type and, when available, watcher and enrichment refresh telemetry. */
 export const createGraphSummary = (graph: GraphData) => {
   const nodesCount = graph.nodes.length;
   const linksCount = graph.links.length;
@@ -60,11 +65,13 @@ export const createGraphSummary = (graph: GraphData) => {
   };
 };
 
+/** Serializes a tool payload to text: strings are returned unchanged, anything else as two-space-indented JSON. */
 export const createTextContent = (payload: unknown) => {
   if (typeof payload === 'string') return payload;
   return JSON.stringify(payload, null, 2);
 };
 
+/** Static guidance served to agents: which composite `prepare_*` tool to call for each kind of request, the rules for choosing, and the low-level fallback tools. Bump `version` when the content changes. */
 export const createAgentPlaybook = () => ({
   version: 4,
   goal: 'A regular user connects CodeMaps to the agent, and the agent chooses the right tools automatically without needing MCP command knowledge.',

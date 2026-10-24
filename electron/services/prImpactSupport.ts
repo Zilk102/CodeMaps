@@ -1,6 +1,11 @@
+/** Pure helpers of the PR impact analysis: risk scoring, recommendations and diff parsing. */
+
+/** Overall risk level of a change set. */
 export type PRRiskScore = 'low' | 'medium' | 'high' | 'critical';
+/** How a file differs between two revisions. */
 export type ChangedFileStatus = 'added' | 'modified' | 'deleted';
 
+/** A file in a diff with its status and the number of lines added and deleted. */
 export interface ChangedFile {
   path: string;
   status: ChangedFileStatus;
@@ -20,6 +25,7 @@ const RISK_LEVELS: Array<{
   { score: 'medium', changes: 50, blastRadius: 5, affectedNodes: 5 },
 ];
 
+/** Risk level of a change set: the most severe level whose limit is exceeded by total changed lines, blast radius or affected node count, or `low` if none is. */
 export function calculateRiskScore(
   changedFiles: ChangedFile[],
   affectedNodeCount: number,
@@ -35,6 +41,7 @@ export function calculateRiskScore(
   return level ? level.score : 'low';
 }
 
+/** Warning text for deleting a file that `dependentCount` nodes depend on. */
 export function describeDeletionRisk(filePath: string, dependentCount: number) {
   return `⚠️ Deleting ${filePath} affects ${dependentCount} dependent nodes. Consider refactoring instead.`;
 }

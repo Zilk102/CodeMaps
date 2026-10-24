@@ -1,3 +1,5 @@
+/** Adds framework and build relationship links to the graph and decides when a file change makes them stale. */
+
 import { StackInsightService } from '../analysis/StackInsightService';
 import { StackTopologyService } from '../analysis/StackTopologyService';
 import { GraphData, GraphLink, oracleStore } from '../store';
@@ -21,8 +23,10 @@ const STACK_REFRESH_PATH_PATTERNS = [
   /(?:^|\/)([^/]+Application|[^/]+Controller|[^/]+Service|[^/]+Repository)\.(?:java|kt)$/i,
 ] as const;
 
+/** File-system event kinds that can trigger an enrichment refresh. */
 export type StackEnrichmentRefreshEvent = 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
 
+/** What a refresh did: whether it rebuilt or skipped, why, which paths triggered it and how many links it added. */
 export interface StackEnrichmentRefreshResult {
   mode: 'skipped' | 'rebuilt';
   reason: 'no_stack_impact' | 'directory_structure_changed' | 'stack_runtime_path_changed';
@@ -44,6 +48,7 @@ const dedupeLinks = (links: GraphLink[]) => {
   });
 };
 
+/** Computes `framework` and `build` links from stack analysis and keeps them in the graph. */
 export class StackGraphEnrichmentService {
   constructor(
     private readonly graphBuilder: GraphBuilder,
@@ -51,6 +56,7 @@ export class StackGraphEnrichmentService {
     private readonly stackTopologyService = new StackTopologyService()
   ) {}
 
+  /** Re-analyzes the stack of `graph`, replaces all framework and build links with the fresh, de-duplicated ones, and returns the analysis with the number of links added. */
   async rebuild(graph: GraphData) {
     const stackProfile = await this.stackInsightService.analyze(graph);
     const stackTopology = await this.stackTopologyService.analyze(graph, stackProfile);
@@ -66,6 +72,7 @@ export class StackGraphEnrichmentService {
     };
   }
 
+  /** Turns the relationships found by stack analysis into links between existing nodes. Relationships whose ends cannot be matched to a node, or that point to themselves, are dropped. */
   private buildEnrichmentLinks(
     graph: GraphData,
     stackTopology: Awaited<ReturnType<StackTopologyService['analyze']>>
@@ -97,6 +104,7 @@ export class StackGraphEnrichmentService {
     return links;
   }
 
+  /** Refreshes the links after a file change: rebuilds only if `changedPaths` could affect the stack (see `shouldRefreshForChangedPaths`), otherwise skips. Records the outcome and duration in refresh telemetry. */
   async rebuildForChangedPaths(
     graph: GraphData,
     changedPaths: string[],
@@ -139,10 +147,12 @@ export class StackGraphEnrichmentService {
     return result;
   }
 
+  /** Removes all framework and build links. */
   clear() {
     this.graphBuilder.removeLinksByTypes([...STACK_ENRICHMENT_LINK_TYPES]);
   }
 
+  /** Whether the change can alter stack links: any directory event, or a changed file that looks like a manifest, build file, framework config, controller, service or module. */
   shouldRefreshForChangedPaths(
     projectRoot: string,
     changedPaths: string[],
@@ -165,6 +175,7 @@ export class StackGraphEnrichmentService {
     });
   }
 
+  /** Maps a path or `path#symbol` reported by stack analysis to an existing node id. When the symbol has no node, falls back to the file node; undefined when the file is unknown. */
   private resolveNodeId(
     candidate: string,
     projectRoot: string,
@@ -186,6 +197,7 @@ export class StackGraphEnrichmentService {
         : resolvedCandidate;
   }
 
+  /** Finds the file node for a path as given, relative to the project root, or relative to the folder of `sourceId`, in that order. */
   private resolveBaseNodeId(
     candidate: string,
     projectRoot: string,
@@ -215,6 +227,7 @@ export class StackGraphEnrichmentService {
   }
 }
 
+/** Convenience wrapper: rebuilds enrichment through a new service, using `graph` or, when omitted, a graph assembled from the current store. */
 export const rebuildStackGraphEnrichment = async (
   graphBuilder: GraphBuilder,
   graph?: GraphData

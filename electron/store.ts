@@ -1,3 +1,5 @@
+/** The in-memory graph store (nodes, links, churn, refresh telemetry, recent projects) shared by the indexer, the watcher and the MCP tools. */
+
 import { createStore } from 'zustand/vanilla';
 import { buildValidGraphSnapshot, normalizeCachedNodes } from './store/graphSnapshot';
 import {
@@ -23,6 +25,10 @@ const emptyDiff = (): GraphDiff => ({
   linksRemoved: [],
 });
 
+/**
+ * Vanilla zustand store holding the live graph. Mutations bump revision counters (used to invalidate cached snapshots) and record a pending diff
+ * that `getAndResetDiff` hands to subscribers; the recent-projects list is persisted to disk on every change.
+ */
 export const oracleStore = createStore<OracleState>()((set, get) => ({
   baseDir: '',
   nodes: new Map(),

@@ -1,3 +1,5 @@
+/** Registers the read-only MCP resources (project summary, full graph, agent playbook, project brain). */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ProjectInsightService } from '../analysis/ProjectInsightService';
 import {
@@ -16,6 +18,7 @@ interface ResourceDefinition {
   read: () => Promise<unknown> | unknown;
 }
 
+/** Registers one resource that serves the result of `definition.read()` as indented JSON text, re-evaluated on every read. */
 const registerJsonResource = (server: McpServer, definition: ResourceDefinition) => {
   const { name, uri, title, description, read } = definition;
   server.registerResource(
@@ -28,6 +31,7 @@ const registerJsonResource = (server: McpServer, definition: ResourceDefinition)
   );
 };
 
+/** Registers the four `codemaps://` resources on `server`. Reading one loads the current project graph first. */
 export function registerResources(server: McpServer, projectInsightService: ProjectInsightService) {
   const definitions: ResourceDefinition[] = [
     {

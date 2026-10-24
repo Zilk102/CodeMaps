@@ -62,12 +62,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // A Windows drive path is absolute on every platform; CodeMaps reports project roots that way.
 const isAbsolutePath = (value) => path.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value);
 
+/** Whether an edited path is a source file worth validating: a known source extension and no dependency, build or VCS folder in its path. */
 export const isCandidateFile = (filePath) => {
   if (!filePath || !SOURCE_EXTENSIONS.has(path.extname(filePath).toLowerCase())) return false;
   const segments = normalize(filePath).split('/');
   return !segments.some((segment) => IGNORED_SEGMENTS.includes(segment));
 };
 
+/** Whether `filePath` lies inside `projectRoot` (case-insensitive, either slash style). False when no project is open. */
 export const isInsideProject = (filePath, projectRoot) => {
   if (!projectRoot) return false;
   const root = normalize(projectRoot).replace(/\/$/, '').toLowerCase();
@@ -145,6 +147,7 @@ const parseRpcBody = async (response) => {
   return text ? JSON.parse(text) : null;
 };
 
+/** Sends one JSON-RPC message to the MCP endpoint, within the request timeout. `message` is the parsed reply (JSON or last event of a stream), or null for an HTTP 202 acknowledgement. */
 const rpc = async (endpoint, sessionId, body) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -160,6 +163,7 @@ const rpc = async (endpoint, sessionId, body) => {
   return { response, message: response.status === 202 ? null : await parseRpcBody(response) };
 };
 
+/** Calls one MCP tool in a short-lived session (initialize, call, then close) and returns its parsed JSON result. Throws if no session is created or the reply is not JSON. */
 const callTool = async (endpoint, name, args) => {
   const init = await rpc(endpoint, null, {
     jsonrpc: '2.0',
@@ -266,6 +270,10 @@ const newReportFor = async (endpoint, env, { projectRoot, absoluteFile }) => {
   return report && !isRepeat(stateFile, absoluteFile, report) ? report : null;
 };
 
+/**
+ * Hook entry point: reads the PostToolUse event, validates the edited file in the running CodeMaps and returns the exit code to use.
+ * Exit code 2 with `stderr` carries a new problem report back to Claude; 0 means stay silent.
+ */
 export const run = async (rawInput, env = process.env) => {
   if (env.CODEMAPS_HOOK_DISABLED === '1') return { exitCode: 0 };
 

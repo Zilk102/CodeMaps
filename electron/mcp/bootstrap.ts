@@ -1,3 +1,5 @@
+/** Builds a fully wired MCP server instance: analysis services, resources and tools. */
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ArchitectureInsightService } from '../analysis/ArchitectureInsightService';
 import { BlastRadiusAnalyzer } from '../analysis/BlastRadiusAnalyzer';
@@ -14,6 +16,7 @@ import { registerResources } from './resources';
 import { ServiceRegistry } from './ServiceRegistry';
 import { registerTools } from './tools';
 
+/** Version reported to MCP clients: the Electron app version, or `0.0.0` when Electron is unavailable (unit tests, plain Node). */
 const resolveAppVersion = (): string => {
   try {
     // Lazy require keeps this module loadable in unit tests, where Electron is unavailable.
@@ -25,6 +28,10 @@ const resolveAppVersion = (): string => {
   }
 };
 
+/**
+ * Creates one `McpServer` named `codemaps-mcp` with all services registered and every resource and tool attached.
+ * Called once per client session; the services themselves live in the shared registry, so repeated calls re-register them and replace the previous instances.
+ */
 export const createMcpServerInstance = () => {
   const server = new McpServer(
     {
