@@ -1,5 +1,14 @@
 # CodeMaps Changelog
 
+## v1.1.60 (2026-10-24)
+
+### Added
+
+- **Zero configuration for any agent and any project.** Connect CodeMaps over MCP to any agent (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Windsurf, Cline and others) and nothing else is needed: the server tells the agent in its `instructions` to call `setup_project` first. The agent gets the core loop (task context before code, duplicate search, validation and documentation after edits).
+- **New `setup_project` tool.** It detects languages, package manager, test and lint commands, CI and which agents the project uses (plus the agent that called it), and writes the guardrails itself: a section in `AGENTS.md`, rules for each agent (`CLAUDE.md` and a skill, `.cursor/rules`, `.github/copilot-instructions.md`, `GEMINI.md`, `.windsurf`, `.clinerules`), an after-edit validation hook for Claude Code, plus `.codemaps/config.json` and `.codemaps/baseline.json`. Writing is idempotent: foreign text is never touched, JSON is merged, a second call writes nothing, paths outside the project are rejected. `apply: false` shows the plan only.
+- **Project config and a "ratchet" for legacy code.** `.codemaps/config.json` sets the mode (`ratchet` or `strict`), exclusions and thresholds. In `ratchet` mode existing findings are frozen in `baseline.json`: the tools report only new or worsened findings and the debt can only shrink, so strict rules can be switched on in any old project. See `docs/PROJECT_CONFIG.md` and `docs/AGENT_SETUP.md`.
+- Tests: 702 -> 838.
+
 ## Unreleased
 
 ### Added
