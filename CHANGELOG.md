@@ -1,5 +1,13 @@
 # CodeMaps Changelog
 
+## v1.1.62 (2026-10-24)
+
+### Fixed
+
+- **`codemaps-guard check --strict` now fails on everything that lowers the health score:** god files and classes, oversized modules, mixed-responsibility modules, long and complex functions, clones, layer violations and missing documentation, at any severity (hubs and high fan-out stay informational). A strict whole-project check used to let medium-severity findings through, which is why CodeMaps' own CI missed the drop of its self-score (97 -> 83). CodeMaps now checks itself with this same gate.
+- **Layers for entry-point folders.** Folders such as `setup`, `guard`, `cli`, `bootstrap`, `commands` and `workflows` belong to the application layer, so new modules no longer get an "unknown layer" (178 such nodes before).
+- `HealthScoreAnalyzer`, `moduleQualityMetrics` and `PatternDetectionAnalyzer` were split. CodeMaps health score on itself: 97 (A), every structural counter at zero. Tests: 880 -> 888.
+
 ## v1.1.61 (2026-10-24)
 
 ### Added
