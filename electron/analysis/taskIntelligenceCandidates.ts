@@ -8,7 +8,7 @@ import {
   isChangeIntent,
 } from './taskIntelligenceIntent';
 import { NodeMatchWeights, scoreNodeTextMatch } from './nodeMatchScoring';
-import type { TaskIntentInference } from './TaskIntelligenceService';
+import type { TaskIntentInference } from './taskIntelligenceTypes';
 
 const MAX_CANDIDATES = 6;
 

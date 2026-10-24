@@ -6,7 +6,8 @@ import {
   StackStructuralRelationship,
   toRelativeList,
 } from './stackTopologySupport';
-import { defineAdapter, readRelativeEntries } from './stackTopologyAdapterKit';
+import { defineAdapter } from './stackTopologyAdapterFactory';
+import { readRelativeEntries } from './stackTopologySources';
 
 /** Collects the links an adapter finds: each one is a relationship and a module of the build. */
 const createLinkCollector = () => {

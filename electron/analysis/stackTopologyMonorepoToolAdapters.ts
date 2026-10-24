@@ -6,13 +6,9 @@ import {
   StackAdapterContext,
   toRelativeList,
 } from './stackTopologySupport';
-import {
-  configFilesNamed,
-  defineAdapter,
-  fanOutLinks,
-  filesWithBasename,
-  readRelativeEntries,
-} from './stackTopologyAdapterKit';
+import { configFilesNamed, filesWithBasename, readRelativeEntries } from './stackTopologySources';
+import { defineAdapter } from './stackTopologyAdapterFactory';
+import { fanOutLinks } from './stackTopologyLinks';
 
 const extractQuotedValues = (text: string) =>
   Array.from(text.matchAll(/["']([^"'\\]+)["']/g))

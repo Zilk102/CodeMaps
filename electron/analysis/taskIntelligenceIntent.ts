@@ -1,6 +1,6 @@
 import { ChangeTaskMode } from './ChangeContextService';
 import { ReviewTaskMode } from './ReviewContextService';
-import { RoutedTaskKind, TaskIntentInference } from './TaskIntelligenceService';
+import { RoutedTaskKind, TaskIntentInference } from './taskIntelligenceTypes';
 
 const MAX_KEYWORDS = 8;
 const STOP_WORDS = new Set([

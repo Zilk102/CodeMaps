@@ -55,7 +55,11 @@ export const createMcpServerInstance = () => {
   registry.register('projectInsightService', projectInsightService);
   registry.register(
     'taskIntelligenceService',
-    new TaskIntelligenceService(projectInsightService, changeContextService, reviewContextService)
+    new TaskIntelligenceService({
+      projectInsight: projectInsightService,
+      changeContext: changeContextService,
+      reviewContext: reviewContextService,
+    })
   );
   registry.register('changeCampaignService', new ChangeCampaignService());
 

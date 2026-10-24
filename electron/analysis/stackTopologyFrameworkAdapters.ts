@@ -9,17 +9,19 @@ import {
 } from './stackTopologySupport';
 import {
   classEndpoint,
-  defineFrameworkAdapter,
   entryLinks,
   fileEndpoint,
-  filesMatching,
-  filesWhere,
   methodLinks,
   referenceLinks,
+} from './stackTopologyLinks';
+import { defineFrameworkAdapter } from './stackTopologyAdapterFactory';
+import {
+  filesMatching,
+  filesWhere,
   symbolsOfFiles,
   textOf,
   type AdapterSources,
-} from './stackTopologyAdapterKit';
+} from './stackTopologySources';
 import { POLYGLOT_FRAMEWORK_STACK_ADAPTERS } from './stackTopologyPolyglotFrameworkAdapters';
 import { nextJsAdapter, nestJsAdapter } from './stackTopologyJsFrameworkAdapters';
 import {

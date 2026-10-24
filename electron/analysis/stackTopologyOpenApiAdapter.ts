@@ -4,7 +4,9 @@ import {
   matchesIdentifierVariantInText,
   type FileContentEntry,
 } from './stackTopologySupport';
-import { defineSourceAdapter, fanOutLinks, type AdapterSources } from './stackTopologyAdapterKit';
+import { defineSourceAdapter } from './stackTopologyAdapterFactory';
+import { fanOutLinks } from './stackTopologyLinks';
+import { type AdapterSources } from './stackTopologySources';
 import { contractBindingLinks } from './stackTopologyContractLinks';
 import {
   OPENAPI_GENERATOR_CONFIG_BASENAMES,

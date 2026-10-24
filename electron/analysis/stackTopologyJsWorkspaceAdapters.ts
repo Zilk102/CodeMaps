@@ -6,13 +6,9 @@ import {
   StackAdapterContext,
   toRelativeList,
 } from './stackTopologySupport';
-import {
-  configFilesNamed,
-  defineAdapter,
-  fanOutLinks,
-  findFileNamed,
-  readRelativeEntries,
-} from './stackTopologyAdapterKit';
+import { configFilesNamed, findFileNamed, readRelativeEntries } from './stackTopologySources';
+import { defineAdapter } from './stackTopologyAdapterFactory';
+import { fanOutLinks } from './stackTopologyLinks';
 
 export const viteAdapter = defineAdapter({
   id: 'vite-build-topology',

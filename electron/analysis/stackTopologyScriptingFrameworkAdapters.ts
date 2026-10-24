@@ -11,17 +11,13 @@ import {
 } from './stackTopologySupport';
 import {
   configFilesNamed,
-  configuredFindings,
-  defineFrameworkAdapter,
-  entryLinks,
-  fileEndpoint,
   filesMatching,
   filesWhere,
-  modelUseLinks,
   symbolsOfFiles,
-  targetLinks,
   textOf,
-} from './stackTopologyAdapterKit';
+} from './stackTopologySources';
+import { configuredFindings, defineFrameworkAdapter } from './stackTopologyAdapterFactory';
+import { entryLinks, fileEndpoint, modelUseLinks, targetLinks } from './stackTopologyLinks';
 
 const PYTHON_CONFIG_FILES = ['requirements.txt', 'requirements-dev.txt', 'pyproject.toml'];
 

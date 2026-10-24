@@ -5,7 +5,9 @@ import {
   createRelationship,
   type FileContentEntry,
 } from './stackTopologySupport';
-import { defineSourceAdapter, fanOutLinks, type AdapterSources } from './stackTopologyAdapterKit';
+import { defineSourceAdapter } from './stackTopologyAdapterFactory';
+import { fanOutLinks } from './stackTopologyLinks';
+import { type AdapterSources } from './stackTopologySources';
 import { contractBindingLinks } from './stackTopologyContractLinks';
 import {
   PROTOBUF_CONFIG_BASENAMES,

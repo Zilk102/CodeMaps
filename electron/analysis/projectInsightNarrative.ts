@@ -7,7 +7,7 @@ import { DecompositionGuidance } from './DecompositionGuidanceService';
 import { HealthScoreResult } from './HealthScoreAnalyzer';
 import { isDesignSmellPattern } from './patternPolicies';
 import { applyStepRules, stepIfAny, stepWhen, type StepRule } from './stepRules';
-import type { ProjectInsightResult } from './ProjectInsightService';
+import type { ProjectInsightResult } from './projectInsightTypes';
 import { DetectedPattern } from './PatternDetectionAnalyzer';
 import { QualityBudget, RefactoringWave } from './QualityGovernanceService';
 import { SecurityFinding } from './SecurityScanner';

@@ -10,20 +10,21 @@ import {
 } from './stackTopologySupport';
 import {
   classEndpoint,
-  configuredFindings,
-  configFilesNamed,
-  defineFrameworkAdapter,
   entryLinks,
   fileEndpoint,
-  filesMatching,
   handlerLinks,
-  JVM_BUILD_FILES,
   methodLinks,
   referenceLinks,
+} from './stackTopologyLinks';
+import { configuredFindings, defineFrameworkAdapter } from './stackTopologyAdapterFactory';
+import {
+  configFilesNamed,
+  filesMatching,
+  JVM_BUILD_FILES,
   SPRING_STYLE_CONFIG_FILES,
   symbolsOfFiles,
   type AdapterSources,
-} from './stackTopologyAdapterKit';
+} from './stackTopologySources';
 
 const JVM_SOURCES = /\.(java|kt)$/i;
 

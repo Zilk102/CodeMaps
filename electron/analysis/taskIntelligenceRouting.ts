@@ -5,10 +5,7 @@ import type {
   TaskContextResult,
   TaskIntentInference,
   TaskRoutePlan,
-} from './TaskIntelligenceService';
-
-export { buildTaskNextSteps } from './taskIntelligenceNextSteps';
-export { findTargetCandidates, shouldUseCampaignContext } from './taskIntelligenceCandidates';
+} from './taskIntelligenceTypes';
 
 type SelectedContext = TaskContextResult['selectedContext'];
 type CampaignContext = Extract<SelectedContext, { kind: 'campaign' }>['context'];

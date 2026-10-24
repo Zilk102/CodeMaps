@@ -10,16 +10,9 @@ import {
   extractRustFunctionNames,
   toRelativeList,
 } from './stackTopologySupport';
-import {
-  configEntryLinks,
-  configFilesNamed,
-  defineFrameworkAdapter,
-  entryLinks,
-  fileEndpoint,
-  filesMatching,
-  handlerLinks,
-  textOf,
-} from './stackTopologyAdapterKit';
+import { configEntryLinks, entryLinks, fileEndpoint, handlerLinks } from './stackTopologyLinks';
+import { configFilesNamed, filesMatching, textOf } from './stackTopologySources';
+import { defineFrameworkAdapter } from './stackTopologyAdapterFactory';
 
 interface RouterAdapterOptions {
   stackId: string;

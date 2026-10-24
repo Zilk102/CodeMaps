@@ -4,7 +4,7 @@ import type {
   TaskContextResult,
   TaskIntentInference,
   TaskRoutePlan,
-} from './TaskIntelligenceService';
+} from './taskIntelligenceTypes';
 
 type SelectedContext = TaskContextResult['selectedContext'];
 type CampaignContext = Extract<SelectedContext, { kind: 'campaign' }>['context'];

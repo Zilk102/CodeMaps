@@ -20,12 +20,10 @@ import {
 import { createGraphSummary } from './AgentContextUtils';
 import { buildQualityArtifacts } from './contextSupport';
 import { AnalysisSnapshotService } from './AnalysisSnapshotService';
-import {
-  buildReviewAutopilotPlan,
-  buildReviewNextSteps,
-  buildReviewPriorities,
-  hasRefreshPressure,
-} from './reviewContextPolicies';
+import { buildReviewAutopilotPlan } from './reviewAutopilotPlan';
+import { buildReviewNextSteps } from './reviewNextSteps';
+import { buildReviewPriorities } from './reviewPriorityPolicies';
+import { hasRefreshPressure } from './reviewPriorityShared';
 import {
   buildReviewSecurityView,
   normalizeReviewTaskMode,

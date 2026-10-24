@@ -5,7 +5,7 @@ import {
   type StackRelationshipType,
   type StackStructuralRelationship,
 } from './stackTopologySupport';
-import type { AdapterSources } from './stackTopologyAdapterKit';
+import { AdapterSources } from './stackTopologySources';
 
 interface ContractBindingSpec {
   /** The contract files (specs, schemas) whose names are looked up. */
