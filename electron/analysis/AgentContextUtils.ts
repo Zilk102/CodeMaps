@@ -111,25 +111,27 @@ export const promoteCodeTarget = (matches: GraphNode[], normalizedQuery: string)
     return null;
   }
 
-  const preferred = matches.find((candidate) => {
-    if (!NORMALIZED_CODE_NODE_TYPES.includes(candidate.type)) {
-      return false;
-    }
-
-    const structuralId = toStructuralNodeId(candidate.id.toLowerCase());
-    const basename = structuralId.split('/').pop() || structuralId;
-    const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
-    const normalizedLabel = candidate.label.toLowerCase();
-
-    return (
-      basenameWithoutExtension === normalizedQuery ||
-      basename === normalizedQuery ||
-      normalizedLabel === normalizedQuery ||
-      normalizedLabel.startsWith(normalizedQuery)
-    );
-  });
+  const preferred = matches.find(
+    (candidate) =>
+      NORMALIZED_CODE_NODE_TYPES.includes(candidate.type) &&
+      matchesCodeTargetQuery(candidate, normalizedQuery)
+  );
 
   return preferred || null;
+};
+
+const matchesCodeTargetQuery = (candidate: GraphNode, normalizedQuery: string) => {
+  const structuralId = toStructuralNodeId(candidate.id.toLowerCase());
+  const basename = structuralId.split('/').pop() || structuralId;
+  const basenameWithoutExtension = basename.replace(/\.[^.]+$/u, '');
+  const normalizedLabel = candidate.label.toLowerCase();
+
+  return (
+    basenameWithoutExtension === normalizedQuery ||
+    basename === normalizedQuery ||
+    normalizedLabel === normalizedQuery ||
+    normalizedLabel.startsWith(normalizedQuery)
+  );
 };
 
 export const createGraphSummary = (graph: GraphData) => {

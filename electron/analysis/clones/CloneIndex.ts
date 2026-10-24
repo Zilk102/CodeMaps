@@ -65,16 +65,7 @@ export class CloneIndex {
   }
 
   private async compute(key: string, files: string[]): Promise<CloneGroup[]> {
-    const limit = pLimit(STAT_CONCURRENCY);
-    const stats = await Promise.all(
-      files.map((file) =>
-        limit(async () => {
-          const stat = await fs.stat(file).catch(() => null);
-          return stat ? { file, mtimeMs: stat.mtimeMs, size: stat.size } : null;
-        })
-      )
-    );
-    const present = stats.filter((entry): entry is NonNullable<typeof entry> => !!entry);
+    const present = await statFiles(files);
     const signature = present
       .map((entry) => `${entry.file}:${entry.mtimeMs}:${entry.size}`)
       .join('|');
@@ -82,6 +73,15 @@ export class CloneIndex {
     const previous = this.results.get(key);
     if (previous?.signature === signature) return previous.groups;
 
+    const streams = await this.loadStreams(present);
+    await yieldToEventLoop();
+    const groups = detectClones(streams);
+    this.results.set(key, { signature, groups });
+    return groups;
+  }
+
+  /** Token streams of the files, re-tokenizing only those that changed since the last run. */
+  private async loadStreams(present: FileStat[]): Promise<TokenStream[]> {
     const streams: TokenStream[] = [];
     let processed = 0;
     for (const entry of present) {
@@ -95,12 +95,27 @@ export class CloneIndex {
       }
       if (cached.stream) streams.push(cached.stream);
     }
-
-    await yieldToEventLoop();
-    const groups = detectClones(streams);
-    this.results.set(key, { signature, groups });
-    return groups;
+    return streams;
   }
 }
+
+interface FileStat {
+  file: string;
+  mtimeMs: number;
+  size: number;
+}
+
+const statFiles = async (files: string[]): Promise<FileStat[]> => {
+  const limit = pLimit(STAT_CONCURRENCY);
+  const stats = await Promise.all(
+    files.map((file) =>
+      limit(async () => {
+        const stat = await fs.stat(file).catch(() => null);
+        return stat ? { file, mtimeMs: stat.mtimeMs, size: stat.size } : null;
+      })
+    )
+  );
+  return stats.filter((entry): entry is FileStat => !!entry);
+};
 
 export const cloneIndex = new CloneIndex();

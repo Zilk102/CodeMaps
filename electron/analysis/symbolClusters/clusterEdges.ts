@@ -13,6 +13,18 @@ export const addEdge = (graph: WeightedGraph, a: number, b: number, weight: numb
   graph[b].set(a, (graph[b].get(a) ?? 0) + weight);
 };
 
+const groupMembersByFeature = (members: number[], featuresOf: string[][]) => {
+  const membersByFeature = new Map<string, number[]>();
+  for (const index of members) {
+    for (const feature of new Set(featuresOf[index])) {
+      const bucket = membersByFeature.get(feature);
+      if (bucket) bucket.push(index);
+      else membersByFeature.set(feature, [index]);
+    }
+  }
+  return membersByFeature;
+};
+
 /**
  * Symbols that share a rare feature (a topic word of their names, a field or type they use)
  * attract each other, the stronger the rarer the feature.
@@ -24,14 +36,7 @@ const addSharedFeatureEdges = (
   maxShareRatio: number,
   baseWeight: number
 ) => {
-  const membersByFeature = new Map<string, number[]>();
-  for (const index of members) {
-    for (const feature of new Set(featuresOf[index])) {
-      const bucket = membersByFeature.get(feature);
-      if (bucket) bucket.push(index);
-      else membersByFeature.set(feature, [index]);
-    }
-  }
+  const membersByFeature = groupMembersByFeature(members, featuresOf);
   const maxShare = Math.min(
     MAX_TOKEN_GROUP,
     Math.max(3, Math.floor(members.length * maxShareRatio))
@@ -130,27 +135,41 @@ export const buildAffinity = (
   references: Array<Set<number>>,
   roles: ReturnType<typeof classifyRoles>
 ) => {
-  const { hubs, orchestrators, active } = roles;
+  const { active } = roles;
   const weighted = emptyGraph(symbols.length);
   const referenceWeighted = emptyGraph(symbols.length);
-  for (const from of active) {
-    for (const to of references[from]) {
-      if (hubs.has(to) || orchestrators.has(to)) continue;
-      const weight = references[to].has(from) ? 1.5 : 1;
-      addEdge(weighted, from, to, weight);
-      addEdge(referenceWeighted, from, to, weight);
-    }
-  }
+  addCallEdges(references, roles, [weighted, referenceWeighted]);
 
   const tokensOf = symbols.map((symbol) => tokenize(symbol.name));
+  const documentFrequency = countDocumentFrequency(active, tokensOf);
+  addTokenEdges(weighted, active, tokensOf, 0.25);
+  const usesOf = symbols.map((symbol) => symbol.uses ?? []);
+  addDataEdges(weighted, active, usesOf);
+  return { weighted, referenceWeighted, tokensOf, usesOf, documentFrequency };
+};
+
+/** Mutual calls pull harder than one-way calls; hubs and orchestrators do not attract. */
+const addCallEdges = (
+  references: Array<Set<number>>,
+  roles: ReturnType<typeof classifyRoles>,
+  targets: WeightedGraph[]
+) => {
+  const { hubs, orchestrators, active } = roles;
+  for (const from of active) {
+    const callees = [...references[from]].filter((to) => !hubs.has(to) && !orchestrators.has(to));
+    for (const to of callees) {
+      const weight = references[to].has(from) ? 1.5 : 1;
+      for (const graph of targets) addEdge(graph, from, to, weight);
+    }
+  }
+};
+
+const countDocumentFrequency = (active: number[], tokensOf: string[][]) => {
   const documentFrequency = new Map<string, number>();
   for (const index of active) {
     for (const token of new Set(tokensOf[index])) {
       documentFrequency.set(token, (documentFrequency.get(token) ?? 0) + 1);
     }
   }
-  addTokenEdges(weighted, active, tokensOf, 0.25);
-  const usesOf = symbols.map((symbol) => symbol.uses ?? []);
-  addDataEdges(weighted, active, usesOf);
-  return { weighted, referenceWeighted, tokensOf, usesOf, documentFrequency };
+  return documentFrequency;
 };

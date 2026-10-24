@@ -56,14 +56,18 @@ const areaOf = (relativePath: string) => {
 };
 
 /** Distance of every dependent file from the changed node, following reverse links. */
-const computeDepths = (result: BlastRadiusResult) => {
+const groupDependentsByTarget = (result: BlastRadiusResult) => {
   const dependentsOf = new Map<string, string[]>();
   for (const link of result.affectedLinks) {
     const bucket = dependentsOf.get(link.target) ?? [];
     bucket.push(link.source);
     dependentsOf.set(link.target, bucket);
   }
+  return dependentsOf;
+};
 
+const computeDepths = (result: BlastRadiusResult) => {
+  const dependentsOf = groupDependentsByTarget(result);
   const seeds = result.seedNodeIds ?? [result.rootNodeId];
   const depths = new Map<string, number>(seeds.map((id) => [id, 0]));
   const queue = [...seeds];

@@ -114,6 +114,18 @@ interface ReviewAssemblyContext {
   quality: ReturnType<typeof buildQualityArtifacts>;
 }
 
+const buildArchitectureView = (
+  architecture: ArchitectureOverview,
+  limit: number,
+  includeClassifications?: boolean
+): ReviewContextResult['architecture'] => ({
+  summary: architecture.summary,
+  layers: architecture.layers,
+  dependencies: architecture.dependencies.slice(0, limit),
+  violations: architecture.violations.slice(0, limit),
+  classifications: includeClassifications ? architecture.classifications : undefined,
+});
+
 export class ReviewContextService {
   constructor(
     private readonly analysisSnapshotService: AnalysisSnapshotService = new AnalysisSnapshotService(),
@@ -179,13 +191,7 @@ export class ReviewContextService {
       graphSummary: createGraphSummary(graph),
       taskMode: ctx.taskMode,
       health,
-      architecture: {
-        summary: architecture.summary,
-        layers: architecture.layers,
-        dependencies: architecture.dependencies.slice(0, limit),
-        violations: architecture.violations.slice(0, limit),
-        classifications: input.includeClassifications ? architecture.classifications : undefined,
-      },
+      architecture: buildArchitectureView(architecture, limit, input.includeClassifications),
       patterns,
       security: buildReviewSecurityView(ctx.securityFindings),
       focus,

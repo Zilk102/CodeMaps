@@ -19,48 +19,35 @@ const POSSIBLE_EXTS = [
   '/index.cjs',
 ];
 
+/** The containing directory of a path, or undefined at (or above) the project root. */
+const parentDirectoryWithin = (baseDir: string, normalizedId: string): string | undefined => {
+  const parentDir = normalizedId.substring(0, normalizedId.lastIndexOf('/'));
+  const hasParent = parentDir.startsWith(baseDir) && parentDir !== baseDir;
+  return hasParent ? parentDir : undefined;
+};
+
+const normalizedParentOf = (
+  baseDir: string,
+  node: GraphNode,
+  normalizedId: string,
+  normalizedParentId: string | undefined
+): string | undefined => {
+  if (node.type === 'directory' && normalizedParentId) return normalizedParentId;
+  if (node.type === 'directory' || node.type === 'file' || node.type === 'adr') {
+    return parentDirectoryWithin(baseDir, normalizedId);
+  }
+  if (normalizedId.includes('#')) return normalizedId.split('#')[0];
+  return normalizedParentId;
+};
+
 export const normalizeCachedNodes = (baseDir: string, nodes: GraphNode[]) =>
   nodes.map((node) => {
     const normalizedId = node.id.replace(/\\/g, '/');
     const normalizedParentId = node.parentId?.replace(/\\/g, '/');
-
-    if (node.type === 'directory') {
-      if (normalizedParentId) {
-        return { ...node, id: normalizedId, parentId: normalizedParentId };
-      }
-
-      const parentDir = normalizedId.substring(0, normalizedId.lastIndexOf('/'));
-      const hasParent = parentDir.startsWith(baseDir) && parentDir !== baseDir;
-      return {
-        ...node,
-        id: normalizedId,
-        parentId: hasParent ? parentDir : undefined,
-      };
-    }
-
-    if (node.type === 'file' || node.type === 'adr') {
-      const parentDir = normalizedId.substring(0, normalizedId.lastIndexOf('/'));
-      const hasParent = parentDir.startsWith(baseDir) && parentDir !== baseDir;
-      return {
-        ...node,
-        id: normalizedId,
-        parentId: hasParent ? parentDir : undefined,
-      };
-    }
-
-    if (normalizedId.includes('#')) {
-      const fileId = normalizedId.split('#')[0];
-      return {
-        ...node,
-        id: normalizedId,
-        parentId: fileId,
-      };
-    }
-
     return {
       ...node,
       id: normalizedId,
-      parentId: normalizedParentId,
+      parentId: normalizedParentOf(baseDir, node, normalizedId, normalizedParentId),
     };
   });
 

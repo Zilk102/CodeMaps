@@ -213,48 +213,59 @@ export function buildRefactoringWaves(
   return producedWaves;
 }
 
+const buildBudgetGate = (budget: QualityBudget): QualityGate => {
+  const statusByPolicy: Record<string, QualityGate['status']> = {
+    freeze_growth: 'block',
+    refactor_before_growth: 'warning',
+  };
+  return {
+    id: 'gate-quality-budget',
+    title: 'Quality Budget',
+    status: statusByPolicy[budget.recommendedPolicy] ?? 'pass',
+    rationale: summarizeBudgetForStep(budget),
+  };
+};
+
+const buildExtractionGate = (decompositionGuidance: DecompositionGuidance): QualityGate => {
+  const { highPriorityCount } = decompositionGuidance.summary;
+  let status: QualityGate['status'] = 'pass';
+  if (highPriorityCount >= 3) status = 'block';
+  else if (highPriorityCount > 0) status = 'warning';
+  return {
+    id: 'gate-high-priority-extractions',
+    title: 'High-Priority Extractions',
+    status,
+    rationale: `High-priority extraction candidates: ${highPriorityCount}.`,
+  };
+};
+
+const buildWaveGate = (refactoringWaves: RefactoringWave[]): QualityGate => {
+  const [firstWave] = refactoringWaves;
+  if (!firstWave) {
+    return {
+      id: 'gate-wave-readiness',
+      title: 'Wave Readiness',
+      status: 'pass',
+      rationale: 'No refactoring waves are required right now.',
+    };
+  }
+  return {
+    id: 'gate-wave-readiness',
+    title: 'Wave Readiness',
+    status: firstWave.blockingFileIds.length > 0 ? 'warning' : 'pass',
+    rationale: `Current first wave is "${firstWave.title}" with ${firstWave.targetLabels.length} ranked targets.`,
+  };
+};
+
 export function buildQualityDashboard(
   budget: QualityBudget,
   decompositionGuidance: DecompositionGuidance,
   refactoringWaves: RefactoringWave[]
 ): QualityDashboard {
   const gates: QualityGate[] = [
-    {
-      id: 'gate-quality-budget',
-      title: 'Quality Budget',
-      status:
-        budget.recommendedPolicy === 'freeze_growth'
-          ? 'block'
-          : budget.recommendedPolicy === 'refactor_before_growth'
-            ? 'warning'
-            : 'pass',
-      rationale: summarizeBudgetForStep(budget),
-    },
-    {
-      id: 'gate-high-priority-extractions',
-      title: 'High-Priority Extractions',
-      status:
-        decompositionGuidance.summary.highPriorityCount >= 3
-          ? 'block'
-          : decompositionGuidance.summary.highPriorityCount > 0
-            ? 'warning'
-            : 'pass',
-      rationale: `High-priority extraction candidates: ${decompositionGuidance.summary.highPriorityCount}.`,
-    },
-    {
-      id: 'gate-wave-readiness',
-      title: 'Wave Readiness',
-      status:
-        refactoringWaves.length === 0
-          ? 'pass'
-          : refactoringWaves[0].blockingFileIds.length > 0
-            ? 'warning'
-            : 'pass',
-      rationale:
-        refactoringWaves.length === 0
-          ? 'No refactoring waves are required right now.'
-          : `Current first wave is "${refactoringWaves[0].title}" with ${refactoringWaves[0].targetLabels.length} ranked targets.`,
-    },
+    buildBudgetGate(budget),
+    buildExtractionGate(decompositionGuidance),
+    buildWaveGate(refactoringWaves),
   ];
 
   return {

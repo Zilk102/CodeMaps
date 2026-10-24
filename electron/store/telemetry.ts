@@ -53,14 +53,6 @@ const buildRefreshTrends = (
   const runtimePriorityRate =
     telemetry.enrichment.runtimePriorityRebuilds / totalEnrichmentRefreshes;
   const latencyTrend = computeLatencyTrend(telemetry.enrichment.recentLatencyMs);
-  const rebuildPressure = telemetry.enrichment.rebuiltRefreshes >= 3;
-  const runtimePressure =
-    telemetry.enrichment.runtimePriorityRebuilds >= 2 || runtimePriorityRate >= 0.5;
-  const latencyPressure =
-    latencyTrend === 'degrading' || telemetry.enrichment.avgRefreshLatencyMs >= 50;
-  const directoryRebuildPressure =
-    telemetry.enrichment.directoryTriggeredRebuilds >= 3 &&
-    telemetry.enrichment.avgRefreshLatencyMs >= 20;
 
   return {
     watcher: {
@@ -71,9 +63,22 @@ const buildRefreshTrends = (
       skipRate,
       runtimePriorityRate,
       latencyTrend,
-      degraded: latencyPressure || directoryRebuildPressure || (rebuildPressure && runtimePressure),
+      degraded: isEnrichmentDegraded(telemetry.enrichment, latencyTrend, runtimePriorityRate),
     },
   };
+};
+
+const isEnrichmentDegraded = (
+  enrichment: RefreshTelemetry['enrichment'],
+  latencyTrend: TrendState,
+  runtimePriorityRate: number
+) => {
+  const rebuildPressure = enrichment.rebuiltRefreshes >= 3;
+  const runtimePressure = enrichment.runtimePriorityRebuilds >= 2 || runtimePriorityRate >= 0.5;
+  const latencyPressure = latencyTrend === 'degrading' || enrichment.avgRefreshLatencyMs >= 50;
+  const directoryRebuildPressure =
+    enrichment.directoryTriggeredRebuilds >= 3 && enrichment.avgRefreshLatencyMs >= 20;
+  return latencyPressure || directoryRebuildPressure || (rebuildPressure && runtimePressure);
 };
 
 export const initialRefreshTelemetry: RefreshTelemetry = {

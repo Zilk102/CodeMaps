@@ -30,21 +30,25 @@ export function collectMatchedFiles(
   }
 
   if (fileNodes.size === 0) {
-    for (const node of graph.nodes) {
-      if (node.type !== 'file') {
-        continue;
-      }
-      const matched = candidateQueries.some((query) => scoreCampaignNodeMatch(node, query) > 0);
-      if (matched) {
-        fileNodes.set(node.id, node);
-      }
-      if (fileNodes.size >= maxSeeds) {
-        break;
-      }
-    }
+    matchFilesByQuery(graph, candidateQueries, maxSeeds, fileNodes);
   }
 
   return Array.from(fileNodes.values()).slice(0, maxSeeds);
+}
+
+function matchFilesByQuery(
+  graph: GraphData,
+  candidateQueries: string[],
+  maxSeeds: number,
+  fileNodes: Map<string, GraphNode>
+) {
+  const files = graph.nodes.filter((node) => node.type === 'file');
+  for (const node of files) {
+    if (candidateQueries.some((query) => scoreCampaignNodeMatch(node, query) > 0)) {
+      fileNodes.set(node.id, node);
+    }
+    if (fileNodes.size >= maxSeeds) break;
+  }
 }
 
 export function collectRuntimeCompositionRoots(graph: GraphData, files: GraphNode[]) {
@@ -70,25 +74,14 @@ export function expandAffectedFiles(
 
   while (queue.length > 0 && results.size < maxFiles) {
     const current = queue.shift()!;
-    if (current.depth >= depth) {
-      continue;
-    }
+    if (current.depth >= depth) continue;
 
-    const neighbors = [
-      ...(collapsed.outgoing.get(current.id) || []),
-      ...(collapsed.incoming.get(current.id) || []),
-    ];
-
-    for (const neighbor of neighbors) {
-      if (visited.has(neighbor)) {
-        continue;
-      }
+    for (const neighbor of neighborsOf(collapsed, current.id)) {
+      if (visited.has(neighbor)) continue;
       visited.add(neighbor);
       results.add(neighbor);
       queue.push({ id: neighbor, depth: current.depth + 1 });
-      if (results.size >= maxFiles) {
-        break;
-      }
+      if (results.size >= maxFiles) break;
     }
   }
 
@@ -124,6 +117,13 @@ export function buildChangeCampaignBlastRadius(
     seeds,
     totalAffectedFiles: unique(seeds.flatMap((seed) => seed.affectedFiles)).length,
   };
+}
+
+function neighborsOf(
+  collapsed: ReturnType<typeof buildCollapsedAdjacency>,
+  fileId: string
+): string[] {
+  return [...(collapsed.outgoing.get(fileId) ?? []), ...(collapsed.incoming.get(fileId) ?? [])];
 }
 
 function buildCollapsedFileGraph(graph: GraphData) {

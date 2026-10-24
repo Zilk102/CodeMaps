@@ -60,41 +60,34 @@ export function resolveTarget(
   };
 }
 
+const definedNodes = (nodes: Array<GraphNode | undefined>): GraphNode[] =>
+  nodes.filter((node): node is GraphNode => Boolean(node));
+
 export function getNodeDependencies(graph: GraphData, nodeId: string): ChangeNodeDependencies {
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const outgoingLinks = graph.links.filter((link) => link.source === nodeId);
   const incomingLinks = graph.links.filter((link) => link.target === nodeId);
   const structuralNodeId = toStructuralNodeId(nodeId);
+  const touchesTarget = (link: GraphLink) =>
+    toStructuralNodeId(link.source) === structuralNodeId ||
+    toStructuralNodeId(link.target) === structuralNodeId;
   const runtimeContractLinks = graph.links.filter(
-    (link) =>
-      isDiRuntimeLink(link) &&
-      (toStructuralNodeId(link.source) === structuralNodeId ||
-        toStructuralNodeId(link.target) === structuralNodeId)
+    (link) => isDiRuntimeLink(link) && touchesTarget(link)
   );
   const contractBindingLinks = graph.links.filter(
-    (link) =>
-      isContractSemanticLink(link) &&
-      (toStructuralNodeId(link.source) === structuralNodeId ||
-        toStructuralNodeId(link.target) === structuralNodeId)
+    (link) => isContractSemanticLink(link) && touchesTarget(link)
   );
-  const outgoingNodes = outgoingLinks
-    .map((link) => nodeById.get(link.target))
-    .filter((node): node is GraphNode => Boolean(node));
-  const incomingNodes = incomingLinks
-    .map((link) => nodeById.get(link.source))
-    .filter((node): node is GraphNode => Boolean(node));
-  const runtimeContractNodes = runtimeContractLinks
-    .flatMap((link) => [
-      nodeById.get(toStructuralNodeId(link.source)),
-      nodeById.get(toStructuralNodeId(link.target)),
-    ])
-    .filter((node): node is GraphNode => Boolean(node));
-  const contractBindingNodes = contractBindingLinks
-    .flatMap((link) => [
-      nodeById.get(toStructuralNodeId(link.source)),
-      nodeById.get(toStructuralNodeId(link.target)),
-    ])
-    .filter((node): node is GraphNode => Boolean(node));
+  const outgoingNodes = definedNodes(outgoingLinks.map((link) => nodeById.get(link.target)));
+  const incomingNodes = definedNodes(incomingLinks.map((link) => nodeById.get(link.source)));
+  const structuralEndpoints = (links: GraphLink[]) =>
+    definedNodes(
+      links.flatMap((link) => [
+        nodeById.get(toStructuralNodeId(link.source)),
+        nodeById.get(toStructuralNodeId(link.target)),
+      ])
+    );
+  const runtimeContractNodes = structuralEndpoints(runtimeContractLinks);
+  const contractBindingNodes = structuralEndpoints(contractBindingLinks);
   const relatedAdrNodes = graph.links
     .filter(
       (link) =>

@@ -47,26 +47,18 @@ export const resolveSymbolEndpoint = (
     return relativeFilePath;
   }
 
-  for (const candidate of options.preferredSymbols || []) {
-    if (availableSymbols.includes(candidate)) {
-      return `${relativeFilePath}#${candidate}`;
-    }
-  }
+  const isAvailable = (candidate: string) => availableSymbols.includes(candidate);
+  const inferred = options.text ? inferSymbolsForFile(relativeFilePath, options.text) : [];
+  const chosen =
+    options.preferredSymbols?.find(isAvailable) ??
+    inferred.find(isAvailable) ??
+    onlyElement(availableSymbols);
 
-  if (options.text) {
-    for (const inferredSymbol of inferSymbolsForFile(relativeFilePath, options.text)) {
-      if (availableSymbols.includes(inferredSymbol)) {
-        return `${relativeFilePath}#${inferredSymbol}`;
-      }
-    }
-  }
-
-  if (availableSymbols.length === 1) {
-    return `${relativeFilePath}#${availableSymbols[0]}`;
-  }
-
-  return relativeFilePath;
+  return chosen === undefined ? relativeFilePath : `${relativeFilePath}#${chosen}`;
 };
+
+const onlyElement = (items: string[]): string | undefined =>
+  items.length === 1 ? items[0] : undefined;
 
 export const buildNamedSymbolToFileMap = (
   entries: FileContentEntry[],

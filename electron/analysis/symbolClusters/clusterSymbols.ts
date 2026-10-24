@@ -14,6 +14,23 @@ const MIN_SYMBOLS = 6;
 const MAX_LISTED_SYMBOLS = 15;
 const MAX_SHARED_LISTED = 10;
 
+type Roles = ReturnType<typeof classifyRoles>;
+
+/** The most used shared helpers, the ones every cluster depends on. */
+const listSharedHelpers = (
+  symbols: SymbolGraph['symbols'],
+  roles: Roles
+): SplitPlan['sharedHelpers'] =>
+  [...roles.hubs]
+    .sort((a, b) => roles.referrers[b].size - roles.referrers[a].size)
+    .slice(0, MAX_SHARED_LISTED)
+    .map((hub) => ({
+      name: symbols[hub].name,
+      kind: symbols[hub].kind,
+      usedBy: roles.referrers[hub].size,
+      lines: symbols[hub].lineCount,
+    }));
+
 /**
  * Splits the declarations of one file into the groups that belong together: symbols that call
  * each other or share a topic word end up in the same cluster, and symbols used all over the
@@ -60,15 +77,7 @@ export const planSplit = (
     confidence,
     cohesion,
     coverage: Math.min(1, Math.round((symbolLines / Math.max(1, graph.lineCount)) * 100) / 100),
-    sharedHelpers: [...roles.hubs]
-      .sort((a, b) => roles.referrers[b].size - roles.referrers[a].size)
-      .slice(0, MAX_SHARED_LISTED)
-      .map((hub) => ({
-        name: symbols[hub].name,
-        kind: symbols[hub].kind,
-        usedBy: roles.referrers[hub].size,
-        lines: symbols[hub].lineCount,
-      })),
+    sharedHelpers: listSharedHelpers(symbols, roles),
     heaviest: heaviestSymbols(symbols),
     orchestrators: [...roles.orchestrators].map((index) => symbols[index].name),
     clusters,

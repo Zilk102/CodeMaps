@@ -264,24 +264,8 @@ export function inferTaskIntent(userRequest: string): TaskIntentInference {
     ...reasoning: string[]
   ): TaskIntentInference => ({ taskKind, confidence, reasoning, extractedKeywords });
 
-  if (has(BUGFIX_HINTS)) {
-    const isSecurity = has(SECURITY_HINTS) && !normalized.includes('ломает');
-    return isSecurity
-      ? result(
-          'security',
-          'medium',
-          'Bugfix/incident signals detected.',
-          'Security signals found in the request.'
-        )
-      : result('bugfix', 'high', 'Bugfix/incident signals detected.');
-  }
-
-  const isBroadChange =
-    has(REFACTOR_HINTS) ||
-    has(FEATURE_HINTS) ||
-    normalized.includes('нов') ||
-    normalized.includes('библиотек');
-  if (has(CAMPAIGN_HINTS) && isBroadChange) {
+  if (has(BUGFIX_HINTS)) return inferBugfixIntent(normalized, has, result);
+  if (has(CAMPAIGN_HINTS) && isBroadChange(normalized, has)) {
     return result(
       'refactor',
       'high',
@@ -292,6 +276,37 @@ export function inferTaskIntent(userRequest: string): TaskIntentInference {
   const rule = INTENT_RULES.find((candidate) => has(candidate.hints));
   if (rule) return result(rule.taskKind, rule.confidence, rule.reason);
   return result('explore', 'low', 'No explicit task intent extracted, explore path selected.');
+}
+
+type HintMatcher = (hints: string[]) => boolean;
+type IntentResultFactory = (
+  taskKind: RoutedTaskKind,
+  confidence: TaskIntentInference['confidence'],
+  ...reasoning: string[]
+) => TaskIntentInference;
+
+function inferBugfixIntent(
+  normalized: string,
+  has: HintMatcher,
+  result: IntentResultFactory
+): TaskIntentInference {
+  const isSecurity = has(SECURITY_HINTS) && !normalized.includes('ломает');
+  if (!isSecurity) return result('bugfix', 'high', 'Bugfix/incident signals detected.');
+  return result(
+    'security',
+    'medium',
+    'Bugfix/incident signals detected.',
+    'Security signals found in the request.'
+  );
+}
+
+function isBroadChange(normalized: string, has: HintMatcher): boolean {
+  return (
+    has(REFACTOR_HINTS) ||
+    has(FEATURE_HINTS) ||
+    normalized.includes('нов') ||
+    normalized.includes('библиотек')
+  );
 }
 
 const DI_RUNTIME_TERMS = [
@@ -365,38 +380,25 @@ export function isReviewIntent(taskKind: RoutedTaskKind) {
   );
 }
 
+const CHANGE_TASK_MODES: Partial<Record<RoutedTaskKind, ChangeTaskMode>> = {
+  feature: 'feature',
+  refactor: 'refactor',
+  explore: 'explore',
+};
+
+/** Every kind without its own change mode is handled as a bugfix. */
 export function toChangeTaskMode(taskKind: RoutedTaskKind): ChangeTaskMode {
-  switch (taskKind) {
-    case 'feature':
-      return 'feature';
-    case 'refactor':
-      return 'refactor';
-    case 'explore':
-      return 'explore';
-    case 'bugfix':
-    case 'security':
-    case 'review':
-    case 'architecture':
-    case 'stabilization':
-    default:
-      return 'bugfix';
-  }
+  return CHANGE_TASK_MODES[taskKind] ?? 'bugfix';
 }
 
+const REVIEW_TASK_MODES: Partial<Record<RoutedTaskKind, ReviewTaskMode>> = {
+  architecture: 'architecture',
+  security: 'security',
+  stabilization: 'stabilization',
+  bugfix: 'stabilization',
+};
+
+/** Every kind without its own review mode is handled as a plain review. */
 export function toReviewTaskMode(taskKind: RoutedTaskKind): ReviewTaskMode {
-  switch (taskKind) {
-    case 'architecture':
-      return 'architecture';
-    case 'security':
-      return 'security';
-    case 'stabilization':
-    case 'bugfix':
-      return 'stabilization';
-    case 'review':
-    case 'feature':
-    case 'refactor':
-    case 'explore':
-    default:
-      return 'review';
-  }
+  return REVIEW_TASK_MODES[taskKind] ?? 'review';
 }

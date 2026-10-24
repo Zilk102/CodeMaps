@@ -63,18 +63,14 @@ function isOrphanNode(
     return false;
   }
   const { nodeById, incomingByTarget, outgoingBySource, childrenByParentId } = adjacency;
-  const hasIncoming = (incomingByTarget.get(node.id) || []).length > 0;
-  const hasOutgoing = (outgoingBySource.get(node.id) || []).length > 0;
-  const hasKnownHierarchyParent = hasKnownParent(node, nodeById);
-  const hasHierarchyChildren = (childrenByParentId.get(node.id) || []).length > 0;
+  const hasEntries = (map: Map<string, unknown[]>) => (map.get(node.id)?.length ?? 0) > 0;
+  const isConnected =
+    hasEntries(incomingByTarget) ||
+    hasEntries(outgoingBySource) ||
+    hasKnownParent(node, nodeById) ||
+    hasEntries(childrenByParentId);
   const structuralNode = node.type === 'directory' || node.type === 'project';
-  return (
-    !structuralNode &&
-    !hasIncoming &&
-    !hasOutgoing &&
-    !hasKnownHierarchyParent &&
-    !hasHierarchyChildren
-  );
+  return !structuralNode && !isConnected;
 }
 
 function calculateDirectoryCoverageRatio(

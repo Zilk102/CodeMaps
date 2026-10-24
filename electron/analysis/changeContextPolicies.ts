@@ -25,19 +25,6 @@ export function buildChangeAutopilotPlan(args: {
   securityFindings: SecurityFinding[];
 }): ChangeContextResult['autopilotPlan'] {
   const targetKind = `${args.resolvedTarget.node.type}:${args.resolvedTarget.node.label}`;
-  const preferredNextAction: ChangeContextResult['autopilotPlan']['preferredNextAction'] =
-    args.securityFindings.length > 0
-      ? 'check_security'
-      : args.runtimeContractLinks.length > 0
-        ? 'review_dependencies'
-        : args.contractBindingLinks.length > 0
-          ? 'review_dependencies'
-          : args.blastRadius.affectedNodes.length > 0
-            ? 'review_dependencies'
-            : args.targetClassification.layer === 'shared' ||
-                args.targetClassification.layer === 'domain'
-              ? 'verify_architecture'
-              : 'inspect_code';
 
   return {
     primaryGoal: args.changeIntent || describeChangeModeGoal(args.taskMode),
@@ -45,10 +32,27 @@ export function buildChangeAutopilotPlan(args: {
       args.resolvedTarget.resolutionReason === 'exact_id_match'
         ? `${targetKind} selected because it is an exact match.`
         : `${targetKind} selected due to ${args.resolvedTarget.resolutionReason}.`,
-    preferredNextAction,
+    preferredNextAction: choosePreferredNextAction(args),
     shouldFallbackToLowLevelTools:
       args.resolvedTarget.alternatives.length > 0 && !args.resolvedTarget.exactMatch,
   };
+}
+
+function choosePreferredNextAction(args: {
+  targetClassification: ArchitectureNodeClassification;
+  blastRadius: BlastRadiusResult;
+  runtimeContractLinks: unknown[];
+  contractBindingLinks: unknown[];
+  securityFindings: SecurityFinding[];
+}): ChangeContextResult['autopilotPlan']['preferredNextAction'] {
+  if (args.securityFindings.length > 0) return 'check_security';
+  const hasDependencies =
+    args.runtimeContractLinks.length > 0 ||
+    args.contractBindingLinks.length > 0 ||
+    args.blastRadius.affectedNodes.length > 0;
+  if (hasDependencies) return 'review_dependencies';
+  if (isWideImpactLayer(args.targetClassification.layer)) return 'verify_architecture';
+  return 'inspect_code';
 }
 
 type ChangeRiskArgs = {

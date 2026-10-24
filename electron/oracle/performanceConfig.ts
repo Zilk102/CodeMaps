@@ -48,8 +48,7 @@ export interface OraclePerformanceConfig {
   };
 }
 
-export const getOraclePerformanceConfig = (): OraclePerformanceConfig => {
-  const availableParallelism = getAvailableParallelism();
+const resolveWorkerThreads = (availableParallelism: number) => {
   const defaultWorkerMax = Math.max(
     1,
     Math.min(DEFAULT_MAX_WORKER_THREADS, availableParallelism - 1 || 1)
@@ -64,6 +63,12 @@ export const getOraclePerformanceConfig = (): OraclePerformanceConfig => {
     1,
     workerMax
   );
+  return { workerMin, workerMax };
+};
+
+export const getOraclePerformanceConfig = (): OraclePerformanceConfig => {
+  const availableParallelism = getAvailableParallelism();
+  const { workerMin, workerMax } = resolveWorkerThreads(availableParallelism);
   const parseConcurrency = clampInteger(
     readEnvInteger('CODEMAPS_INDEXER_PARSE_CONCURRENCY') ??
       Math.max(workerMax, workerMax * DEFAULT_MAX_PARSE_QUEUE_MULTIPLIER),

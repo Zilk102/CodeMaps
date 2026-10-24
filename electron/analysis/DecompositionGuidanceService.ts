@@ -112,10 +112,7 @@ function buildClassCandidates(metric: ModuleQualityMetric): DecompositionCandida
       `${item.name}: ${item.lineCount} LOC, ${item.methodCount} methods, ${item.publicMethodCount} public methods.`,
       `${item.name}: long methods ${item.longMethodCount}, complex methods ${item.complexMethodCount}, max complexity ${item.maxMethodComplexity}.`,
     ],
-    lineRange:
-      item.startLine > 0 && item.endLine >= item.startLine
-        ? { startLine: item.startLine, endLine: item.endLine }
-        : undefined,
+    lineRange: lineRangeOf(item),
     metrics: {
       lineCount: item.lineCount,
       methodCount: item.methodCount,
@@ -150,33 +147,41 @@ const collectMethodsByName = (metric: ModuleQualityMetric) => {
   return byName;
 };
 
+const lineRangeOf = (item: { startLine: number; endLine: number }) =>
+  item.startLine > 0 && item.endLine >= item.startLine
+    ? { startLine: item.startLine, endLine: item.endLine }
+    : undefined;
+
+const isComplexMethod = (item: SourceFunctionMetric) =>
+  item.complexity >= 10 || item.maxNesting >= 4;
+
+const isLargeMethod = (item: SourceFunctionMetric) =>
+  item.lineCount >= 100 || item.complexity >= 14 || item.maxNesting >= 5;
+
+const methodScore = (item: SourceFunctionMetric, designSmellScore: number) =>
+  item.lineCount +
+  item.complexity * 10 +
+  item.branchCount * 2 +
+  item.maxNesting * 6 +
+  Math.round(designSmellScore / 2);
+
 function buildMethodCandidates(metric: ModuleQualityMetric): DecompositionCandidate[] {
   return Array.from(collectMethodsByName(metric).values()).map((item) => ({
     fileNodeId: metric.node.id,
     targetNodeId: `${metric.node.id}#${item.name}`,
     targetType: 'method' as const,
     targetLabel: item.name,
-    action: item.complexity >= 10 || item.maxNesting >= 4 ? 'reduce_complexity' : 'extract_method',
-    priority:
-      item.lineCount >= 100 || item.complexity >= 14 || item.maxNesting >= 5 ? 'high' : 'medium',
-    score:
-      item.lineCount +
-      item.complexity * 10 +
-      item.branchCount * 2 +
-      item.maxNesting * 6 +
-      Math.round(metric.designSmellScore / 2),
-    reason:
-      item.complexity >= 10 || item.maxNesting >= 4
-        ? 'Method is too complex to remain a stable unit and should be split into smaller decision blocks.'
-        : 'Method is too long and should be broken into intention-revealing steps.',
+    action: isComplexMethod(item) ? 'reduce_complexity' : 'extract_method',
+    priority: isLargeMethod(item) ? 'high' : 'medium',
+    score: methodScore(item, metric.designSmellScore),
+    reason: isComplexMethod(item)
+      ? 'Method is too complex to remain a stable unit and should be split into smaller decision blocks.'
+      : 'Method is too long and should be broken into intention-revealing steps.',
     evidence: [
       `${item.name}: ${item.lineCount} LOC, complexity ${item.complexity}, branches ${item.branchCount}.`,
       `${item.name}: max nesting ${item.maxNesting}.`,
     ],
-    lineRange:
-      item.startLine > 0 && item.endLine >= item.startLine
-        ? { startLine: item.startLine, endLine: item.endLine }
-        : undefined,
+    lineRange: lineRangeOf(item),
     metrics: {
       lineCount: item.lineCount,
       complexity: item.complexity,
