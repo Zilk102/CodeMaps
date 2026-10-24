@@ -62,18 +62,18 @@ jobs:
         env:
           GUARD_URL: ${download.url}
         run: |
-          curl -fsSL -o codemaps-guard.tgz "$GUARD_URL"
-          curl -fsSL -o codemaps-guard.tgz.sha256 "$GUARD_URL.sha256"
-          expected="$(cut -d' ' -f1 codemaps-guard.tgz.sha256)"
-          actual="$(sha256sum codemaps-guard.tgz | cut -d' ' -f1)"
+          curl -fsSL -o "$RUNNER_TEMP/codemaps-guard.tgz" "$GUARD_URL"
+          curl -fsSL -o "$RUNNER_TEMP/codemaps-guard.tgz.sha256" "$GUARD_URL.sha256"
+          expected="$(cut -d' ' -f1 "$RUNNER_TEMP/codemaps-guard.tgz.sha256")"
+          actual="$(sha256sum "$RUNNER_TEMP/codemaps-guard.tgz" | cut -d' ' -f1)"
           if [ "$expected" != "$actual" ]; then
             echo "::error::codemaps-guard.tgz does not match its sha256 ($expected expected, $actual found)"
             exit 1
           fi
-          tar -xzf codemaps-guard.tgz
+          tar -xzf "$RUNNER_TEMP/codemaps-guard.tgz" -C "$RUNNER_TEMP"
 
       - name: Run the guard
-        run: node guard/guard.mjs check --base origin/\${{ github.base_ref }} --format github
+        run: node "$RUNNER_TEMP/guard/guard.mjs" check --base origin/\${{ github.base_ref }} --format github
 `;
 
 /** The portable script: works in any CI that has sh, curl or wget, tar, node 18+ and git. */

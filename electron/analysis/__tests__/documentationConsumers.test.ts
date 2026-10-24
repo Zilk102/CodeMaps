@@ -13,7 +13,7 @@ const report = reportOf(
 );
 
 describe('validateChanges: missing_documentation', () => {
-  it('lists the undocumented symbols and header-less files among the changed files', () => {
+  it('blocks and lists the undocumented symbols and header-less files among the changed files', () => {
     const result = validateChanges({
       patterns: [],
       changedFiles: ['D:\\p\\src\\new.ts'],
@@ -26,7 +26,7 @@ describe('validateChanges: missing_documentation', () => {
     expect(found?.evidence.map((item) => item.message).join('\n')).toContain('function parse');
     expect(found?.evidence[0].message).toContain('header');
     expect(found?.fix).toContain('purpose');
-    expect(result.isValid).toBe(true);
+    expect(result.isValid).toBe(false);
   });
 
   it('stays silent when the changed files are documented or nothing was measured', () => {

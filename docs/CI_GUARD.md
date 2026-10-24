@@ -17,7 +17,7 @@ The workflow runs on `pull_request` with `contents: read` only. It checks out th
 `https://github.com/Zilk102/CodeMaps/releases/download/v<version>/codemaps-guard-<version>.tgz`, verifies it against the `.sha256` asset next to it, unpacks it and runs
 
 ```bash
-node guard/guard.mjs check --base origin/${{ github.base_ref }} --format github
+node "$RUNNER_TEMP/guard/guard.mjs" check --base origin/${{ github.base_ref }} --format github
 ```
 
 If the CodeMaps version is not a release (a development build), the workflow follows `releases/latest/download/codemaps-guard.tgz` instead. The files carry a `codemaps:file vX.Y.Z` marker: `setup_project` refreshes them when they are older and never touches a file of the same name that you wrote. CodeMaps never edits your own CI files; for GitLab you add one `include:` line, for other CI systems you call `sh .codemaps/ci/guard.sh origin/<target-branch>` from a merge request job.

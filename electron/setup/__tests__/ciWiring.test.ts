@@ -43,7 +43,7 @@ describe('setup_project CI wiring: GitHub Actions', () => {
     expect(workflow).toContain('pull_request:');
     expect(workflow).toMatch(/permissions:\n {2}contents: read/);
     expect(workflow).toContain(
-      'node guard/guard.mjs check --base origin/${{ github.base_ref }} --format github'
+      'node "$RUNNER_TEMP/guard/guard.mjs" check --base origin/${{ github.base_ref }} --format github'
     );
   });
 

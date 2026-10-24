@@ -1,5 +1,14 @@
 # CodeMaps Changelog
 
+## v1.1.61 (2026-10-24)
+
+### Added
+
+- **A standalone `codemaps-guard` gate for the CI of any project.** The same checks as the MCP tools, without the app, Electron, Kuzu or a network: the graph is built in memory, `check` fails only on new or worsened findings (in `ratchet` mode) and when `.codemaps/baseline.json` grew compared with the base branch. Formats `text`, `github` (pull request annotations) and `json`; `--base <ref>` checks only the changed files. It takes about 3 seconds on this repository (610 files).
+- **`setup_project` wires the gate into CI by itself.** For GitHub it writes `.github/workflows/codemaps-guard.yml` (minimal permissions, a pinned release archive and a sha256 check), for GitLab and others `.codemaps/ci/gitlab-ci.yml` and `guard.sh`. The user's own CI files are never touched. The archive `codemaps-guard-<version>.tgz` with its checksum is published with every release, no npm publishing needed. See `docs/CI_GUARD.md`.
+- **Missing documentation and duplicates now block.** New clones and missing documentation in changed files are blocking findings in `validate_architecture_changes` and in the gate (in `ratchet` mode only fresh ones). The hook that `setup_project` gives the agent follows the same rule.
+- Tests: 838 -> 880.
+
 ## v1.1.60 (2026-10-24)
 
 ### Added

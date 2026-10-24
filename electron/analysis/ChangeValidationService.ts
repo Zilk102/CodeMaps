@@ -78,6 +78,8 @@ const SIZE_PATTERNS = new Set([
   'mixed_responsibility_modules',
 ]);
 const ADVISORY_PATTERNS = new Set(['hub_nodes']);
+/** Rules that block even at medium severity: new duplicates and missing docs are exactly what the guardrails exist to stop (in ratchet mode only fresh ones are reported). */
+const ALWAYS_BLOCKING_PATTERNS = new Set(['code_clones', 'missing_documentation']);
 const MAX_PROJECT_FINDINGS = 10;
 const MAX_EVIDENCE = 5;
 
@@ -86,7 +88,8 @@ const MAX_EVIDENCE = 5;
  * hubs. Exported so other front ends (the headless CI guard) decide exactly like the MCP tool.
  */
 export const isBlockingFinding = (finding: Pick<ChangeFinding, 'id' | 'severity'>): boolean =>
-  finding.severity === 'high' && !ADVISORY_PATTERNS.has(finding.id);
+  (finding.severity === 'high' || ALWAYS_BLOCKING_PATTERNS.has(finding.id)) &&
+  !ADVISORY_PATTERNS.has(finding.id);
 
 /** Whether a finding is only information (a hub): nothing an edit to the file could fix. */
 export const isAdvisoryFinding = (finding: Pick<ChangeFinding, 'id'>): boolean =>

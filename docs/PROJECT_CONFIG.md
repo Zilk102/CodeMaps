@@ -111,3 +111,7 @@ A greenfield project that wants every finding to count:
 ```
 
 A legacy project: keep `"mode": "ratchet"`, create the baseline, commit both files, and let agents call `validate_architecture_changes` as usual.
+
+## What blocks
+
+New or worsened long, complex or deep functions, god files and classes, oversized and mixed-responsibility modules, layer violations, code clones and missing documentation all fail `validate_architecture_changes` and `codemaps-guard check`. Hubs are information only. In `ratchet` mode only fresh or worsened findings count; `strict` mode counts everything.
