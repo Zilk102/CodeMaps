@@ -13,7 +13,7 @@ import { normalizePath } from '../oracle/shared';
 import { parseFile } from '../parsing/parseFile';
 import type { ParseWorkerInput } from '../parsing/types';
 import { ImportResolutionService } from '../resolution/ImportResolutionService';
-import { oracleStore, type GraphData } from '../store';
+import { oracleStore, runWithIsolatedStore, type GraphData } from '../store';
 
 /**
  * Stand-in for the worker pool: `ProjectIndexer` only ever calls `run`, so parsing in-process is
@@ -29,11 +29,16 @@ export interface HeadlessGraph {
 }
 
 /**
- * Indexes the project at `root` into the shared in-memory store and returns its graph. The store
- * is reset first, so one process can analyze several projects one after another. Throws when the
- * folder holds no indexable files. Nothing is written to disk and git history (churn) is not read.
+ * Indexes the project at `root` into a private in-memory store and returns its graph, so it is safe
+ * inside the desktop app: the open project, its graph, caches, watcher and recent projects are
+ * never touched. Throws when the folder holds no indexable files. Nothing is written to disk and
+ * git history (churn) is not read.
  */
-export const buildHeadlessGraph = async (root: string): Promise<HeadlessGraph> => {
+export const buildHeadlessGraph = (root: string): Promise<HeadlessGraph> =>
+  runWithIsolatedStore(() => indexIntoActiveStore(root));
+
+/** Runs the indexer, import resolution and stack enrichment against whichever store is active (the private one when called through `buildHeadlessGraph`). */
+const indexIntoActiveStore = async (root: string): Promise<HeadlessGraph> => {
   const baseDir = normalizePath(path.resolve(root));
   const store = oracleStore.getState();
   store.clear();

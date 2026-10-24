@@ -11,6 +11,8 @@ You connect CodeMaps to your agent over MCP and do nothing else. The server hand
 5. **Wires CI**: a GitHub Actions workflow or portable scripts that run the headless guard on pull requests (see [CI wiring](#ci-wiring)).
 6. **Reports** `written`, `updated`, `unchanged` and `skipped` files (with reasons), `warnings`, `nextSteps`, the baseline summary and the CI wiring.
 
+`setup_project` never changes the project open in the CodeMaps window: for any other project it builds the baseline graph in memory with the headless indexer of the CI guard (no cache, watcher or recent-projects change).
+
 Calling it again is cheap and changes nothing (`upToDate: true`). Concurrent calls for one project are queued. It takes `projectPath` (default: the open project), `agents` (explicit list instead of detection), `apply: false` (dry run: returns `wouldWrite` and writes nothing) and `force` (rewrite CodeMaps-owned sections even when their version is current).
 
 ## Files written

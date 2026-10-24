@@ -1,6 +1,7 @@
 /** The in-memory graph store (nodes, links, churn, refresh telemetry, recent projects) shared by the indexer, the watcher and the MCP tools. */
 
-import { createStore } from 'zustand/vanilla';
+import { AsyncLocalStorage } from 'async_hooks';
+import { createStore, type StoreApi } from 'zustand/vanilla';
 import { buildValidGraphSnapshot, normalizeCachedNodes } from './store/graphSnapshot';
 import {
   loadRecentProjects,
@@ -25,21 +26,20 @@ const emptyDiff = (): GraphDiff => ({
   linksRemoved: [],
 });
 
-/**
- * Vanilla zustand store holding the live graph. Mutations bump revision counters (used to invalidate cached snapshots) and record a pending diff
- * that `getAndResetDiff` hands to subscribers; the recent-projects list is persisted to disk on every change.
- */
-export const oracleStore = createStore<OracleState>()((set, get) => ({
-  baseDir: '',
-  nodes: new Map(),
-  links: [],
-  churnMap: new Map(),
-  nodeRevision: 0,
-  linkRevision: 0,
-  telemetryRevision: 0,
-  pendingDiff: { nodesAdded: [], nodesRemoved: [], linksAdded: [], linksRemoved: [] },
-  recentProjects: loadRecentProjects(),
-  refreshTelemetry: initialRefreshTelemetry,
+type Setter = StoreApi<OracleState>['setState'];
+type Getter = StoreApi<OracleState>['getState'];
+
+/** Actions that set the base directory and record refresh telemetry. */
+const telemetryActions = (
+  set: Setter
+): Pick<
+  OracleState,
+  | 'setBaseDir'
+  | 'setChurnMap'
+  | 'resetRefreshTelemetry'
+  | 'recordWatcherFlush'
+  | 'recordEnrichmentRefresh'
+> => ({
   setBaseDir: (dir) => set({ baseDir: dir }),
   setChurnMap: (map) => set({ churnMap: map }),
   resetRefreshTelemetry: () =>
@@ -67,6 +67,12 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
         telemetryRevision: state.telemetryRevision + 1,
       };
     }),
+});
+
+/** Actions that add, replace and remove graph nodes, queueing the change in the pending diff. */
+const nodeActions = (
+  set: Setter
+): Pick<OracleState, 'upsertNode' | 'removeNode' | 'removeNodesPrefix'> => ({
   upsertNode: (node) =>
     set((state) => {
       const newNodes = new Map(state.nodes);
@@ -112,6 +118,12 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
         },
       };
     }),
+});
+
+/** Actions that add, replace and remove graph links, queueing the change in the pending diff. */
+const linkActions = (
+  set: Setter
+): Pick<OracleState, 'addLink' | 'removeLinksBySource' | 'removeLinksBySourceOrTarget'> => ({
   addLink: (link) =>
     set((state) => ({
       links: [...state.links, link],
@@ -145,6 +157,12 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
         },
       };
     }),
+});
+
+/** Actions that remove links by type and swap a group of links for a new one. */
+const linkBulkActions = (
+  set: Setter
+): Pick<OracleState, 'removeLinksByTypes' | 'replaceLinks'> => ({
   removeLinksByTypes: (types) =>
     set((state) => {
       const typeSet = new Set(types);
@@ -171,6 +189,16 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
         },
       };
     }),
+});
+
+/** Actions that restore, clear and snapshot the graph and drain the pending diff. */
+const lifecycleActions = (
+  set: Setter,
+  get: Getter
+): Pick<
+  OracleState,
+  'restoreCache' | 'clear' | 'getValidGraph' | 'resetDiff' | 'getAndResetDiff'
+> => ({
   restoreCache: (nodes, links) =>
     set((state) => {
       const baseDir = state.baseDir.replace(/\\/g, '/');
@@ -202,6 +230,15 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     set({ pendingDiff: emptyDiff() });
     return diff;
   },
+});
+
+/** Actions that keep the persisted recent-projects list. */
+const recentProjectActions = (
+  set: Setter
+): Pick<
+  OracleState,
+  'addRecentProject' | 'updateRecentProjectTelemetry' | 'clearRecentProjects'
+> => ({
   addRecentProject: (projectPath, projectName, refreshTelemetry) => {
     set((state) => {
       const normalizedPath = normalizeProjectPath(projectPath);
@@ -254,4 +291,50 @@ export const oracleStore = createStore<OracleState>()((set, get) => ({
     saveRecentProjects([]);
     set({ recentProjects: [] });
   },
-}));
+});
+
+/** Builds a store holding a live graph; `recentProjects` seeds the (disk-persisted) recent list. */
+const createOracleStore = (recentProjects: OracleState['recentProjects']) =>
+  createStore<OracleState>()((set, get) => ({
+    baseDir: '',
+    nodes: new Map(),
+    links: [],
+    churnMap: new Map(),
+    nodeRevision: 0,
+    linkRevision: 0,
+    telemetryRevision: 0,
+    pendingDiff: { nodesAdded: [], nodesRemoved: [], linksAdded: [], linksRemoved: [] },
+    recentProjects,
+    refreshTelemetry: initialRefreshTelemetry,
+    ...telemetryActions(set),
+    ...nodeActions(set),
+    ...linkActions(set),
+    ...linkBulkActions(set),
+    ...lifecycleActions(set, get),
+    ...recentProjectActions(set),
+  }));
+
+const appStore = createOracleStore(loadRecentProjects());
+const scopedStore = new AsyncLocalStorage<StoreApi<OracleState>>();
+
+/**
+ * Runs `fn` against a fresh, empty graph store that is private to it and everything it awaits:
+ * the app's own store, its recent-projects file and its watcher are never touched. Used to analyze
+ * a project in memory without opening it in the app.
+ */
+export const runWithIsolatedStore = <T>(fn: () => Promise<T>): Promise<T> =>
+  scopedStore.run(createOracleStore([]), fn);
+
+const activeStore = () => scopedStore.getStore() ?? appStore;
+
+/**
+ * The live graph store (a vanilla zustand store). Mutations bump revision counters (used to invalidate cached snapshots) and record a pending diff
+ * that `getAndResetDiff` hands to subscribers; the recent-projects list is persisted to disk on every change. Inside `runWithIsolatedStore` it resolves to the isolated store instead.
+ */
+export const oracleStore: StoreApi<OracleState> = {
+  getState: () => activeStore().getState(),
+  getInitialState: () => activeStore().getInitialState(),
+  setState: ((...args: Parameters<StoreApi<OracleState>['setState']>) =>
+    activeStore().setState(...args)) as StoreApi<OracleState>['setState'],
+  subscribe: (listener) => activeStore().subscribe(listener),
+};

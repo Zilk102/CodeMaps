@@ -10,7 +10,8 @@ import { AGENT_IDS } from '../setup/types';
 import { setupProject } from '../setup/setupProject';
 import { resolveAppVersion } from './appVersion';
 import { defineTool } from './defineTool';
-import { ensureGraphLoaded, resolveProjectRoot } from './projectLoader';
+import { resolveProjectRoot } from './projectLoader';
+import { graphForSetup } from './setupGraph';
 import { optionalBoolean, projectPathField } from './toolSchemas';
 import { okStatusToolResult } from './toolSupport';
 
@@ -47,7 +48,7 @@ export function registerSetupTools(server: McpServer) {
           apply,
           force,
         },
-        { createBaseline: async (root) => createProjectBaseline(await ensureGraphLoaded(root)) }
+        { createBaseline: async (root) => createProjectBaseline(await graphForSetup(root)) }
       );
       return okStatusToolResult(result);
     }
