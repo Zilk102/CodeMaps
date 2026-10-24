@@ -38,21 +38,36 @@ export const selectPositions = (hashes: Int32Array, window: number): number[] =>
   return selected;
 };
 
-/** Tokens as integers, so hashing and comparing them is cheap. */
+/** FNV-1a of the token text, never 0. */
+const tokenHash = (token: string): number => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < token.length; index += 1) {
+    hash = Math.imul(hash ^ token.charCodeAt(index), 0x01000193);
+  }
+  return hash === 0 ? 1 : hash | 0;
+};
+
+/**
+ * Tokens as integers, so hashing and comparing them is cheap. A token's number comes from its
+ * text, not from the order it was first met in: winnowing keeps the smallest n-gram hashes, so
+ * numbers that depended on which other files were read would change which n-grams are kept and
+ * with them which clones are found.
+ */
 export const internStreams = (streams: TokenStream[]) => {
   const vocabulary = new Map<string, number>();
-  const ids = streams.map((stream) => {
-    const array = new Int32Array(stream.tokens.length);
-    stream.tokens.forEach((token, index) => {
-      let id = vocabulary.get(token);
-      if (id === undefined) {
-        id = vocabulary.size + 1;
-        vocabulary.set(token, id);
-      }
-      array[index] = id;
-    });
-    return array;
-  });
+  const owners = new Map<number, string>();
+  const idOf = (token: string): number => {
+    let id = vocabulary.get(token);
+    if (id === undefined) {
+      id = tokenHash(token);
+      // Two different tokens must never share a number: step to the next free one.
+      while (owners.has(id)) id = (id + 1) | 0 || 1;
+      owners.set(id, token);
+      vocabulary.set(token, id);
+    }
+    return id;
+  };
+  const ids = streams.map((stream) => Int32Array.from(stream.tokens, idOf));
   return { ids, vocabulary };
 };
 

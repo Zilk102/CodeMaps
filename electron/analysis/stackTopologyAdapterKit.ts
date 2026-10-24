@@ -8,6 +8,7 @@ import {
   getContentByRelativePath,
   inferClassSymbolsForFile,
   resolveSymbolEndpoint,
+  toRelativeList,
   type FileContentEntry,
   type GraphSymbolIndex,
   type StackAdapter,
@@ -159,6 +160,14 @@ export const referenceLinks = (
     reason
   );
 
+/** Files that use the symbols of the model files (views, controllers) link to them as files. */
+export const modelUseLinks = (
+  sources: AdapterSources,
+  userFiles: string[],
+  modelFiles: string[],
+  reason: string
+) => referenceLinks(sources, userFiles, symbolsOfFiles(sources, modelFiles), reason, 'file');
+
 /**
  * A file names symbols (routes, views, methods); each name the file extracts links to the symbol
  * in the file `locate` finds for it, and is skipped when there is none.
@@ -265,6 +274,38 @@ export interface AdapterFindings {
   /** The structure found (evidence is added by the adapter). */
   details: InsightDetails;
 }
+
+interface ConfiguredFindings {
+  summary: string;
+  entryFiles: string[];
+  /** Config files that are each linked to every entry file with the `configReason`. */
+  configFiles: string[];
+  configReason: string;
+  /** Files listed as configuration besides the linked `configFiles`. */
+  otherConfigFiles?: string[];
+  /** The rest of the structure found; the config links are appended to its relationships. */
+  details: InsightDetails;
+}
+
+/** Findings of a framework whose configuration files point at its entry files. */
+export const configuredFindings = (
+  sources: AdapterSources,
+  found: ConfiguredFindings
+): AdapterFindings => ({
+  summary: found.summary,
+  details: {
+    ...found.details,
+    entryFiles: found.entryFiles,
+    configFiles: toRelativeList(sources.context, [
+      ...found.configFiles,
+      ...(found.otherConfigFiles ?? []),
+    ]),
+    relationships: [
+      ...(found.details.relationships ?? []),
+      ...configEntryLinks(sources, found.configFiles, found.entryFiles, found.configReason),
+    ],
+  },
+});
 
 interface AdapterSpec {
   id: string;

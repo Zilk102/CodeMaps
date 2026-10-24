@@ -116,9 +116,9 @@ interface ReviewAssemblyContext {
 
 export class ReviewContextService {
   constructor(
-    private readonly analysisSnapshotService = new AnalysisSnapshotService(),
-    private readonly decompositionGuidanceService = new DecompositionGuidanceService(),
-    private readonly qualityGovernanceService = new QualityGovernanceService()
+    private readonly analysisSnapshotService: AnalysisSnapshotService = new AnalysisSnapshotService(),
+    private readonly decompositionGuidanceService: DecompositionGuidanceService = new DecompositionGuidanceService(),
+    private readonly qualityGovernanceService: QualityGovernanceService = new QualityGovernanceService()
   ) {}
 
   async prepareReviewContext(
@@ -126,15 +126,16 @@ export class ReviewContextService {
     input: PrepareReviewContextInput
   ): Promise<ReviewContextResult> {
     const taskMode = normalizeReviewTaskMode(input.taskMode);
-    const { architecture, health, patterns, security } = await this.analysisSnapshotService.analyze(
+    const {
+      architecture,
+      health: resolvedHealth,
+      patterns,
+      security,
+    } = await this.analysisSnapshotService.analyzeWithHealth(
       graph,
-      {
-        includeHealth: true,
-        includeSecurityFindings: input.includeSecurityFindings,
-        patternLimit: input.limit || MAX_REVIEW_PATTERNS,
-      }
+      input.includeSecurityFindings,
+      input.limit || MAX_REVIEW_PATTERNS
     );
-    const resolvedHealth = health!;
     const focus = prepareReviewFocusContext(
       graph,
       architecture,

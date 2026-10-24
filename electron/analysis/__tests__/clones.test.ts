@@ -85,6 +85,79 @@ describe('detectClones', () => {
     expect(groups[0].lineCount).toBeGreaterThanOrEqual(10);
   });
 
+  it('finds the same clones whatever other files exist and in whatever order they come', async () => {
+    const handler = (variable: string) => goHandler(variable, 'State', 'closed');
+    const half = handler('Part').split('\n').slice(0, 6).join('\n');
+    const full = [
+      write('set/a.go', `package s\n${handler('User')}`),
+      write('set/b.go', `package s\n${handler('Order')}`),
+    ];
+    // Shares only the first half of the handler with both copies: it must neither hide the two
+    // full copies from each other nor change what is reported about them.
+    const partial = write('set/0partial.go', `package s\nfunc p() {\n${half}\n}\n}`);
+    const read = async (files: string[]) =>
+      (await Promise.all(files.map((file) => tokenizeFile(file)))).filter(
+        (stream) => stream !== null
+      );
+    const summary = (groups: ReturnType<typeof detectClones>) =>
+      groups.map((group) => [
+        group.lineCount,
+        group.instances.map((instance) => path.basename(instance.file)),
+      ]);
+
+    const alone = summary(detectClones(await read(full)));
+    expect(alone).toHaveLength(1);
+    for (const order of [
+      [partial, ...full],
+      [...full, partial],
+      [full[1], partial, full[0]],
+    ]) {
+      const groups = detectClones(await read(order));
+      const pair = groups.find((group) =>
+        ['a.go', 'b.go'].every((name) =>
+          group.instances.some((instance) => path.basename(instance.file) === name)
+        )
+      );
+      expect(pair, order.map((file) => path.basename(file)).join()).toBeDefined();
+    }
+    const shuffled = summary(detectClones(await read([full[1], full[0]])));
+    expect(shuffled).toEqual(alone);
+  });
+
+  it('reports the same groups for any order of many similar copies', async () => {
+    // Five copies, each edited at a different line: pairs of copies share different stretches.
+    const lines = goHandler('User', 'State', 'closed').split('\n');
+    const files = [0, 2, 4, 6, 8].map((edited, index) => {
+      const copy = lines.map((line, at) => (at === edited ? `${line} // x${index}` : line));
+      const body = copy.map((line) => line.replace(/\/\/ x\d/, `+ ${index}`)).join('\n');
+      return write(`many/f${index}.go`, `package m\n${body}\nfunc z${index}() {}`);
+    });
+    const read = async (order: string[]) =>
+      (await Promise.all(order.map((file) => tokenizeFile(file)))).filter(
+        (stream) => stream !== null
+      );
+    const describeGroups = (groups: ReturnType<typeof detectClones>) =>
+      JSON.stringify(
+        groups.map((group) => [
+          group.tokenCount,
+          group.instances.map((i) => [path.basename(i.file), i.startLine, i.endLine]),
+        ])
+      );
+    const expected = describeGroups(detectClones(await read(files)));
+    // Unrelated code with its own vocabulary, read before the others, changes nothing either.
+    const decoy = write(
+      'many/0decoy.go',
+      'package m\nfunc decoy(a []int) int {\n  total := 0\n  for _, v := range a { if v > 1 { total += v * 2 } }\n  switch total { case 1: return 1 }\n  return total\n}'
+    );
+    expect(describeGroups(detectClones(await read([decoy, ...files])))).toBe(expected);
+    for (const order of [
+      [...files].reverse(),
+      [files[2], files[4], files[0], files[3], files[1]],
+    ]) {
+      expect(describeGroups(detectClones(await read(order)))).toBe(expected);
+    }
+  });
+
   it('works on Python, Java and Rust too', async () => {
     const python = (name: string) =>
       [

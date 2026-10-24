@@ -119,7 +119,24 @@ export class RegionMatcher {
   }
 }
 
-/** Pairs every occurrence of an n-gram with the first equal one (hashes can collide). */
+/** Splits one hash bucket into the occurrences that really are the same n-gram (hashes can collide). */
+const equalClasses = (bucket: number[], matcher: RegionMatcher): Array<Array<[number, number]>> => {
+  const classes: Array<Array<[number, number]>> = [];
+  for (let index = 0; index < bucket.length; index += 2) {
+    const occurrence: [number, number] = [bucket[index], bucket[index + 1]];
+    const home = classes.find(([[stream, position]]) =>
+      matcher.equalGram(stream, position, occurrence[0], occurrence[1])
+    );
+    if (home) home.push(occurrence);
+    else classes.push([occurrence]);
+  }
+  return classes;
+};
+
+/**
+ * Pairs every two occurrences of an n-gram. Every pair is grown on its own, so whether two copies
+ * are found never depends on which other copies of the same n-gram exist in the project.
+ */
 export const matchBuckets = (
   buckets: Map<number, number[]>,
   matcher: RegionMatcher,
@@ -127,15 +144,12 @@ export const matchBuckets = (
 ): void => {
   for (const bucket of buckets.values()) {
     if (bucket.length < 4 || bucket.length / 2 > maxBucket) continue;
-    const representatives: Array<[number, number]> = [];
-    for (let index = 0; index < bucket.length; index += 2) {
-      const stream = bucket[index];
-      const position = bucket[index + 1];
-      const match = representatives.find(([repStream, repPosition]) =>
-        matcher.equalGram(repStream, repPosition, stream, position)
-      );
-      if (match) matcher.addPair(match[0], match[1], stream, position);
-      else representatives.push([stream, position]);
+    for (const members of equalClasses(bucket, matcher)) {
+      for (let first = 0; first < members.length; first += 1) {
+        for (let second = first + 1; second < members.length; second += 1) {
+          matcher.addPair(...members[first], ...members[second]);
+        }
+      }
     }
   }
 };

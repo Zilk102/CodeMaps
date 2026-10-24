@@ -75,12 +75,22 @@ export interface TaskContextResult {
 }
 
 export class TaskIntelligenceService {
+  private readonly projectInsightService: ProjectInsightService;
+  private readonly changeContextService: ChangeContextService;
+  private readonly reviewContextService: ReviewContextService;
+  private readonly changeCampaignService: ChangeCampaignService;
+
   constructor(
-    private readonly projectInsightService = new ProjectInsightService(),
-    private readonly changeContextService = new ChangeContextService(),
-    private readonly reviewContextService = new ReviewContextService(),
-    private readonly changeCampaignService = new ChangeCampaignService()
-  ) {}
+    projectInsightService = new ProjectInsightService(),
+    changeContextService = new ChangeContextService(),
+    reviewContextService = new ReviewContextService(),
+    changeCampaignService = new ChangeCampaignService()
+  ) {
+    this.projectInsightService = projectInsightService;
+    this.changeContextService = changeContextService;
+    this.reviewContextService = reviewContextService;
+    this.changeCampaignService = changeCampaignService;
+  }
 
   async prepareContext(
     graph: GraphData,

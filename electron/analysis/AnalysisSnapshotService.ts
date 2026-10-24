@@ -46,4 +46,18 @@ export class AnalysisSnapshotService {
       ),
     };
   }
+
+  /** The snapshot the context services build on: always with the health score. */
+  async analyzeWithHealth(
+    graph: GraphData,
+    includeSecurityFindings: boolean | undefined,
+    patternLimit: number
+  ): Promise<AnalysisSnapshotResult & { health: HealthScoreResult }> {
+    const snapshot = await this.analyze(graph, {
+      includeHealth: true,
+      includeSecurityFindings,
+      patternLimit,
+    });
+    return { ...snapshot, health: snapshot.health! };
+  }
 }

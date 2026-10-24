@@ -56,15 +56,16 @@ export class ProjectInsightService {
     input: PrepareProjectContextInput = {}
   ): Promise<ProjectInsightResult> {
     const limit = resolveProjectInsightLimit(input.limit);
-    const { architecture, health, patterns, security } = await this.analysisSnapshotService.analyze(
+    const {
+      architecture,
+      health: resolvedHealth,
+      patterns,
+      security,
+    } = await this.analysisSnapshotService.analyzeWithHealth(
       graph,
-      {
-        includeHealth: true,
-        includeSecurityFindings: input.includeSecurityFindings,
-        patternLimit: limit,
-      }
+      input.includeSecurityFindings,
+      limit
     );
-    const resolvedHealth = health!;
     const stackProfile = await this.stackInsightService.analyze(graph);
     const stackTopology = await this.stackTopologyService.analyze(graph, stackProfile);
     const decompositionGuidance = this.decompositionGuidanceService.prepareGuidance(graph, {
