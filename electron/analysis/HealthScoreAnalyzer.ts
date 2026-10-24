@@ -102,21 +102,33 @@ function calculateDirectoryCoverageRatio(
     : directoryChildren / nodesThatShouldHaveDirectoryParent;
 }
 
+type RefreshTelemetry = NonNullable<GraphData['refreshTelemetry']>;
+
+const orZero = (value: number | undefined) => value || 0;
+
 function buildRefreshMetrics(graph: GraphData) {
-  const refreshTelemetry = graph.refreshTelemetry;
-  const refreshTrends = refreshTelemetry?.trends;
-  return {
-    watcherFlushes: refreshTelemetry?.watcher.flushCount || 0,
-    watcherBatchedEvents: refreshTelemetry?.watcher.batchedEventCount || 0,
-    watcherCoalescedFlushes: refreshTelemetry?.watcher.coalescedFlushes || 0,
-    skippedRefreshes: refreshTelemetry?.enrichment.skippedRefreshes || 0,
-    runtimePriorityRebuilds: refreshTelemetry?.enrichment.runtimePriorityRebuilds || 0,
-    avgRefreshLatencyMs: refreshTelemetry?.enrichment.avgRefreshLatencyMs || 0,
-    refreshSkipRate: refreshTrends?.enrichment.skipRate || 0,
-    runtimePriorityRate: refreshTrends?.enrichment.runtimePriorityRate || 0,
-    refreshLatencyTrend: refreshTrends?.enrichment.latencyTrend || 'stable',
-    refreshPipelineDegraded: refreshTrends?.enrichment.degraded || false,
+  const telemetry = graph.refreshTelemetry;
+  const watcher: Partial<RefreshTelemetry['watcher']> = telemetry?.watcher ?? {};
+  const enrichment: Partial<RefreshTelemetry['enrichment']> = telemetry?.enrichment ?? {};
+  const trend: Partial<NonNullable<RefreshTelemetry['trends']>['enrichment']> =
+    telemetry?.trends?.enrichment ?? {};
+  const watcherMetrics = {
+    watcherFlushes: orZero(watcher.flushCount),
+    watcherBatchedEvents: orZero(watcher.batchedEventCount),
+    watcherCoalescedFlushes: orZero(watcher.coalescedFlushes),
+  };
+  const enrichmentMetrics = {
+    skippedRefreshes: orZero(enrichment.skippedRefreshes),
+    runtimePriorityRebuilds: orZero(enrichment.runtimePriorityRebuilds),
+    avgRefreshLatencyMs: orZero(enrichment.avgRefreshLatencyMs),
+  };
+  const trendMetrics = {
+    refreshSkipRate: orZero(trend.skipRate),
+    runtimePriorityRate: orZero(trend.runtimePriorityRate),
+    refreshLatencyTrend: trend.latencyTrend || 'stable',
+    refreshPipelineDegraded: trend.degraded || false,
   } as const;
+  return { ...watcherMetrics, ...enrichmentMetrics, ...trendMetrics } as const;
 }
 
 function buildLinkMetrics(graph: GraphData, nodeById: GraphAdjacency['nodeById']) {

@@ -77,39 +77,42 @@ export const buildOrthogonalSections = (source: LayoutNode, target: LayoutNode) 
   ];
 };
 
-export const isNodeHiddenByFilters = (node: GraphNode, filters: GraphFilters) => {
-  if (node.type === 'directory' && !filters.showDirectories) return true;
-  if (node.type === 'file' && !filters.showFiles) return true;
-  if (node.type === 'function' && !filters.showFunctions) return true;
-  if (node.type === 'class' && !filters.showClasses) return true;
-  if (node.type === 'adr' && !filters.showADR) return true;
-  return false;
+const FILTER_FLAG_BY_TYPE: Partial<Record<string, keyof GraphFilters>> = {
+  directory: 'showDirectories',
+  file: 'showFiles',
+  function: 'showFunctions',
+  class: 'showClasses',
+  adr: 'showADR',
 };
 
-export const getNodeDimensions = (node: GraphNode, mode: LayoutMode) => {
-  if (mode === 'dependencies') {
-    switch (node.type) {
-      case 'directory':
-        return { width: 220, height: 60 };
-      case 'file':
-        return { width: 230, height: 64 };
-      case 'class':
-        return { width: 180, height: 48 };
-      case 'function':
-        return { width: 170, height: 44 };
-      case 'adr':
-        return { width: 220, height: 58 };
-      default:
-        return { width: 210, height: 56 };
-    }
-  }
+export const isNodeHiddenByFilters = (node: GraphNode, filters: GraphFilters) => {
+  const flag = FILTER_FLAG_BY_TYPE[node.type];
+  return flag !== undefined && !filters[flag];
+};
 
-  const isMethod = node.id.includes('#');
-  if (node.type === 'class') return { width: 170, height: 46 };
-  if (node.type === 'function') return { width: 150, height: 40 };
-  if (node.type === 'adr') return { width: 220, height: 54 };
-  if (isMethod) return { width: 150, height: 40 };
-  return { width: 200, height: 50 };
+type NodeSize = { width: number; height: number };
+
+const DEPENDENCY_SIZES: Partial<Record<string, NodeSize>> = {
+  directory: { width: 220, height: 60 },
+  file: { width: 230, height: 64 },
+  class: { width: 180, height: 48 },
+  function: { width: 170, height: 44 },
+  adr: { width: 220, height: 58 },
+};
+const DEFAULT_DEPENDENCY_SIZE: NodeSize = { width: 210, height: 56 };
+
+const HIERARCHY_SIZES: Partial<Record<string, NodeSize>> = {
+  class: { width: 170, height: 46 },
+  function: { width: 150, height: 40 },
+  adr: { width: 220, height: 54 },
+};
+
+export const getNodeDimensions = (node: GraphNode, mode: LayoutMode): NodeSize => {
+  if (mode === 'dependencies') return DEPENDENCY_SIZES[node.type] ?? DEFAULT_DEPENDENCY_SIZE;
+
+  const sized = HIERARCHY_SIZES[node.type];
+  if (sized) return sized;
+  return node.id.includes('#') ? { width: 150, height: 40 } : { width: 200, height: 50 };
 };
 
 export const createElkNode = (node: GraphNode, mode: LayoutMode) => ({

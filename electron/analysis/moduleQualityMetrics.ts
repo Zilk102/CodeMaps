@@ -182,21 +182,25 @@ const findOversizedModules = (metrics: ModuleQualityMetric[]) =>
     )
     .slice(0, TOP_LIMIT);
 
-const isGodFile = (metric: ModuleQualityMetric): boolean => {
-  if ((metric.lineCount !== null && metric.lineCount >= 1500) || metric.symbolCount >= 45) {
-    return true;
-  }
-  const isLarge = (metric.lineCount || 0) >= 900 || metric.symbolCount >= 30;
+const isHugeModule = (metric: ModuleQualityMetric): boolean =>
+  (metric.lineCount !== null && metric.lineCount >= 1500) || metric.symbolCount >= 45;
+
+const isLargeModule = (metric: ModuleQualityMetric): boolean =>
+  (metric.lineCount || 0) >= 900 || metric.symbolCount >= 30;
+
+const hasGodFileSignals = (metric: ModuleQualityMetric): boolean => {
   const stackDegree = metric.stackAwareDegree + metric.diRuntimeDegree + metric.contractDegree;
   return (
-    isLarge &&
-    (metric.fanIn + metric.fanOut >= 12 ||
-      stackDegree >= 6 ||
-      metric.node.churn >= 10 ||
-      metric.sourceMetrics.godClasses.length > 0 ||
-      metric.mixedResponsibilities)
+    metric.fanIn + metric.fanOut >= 12 ||
+    stackDegree >= 6 ||
+    metric.node.churn >= 10 ||
+    metric.sourceMetrics.godClasses.length > 0 ||
+    metric.mixedResponsibilities
   );
 };
+
+const isGodFile = (metric: ModuleQualityMetric): boolean =>
+  isHugeModule(metric) || (isLargeModule(metric) && hasGodFileSignals(metric));
 
 const godFileWeight = (metric: ModuleQualityMetric) =>
   (metric.lineCount || 0) +

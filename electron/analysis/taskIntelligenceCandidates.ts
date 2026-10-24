@@ -70,12 +70,25 @@ export function shouldUseCampaignContext(
   }
   if (!isChange) return false;
 
-  const wiresRuntime =
-    hasDiRuntimeSignals(normalized) &&
-    projectContext.mentalModel.runtimeCompositionRoots.length > 0 &&
-    (hasBroadRuntimeScope || targetCandidates.length >= 2);
-  return wiresRuntime || (inferredIntent.taskKind === 'refactor' && targetCandidates.length >= 3);
+  const candidateCount = targetCandidates.length;
+  return (
+    wiresRuntime(normalized, projectContext, hasBroadRuntimeScope, candidateCount) ||
+    (inferredIntent.taskKind === 'refactor' && candidateCount >= 3)
+  );
 }
+
+const wiresRuntime = (
+  normalized: string,
+  projectContext: ProjectInsightResult,
+  hasBroadRuntimeScope: boolean,
+  candidateCount: number
+) =>
+  hasDiRuntimeSignals(normalized) &&
+  hasRuntimeRoots(projectContext) &&
+  (hasBroadRuntimeScope || candidateCount >= 2);
+
+const hasRuntimeRoots = (projectContext: ProjectInsightResult) =>
+  projectContext.mentalModel.runtimeCompositionRoots.length > 0;
 
 const hasCampaignHints = (normalized: string) =>
   CAMPAIGN_HINTS.some((hint) => normalized.includes(hint));

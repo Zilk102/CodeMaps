@@ -97,26 +97,30 @@ const buildReferenceContext = (raw: TsSymbol[]): TsReferenceContext => {
 };
 
 /** Which other symbols a symbol refers to, and which outside names it merely uses. */
+const noteUse = (uses: Set<string>, name: string) => {
+  if (name.length >= 3 && uses.size < MAX_USES) uses.add(name);
+};
+
 const collectTsUsage = (symbol: TsSymbol, context: TsReferenceContext) => {
   const refs = new Set<string>();
   const uses = new Set<string>();
-  const noteUse = (name: string) => {
-    if (name.length >= 3 && uses.size < MAX_USES) uses.add(name);
-  };
   const visitProperty = (node: ts.PropertyAccessExpression) => {
-    if (node.expression.kind === ts.SyntaxKind.ThisKeyword && symbol.owner) {
-      const member = `${symbol.owner}.${node.name.text}`;
+    const member = symbol.owner ? `${symbol.owner}.${node.name.text}` : undefined;
+    if (member && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
       if (context.names.has(member)) refs.add(member);
-      else noteUse(node.name.text);
+      else noteUse(uses, node.name.text);
       return;
     }
-    noteUse(node.name.text);
+    noteUse(uses, node.name.text);
     visit(node.expression);
   };
   const visitIdentifier = (node: ts.Identifier) => {
     const targets = context.byName.get(node.text);
-    if (targets) for (const target of targets) refs.add(target);
-    else noteUse(node.text);
+    if (!targets) {
+      noteUse(uses, node.text);
+      return;
+    }
+    for (const target of targets) refs.add(target);
   };
   const visit = (node: ts.Node) => {
     if (symbol.skip.has(node)) return;
