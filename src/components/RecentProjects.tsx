@@ -1,3 +1,5 @@
+// Welcome screen shown before a project is open: the recent-projects list and the open-folder
+// button.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConnectionStore } from '../store/useStore';
@@ -5,6 +7,7 @@ import type { RecentProject } from '../types/electron';
 import { useRecentProjects } from '../hooks/useRecentProjects';
 import { formatDate, getTelemetryBadge } from './recentProjectsUtils';
 
+/** Clock icon for the list heading. */
 const ClockIcon = () => (
   <svg
     width="14"
@@ -21,6 +24,7 @@ const ClockIcon = () => (
   </svg>
 );
 
+/** Folder icon used in the open button and the empty state. */
 const FolderIcon = () => (
   <svg
     width="16"
@@ -36,6 +40,7 @@ const FolderIcon = () => (
   </svg>
 );
 
+/** Placeholder shown when no project has been opened yet. */
 const EmptyProjects: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -48,6 +53,10 @@ const EmptyProjects: React.FC = () => {
   );
 };
 
+/**
+ * Clickable card of a recent project with its name, path, last-opened time and a badge for the
+ * refresh health when the project has telemetry.
+ */
 const ProjectCard: React.FC<{
   project: RecentProject;
   disabled: boolean;
@@ -87,6 +96,9 @@ const ProjectCard: React.FC<{
   );
 };
 
+/**
+ * Title, tagline and the Open folder button, which shows an opening label while a project loads.
+ */
 const WelcomeHeader: React.FC<{ isLoading: boolean; onOpen: () => void }> = ({
   isLoading,
   onOpen,
@@ -110,6 +122,10 @@ const WelcomeHeader: React.FC<{ isLoading: boolean; onOpen: () => void }> = ({
   );
 };
 
+/**
+ * Welcome screen. Lists recent projects (click to open, or clear the history) and lets the user
+ * pick a folder.
+ */
 export const RecentProjects: React.FC = () => {
   const { t } = useTranslation();
   const { fetchGraph, openProject } = useConnectionStore();

@@ -1,3 +1,5 @@
+// The graph screen: toolbar, zoomable canvas, controls, details dock and the error or empty
+// states.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GraphData } from '../types/graph';
@@ -32,6 +34,10 @@ const DetailsDock: React.FC<React.ComponentProps<typeof NodeDetailsPanel>> = (pr
   </div>
 );
 
+/**
+ * Overlay controls: the first-use hint at the bottom and the zoom in, zoom out and fit buttons
+ * (zoom steps by a factor of 1.4).
+ */
 const GraphHud: React.FC<{ fit: () => void; zoomBy: (factor: number) => void }> = ({
   fit,
   zoomBy,
@@ -50,6 +56,10 @@ const GraphHud: React.FC<{ fit: () => void; zoomBy: (factor: number) => void }> 
 
 type ViewModel = ReturnType<typeof useGraphViewModel>;
 
+/**
+ * The loaded graph scene: toolbar, recalculation badge, node details dock for the selected node,
+ * controls and the pan/zoom canvas.
+ */
 const GraphScene: React.FC<{ graphData: GraphData; model: ViewModel }> = ({ graphData, model }) => {
   const { layoutMode, setSelectedNode, selectedNode, layoutData, isCalculating } = model;
   const { transformRef, containerRef, fit, zoomBy, markUserMoved } = model.viewport;
@@ -81,6 +91,10 @@ const GraphScene: React.FC<{ graphData: GraphData; model: ViewModel }> = ({ grap
   );
 };
 
+/**
+ * Graph screen. Shows the error if loading failed, a prompt to open a project when there is none,
+ * and otherwise the interactive graph.
+ */
 export const GraphView: React.FC = () => {
   const { t } = useTranslation();
   const model = useGraphViewModel();

@@ -1,3 +1,4 @@
+// Hook that starts and stops the live update channels (file watcher and WebSocket) with the app.
 import { useEffect } from 'react';
 import { useConnectionStore } from '../store/useStore';
 

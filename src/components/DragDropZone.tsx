@@ -1,3 +1,4 @@
+// Full-window overlay shown while the user drags a folder or file over the app.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -5,6 +6,10 @@ interface DragDropZoneProps {
   isActive: boolean;
 }
 
+/**
+ * Drop hint overlay; renders nothing unless isActive is true. The actual drop handling lives in
+ * useProjectDrop.
+ */
 const DragDropZone: React.FC<DragDropZoneProps> = ({ isActive }) => {
   const { t } = useTranslation();
 

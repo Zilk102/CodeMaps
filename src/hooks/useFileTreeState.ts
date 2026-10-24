@@ -1,3 +1,4 @@
+// Hook that supplies the file explorer with its tree, expanded folders and selection handling.
 import { useMemo, useState } from 'react';
 import { useGraphStore, useConnectionStore } from '../store/useStore';
 import { buildFileTree, type FileTreeEntry } from '../components/fileTreeModel';

@@ -1,5 +1,7 @@
+// Types and ordering constants shared by the layout modules.
 import type { GraphLink, GraphNode } from '../../types/graph';
 
+/** A positioned node in canvas coordinates; isContainer marks nodes that visually hold others. */
 export interface LayoutNode {
   id: string;
   x: number;
@@ -10,6 +12,10 @@ export interface LayoutNode {
   isContainer: boolean;
 }
 
+/**
+ * A routed edge with its drawing sections (start, bends, end), the graph link it represents and
+ * its endpoint ids.
+ */
 export interface LayoutEdge {
   id: string;
   sections: Array<{
@@ -22,6 +28,7 @@ export interface LayoutEdge {
   targetId: string;
 }
 
+/** Output of a layout run: nodes, edges and the overall canvas size. */
 export interface LayoutResult {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
@@ -39,6 +46,10 @@ export const TYPE_ORDER: Record<string, number> = {
   adr: 4,
 };
 
+/**
+ * Sort comparator that orders nodes by kind (directories, files, classes, functions, ADRs) and
+ * then by label, to keep layouts stable.
+ */
 export const sortNodesForLayout = (a: GraphNode, b: GraphNode) => {
   const typeDiff = (TYPE_ORDER[a.type] ?? 99) - (TYPE_ORDER[b.type] ?? 99);
   if (typeDiff !== 0) return typeDiff;

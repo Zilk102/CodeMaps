@@ -1,6 +1,10 @@
+// Title bar control that switches the interface language between English, Russian and Chinese.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+/**
+ * Three-button group (EN, RU, ZH) that changes the i18n language and highlights the current one.
+ */
 const LanguageSwitcher: React.FC = () => {
   const { i18n } = useTranslation();
 

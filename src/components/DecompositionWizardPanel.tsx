@@ -1,3 +1,4 @@
+// Panel that suggests how to split overgrown files or modules, optionally focused on one node.
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
@@ -14,6 +15,7 @@ interface DecompositionWizardPanelProps {
   projectPath: string;
 }
 
+/** List of refactoring candidates as cards, or a note when the analysis found none. */
 const CandidateList: React.FC<{ result: DecompositionResult }> = ({ result }) => {
   const { t } = useTranslation();
   return (
@@ -37,6 +39,9 @@ const CandidateList: React.FC<{ result: DecompositionResult }> = ({ result }) =>
   );
 };
 
+/**
+ * Result display: the number of candidates, how many are high priority, and the candidate cards.
+ */
 const DecompositionResultView: React.FC<{ result: DecompositionResult }> = ({ result }) => {
   const { t } = useTranslation();
   return (
@@ -58,6 +63,10 @@ const DecompositionResultView: React.FC<{ result: DecompositionResult }> = ({ re
   );
 };
 
+/**
+ * Asks the main process for decomposition candidates, limited to the given node when its id is not
+ * empty, and returns the unwrapped result or throws.
+ */
 const requestDecomposition = async (
   projectPath: string,
   focusNodeId: string
@@ -72,6 +81,10 @@ const requestDecomposition = async (
   return unwrapResponse<DecompositionResult>(response);
 };
 
+/**
+ * Decomposition Wizard tool tab. The user can focus on one node (the selected one with a click) or
+ * analyze the whole project, then reviews the suggested splits.
+ */
 export const DecompositionWizardPanel: React.FC<DecompositionWizardPanelProps> = ({
   projectPath,
 }) => {

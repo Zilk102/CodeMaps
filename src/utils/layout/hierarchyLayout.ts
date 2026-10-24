@@ -1,3 +1,5 @@
+// Hierarchy view layout: nests nodes by folder and file structure with ELK's box algorithm, then
+// routes link edges.
 import type { ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { GraphData, GraphFilters, GraphNode } from '../../types/graph';
 import { elk } from './elkInstance';
@@ -40,6 +42,7 @@ const resolveRenderedEndpoints = (
   return [sourceId, targetId];
 };
 
+/** Creates drawable edges for the graph links whose endpoints resolve to laid-out visible nodes. */
 const buildRenderedEdges = (
   graphData: GraphData,
   validNodes: Map<string, GraphNode>,
@@ -150,6 +153,10 @@ const configureHierarchyContainers = (
   return projectRootElkNode;
 };
 
+/**
+ * Gives every leaf of the ELK tree the fixed size of its node kind; containers are sized by ELK
+ * from their children.
+ */
 const assignLeafDimensions = (node: ElkNode, validNodes: Map<string, GraphNode>) => {
   if (!node.children || (node.children as ElkNode[]).length === 0) {
     const sourceNode = validNodes.get(node.id);
@@ -196,6 +203,10 @@ export const flattenElkTree = (
   return flatNodes;
 };
 
+/**
+ * Computes the hierarchy layout: nested boxes under a project root node, with edges added only
+ * when the edge filter is on.
+ */
 export const runHierarchyLayout = async (
   graphData: GraphData,
   filters: GraphFilters

@@ -1,3 +1,4 @@
+// Card that shows one group of duplicated code with the advice for removing it.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DuplicateCopy, DuplicateGroup } from '../../types/duplicates';
@@ -15,6 +16,10 @@ interface CopyListProps {
   onSelect: (copy: DuplicateCopy) => void;
 }
 
+/**
+ * Clickable list of a group's copies as file:lines labels; copies outside the graph are disabled
+ * and test files get a badge.
+ */
 const CopyList: React.FC<CopyListProps> = ({ copies, isSelectable, onSelect }) => {
   const { t } = useTranslation();
   return (
@@ -41,6 +46,7 @@ const CopyList: React.FC<CopyListProps> = ({ copies, isSelectable, onSelect }) =
   );
 };
 
+/** Bulleted list of how the copies of a group differ from each other. */
 const DifferenceList: React.FC<{ differences: string[] }> = ({ differences }) => {
   const { t } = useTranslation();
   return (
@@ -58,6 +64,10 @@ interface DuplicateGroupCardProps {
   onSelect: (copy: DuplicateCopy) => void;
 }
 
+/**
+ * Card for one clone group: lines times copies, the suggested refactoring and why, the file the
+ * shared code could move to, every copy and the differences.
+ */
 export const DuplicateGroupCard: React.FC<DuplicateGroupCardProps> = ({
   group,
   isSelectable,

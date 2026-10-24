@@ -1,3 +1,4 @@
+// Panel that ranks files by recent git activity (commits and lines changed) over a chosen period.
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
@@ -19,6 +20,10 @@ interface ActivityHeatmapProps {
   projectPath: string;
 }
 
+/**
+ * Period selector (7 days to a year) and the Analyze button; the button is disabled and shows a
+ * loading label while a run is in progress.
+ */
 const HeatmapControls: React.FC<{
   timeRange: string;
   onTimeRangeChange: (value: string) => void;
@@ -51,6 +56,7 @@ const HeatmapControls: React.FC<{
   );
 };
 
+/** Colour key that explains the five intensity levels of the file rows. */
 const HeatLegend: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -68,6 +74,10 @@ const HeatLegend: React.FC = () => {
   );
 };
 
+/**
+ * One file's row: name, path, commit count, added and removed lines, authors, tinted by how its
+ * commits compare with the busiest file and with a bar behind it of the same proportion.
+ */
 const FileHeatRow: React.FC<{ file: FileChurn; maxCommits: number }> = ({ file, maxCommits }) => {
   const { t } = useTranslation();
   return (
@@ -98,6 +108,10 @@ const FileHeatRow: React.FC<{ file: FileChurn; maxCommits: number }> = ({ file, 
   );
 };
 
+/**
+ * Summary tiles, the legend and the most active files (capped at the first 50, with an "and N
+ * more" footer).
+ */
 const HeatmapResults: React.FC<{ heatmap: HeatmapData }> = ({ heatmap }) => {
   const { t } = useTranslation();
   return (
@@ -127,6 +141,10 @@ const HeatmapResults: React.FC<{ heatmap: HeatmapData }> = ({ heatmap }) => {
   );
 };
 
+/**
+ * Asks the main process for the git activity of the project since the start of the period,
+ * returning the unwrapped heatmap or throwing when the API is missing or the call fails.
+ */
 async function fetchHeatmap(projectPath: string, timeRange: string) {
   const since = computeSince(parseInt(timeRange));
   if (!window.api?.analyzeActivityHeatmap) {
@@ -149,6 +167,10 @@ function useHeatmap(projectPath: string) {
   return { timeRange, setTimeRange, isLoading: isRunning, heatmap: result, error, analyze };
 }
 
+/**
+ * Activity Heatmap tool tab. The user picks a period and runs the analysis for the open project,
+ * then sees ranked hot files, an error banner or an empty-state message.
+ */
 export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { timeRange, setTimeRange, isLoading, heatmap, error, analyze } = useHeatmap(projectPath);

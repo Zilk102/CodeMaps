@@ -1,3 +1,4 @@
+// Modal panel that hosts the analysis tools and their overview tab for the open project.
 import React, { useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRImpactPanel } from './PRImpactPanel';
@@ -22,6 +23,7 @@ interface ToolsPanelProps {
   projectPath: string;
 }
 
+/** Cross icon of the close button. */
 const CloseIcon: React.FC = () => (
   <svg
     viewBox="0 0 24 24"
@@ -48,6 +50,9 @@ function useCloseOnEscape(onClose: () => void) {
   }, [onClose]);
 }
 
+/**
+ * Panel heading with the project name chip, the description of the active tab and a close button.
+ */
 const ToolsHeader: React.FC<{
   projectName: string;
   description: string;
@@ -80,6 +85,10 @@ const ToolsHeader: React.FC<{
   );
 };
 
+/**
+ * Scrollable body that shows the overview or the tool selected in the tab bar, for the given
+ * project.
+ */
 const ToolsTabPanel: React.FC<{
   activeTab: WorkspaceTab;
   projectPath: string;
@@ -111,6 +120,11 @@ const ToolsTabPanel: React.FC<{
   </div>
 );
 
+/**
+ * Tools workspace opened from the title bar, drawn as a modal over the app. Escape or a click
+ * outside closes it; the tab bar switches between the overview and the blast radius,
+ * decomposition, duplicates, heatmap and PR impact tools.
+ */
 export const ToolsPanel: React.FC<ToolsPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { activeTab, setActiveTab, toggleToolsPanel } = useUIStore();

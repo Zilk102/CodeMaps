@@ -1,3 +1,5 @@
+// Panel that shows what a change to one node can affect: counts of direct and indirect dependents
+// and the riskiest dependency paths.
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
@@ -17,6 +19,10 @@ interface BlastRadiusResult {
   riskPaths: string[][];
 }
 
+/**
+ * Result display: tiles for total, direct and transitive dependents, and the list of risk paths
+ * drawn as a chain of node ids.
+ */
 const BlastRadiusResultView: React.FC<{ result: BlastRadiusResult }> = ({ result }) => {
   const { t } = useTranslation();
   return (
@@ -61,6 +67,10 @@ interface ControlsProps {
   canCalculate: boolean;
 }
 
+/**
+ * Input row of the panel: node id field, depth choice (3, 5 or 10) and the Calculate button,
+ * disabled while running or when no node is chosen.
+ */
 const BlastRadiusControls: React.FC<ControlsProps> = ({
   nodeId,
   onNodeIdChange,
@@ -102,6 +112,10 @@ const BlastRadiusControls: React.FC<ControlsProps> = ({
   );
 };
 
+/**
+ * Asks the main process for the blast radius of a node down to a depth, returning the unwrapped
+ * result or throwing when the API is missing or reports an error.
+ */
 const requestBlastRadius = async (
   projectPath: string,
   nodeId: string,
@@ -114,6 +128,10 @@ const requestBlastRadius = async (
   return unwrapResponse<BlastRadiusResult>(response);
 };
 
+/**
+ * Blast Radius tool tab. It calculates for the node typed by the user, or for the node selected in
+ * the graph when the field is empty, and shows the result below.
+ */
 export const BlastRadiusV2Panel: React.FC<BlastRadiusV2PanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { selectedNode } = useGraphStore();

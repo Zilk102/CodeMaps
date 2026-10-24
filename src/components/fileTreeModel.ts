@@ -1,5 +1,11 @@
+// Data model of the file explorer: tree entries, ordering and construction from the graph's file
+// nodes.
 import type { GraphNode } from '../types/graph';
 
+/**
+ * A file or folder of the explorer: name, project-relative path, directory flag, children by name
+ * and, for files, the graph node.
+ */
 export interface FileTreeEntry {
   name: string;
   path: string;
@@ -15,6 +21,7 @@ export const compareEntries = (a: FileTreeEntry, b: FileTreeEntry): number => {
   return a.name.localeCompare(b.name);
 };
 
+/** Children of an entry in display order (folders first, then by name). */
 export const sortedChildren = (entry: FileTreeEntry): FileTreeEntry[] =>
   Object.values(entry.children || {}).sort(compareEntries);
 

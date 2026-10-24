@@ -1,8 +1,14 @@
+// Custom window title bar: brand, project breadcrumb, action buttons, language switcher and window
+// controls.
 import React from 'react';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useGraphStore, useUIStore, useConnectionStore } from '../store/useStore';
 import { BrandMark, ProjectBreadcrumb, TitleBarActions, WindowControls } from './TitleBarParts';
 
+/**
+ * Draggable top bar of the frameless window. It offers open/close project, MCP settings and the
+ * tools-panel toggle, and shows the name of the open project.
+ */
 const TitleBar: React.FC = () => {
   const { openProject } = useConnectionStore();
   const { closeProject, graphData } = useGraphStore();

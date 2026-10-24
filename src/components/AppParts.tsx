@@ -1,8 +1,11 @@
+// Small building blocks of the app shell: loading fallback, resizable sidebar and the indexing
+// progress toast.
 import React, { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const FileTree = React.lazy(() => import('./FileTree').then((m) => ({ default: m.FileTree })));
 
+/** Centred "loading" text shown while a lazily loaded part of the UI is being fetched. */
 export const LazyFallback: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -15,11 +18,19 @@ export const LazyFallback: React.FC = () => {
 /** Share of the indexing run that is done, as a 0-100 number. */
 export const progressPercent = (current: number, total: number): number => (current / total) * 100;
 
+/**
+ * How the sidebar should behave at the current window width: its maximum width and whether it
+ * overlays the content (mobile).
+ */
 export interface SidebarViewportState {
   maxWidth: number | string;
   isMobile: boolean;
 }
 
+/**
+ * Sidebar holding the file explorer, with a thin handle on its right edge to start a drag-resize.
+ * On narrow windows it floats over the content instead of pushing it.
+ */
 export const AppSidebar: React.FC<{
   width: number;
   isDragging: boolean;
@@ -54,6 +65,7 @@ export const AppSidebar: React.FC<{
   </>
 );
 
+/** Bottom-right toast that shows the indexing phase, a percentage bar and the file being parsed. */
 export const ParsingProgressToast: React.FC<{
   progress: { status: string; current: number; total: number; filename: string };
 }> = ({ progress }) => {

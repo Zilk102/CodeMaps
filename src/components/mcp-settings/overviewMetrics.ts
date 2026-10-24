@@ -1,3 +1,4 @@
+// Counts shown on the MCP overview tab.
 import type { GraphData } from '../../types/graph';
 import type { McpStatus } from './types';
 
@@ -5,6 +6,7 @@ import type { McpStatus } from './types';
 export const countTools = (status: McpStatus | null): number =>
   (status?.toolDetails || []).length || status?.tools.length || 0;
 
+/** Resource count for the overview: the detailed list first, then the plain URI list. */
 export const countResources = (status: McpStatus | null): number =>
   (status?.resourceDetails || []).length || status?.resources.length || 0;
 

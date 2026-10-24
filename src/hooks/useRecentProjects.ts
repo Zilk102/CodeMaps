@@ -1,3 +1,4 @@
+// Hook that loads the recent-projects list for the welcome screen.
 import { useEffect, useState } from 'react';
 import type { RecentProject } from '../types/electron';
 

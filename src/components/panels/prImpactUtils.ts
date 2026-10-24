@@ -1,3 +1,8 @@
+// Colour classes for the PR impact panel's risk badges and changed-file status dots.
+/**
+ * Badge classes for a risk level (critical, high, medium, low); anything else gets a neutral
+ * style.
+ */
 export function getRiskColor(risk: string): string {
   switch (risk) {
     case 'critical':
@@ -13,6 +18,10 @@ export function getRiskColor(risk: string): string {
   }
 }
 
+/**
+ * Class of the coloured dot beside a changed file: green when added, red when deleted, yellow for
+ * any other change.
+ */
 export function getFileStatusDotClass(status: unknown): string {
   if (status === 'added') return 'bg-(--green)';
   if (status === 'deleted') return 'bg-(--red)';

@@ -1,3 +1,5 @@
+// Top-level error boundary that replaces a crashed UI with a message, the error details and a
+// reload button.
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { withTranslation, WithTranslation } from 'react-i18next';
 
@@ -11,6 +13,7 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
+/** Monospace block with the error text and the React component stack. */
 const ErrorDetails = ({ error, errorInfo }: { error: Error; errorInfo: ErrorInfo | null }) => (
   <pre
     style={{
@@ -31,6 +34,10 @@ const ErrorDetails = ({ error, errorInfo }: { error: Error; errorInfo: ErrorInfo
   </pre>
 );
 
+/**
+ * Full-screen fallback with the translated title and message, the error details when known, and a
+ * button that reloads the window.
+ */
 const ErrorFallback = ({
   t,
   error,

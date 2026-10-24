@@ -1,3 +1,5 @@
+// Dependency view layout: files and ADRs only, linked by file-to-file edges and arranged left to
+// right by ELK.
 import type { ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { GraphData, GraphFilters, GraphLink, GraphNode } from '../../types/graph';
 import { elk } from './elkInstance';
@@ -18,6 +20,10 @@ import {
 const getLinkNodeId = (nodeRef: string | GraphNode) =>
   typeof nodeRef === 'string' ? nodeRef : nodeRef.id;
 
+/**
+ * Climbs parentId links from a node to the file or ADR that owns it, so symbol links collapse onto
+ * their file. Returns the unknown id itself when it is not in the index, and undefined on a cycle.
+ */
 const getOwningDependencyNodeId = (
   nodeId: string,
   nodeIndex: Map<string, GraphNode>
@@ -63,6 +69,10 @@ const resolveVisibleEndpoints = (
   return [source, target];
 };
 
+/**
+ * Collapses graph links into unique file-to-file edges between visible nodes and works out which
+ * nodes surround the selected one.
+ */
 const buildDependencyLayoutEdges = (
   graphData: GraphData,
   validNodes: Map<string, GraphNode>,
@@ -164,6 +174,10 @@ export const buildDependencyElkGraph = (
   };
 };
 
+/**
+ * ELK options of the dependency view: layered when there are edges (box otherwise), looser spacing
+ * when a selection is focused, cheaper settings for large graphs.
+ */
 const dependencyLayoutOptions = (
   hasEdges: boolean,
   nodeCount: number,
@@ -184,6 +198,9 @@ const dependencyLayoutOptions = (
   'elk.padding': '[top=40,left=40,bottom=40,right=40]',
 });
 
+/**
+ * Converts ELK's positioned children into layout nodes, attaching the original graph node to each.
+ */
 const toDependencyLayoutNodes = (
   layouted: ElkNode,
   validNodes: Map<string, GraphNode>
@@ -198,6 +215,10 @@ const toDependencyLayoutNodes = (
     isContainer: false,
   }));
 
+/**
+ * Converts ELK's edges into layout edges with orthogonal routes, skipping any edge whose endpoints
+ * or data are unknown.
+ */
 const toDependencyLayoutEdges = (
   layouted: ElkNode,
   nodeLayoutIndex: Map<string, LayoutNode>,
@@ -226,6 +247,10 @@ const toDependencyLayoutEdges = (
     }
   );
 
+/**
+ * Computes the dependency layout: shows files (and ADRs) as nodes, edges between their owning
+ * files, and focuses on the selection's neighbourhood when it has links.
+ */
 export const runDependencyLayout = async (
   graphData: GraphData,
   filters: GraphFilters,

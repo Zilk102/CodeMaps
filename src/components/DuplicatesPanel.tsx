@@ -1,3 +1,5 @@
+// Panel that finds copy-pasted code in the project and lists the clone groups with refactoring
+// advice.
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGraphStore } from '../store/useStore';
@@ -26,6 +28,10 @@ interface ReportViewProps {
   onSelect: (copy: DuplicateCopy) => void;
 }
 
+/**
+ * Result display: group and duplicated-line totals, the groups with the most duplicated lines
+ * first, and a note when more groups were left out of the response.
+ */
 const ReportView: React.FC<ReportViewProps> = ({ report, isSelectable, onSelect }) => {
   const { t } = useTranslation();
   const groups = useMemo(() => sortGroups(report.groups), [report.groups]);
@@ -66,6 +72,10 @@ const ReportView: React.FC<ReportViewProps> = ({ report, isSelectable, onSelect 
   );
 };
 
+/**
+ * Duplicates tool tab. Runs the clone detector on the open project and lists the groups; a copy
+ * can be clicked to select its file in the graph when that file is part of it.
+ */
 export const DuplicatesPanel: React.FC<DuplicatesPanelProps> = ({ projectPath }) => {
   const { t } = useTranslation();
   const { graphData, setSelectedNode } = useGraphStore();

@@ -1,10 +1,19 @@
+// Visual rules for graph nodes: palettes by kind, emphasis scale, opacity and shadow, churn border
+// and inline box styles.
 import type { CSSProperties } from 'react';
 import type { LayoutMode } from '../../types/graph';
 
 export type { LayoutMode };
 
+/**
+ * How strongly a node is drawn relative to the selection: selected, related neighbour, muted, or
+ * default when nothing is selected.
+ */
 export type NodeEmphasis = 'selected' | 'related' | 'muted' | 'default';
 
+/**
+ * Colours and shape of a node box: background, border, radius, text, shadow and label background.
+ */
 export interface NodePalette {
   bgColor: string;
   border: string;
@@ -28,6 +37,10 @@ function projectPalette(isSelected: boolean): Partial<NodePalette> {
   };
 }
 
+/**
+ * Directory colours (blue); containers get a faint fill and a heavier border than leaf
+ * directories.
+ */
 function directoryPalette(isSelected: boolean, isContainer: boolean): Partial<NodePalette> {
   if (isContainer) {
     return {
@@ -45,6 +58,7 @@ function directoryPalette(isSelected: boolean, isContainer: boolean): Partial<No
   };
 }
 
+/** File colours (green), with a lighter treatment for containers. */
 function filePalette(isSelected: boolean, isContainer: boolean): Partial<NodePalette> {
   if (isContainer) {
     return {
@@ -62,6 +76,10 @@ function filePalette(isSelected: boolean, isContainer: boolean): Partial<NodePal
   };
 }
 
+/**
+ * Filled palette for symbols and ADRs: solid colour, white border when selected, custom radius and
+ * text colour.
+ */
 function solidPalette(
   isSelected: boolean,
   color: string,
@@ -77,6 +95,10 @@ function solidPalette(
   };
 }
 
+/**
+ * Palette overrides by node kind (project, directory, file, class, function, ADR); unknown kinds
+ * keep the base look.
+ */
 function paletteForType(
   type: string,
   isSelected: boolean,
@@ -130,16 +152,22 @@ export function applyChurnBorder(
   return border;
 }
 
+/** CSS scale that makes the selected node slightly larger than its neighbours. */
 export function getNodeScale(emphasis: NodeEmphasis): string {
   if (emphasis === 'selected') return 'scale(1.03)';
   if (emphasis === 'related') return 'scale(1.01)';
   return 'scale(1)';
 }
 
+/** Opacity of a node: muted nodes are mostly transparent. */
 export function getNodeOpacity(emphasis: NodeEmphasis): number {
   return emphasis === 'muted' ? 0.24 : 1;
 }
 
+/**
+ * Box shadow by emphasis: a strong halo for the selected node, a light ring for related ones,
+ * otherwise the palette's or the default shadow.
+ */
 export function getNodeBoxShadow(
   emphasis: NodeEmphasis,
   paletteShadow: string,
@@ -150,10 +178,15 @@ export function getNodeBoxShadow(
   return isContainer ? paletteShadow : DEFAULT_SHADOW;
 }
 
+/** CSS scale applied while the pointer is over a node. */
 export function getHoverScale(emphasis: NodeEmphasis): string {
   return emphasis === 'selected' ? 'scale(1.06)' : 'scale(1.05)';
 }
 
+/**
+ * Everything needed to style a node box: position, size, kind, churn, container flag, layout mode,
+ * emphasis and selection.
+ */
 export interface NodeBoxInput {
   x: number;
   y: number;

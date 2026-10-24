@@ -1,3 +1,4 @@
+// Pan and zoom surface of the graph that holds the edge layer under the node layer.
 import React from 'react';
 import {
   TransformWrapper,

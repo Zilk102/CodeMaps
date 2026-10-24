@@ -1,3 +1,5 @@
+// Toasts that report the auto-update flow: checking, downloading, ready to install, and a small
+// badge once dismissed.
 import React, { useCallback } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import {
@@ -7,6 +9,10 @@ import {
   type UpdateState,
 } from '../hooks/useUpdaterState';
 
+/**
+ * Compact "update available" badge shown after the user chose Later; clicking it brings the full
+ * notice back.
+ */
 const DismissedBadge: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const { t } = useTranslation();
   return (
@@ -23,6 +29,7 @@ const DismissedBadge: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   );
 };
 
+/** Toast with the version and a progress bar while the update downloads, plus a Later button. */
 const DownloadProgress: React.FC<{ state: UpdateState; onLater: () => void }> = ({
   state,
   onLater,
@@ -54,6 +61,7 @@ const DownloadProgress: React.FC<{ state: UpdateState; onLater: () => void }> = 
   );
 };
 
+/** Download arrow icon for the ready-to-install toast. */
 const DownloadIcon: React.FC = () => (
   <svg
     width="14"
@@ -71,6 +79,7 @@ const DownloadIcon: React.FC = () => (
   </svg>
 );
 
+/** Text of the "update ready" toast with the new version highlighted. */
 const UpdateMessage: React.FC<{ state: UpdateState }> = ({ state }) => {
   const { t } = useTranslation();
   return (
@@ -89,6 +98,7 @@ const UpdateMessage: React.FC<{ state: UpdateState }> = ({ state }) => {
   );
 };
 
+/** Toast shown when the update has been downloaded, with Later and Restart buttons. */
 const UpdateReady: React.FC<{
   state: UpdateState;
   onLater: () => void;
@@ -118,6 +128,7 @@ const UpdateReady: React.FC<{
   );
 };
 
+/** Toast with a spinner while the app checks for updates. */
 const CheckingToast: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -130,6 +141,10 @@ const CheckingToast: React.FC = () => {
   );
 };
 
+/**
+ * Chooses which update toast to show from the updater state: download progress, ready to install,
+ * checking, or only the badge after dismissal. Restart installs the downloaded update.
+ */
 const UpdateNotification: React.FC = () => {
   const { state, dismissed, setDismissed } = useUpdaterState();
 

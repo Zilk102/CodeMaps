@@ -1,7 +1,12 @@
+// Recursive row of the file explorer tree: indentation, icon, selection and expansion.
 import React from 'react';
 import { ChevronIcon, FileIcon } from './FileTreeIcons';
 import { sortedChildren, type FileTreeEntry } from './fileTreeModel';
 
+/**
+ * Inputs of a tree row: the entry, its depth, which folders are expanded, the selected path and
+ * the select and toggle callbacks.
+ */
 export interface FileTreeNodeProps {
   node: FileTreeEntry;
   level: number;
@@ -14,6 +19,7 @@ export interface FileTreeNodeProps {
 const BASE_PADDING = 8;
 const INDENT_STEP = 16;
 
+/** Renders the children of an entry as rows one level deeper, folders first. */
 const ChildNodes: React.FC<FileTreeNodeProps & { childLevel: number }> = ({
   childLevel,
   ...props
@@ -33,6 +39,10 @@ const ChildNodes: React.FC<FileTreeNodeProps & { childLevel: number }> = ({
   </>
 );
 
+/**
+ * One clickable explorer line with chevron (folders only), icon and name, highlighted when
+ * selected.
+ */
 const NodeRow: React.FC<{
   node: FileTreeEntry;
   isSelected: boolean;
@@ -64,6 +74,10 @@ const NodeRow: React.FC<{
 
 const isSyntheticRoot = (node: FileTreeEntry) => !node.name || node.name === 'root';
 
+/**
+ * Children of an expanded folder with a vertical guide line; renders nothing for files or
+ * collapsed folders.
+ */
 const ExpandedChildren: React.FC<FileTreeNodeProps & { isExpanded: boolean; lineLeft: number }> = ({
   isExpanded,
   lineLeft,
@@ -82,6 +96,11 @@ const ExpandedChildren: React.FC<FileTreeNodeProps & { isExpanded: boolean; line
   );
 };
 
+/**
+ * Row for a file or folder and, when expanded, its children. Top-level folders start expanded.
+ * Clicking selects the entry and toggles a folder; the synthetic root is skipped and only its
+ * children drawn.
+ */
 export const FileTreeNode: React.FC<FileTreeNodeProps> = (props) => {
   const { node, level, expandedFolders, toggleFolder, selectedPath, onSelect } = props;
   const isExpanded = expandedFolders[node.path] ?? level === 0;

@@ -1,6 +1,11 @@
+// Store slice holding the loaded graph, the selection, the visibility filters and the layout mode.
 import { StateCreator } from 'zustand';
 import type { GraphData, GraphFilters, GraphNode, LayoutMode } from '../../types/graph';
 
+/**
+ * Graph data plus how it is viewed: selection, loading and error state, parsing progress,
+ * node-kind filters and layout mode.
+ */
 export interface GraphSlice {
   graphData: GraphData | null;
   selectedNode: GraphNode | null;
@@ -22,6 +27,11 @@ export interface GraphSlice {
   closeProject: () => void;
 }
 
+/**
+ * Builds the graph slice. Directories, files, ADRs and edges are shown by default, functions and
+ * classes are hidden, and the layout starts as hierarchy; closeProject clears the graph and
+ * selection.
+ */
 export const createGraphSlice: StateCreator<GraphSlice, [], [], GraphSlice> = (set) => ({
   graphData: null,
   selectedNode: null,

@@ -1,3 +1,5 @@
+// Shared helpers of the tool panels: error messages, unwrapping IPC replies and describing the
+// selected node.
 /** Message to show for a failed analysis: the Error's own message, else the localized fallback. */
 export function toErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error) {
@@ -6,6 +8,10 @@ export function toErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Envelope returned by the main-process analysis calls: success flag with either data or an error
+ * message.
+ */
 export interface IpcResponse<T = unknown> {
   success: boolean;
   data?: T;

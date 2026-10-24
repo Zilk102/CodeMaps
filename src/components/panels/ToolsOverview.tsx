@@ -1,3 +1,5 @@
+// Overview tab of the tools panel: intro, one card per tool, the project scope and a suggested
+// order of use.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelCard } from './PanelParts';
@@ -13,6 +15,7 @@ interface ToolsOverviewProps {
   onOpenTool: (tab: ToolTab) => void;
 }
 
+/** Card for one tool with its badge, title and description; clicking it opens that tool. */
 const ScenarioCardButton: React.FC<{ card: ScenarioCard; onOpen: () => void }> = ({
   card,
   onOpen,
@@ -40,6 +43,7 @@ const ScenarioCardButton: React.FC<{ card: ScenarioCard; onOpen: () => void }> =
   );
 };
 
+/** Numbered step of the suggested workflow; clicking it opens the tool for that step. */
 const WorkflowStepButton: React.FC<{
   step: WorkflowStep;
   index: number;
@@ -60,6 +64,10 @@ const WorkflowStepButton: React.FC<{
   </button>
 );
 
+/**
+ * Content of the overview tab: a summary, tool cards, the open project's name and path, and the
+ * numbered guide. onOpenTool switches to the chosen tool.
+ */
 export const ToolsOverview: React.FC<ToolsOverviewProps> = ({
   projectName,
   projectPath,

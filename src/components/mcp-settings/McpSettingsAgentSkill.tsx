@@ -1,3 +1,5 @@
+// MCP settings tab with a ready-to-copy agent skill file that teaches AI agents to use CodeMaps
+// first.
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { commonSectionStyle, CodeBlock } from './shared';
@@ -87,9 +89,11 @@ The agent should behave like it has a project-aware architectural map:
 - treat CodeMaps as the default brain for project structure and impact analysis.
 `;
 
+/** Fills the skill template with the live MCP endpoint so the copied file points at this server. */
 export const buildSkillSnippet = (endpoint: string): string =>
   SKILL_TEMPLATE.split('__ENDPOINT__').join(endpoint);
 
+/** Short setup instructions with a button that copies the skill file. */
 const HowToUse: React.FC<{ copied: boolean; onCopy: () => void }> = ({ copied, onCopy }) => {
   const { t } = useTranslation();
   return (
@@ -121,6 +125,10 @@ const HowToUse: React.FC<{ copied: boolean; onCopy: () => void }> = ({ copied, o
   );
 };
 
+/**
+ * Agent skill tab: why the skill helps, how to install it, and the generated SKILL.md in a code
+ * block. Copying uses the shared copy helper under the key 'agent-skill'.
+ */
 export const McpSettingsAgentSkill: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
   const { t } = useTranslation();
 

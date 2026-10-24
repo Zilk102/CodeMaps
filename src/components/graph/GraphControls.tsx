@@ -1,3 +1,5 @@
+// On-canvas controls: zoom and fit buttons, and a dismissible first-use hint remembered in
+// localStorage.
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +19,7 @@ interface GraphControlsProps {
   onZoomOut: () => void;
 }
 
+/** Vertical stack of zoom in, zoom out and fit-to-view buttons at the bottom left of the canvas. */
 export const GraphControls: React.FC<GraphControlsProps> = ({ onFit, onZoomIn, onZoomOut }) => {
   const { t } = useTranslation();
   return (
@@ -41,6 +44,10 @@ export const GraphControls: React.FC<GraphControlsProps> = ({ onFit, onZoomIn, o
   );
 };
 
+/**
+ * One-time hint about mouse and touch controls. Dismissal is saved in localStorage; if storage is
+ * unavailable it just shows again next time.
+ */
 export const GraphHint: React.FC = () => {
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(readDismissed);

@@ -1,3 +1,4 @@
+// Side panel that explains the selected node: path, exports, what uses it and what it depends on.
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GraphData, GraphNode } from '../../types/graph';
@@ -10,6 +11,10 @@ interface NodeDetailsPanelProps {
   onClose: () => void;
 }
 
+/**
+ * Titled list of neighbouring files with link counts; clicking one selects it, and a footer says
+ * how many more there are.
+ */
 const NeighbourList: React.FC<{
   title: string;
   items: NeighbourSummary[];
@@ -47,6 +52,7 @@ const NeighbourList: React.FC<{
   </div>
 );
 
+/** Name, kind and language of the node with a close button. */
 const NodeHeader: React.FC<{ node: GraphNode; onClose: () => void }> = ({ node, onClose }) => {
   const { t } = useTranslation();
   return (
@@ -74,6 +80,7 @@ const NodeHeader: React.FC<{ node: GraphNode; onClose: () => void }> = ({ node, 
   );
 };
 
+/** Chips with the names the node exports; nothing is drawn when it exports none. */
 const ExportsList: React.FC<{ names: string[] }> = ({ names }) => {
   const { t } = useTranslation();
   if (names.length === 0) return null;
@@ -91,6 +98,10 @@ const ExportsList: React.FC<{ names: string[] }> = ({ names }) => {
   );
 };
 
+/**
+ * Panel docked beside the graph. It shows a summary of the node (relative path, exports, a
+ * high-churn warning, users and dependencies); selecting a neighbour moves the selection to it.
+ */
 export const NodeDetailsPanel: React.FC<NodeDetailsPanelProps> = ({
   graph,
   node,

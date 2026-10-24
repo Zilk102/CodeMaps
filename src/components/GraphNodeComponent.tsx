@@ -1,3 +1,5 @@
+// One node box on the graph canvas: styled by kind, emphasis and churn, with a hover zoom and
+// click to select.
 import React from 'react';
 import type { LayoutNode } from '../utils/layoutEngine';
 import {
@@ -18,6 +20,10 @@ interface NodeComponentProps {
   onClick: () => void;
 }
 
+/**
+ * Absolutely positioned box for a laid-out node showing its label. A click selects it without
+ * reaching the canvas; non-container nodes grow slightly on hover.
+ */
 export const GraphNodeComponent: React.FC<NodeComponentProps> = ({
   node,
   layoutMode,
