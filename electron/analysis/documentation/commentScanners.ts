@@ -66,6 +66,7 @@ const TRIVIA_KINDS = new Set<ts.SyntaxKind>([
   SyntaxKind.ConflictMarkerTrivia,
 ]);
 
+/** Records the comment token the scanner stopped on, with its 1-based line span and column, so later steps can attach it to a declaration or a header. */
 const recordComment = (state: ScanState): void => {
   const { scanner, source } = state;
   const start = scanner.getTokenStart();

@@ -35,6 +35,7 @@ interface Described {
   anchor?: ts.Node;
 }
 
+/** Appends a declaration to the collector with its line span and the anchor line its doc comment must precede. */
 const record = (collector: Collector, described: Described): void => {
   const { source, out } = collector;
   const start = described.node.getStart(source);
@@ -67,6 +68,7 @@ const isDocumentableMethod = (member: ts.ClassElement): member is ts.MethodDecla
   ts.isMethodDeclaration(member) &&
   (!!member.body || hasModifier(member, ts.SyntaxKind.AbstractKeyword));
 
+/** Adds the methods of a class as declarations; a method is public when the class is exported and the method has no private or protected modifier. */
 const addClassMembers = (
   collector: Collector,
   declaration: ts.ClassDeclaration,
@@ -111,6 +113,7 @@ const addNamed = (
 const isFunctionValue = (node: ts.Expression | undefined): boolean =>
   !!node && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
 
+/** Adds `const f = () => {}` style declarations as functions; a variable counts only when its initializer is a function value. */
 const addVariables = (collector: Collector, statement: ts.VariableStatement): void => {
   statement.declarationList.declarations.forEach((declaration, index) => {
     if (!ts.isIdentifier(declaration.name) || !isFunctionValue(declaration.initializer)) return;
@@ -164,6 +167,7 @@ const isModuleExports = (node: ts.Expression): boolean =>
   node.expression.text === 'module' &&
   node.name.text === 'exports';
 
+/** Names exported through CommonJS `module.exports = name` or `module.exports = { a, b }`; other shapes export nothing we can name. */
 const namesOfCommonJs = (statement: Statement): string[] => {
   if (!ts.isExpressionStatement(statement)) return [];
   const expression = statement.expression;
@@ -181,6 +185,7 @@ const namesOfDefaultExport = (statement: Statement): string[] =>
     ? [statement.expression.text]
     : [];
 
+/** Gathers the names a file exports without an `export` keyword on the declaration: export lists, CommonJS assignments and default exports. */
 const collectExportedNames = (source: ts.SourceFile): Set<string> => {
   const names = new Set<string>();
   for (const statement of source.statements) {

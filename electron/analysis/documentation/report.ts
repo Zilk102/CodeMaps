@@ -30,6 +30,7 @@ const requiredSymbols = (file: FileDocumentation): SymbolDocumentation[] =>
 const missingSymbols = (file: FileDocumentation): SymbolDocumentation[] =>
   requiredSymbols(file).filter((symbol) => !symbol.documented);
 
+/** Summarizes one file for the top offenders list: how many required symbols it has, how many lack docs and its coverage. */
 const offenderOf = (file: FileDocumentation): DocumentationOffender => {
   const required = requiredSymbols(file).length;
   const missing = missingSymbols(file).length;
@@ -44,6 +45,7 @@ const offenderOf = (file: FileDocumentation): DocumentationOffender => {
 const undocumentedOf = (file: FileDocumentation): UndocumentedSymbol[] =>
   missingSymbols(file).map(({ line, name, kind }) => ({ file: file.file, line, name, kind }));
 
+/** Lists the documented required symbols of a file whose comment only echoes the name or is too short. */
 const lowQualityOf = (file: FileDocumentation): LowQualityDoc[] =>
   requiredSymbols(file).flatMap((symbol) =>
     symbol.documented && symbol.quality !== 'ok'
@@ -59,6 +61,7 @@ const lowQualityOf = (file: FileDocumentation): LowQualityDoc[] =>
       : []
   );
 
+/** Aggregates required and documented symbols, files and header gaps per language. */
 const languageStats = (files: FileDocumentation[]): LanguageDocumentationStats[] => {
   const stats = new Map<string, LanguageDocumentationStats>();
   for (const file of files) {

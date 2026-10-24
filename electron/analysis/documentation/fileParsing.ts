@@ -69,6 +69,7 @@ const lineCountBefore = (text: string, index: number): number => {
   return lines;
 };
 
+/** Moves every line number of a parse result by `offset`, for code embedded in a bigger file such as a Vue script block. */
 const shiftParsed = (parsed: ParsedFile, offset: number): ParsedFile => ({
   scan: {
     declarations: parsed.scan.declarations.map((declaration) => ({
@@ -109,6 +110,7 @@ const parseVue = (file: string, text: string): ParsedFile => {
 
 // ---- Tree-sitter ------------------------------------------------------------------------
 
+/** Parses a file with tree-sitter and extracts declarations and comments; returns null when no rules or grammar exist for the language. */
 const parseWithTreeSitter = async (request: ParseRequest): Promise<ParsedFile | null> => {
   const rules = rulesForLanguage(request.language);
   const definition = getLanguageByExtension(request.extension);

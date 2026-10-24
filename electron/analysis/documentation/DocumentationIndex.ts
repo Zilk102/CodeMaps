@@ -79,11 +79,13 @@ export class DocumentationIndex {
     return this.inflight.run(root, () => this.compute(root, measurableFiles(files)));
   }
 
+  /** Forgets every cached result and report, for a project reopened from scratch or a changed policy. */
   clear(): void {
     this.caches.clear();
     this.reports.clear();
   }
 
+  /** Rebuilds the report of one project: re-reads only the files whose modification stamp changed, in chunks that yield to the event loop so a large project never blocks the main process. */
   private async compute(root: string, files: string[]): Promise<DocumentationReport> {
     const stamps = await statFiles(files, READ_CONCURRENCY * 2);
     const previous = this.caches.get(root) ?? new Map<string, CachedResult>();

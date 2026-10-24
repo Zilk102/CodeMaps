@@ -44,6 +44,7 @@ const docTextAbove = (
   return first === block.length ? null : blockText(block.slice(first));
 };
 
+/** Turns a raw declaration and its doc text into the reported symbol: whether the policy requires documentation for it and how good the existing comment is. */
 const toSymbol = (declaration: RawDeclaration, docText: string | null): SymbolDocumentation => {
   const lineCount = declaration.endLine - declaration.line + 1;
   return {
@@ -62,6 +63,7 @@ const toSymbol = (declaration: RawDeclaration, docText: string | null): SymbolDo
   };
 };
 
+/** Attaches doc comments to the declarations of a file (inline docstring first, then the comment block above the anchor) and returns their verdicts. */
 const documentSymbols = (
   declarations: RawDeclaration[],
   index: CommentIndex,
@@ -90,6 +92,7 @@ const isHeaderBlock = (block: SourceComment[], convention: DocConvention): boole
   return !NOT_A_HEADER.test(text);
 };
 
+/** Tells whether the file opens with a header comment that is not the doc comment of its first declaration. */
 const commentHeader = (
   comments: SourceComment[],
   declarations: RawDeclaration[],
@@ -107,6 +110,7 @@ const commentHeader = (
   );
 };
 
+/** Decides the header verdict of a file: `n/a` for short files, a docstring check for languages that use one, else the leading comment block. */
 const headerOf = (
   parsed: ParsedFile,
   comments: SourceComment[],
@@ -122,6 +126,7 @@ const headerOf = (
 
 // ---- Entry points -----------------------------------------------------------------------
 
+/** The result for a file left out of the measurement (test or generated): no symbols and no header verdict. */
 const exemptFile = (file: string, language: string, reason: ExemptReason): FileDocumentation => ({
   file,
   language,

@@ -20,6 +20,7 @@ interface Walk {
   env: FileEnv;
 }
 
+/** Builds the raw declaration of a tree-sitter node: its line span, the line comments must sit above (the anchor, which a language may move to a decorator or modifier) and any inline docstring. */
 const buildDeclaration = (
   node: Node,
   facts: { kind: SymbolKind; name: string; exported: boolean; exempt: boolean },
@@ -32,6 +33,7 @@ const buildDeclaration = (
   docstring: rules.docstring ? rules.docstring(node) : undefined,
 });
 
+/** Classifies one syntax node as a documentable declaration and says what its children inherit (visibility, exemption); returns null for nodes that declare nothing. */
 const describeNode = (node: Node, scope: Scope, walk: Walk): Described | null => {
   const { rules, env } = walk;
   const kind = rules.kindOf(node, scope);
