@@ -1,3 +1,7 @@
+/**
+ * Graph queries behind the change context: resolving the target node and gathering its
+ * dependencies, related nodes and views for the result.
+ */
 import { GraphData, GraphLink, GraphNode } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { BlastRadiusResult } from './BlastRadiusAnalyzer';
@@ -8,6 +12,10 @@ import type { ChangeContextResult, ResolvedTargetContext } from './ChangeContext
 
 const MAX_ALTERNATIVES = 5;
 
+/**
+ * Everything directly connected to a change target: its own links and neighbours, DI runtime and
+ * API contract links, and related ADR nodes.
+ */
 export interface ChangeNodeDependencies {
   outgoingLinks: GraphLink[];
   incomingLinks: GraphLink[];
@@ -20,6 +28,11 @@ export interface ChangeNodeDependencies {
   relatedAdrNodes: GraphNode[];
 }
 
+/**
+ * Finds the node a free-text query refers to. An exact id match wins; otherwise graph search
+ * results are used (a code node is preferred over a directory) with up to 5 alternatives, and the
+ * reason for the choice is recorded. Throws when nothing matches.
+ */
 export function resolveTarget(
   graph: GraphData,
   query: string,
@@ -63,6 +76,11 @@ export function resolveTarget(
 const definedNodes = (nodes: Array<GraphNode | undefined>): GraphNode[] =>
   nodes.filter((node): node is GraphNode => Boolean(node));
 
+/**
+ * Collects the links around a node: direct incoming and outgoing links, DI runtime and
+ * contract-binding links that touch its file (reported through their file-level endpoints), and
+ * ADR nodes linked to it.
+ */
 export function getNodeDependencies(graph: GraphData, nodeId: string): ChangeNodeDependencies {
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const outgoingLinks = graph.links.filter((link) => link.source === nodeId);
@@ -112,6 +130,10 @@ export function getNodeDependencies(graph: GraphData, nodeId: string): ChangeNod
   };
 }
 
+/**
+ * Ids of every node connected to the target through dependencies, runtime contracts or the blast
+ * radius, plus the target itself.
+ */
 export function collectRelatedNodeIds(
   resolvedTargetNodeId: string,
   dependencies: ChangeNodeDependencies,
@@ -128,6 +150,9 @@ export function collectRelatedNodeIds(
   ]);
 }
 
+/**
+ * Keeps the patterns that involve any related node (or a node in the same files), at most `limit`.
+ */
 export function collectRelevantPatterns(
   patterns: DetectedPattern[],
   relatedNodeIds: Set<string>,
@@ -143,6 +168,7 @@ export function collectRelevantPatterns(
     .slice(0, limit);
 }
 
+/** Returns the architecture violations whose source or target is in the same file as the node. */
 export function collectTargetViolations(architecture: ArchitectureOverview, nodeId: string) {
   const structuralNodeId = toStructuralNodeId(nodeId);
   return architecture.violations.filter(
@@ -152,6 +178,10 @@ export function collectTargetViolations(architecture: ArchitectureOverview, node
   );
 }
 
+/**
+ * Lists up to 15 files worth reading before the change: the target's file first, then files of its
+ * neighbours, contract nodes and dependents.
+ */
 export function collectRecommendedFilesToInspect(
   resolvedTargetNodeId: string,
   dependencies: ChangeNodeDependencies,
@@ -168,6 +198,7 @@ export function collectRecommendedFilesToInspect(
   ]).slice(0, 15);
 }
 
+/** Trims every dependency list to `maxRelatedNodes` entries so the result stays small. */
 export function buildDependenciesView(
   dependencies: ChangeNodeDependencies,
   maxRelatedNodes: number
@@ -185,6 +216,10 @@ export function buildDependenciesView(
   };
 }
 
+/**
+ * Trims the blast radius to a summary, `maxRelatedNodes` dependents and affected nodes and the
+ * total number of affected links.
+ */
 export function buildBlastRadiusView(
   blastRadius: BlastRadiusResult,
   maxRelatedNodes: number
@@ -222,6 +257,10 @@ function isExactNodeMatch(node: GraphNode, normalizedQuery: string) {
   );
 }
 
+/**
+ * Names why a node matched a query, from the strongest match (file name without extension) down to
+ * 'fuzzy_graph_match'.
+ */
 function describeMatchReason(node: GraphNode, normalizedQuery: string) {
   const { normalizedLabel, basename, basenameWithoutExtension } = nodeNameForms(node);
 

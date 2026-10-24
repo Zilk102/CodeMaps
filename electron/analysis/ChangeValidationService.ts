@@ -1,6 +1,14 @@
+/**
+ * Checks whether an agent's edits introduced or touched code problems, by narrowing project-wide
+ * pattern findings to the changed files.
+ */
 import { isTestFile } from './testFiles';
 import { DetectedPattern, PatternEvidence } from './patternDetectionTypes';
 
+/**
+ * A problem found in the changed files: severity, the files and evidence involved, and a concrete
+ * hint on how to fix it.
+ */
 export interface ChangeFinding {
   id: string;
   severity: DetectedPattern['severity'];
@@ -11,6 +19,10 @@ export interface ChangeFinding {
   fix: string;
 }
 
+/**
+ * Verdict of a validation. `scope` is 'changed' when it covers the given files and 'project' when
+ * no files were given; `isValid` is false when blocking findings exist.
+ */
 export interface ChangeValidationResult {
   scope: 'changed' | 'project';
   changedFiles: string[];
@@ -56,6 +68,10 @@ const MAX_EVIDENCE = 5;
 
 const normalize = (value: string) => value.replace(/\\/g, '/').toLowerCase();
 const fileOf = (nodeId: string) => nodeId.split('#')[0];
+/**
+ * Converts a detected pattern into a finding, with a fix hint for its kind and at most 5 evidence
+ * entries.
+ */
 const toFinding = (
   pattern: DetectedPattern,
   files: string[],
@@ -70,6 +86,10 @@ const toFinding = (
   fix: FIX_HINTS[pattern.id] ?? DEFAULT_FIX,
 });
 
+/**
+ * Fallback when no changed files are known: reports the high-severity patterns of the whole
+ * project (up to 10) and is valid only without them and with a health score above 60.
+ */
 const validateWholeProject = (
   patterns: DetectedPattern[],
   healthScore: number
@@ -128,6 +148,10 @@ export const validateChanges = (input: {
   };
 };
 
+/**
+ * Creates a finding for a pattern if it involves any changed file (test files excluded for size
+ * patterns); evidence is cut to the changed files. Returns an empty list otherwise.
+ */
 const findingsForChangedFiles = (pattern: DetectedPattern, changed: Set<string>) => {
   const files = Array.from(
     new Set(

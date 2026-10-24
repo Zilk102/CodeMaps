@@ -1,3 +1,7 @@
+/**
+ * Collects the evidence for a change context: dependencies, blast radius, patterns, security
+ * findings and files to inspect.
+ */
 import type { GraphData } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import {

@@ -1,9 +1,15 @@
+/** Scores how well a graph node matches a search text, with weights supplied by the caller. */
+
 import type { GraphNode } from '../store/types';
 import { toStructuralNodeId } from './AgentContextUtils';
 
 /** A weight that is the same for every node type, or one weight for files and one for the rest. */
 type MatchWeight = number | { file: number; other: number };
 
+/**
+ * Weight for each kind of text match (label, file name, name without extension, id; equal, prefix
+ * or substring). A weight can differ between files and other nodes.
+ */
 export interface NodeMatchWeights {
   labelEquals: MatchWeight;
   basenameEquals: MatchWeight;
@@ -35,6 +41,10 @@ const MATCH_RULES: MatchRule[] = [
   ['idIncludes', (s, q) => s.id.includes(q)],
 ];
 
+/**
+ * Prepares the lowercase forms of a node that a query is compared with: label, id, file name and
+ * file name without extension.
+ */
 const toSubject = (node: GraphNode): MatchSubject => {
   const id = node.id.toLowerCase();
   const structuralId = toStructuralNodeId(id);

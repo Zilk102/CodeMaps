@@ -1,3 +1,7 @@
+/**
+ * Rules that turn change evidence into guidance: the autopilot plan, risk messages and next steps
+ * for one change target.
+ */
 import { GraphNode } from '../store/types';
 import type {
   ArchitectureNodeClassification,
@@ -14,6 +18,11 @@ import type { DetectedPattern } from './PatternDetectionAnalyzer';
 import { evaluateRiskRules, riskWhen, structuralRiskRules, type RiskRule } from './riskRules';
 import type { SecurityFinding } from './SecurityScanner';
 
+/**
+ * Summarizes how an agent should proceed: the goal (the user's intent or one derived from the task
+ * mode), why this target was chosen, the preferred next action, and whether to fall back to
+ * low-level tools because the target match was ambiguous.
+ */
 export function buildChangeAutopilotPlan(args: {
   taskMode: ChangeTaskMode;
   changeIntent?: string;
@@ -38,6 +47,11 @@ export function buildChangeAutopilotPlan(args: {
   };
 }
 
+/**
+ * Picks the single most useful next action in priority order: security checks when findings exist,
+ * dependency review when anything depends on the target, architecture verification for shared and
+ * domain layers, otherwise code inspection.
+ */
 function choosePreferredNextAction(args: {
   targetClassification: ArchitectureNodeClassification;
   blastRadius: BlastRadiusResult;
@@ -105,6 +119,10 @@ const CHANGE_RISK_RULES: Array<RiskRule<ChangeRiskArgs>> = [
   ),
 ];
 
+/**
+ * Lists the risks of changing the target by applying the risk rules in order. Always returns at
+ * least one line: a generic advice line when no rule applies.
+ */
 export function buildChangeRisks(args: ChangeRiskArgs) {
   return evaluateRiskRules(
     CHANGE_RISK_RULES,
@@ -155,6 +173,11 @@ const CONDITIONAL_NEXT_STEPS: Array<[(args: ChangeNextStepsArgs) => boolean, str
   ],
 ];
 
+/**
+ * Builds the ordered follow-up steps: the fixed re-read and layer check steps (after the stated
+ * intent, if any), then the conditional steps whose condition holds and the first decomposition
+ * candidate when there is one.
+ */
 export function buildChangeNextSteps(args: ChangeNextStepsArgs) {
   const nextSteps = [
     `First, re-read the target node ${args.target.id} and the closest files from recommendedFilesToInspect.`,
@@ -176,6 +199,10 @@ export function buildChangeNextSteps(args: ChangeNextStepsArgs) {
   return nextSteps;
 }
 
+/**
+ * Describes in one sentence the goal that goes with a task mode; unknown modes are handled like
+ * 'bugfix'.
+ */
 function describeChangeModeGoal(taskMode: ChangeTaskMode) {
   switch (taskMode) {
     case 'feature':

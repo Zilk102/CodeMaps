@@ -1,3 +1,8 @@
+/**
+ * Scoring policy of the health score: rules that turn metrics into issues and penalties, and the
+ * formulas for the sub-scores.
+ */
+
 import type {
   HealthScoreIssue,
   HealthScoreMetricSnapshot,
@@ -206,6 +211,10 @@ const QUALITY_RULES: HealthRule[] = [
       : null,
 ];
 
+/**
+ * Runs each rule against the metrics, collecting the issues of rules that fire and adding their
+ * penalties.
+ */
 function applyRules(
   rules: HealthRule[],
   metrics: HealthScoreMetricSnapshot
@@ -221,6 +230,10 @@ function applyRules(
   return { issues, penalty };
 }
 
+/**
+ * Turns metrics into a health result: 100 minus the penalties of all rules and the design debt
+ * penalty, kept between 0 and 100, with a grade and the issues found.
+ */
 export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): HealthScoreResult {
   const structure = applyRules(STRUCTURE_RULES, metrics);
   const design = applyRules(DESIGN_RULES, metrics);
@@ -238,6 +251,11 @@ export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): Heal
   };
 }
 
+/**
+ * Maintainability score from 0 to 100, falling with the average design smell score, the density of
+ * long and complex methods, oversized modules, god files and code clones per file. A project
+ * without files scores 100.
+ */
 export function calculateMaintainabilityScore(args: {
   avgDesignSmellScore: number;
   longMethods: number;
@@ -268,6 +286,10 @@ export function calculateMaintainabilityScore(args: {
   return Math.max(0, Math.round(rawScore));
 }
 
+/**
+ * SOLID score from 0 to 100: penalties for god files, god classes, mixed-responsibility modules,
+ * architecture violations and design smell. The total penalty is capped at 85.
+ */
 export function calculateSolidScore(input: {
   godFiles: number;
   godClasses: number;
@@ -297,6 +319,10 @@ function toGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
   return 'F';
 }
 
+/**
+ * Extra penalty (at most 30) for accumulated design problems: smell score, oversized modules, god
+ * files and classes, long and complex methods, mixed responsibilities.
+ */
 function calculateDesignDebtPenalty(input: {
   avgDesignSmellScore: number;
   oversizedModules: number;
@@ -318,6 +344,10 @@ function calculateDesignDebtPenalty(input: {
   return Math.min(30, weightedPenalty);
 }
 
+/**
+ * Penalty (at most 10) for a degraded refresh pipeline, growing with the average latency, the
+ * runtime priority rate and the number of priority rebuilds.
+ */
 function calculateRefreshPenalty(
   avgRefreshLatencyMs: number,
   runtimePriorityRate: number,

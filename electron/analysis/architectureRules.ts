@@ -1,3 +1,7 @@
+/**
+ * The built-in path rules that map files and directories to architecture layers, plus loading and
+ * validation of project-specific rules.
+ */
 import safeRegex from 'safe-regex';
 import log from 'electron-log/main';
 import { loadProjectArchitectureRuleRecords } from './projectArchitectureRuleLoader';
@@ -96,6 +100,11 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
   },
 ];
 
+/**
+ * Compiles a custom rule from the project config into a case-insensitive RegExp rule. Returns null
+ * for patterns that are unsafe (catastrophic backtracking) or do not compile, so one bad rule
+ * cannot hang indexing or break the rest.
+ */
 const toArchitectureRule = (rule: {
   pattern: string;
   layer: string;
@@ -119,6 +128,11 @@ const toArchitectureRule = (rule: {
   }
 };
 
+/**
+ * Returns the rules to apply for a project: valid custom rules from its config placed before the
+ * defaults, so they take priority while the defaults still cover everything else. Without usable
+ * custom rules the defaults are returned.
+ */
 export const resolveArchitectureRules = (
   projectRoot: string,
   defaultRules: ArchitectureRule[]

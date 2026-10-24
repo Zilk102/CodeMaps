@@ -1,3 +1,9 @@
+/**
+ * Measures every file of the graph for size, coupling and responsibility mix, and finds the worst
+ * offenders (oversized modules, god files and classes, long or complex methods, mixed
+ * responsibilities, clones).
+ */
+
 import { cloneIndex } from './clones/CloneIndex';
 import { computeFileCoupling } from './couplingMetrics';
 import { isTestFile } from './testFiles';
@@ -24,6 +30,11 @@ export type {
   SourceFunctionMetric,
 } from './sourceFileStructure';
 
+/**
+ * Quality measurements of one file: line and symbol counts, coupling, links to frameworks, DI and
+ * API contracts, parsed source metrics, and the derived responsibility count, mixed-responsibility
+ * flag and design smell score. `lineCount` is null when the file cannot be read.
+ */
 export interface ModuleQualityMetric {
   node: GraphNode;
   lineCount: number | null;
@@ -39,6 +50,11 @@ export interface ModuleQualityMetric {
   designSmellScore: number;
 }
 
+/**
+ * All per-file metrics plus the top 10 files for each smell. Test files appear only in `metrics`;
+ * clone groups come from the token-level detector when it has run, otherwise from identical
+ * function bodies.
+ */
 export interface ModuleQualitySummary {
   metrics: ModuleQualityMetric[];
   oversizedModules: ModuleQualityMetric[];
@@ -83,6 +99,11 @@ function createResponsibilityAxisCount(metric: BaseMetric): number {
   return RESPONSIBILITY_AXES.filter(([, spans]) => spans(metric)).length;
 }
 
+/**
+ * Whether a module does too many things: it passes when its size or dependency/runtime surface
+ * reaches a threshold and it also spans enough responsibility axes (for example 450 lines with 4
+ * axes, or 100 lines with 6).
+ */
 function isMixedResponsibility(
   metric: Omit<
     ModuleQualityMetric,
@@ -105,6 +126,11 @@ function isMixedResponsibility(
   return thresholds.some(([value, minValue, minAxes]) => value >= minValue && axisCount >= minAxes);
 }
 
+/**
+ * Design smell score from 0 to 100, summing capped contributions of size, symbol count, coupling,
+ * responsibility axes, god classes, long and complex methods and mixed responsibilities. Higher
+ * means worse.
+ */
 function calculateDesignSmellScore(
   metric: Omit<
     ModuleQualityMetric,
@@ -133,6 +159,11 @@ const MIN_CLONE_FUNCTION_LINES = 8;
 const labelOrder = (left: ModuleQualityMetric, right: ModuleQualityMetric) =>
   left.node.label.localeCompare(right.node.label);
 
+/**
+ * Measures one file node: reads its line count and source structure, takes coupling from the file
+ * coupling table, counts framework, DI and contract links, and derives the responsibility and
+ * smell values.
+ */
 const buildModuleMetric = (
   node: GraphNode,
   adjacency: ReturnType<typeof buildGraphAdjacency>,
@@ -168,6 +199,10 @@ const buildModuleMetric = (
   };
 };
 
+/**
+ * Top modules by size: 600+ lines or 25+ symbols qualify, largest first. Files that could not be
+ * read and have no symbols are skipped.
+ */
 const findOversizedModules = (metrics: ModuleQualityMetric[]) =>
   metrics
     .filter(
@@ -188,6 +223,10 @@ const isHugeModule = (metric: ModuleQualityMetric): boolean =>
 const isLargeModule = (metric: ModuleQualityMetric): boolean =>
   (metric.lineCount || 0) >= 900 || metric.symbolCount >= 30;
 
+/**
+ * Whether a large module also shows a second sign of being a god file: high coupling, many runtime
+ * links, frequent changes, a god class or mixed responsibilities.
+ */
 const hasGodFileSignals = (metric: ModuleQualityMetric): boolean => {
   const stackDegree = metric.stackAwareDegree + metric.diRuntimeDegree + metric.contractDegree;
   return (
@@ -231,6 +270,10 @@ const rankByWorstMatch = <Item>(
     .slice(0, TOP_LIMIT);
 };
 
+/**
+ * Modules flagged as mixing responsibilities, with the most responsibility axes first, then the
+ * longest.
+ */
 const findMixedResponsibilityModules = (metrics: ModuleQualityMetric[]) =>
   metrics
     .filter((metric) => metric.mixedResponsibilities)
@@ -280,6 +323,10 @@ const findStructuralClones = (projectRoot: string | undefined): CloneGroups | nu
     })),
   })) ?? null;
 
+/**
+ * Analyzes all files of the graph: builds the metrics, then ranks the worst files per smell,
+ * ignoring test files for the rankings. Reads files from disk for line counts and structure.
+ */
 export function analyzeModuleQuality(graph: GraphData): ModuleQualitySummary {
   const adjacency = buildGraphAdjacency(graph);
   const coupling = computeFileCoupling(graph);

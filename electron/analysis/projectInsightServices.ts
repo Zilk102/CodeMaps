@@ -14,7 +14,9 @@ const PROJECT_INSIGHT_SERVICES = {
   qualityGovernance: QualityGovernanceService,
 };
 
+/** The service instances project insight needs, keyed by role. */
 export type ProjectInsightServices = ServiceBundle<typeof PROJECT_INSIGHT_SERVICES>;
 
+/** Creates the services for project insight; any of them can be replaced through `overrides`. */
 export const createProjectInsightServices = (overrides: Partial<ProjectInsightServices> = {}) =>
   createServices(PROJECT_INSIGHT_SERVICES, overrides);

@@ -1,3 +1,5 @@
+/** Detects files where framework, DI and API contract wiring is concentrated. */
+
 import type { GraphData } from '../store/types';
 import { isContractSemanticLink, isDiRuntimeLink, isStackAwareLink } from './graphAnalysisUtils';
 import type { DetectedPattern } from './patternDetectionTypes';
@@ -41,6 +43,11 @@ const RUNTIME_HUB_SPECS: RuntimeHubSpec[] = [
   },
 ];
 
+/**
+ * Finds up to 10 files with the most links of the spec's kind (counting both directions). Files
+ * need at least `minDegree` such links, and one with `highDegree` or more makes the pattern high
+ * severity. Returns null when no file qualifies.
+ */
 function buildRuntimeHubPattern(
   spec: RuntimeHubSpec,
   args: {
@@ -73,6 +80,10 @@ function buildRuntimeHubPattern(
   };
 }
 
+/**
+ * Runs all runtime hub detectors (stack orchestration, DI runtime contracts, API contract
+ * bindings) and returns the patterns that were found.
+ */
 export function buildRuntimePatterns(args: {
   graph: GraphData;
   incomingByTarget: Map<string, GraphData['links']>;

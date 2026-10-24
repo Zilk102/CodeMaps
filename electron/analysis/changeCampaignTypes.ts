@@ -1,3 +1,4 @@
+/** Input and result types of the change campaign analysis. */
 import { GraphNode } from '../store/types';
 import {
   ArchitectureLayer,
@@ -10,6 +11,11 @@ import { SecurityFinding } from './SecurityScanner';
 import { DecompositionGuidance } from './DecompositionGuidanceService';
 import { QualityBudget, QualityDashboard, RefactoringWave } from './QualityGovernanceService';
 
+/**
+ * Request for a change campaign: the user's words and the queries derived from them, optional seed
+ * node ids, task mode, traversal depth and limits on seeds and files, and whether to include
+ * security findings.
+ */
 export interface PrepareChangeCampaignInput {
   userRequest: string;
   candidateQueries: string[];
@@ -21,6 +27,11 @@ export interface PrepareChangeCampaignInput {
   includeSecurityFindings?: boolean;
 }
 
+/**
+ * The campaign result an agent works from: scope, architecture and blast radius views, relevant
+ * patterns and security findings, quality budget, decomposition guidance, an execution plan in
+ * waves, risks and next steps.
+ */
 export interface ChangeCampaignResult {
   graphSummary: {
     projectRoot: string;

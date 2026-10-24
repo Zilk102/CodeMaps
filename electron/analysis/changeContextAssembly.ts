@@ -1,3 +1,6 @@
+/**
+ * Assembles the public change context result from the resolved target and the collected evidence.
+ */
 import type { GraphData } from '../store/types';
 import { createGraphSummary } from './AgentContextUtils';
 import {

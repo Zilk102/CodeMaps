@@ -1,3 +1,5 @@
+/** Types of the project overview: the request and the result returned to the agent. */
+
 import { GraphNode } from '../store/types';
 import { ArchitectureOverview } from './ArchitectureInsightService';
 import { DetectedPattern } from './PatternDetectionAnalyzer';
@@ -8,12 +10,21 @@ import { SecurityFinding } from './SecurityScanner';
 import { DecompositionGuidance } from './DecompositionGuidanceService';
 import { QualityBudget, QualityDashboard, RefactoringWave } from './QualityGovernanceService';
 
+/**
+ * Options for the project overview: whether to run the security scan and to include per-node
+ * classifications, and the size of the lists (default 10).
+ */
 export interface PrepareProjectContextInput {
   includeSecurityFindings?: boolean;
   includeClassifications?: boolean;
   limit?: number;
 }
 
+/**
+ * The project overview: profile, architecture, health, refresh telemetry, patterns, security, a
+ * mental model to start from, the autopilot plan, quality budget and dashboard, decomposition
+ * guidance, refactoring waves and next steps.
+ */
 export interface ProjectInsightResult {
   graphSummary: {
     projectRoot: string;

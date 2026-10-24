@@ -1,3 +1,7 @@
+/**
+ * Plans a multi-file change campaign: groups affected files into ordered migration waves, lists
+ * risks and writes the next steps.
+ */
 import type { GraphNode } from '../store/types';
 import type {
   ArchitectureLayer,
@@ -15,8 +19,13 @@ import type {
 import type { SecurityFinding } from './SecurityScanner';
 import { unique } from './AgentContextUtils';
 
+/** How many files a campaign touches: small (under 8), medium (8-19) or large (20 or more). */
 export type CampaignBreadth = 'small' | 'medium' | 'large';
 
+/**
+ * One step of a campaign, a batch of files to change together, with the layer they belong to
+ * ('mixed' for the catch-all wave).
+ */
 export interface ChangeCampaignWave {
   id: string;
   title: string;
@@ -65,6 +74,10 @@ const WAVE_DEFINITIONS: WaveDefinition[] = [
 
 type WaveGroup = Omit<ChangeCampaignWave, 'id'>;
 
+/**
+ * Counts affected files per architecture layer, ignoring files without a classification. Largest
+ * layer first, ties alphabetical.
+ */
 export function buildLayersInvolved(
   affectedFiles: GraphNode[],
   layerByNodeId: Map<string, ArchitectureNodeClassification>
@@ -84,6 +97,10 @@ export function buildLayersInvolved(
     .sort((a, b) => b.count - a.count || a.layer.localeCompare(b.layer));
 }
 
+/**
+ * Creates the empty wave buckets, one per wave definition, keyed by wave key and labelled with the
+ * first layer of the definition.
+ */
 function createWaveGroups() {
   const groups = new Map<string, WaveGroup>();
   for (const wave of WAVE_DEFINITIONS) {
@@ -97,6 +114,10 @@ function createWaveGroups() {
   return groups;
 }
 
+/**
+ * Puts a file into the first wave whose layers include its layer. Files with an unknown or
+ * unlisted layer go to the core wave, which then becomes 'mixed'.
+ */
 function assignFileToWave(
   groups: Map<string, WaveGroup>,
   fileId: string,
@@ -114,6 +135,11 @@ function assignFileToWave(
   }
 }
 
+/**
+ * Splits the affected files into ordered waves: runtime contracts first, then foundations, core
+ * logic and edge integration. Composition roots always go to the first wave, each wave is capped
+ * at 15 files and empty waves are dropped.
+ */
 export function buildExecutionWaves(
   affectedFiles: GraphNode[],
   layerByNodeId: Map<string, ArchitectureNodeClassification>,
@@ -184,6 +210,11 @@ const RISK_RULES: Array<RiskRule<RiskInput>> = [
   ),
 ];
 
+/**
+ * Lists the risks of a campaign (very broad scope, many layers, violations, hotspots, design
+ * smells, composition roots, security findings). If none applies, returns a single generic advice
+ * line, so the result is never empty.
+ */
 export function buildChangeCampaignRisks(
   affectedFiles: GraphNode[],
   runtimeCompositionRoots: GraphNode[],
@@ -207,6 +238,11 @@ export function buildChangeCampaignRisks(
   );
 }
 
+/**
+ * Writes the ordered guidance for executing the campaign: confirm the seed files and composition
+ * roots, work wave by wave, address churn-heavy files and the quality budget; security findings,
+ * if any, are placed first.
+ */
 export function buildChangeCampaignNextSteps(args: {
   taskMode: ChangeTaskMode;
   directlyMatchedFiles: GraphNode[];
@@ -263,6 +299,10 @@ export function buildChangeCampaignNextSteps(args: {
   return nextSteps;
 }
 
+/**
+ * Classifies a campaign by the number of affected files: 20 or more is large, 8 or more medium,
+ * otherwise small.
+ */
 export function getCampaignBreadth(count: number): CampaignBreadth {
   if (count >= 20) return 'large';
   if (count >= 8) return 'medium';

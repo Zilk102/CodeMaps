@@ -1,3 +1,8 @@
+/**
+ * Detects structural patterns in the graph: hubs, high fan-out, deep nesting, churn, broad ADRs,
+ * isolated files and layer problems.
+ */
+
 import type { GraphData } from '../store/types';
 import { getHierarchyDepth, hasKnownParent } from './graphAnalysisUtils';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
@@ -47,6 +52,10 @@ const HUB_NODES: PatternSpec<{ node: GraphNode; fanIn: number }> = {
   nodeIds: (hubs) => hubs.map(({ node }) => node.id),
 };
 
+/**
+ * Finds up to 10 files, classes or functions with a fan-in of 8 or more, excluding
+ * shared-by-design modules such as utils and types. High severity from a fan-in of 15.
+ */
 function buildHubNodesPattern({ graph }: StructuralArgs): DetectedPattern | null {
   const nodeFanIn = computeNodeFanIn(graph);
   const withFanIn = (node: GraphNode) => ({ node, fanIn: nodeFanIn.get(node.id) ?? 0 });
@@ -79,6 +88,11 @@ const HIGH_FAN_OUT: PatternSpec<FanOutFile> = {
   nodeIds: (files) => files.map(({ node }) => node.id),
 };
 
+/**
+ * Finds files that depend on 12 or more other files (siblings in the same folder count for less).
+ * Composition roots are ignored and files that wire things together get a higher limit; 20 or more
+ * (scaled the same way) makes it high severity.
+ */
 function buildHighFanOutPattern({
   graph,
   childrenByParentId,
@@ -143,6 +157,10 @@ const BROAD_ADR: PatternSpec<string> = {
   nodeIds: (adrIds) => adrIds,
 };
 
+/**
+ * Finds ADR documents linked from 12 or more files, which usually means the decision is too broad
+ * to trace.
+ */
 function buildBroadAdrPattern({ graph }: StructuralArgs): DetectedPattern | null {
   const adrLinkedFiles = new Map<string, Set<string>>();
   graph.links
@@ -168,6 +186,10 @@ const ISOLATED_FILES: PatternSpec<GraphNode> = {
   nodeIds: idsOfNodes,
 };
 
+/**
+ * Finds up to 10 files without any links and without a known parent or children. Configuration
+ * files are ignored, and the pattern is reported only when at least 3 such files exist.
+ */
 function buildIsolatedFilesPattern({
   graph,
   architecture,
@@ -239,6 +261,9 @@ const STRUCTURAL_BUILDERS: StructuralBuilder[] = [
   buildUnknownLayerPattern,
 ];
 
+/**
+ * Runs all structural detectors on the graph and architecture data and returns the patterns found.
+ */
 export function buildStructuralPatterns(args: StructuralArgs): DetectedPattern[] {
   return runBuilders(STRUCTURAL_BUILDERS, args);
 }

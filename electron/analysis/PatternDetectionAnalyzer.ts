@@ -1,3 +1,8 @@
+/**
+ * Entry point of pattern detection: combines structural, quality and runtime detectors into one
+ * result.
+ */
+
 import { GraphData } from '../store/types';
 import { buildGraphAdjacency } from './graphAnalysisUtils';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
@@ -14,9 +19,17 @@ export type {
   PatternEvidence,
 } from './patternDetectionTypes';
 
+/**
+ * Detects architectural and code quality patterns (hubs, god files, violations, clones and
+ * similar) in a graph.
+ */
 export class PatternDetectionAnalyzer {
   constructor(private readonly architectureInsightService = new ArchitectureInsightService()) {}
 
+  /**
+   * Runs the architecture and module quality analyses once and feeds them to the structural,
+   * quality and runtime detectors. Returns all detected patterns in that detector order.
+   */
   analyze(graph: GraphData): PatternDetectionResult {
     const architecture = this.architectureInsightService.analyze(graph);
     const quality = analyzeModuleQuality(graph);

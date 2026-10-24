@@ -1,3 +1,4 @@
+/** Stats many files in parallel with bounded concurrency, for cache validation. */
 import * as fs from 'fs/promises';
 import pLimit from 'p-limit';
 

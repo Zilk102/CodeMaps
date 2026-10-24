@@ -1,9 +1,21 @@
+/**
+ * Shared helpers for agent-facing analysis: graph node scoring and search, collapsed file-level
+ * adjacency and small graph summaries.
+ */
 import { GraphData, GraphNode } from '../store/types';
 
+/**
+ * Strips the `#symbol` suffix from a node id, leaving the id of the file (structural node) that
+ * contains it.
+ */
 export const toStructuralNodeId = (nodeId: string) => nodeId.split('#')[0];
 
 export const NORMALIZED_CODE_NODE_TYPES = ['file', 'class', 'function', 'adr'];
 
+/**
+ * Ranking weight of a node type when match scores tie: code symbols outrank files, files outrank
+ * ADRs, directories rank lowest.
+ */
 export const getNodeTypePriority = (type: string) => {
   switch (type) {
     case 'function':
@@ -21,6 +33,11 @@ export const getNodeTypePriority = (type: string) => {
   }
 };
 
+/**
+ * Scores how well a node matches a lowercase query: exact, prefix and substring matches on label,
+ * file name and path add weights, and the node type adds a baseline (code types more), so the
+ * score is always positive; higher is better.
+ */
 export const scoreNodeMatch = (node: GraphNode, normalizedQuery: string) => {
   const normalizedLabel = node.label.toLowerCase();
   const normalizedId = node.id.toLowerCase();
@@ -51,6 +68,11 @@ export const scoreNodeMatch = (node: GraphNode, normalizedQuery: string) => {
   return score;
 };
 
+/**
+ * Case-insensitive search of graph nodes by label or id, optionally restricted to one node type.
+ * Returns at most `limit` nodes ordered by match score, best first; an empty query matches every
+ * node.
+ */
 export const searchGraph = (graph: GraphData, query: string, type?: string, limit = 20) => {
   const normalizedQuery = query.trim().toLowerCase();
   return graph.nodes
@@ -72,6 +94,7 @@ export const searchGraph = (graph: GraphData, query: string, type?: string, limi
     .map(({ node }) => node);
 };
 
+/** A graph node together with its relevance score for a query. */
 export interface ScoredNode {
   node: GraphNode;
   score: number;
@@ -105,6 +128,10 @@ export const buildCollapsedAdjacency = (
   return { outgoing, incoming };
 };
 
+/**
+ * When the best match is a directory, returns the first code-level match (file, class, function,
+ * ADR) that really matches the query so it can replace the directory; null otherwise.
+ */
 export const promoteCodeTarget = (matches: GraphNode[], normalizedQuery: string) => {
   const current = matches[0];
   if (!current || current.type !== 'directory') {
@@ -120,6 +147,10 @@ export const promoteCodeTarget = (matches: GraphNode[], normalizedQuery: string)
   return preferred || null;
 };
 
+/**
+ * Whether a candidate's file name, name without extension, or label equals the query or starts
+ * with it (label only for the prefix case).
+ */
 const matchesCodeTargetQuery = (candidate: GraphNode, normalizedQuery: string) => {
   const structuralId = toStructuralNodeId(candidate.id.toLowerCase());
   const basename = structuralId.split('/').pop() || structuralId;
@@ -134,6 +165,7 @@ const matchesCodeTargetQuery = (candidate: GraphNode, normalizedQuery: string) =
   );
 };
 
+/** Counts nodes and links of a graph and breaks the nodes down by type. */
 export const createGraphSummary = (graph: GraphData) => {
   return {
     projectRoot: graph.projectRoot,
@@ -146,4 +178,5 @@ export const createGraphSummary = (graph: GraphData) => {
   };
 };
 
+/** Removes duplicates while keeping the order of first occurrence. */
 export const unique = <T>(items: T[]) => Array.from(new Set(items));

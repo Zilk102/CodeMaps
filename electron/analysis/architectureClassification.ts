@@ -1,3 +1,7 @@
+/**
+ * Assigns architectural layers to graph nodes from path rules, then lets directories inherit the
+ * layer their descendants vote for.
+ */
 import { GraphData, GraphNode } from '../store/types';
 import { toStructuralNodeId } from './AgentContextUtils';
 import {
@@ -31,6 +35,10 @@ const mergeLayerCounts = (
   }
 };
 
+/**
+ * Decides whether a directory takes a layer from its descendants: a single layer always wins,
+ * otherwise the top layer needs at least two votes and 40% of all votes.
+ */
 const shouldPromoteDirectory = (counts: Map<ArchitectureLayer, number>) => {
   if (counts.size === 0) {
     return false;
@@ -46,6 +54,10 @@ const shouldPromoteDirectory = (counts: Map<ArchitectureLayer, number>) => {
   return dominantCount >= 2 && dominantCount / total >= 0.4;
 };
 
+/**
+ * Classifies one node by the first rule whose pattern matches its normalized path (directories are
+ * matched with a trailing slash); nodes no rule matches get layer 'unknown'.
+ */
 export const classifyNodeByRules = (
   node: GraphNode,
   activeRules: ArchitectureRule[]
@@ -63,6 +75,11 @@ export const classifyNodeByRules = (
   return createUnknownClassification(node.id);
 };
 
+/**
+ * Creates a memoized function that counts the layers of all classified descendants of a node. It
+ * guards against cycles in the parent-child map by returning an empty vote for an id already being
+ * visited.
+ */
 const createDescendantVoteCollector = (
   initialByNodeId: Map<string, ArchitectureNodeClassification>,
   childrenByParentId: Map<string, GraphNode[]>
@@ -108,6 +125,10 @@ const createDescendantVoteCollector = (
 const pickDominantLayer = (votes: Map<ArchitectureLayer, number>) =>
   Array.from(votes.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
 
+/**
+ * Whether a node is a directory the rules left unknown, is not the project root and exists in the
+ * graph, so it may inherit a layer from its children.
+ */
 const isRefinableDirectory = (
   graph: GraphData,
   node: GraphNode,
@@ -119,6 +140,11 @@ const isRefinableDirectory = (
   node.id !== graph.projectRoot &&
   nodeById.has(node.id);
 
+/**
+ * Second pass over all nodes: unknown directories adopt the dominant layer of their descendants
+ * (reason 'dominant_descendant_layer'); every other node keeps its rule-based classification. Ties
+ * between layers are broken alphabetically.
+ */
 export const refineDirectoryClassifications = (
   graph: GraphData,
   initialClassifications: ArchitectureNodeClassification[],

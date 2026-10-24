@@ -1,11 +1,21 @@
+/** Small helpers for assembling detected patterns from detector findings. */
+
 import type { DetectedPattern, PatternEvidence } from './patternDetectionTypes';
 
+/**
+ * Runs every builder on the same input and returns the patterns of those that found something
+ * (non-null results).
+ */
 export function runBuilders<T>(builders: Array<(input: T) => DetectedPattern | null>, input: T) {
   return builders
     .map((build) => build(input))
     .filter((pattern): pattern is DetectedPattern => pattern !== null);
 }
 
+/**
+ * Description of a pattern a detector can report: fixed id, title and text, plus functions that
+ * compute severity, affected node ids and optional evidence from the findings.
+ */
 export interface PatternSpec<T> {
   id: string;
   title: string;

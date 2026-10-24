@@ -1,3 +1,7 @@
+/**
+ * Prepares the context for a change that spans many files: seeds, affected scope, risks and a
+ * wave-by-wave plan.
+ */
 import { GraphData, GraphNode } from '../store/types';
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { DecompositionGuidanceService } from './DecompositionGuidanceService';
@@ -24,6 +28,10 @@ export type { ChangeCampaignResult, PrepareChangeCampaignInput } from './changeC
 const DEFAULT_MAX_SEEDS = 8;
 const DEFAULT_MAX_FILES = 30;
 
+/**
+ * Orchestrates a campaign preparation: it gathers analysis snapshots, scope, quality and guidance
+ * through its collaborators and hands them to the assembly step.
+ */
 export class ChangeCampaignService {
   constructor(
     private readonly analysisSnapshotService = new AnalysisSnapshotService(),
@@ -32,6 +40,11 @@ export class ChangeCampaignService {
     private readonly qualityGovernanceService = new QualityGovernanceService()
   ) {}
 
+  /**
+   * Builds the campaign for a request. Defaults: refactor mode, depth 2, 30 files, 8 seeds.
+   * Resolves seed targets, expands them into affected files, keeps only patterns, security
+   * findings and violations that touch those files, and assembles the result.
+   */
   async prepareContext(
     graph: GraphData,
     input: PrepareChangeCampaignInput
@@ -83,6 +96,10 @@ export class ChangeCampaignService {
     });
   }
 
+  /**
+   * Builds the quality budget, dashboard and refactoring waves for the campaign; wraps
+   * `buildQualityArtifacts` with a limit of 4 refactoring waves.
+   */
   private buildQuality(
     graph: GraphData,
     health: Parameters<typeof buildQualityArtifacts>[1],
@@ -99,6 +116,11 @@ export class ChangeCampaignService {
     );
   }
 
+  /**
+   * Determines the files in scope: files holding the seeds, the runtime composition roots that
+   * wire them, everything reachable within `depth` hops (up to `maxFiles`) and the blast radius of
+   * each scoped file.
+   */
   private resolveFileScope(
     graph: GraphData,
     input: PrepareChangeCampaignInput,

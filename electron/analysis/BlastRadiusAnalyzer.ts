@@ -1,3 +1,4 @@
+/** Computes the blast radius of a node: everything that directly or transitively depends on it. */
 import { GraphData, GraphLink, GraphNode } from '../store/types';
 import {
   buildGraphAdjacency,
@@ -5,6 +6,11 @@ import {
   isStackAwareLink,
 } from './graphAnalysisUtils';
 
+/**
+ * Result of a blast radius run. `affectedNodes` excludes the seed nodes themselves;
+ * `directDependents` are nodes with a link straight into a seed; `depthLimit` is null when
+ * unbounded; `maxDepth` is the deepest level reached.
+ */
 export interface BlastRadiusResult {
   rootNodeId: string;
   /** The root plus, for a file, the symbols it declares: imports usually point at those. */
@@ -17,7 +23,13 @@ export interface BlastRadiusResult {
   confidence: 'high' | 'medium' | 'low';
 }
 
+/** Walks dependency links backwards from a node to find the code that a change to it can break. */
 export class BlastRadiusAnalyzer {
+  /**
+   * Breadth-first search over reverse dependency links starting at the root (for a file also its
+   * symbols). Stops expanding at `depthLimit` when given; the seeds' own links are never counted
+   * as dependents. Confidence reflects the kind of links found.
+   */
   analyze(graph: GraphData, rootNodeId: string, depthLimit?: number): BlastRadiusResult {
     const { nodeById, incomingByTarget } = buildGraphAdjacency(graph);
     const seeds = this.collectSeeds(graph, rootNodeId, nodeById);
@@ -67,6 +79,11 @@ export class BlastRadiusAnalyzer {
     return seeds;
   }
 
+  /**
+   * Breadth-first walk from the seeds along incoming dependency links, recording the depth of each
+   * node and every link crossed. A node is expanded once, but all its links are recorded; nodes at
+   * `depthLimit` are not expanded further.
+   */
   private traverseDependents(
     seeds: string[],
     ownIds: Set<string>,
@@ -111,6 +128,11 @@ export class BlastRadiusAnalyzer {
     return isArchitecturalDependencyLink(link) || link.type === 'adr';
   }
 
+  /**
+   * Rates how trustworthy the result is: 'low' with no dependents or only weak links, 'medium'
+   * when import or stack-aware links are mixed with ADR links, 'high' when such links are present
+   * and no ADR link is involved.
+   */
   private computeConfidence(
     affectedLinks: GraphLink[],
     affectedNodes: GraphNode[]

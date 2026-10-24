@@ -1,3 +1,7 @@
+/**
+ * Helpers of the review context: focus resolution, task mode normalization and the security view.
+ */
+
 import type { GraphData, GraphNode } from '../store/types';
 import { summarizeSecurityFindings } from './securityFindingSummary';
 import type {
@@ -13,8 +17,16 @@ const MAX_ALTERNATIVES = 5;
 const MAX_REVIEW_FINDINGS = 20;
 const REVIEW_TASK_MODES = ['review', 'architecture', 'security', 'stabilization'] as const;
 
+/**
+ * What the review is for: a general review, or one centered on architecture, security or
+ * stabilization.
+ */
 export type ReviewTaskMode = (typeof REVIEW_TASK_MODES)[number];
 
+/**
+ * The area the reviewer asked to look at: the nodes matching the query, their layers, and the
+ * patterns and violations that involve them.
+ */
 export interface ReviewFocusContext {
   query: string;
   matches: GraphNode[];
@@ -23,6 +35,11 @@ export interface ReviewFocusContext {
   relatedViolations: ArchitectureViolation[];
 }
 
+/**
+ * Looks up the nodes matching the focus query (up to 5, with code nodes ranked above a directory
+ * of the same name) together with their classifications, patterns and violations. Returns null
+ * without a query; with no match, an empty focus.
+ */
 export function prepareReviewFocusContext(
   graph: GraphData,
   architecture: ArchitectureOverview,
@@ -75,10 +92,12 @@ export function prepareReviewFocusContext(
   };
 }
 
+/** Returns the given review mode, or 'review' when it is missing or unknown. */
 export function normalizeReviewTaskMode(taskMode?: ReviewTaskMode): ReviewTaskMode {
   return REVIEW_TASK_MODES.includes(taskMode || 'review') ? taskMode || 'review' : 'review';
 }
 
+/** Security part of the review: summary counts and the first 20 findings. */
 export function buildReviewSecurityView(findings: SecurityFinding[]) {
   return {
     summary: summarizeSecurityFindings(findings),

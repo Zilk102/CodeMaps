@@ -1,3 +1,7 @@
+/**
+ * Public entry point for preparing the context of a single-target change; re-exports its input and
+ * result types.
+ */
 import { GraphData } from '../store/types';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
@@ -43,6 +47,11 @@ export class ChangeContextService {
     );
   }
 
+  /**
+   * Resolves the requested target in the graph, classifies it into an architecture layer, gathers
+   * dependencies, blast radius, patterns and security findings around it, and assembles the
+   * result. Task mode falls back to 'bugfix' when missing.
+   */
   async prepareChangeContext(
     graph: GraphData,
     input: PrepareChangeContextInput

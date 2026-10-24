@@ -1,3 +1,7 @@
+/**
+ * Assembles the final change campaign result from the already computed scope, architecture,
+ * quality and security inputs.
+ */
 import type { GraphData, GraphNode } from '../store/types';
 import type {
   ArchitectureNodeClassification,
@@ -21,6 +25,10 @@ import {
   getCampaignBreadth,
 } from './changeCampaignSupport';
 
+/**
+ * Files a campaign touches: those matched by the user's queries, runtime composition roots, all
+ * affected files and their blast radius.
+ */
 export interface CampaignFileScope {
   directlyMatchedFiles: GraphNode[];
   runtimeCompositionRoots: GraphNode[];
@@ -28,6 +36,10 @@ export interface CampaignFileScope {
   blastRadius: ChangeCampaignResult['blastRadius'];
 }
 
+/**
+ * Everything `assembleCampaignResult` needs, already computed by the campaign service, so assembly
+ * stays free of I/O and analysis.
+ */
 export interface CampaignAssemblyContext {
   graph: GraphData;
   input: PrepareChangeCampaignInput;
@@ -44,6 +56,10 @@ export interface CampaignAssemblyContext {
   qualityGovernanceService: Pick<QualityGovernanceService, 'summarizeBudgetForStep'>;
 }
 
+/**
+ * Builds the scope part of the result from the request and the file scope, including how broad the
+ * campaign is.
+ */
 function buildScope(ctx: CampaignAssemblyContext): ChangeCampaignResult['scope'] {
   const { directlyMatchedFiles, runtimeCompositionRoots, affectedFiles } = ctx.scope;
   return {
@@ -56,6 +72,10 @@ function buildScope(ctx: CampaignAssemblyContext): ChangeCampaignResult['scope']
   };
 }
 
+/**
+ * Builds the execution plan: multi-target campaign mode, the given waves and refactoring waves,
+ * with a fallback to low-level tools advised when no file or composition root was found.
+ */
 function buildExecutionPlan(
   ctx: CampaignAssemblyContext,
   waves: ChangeCampaignResult['executionPlan']['waves']
@@ -70,6 +90,10 @@ function buildExecutionPlan(
   };
 }
 
+/**
+ * Combines the campaign inputs into the response: graph summary, scope, architecture view, risks,
+ * execution waves and next steps. Pure assembly, with no analysis or I/O of its own.
+ */
 export function assembleCampaignResult(ctx: CampaignAssemblyContext): ChangeCampaignResult {
   const { graph, input, taskMode, architecture, layerByNodeId, scope } = ctx;
   const { directlyMatchedFiles, runtimeCompositionRoots, affectedFiles } = scope;

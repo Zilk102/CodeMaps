@@ -1,3 +1,4 @@
+/** Default wiring of the analyzers used by the change context service. */
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 import { BlastRadiusAnalyzer } from './BlastRadiusAnalyzer';
 import { DecompositionGuidanceService } from './DecompositionGuidanceService';
@@ -14,6 +15,7 @@ const CHANGE_CONTEXT_SERVICES = {
   decompositionGuidanceService: DecompositionGuidanceService,
 };
 
+/** The analyzer instances a change context needs, keyed by role. */
 export type ChangeContextServices = ServiceBundle<typeof CHANGE_CONTEXT_SERVICES>;
 
 /** Default wiring; every service can be replaced one by one. */

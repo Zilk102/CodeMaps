@@ -1,3 +1,5 @@
+/** Shared types and helpers of the review priority rules. */
+
 import { GraphData } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
@@ -8,6 +10,10 @@ import type { ReviewContextResult, ReviewPriority } from './ReviewContextService
 import type { SecurityFinding } from './SecurityScanner';
 import { toStructuralNodeId, unique } from './AgentContextUtils';
 
+/**
+ * Everything a priority rule can look at: the graph, the analysis results, the focus area and the
+ * quality budget.
+ */
 export interface ReviewPriorityContext {
   graph: GraphData;
   health: HealthScoreResult;
@@ -19,8 +25,10 @@ export interface ReviewPriorityContext {
   qualityBudget: QualityBudget;
 }
 
+/** A priority rule: returns a review priority, or null when the rule does not apply. */
 export type PriorityBuilder = (ctx: ReviewPriorityContext) => ReviewPriority | null;
 
+/** Completes a priority, keeping at most 10 distinct node ids. */
 export function createPriority(input: ReviewPriority): ReviewPriority {
   return {
     ...input,
@@ -36,6 +44,10 @@ export function priorityFrom<T>(
   return findings.length === 0 ? null : createPriority(make(findings));
 }
 
+/**
+ * Whether the incremental refresh pipeline is under strain: degraded, an average latency of 20 ms
+ * or more, or runtime-priority rebuilds.
+ */
 export function hasRefreshPressure(health: HealthScoreResult) {
   return (
     health.summary.refreshPipelineDegraded ||
@@ -44,6 +56,10 @@ export function hasRefreshPressure(health: HealthScoreResult) {
   );
 }
 
+/**
+ * Whether the health summary counts any design smell: oversized modules, god files or classes,
+ * long or complex methods or mixed responsibilities.
+ */
 export function hasDesignSmellSignals(health: HealthScoreResult) {
   return (
     health.summary.oversizedModules > 0 ||
@@ -55,6 +71,10 @@ export function hasDesignSmellSignals(health: HealthScoreResult) {
   );
 }
 
+/**
+ * Returns up to 10 ids of nodes that have at least one link matching the predicate, as source or
+ * target.
+ */
 export function collectLinkedNodeIds(
   graph: GraphData,
   predicate: (link: GraphData['links'][number]) => boolean
@@ -70,6 +90,10 @@ export function collectLinkedNodeIds(
   ).slice(0, 10);
 }
 
+/**
+ * Like `collectLinkedNodeIds`, but compares at file level, so a symbol is included when its file
+ * is part of a matching link. At most 10 ids are returned.
+ */
 export function collectStructuralLinkedNodeIds(
   graph: GraphData,
   predicate: (link: GraphData['links'][number]) => boolean
