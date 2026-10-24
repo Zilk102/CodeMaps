@@ -1,5 +1,12 @@
 # CodeMaps Changelog
 
+## v1.1.63 (2026-10-24)
+
+### Fixed
+
+- **`setup_project` no longer switches the project open in the window.** Setting up another project used to open it in the CodeMaps window and also touch the database, the cache, the file watcher and the recent projects list. Now the already built graph is used for the open project, and for any other project the graph is built in memory the same way as in the CI guard, without writing to the app state. The result and the baseline are the same as before. Verified on the live app: the node count of the open project is identical before and after setting up another project.
+- The internal analysis store is now isolated for the duration of one call, so building a graph in memory cannot affect the open project. Tests: 888 -> 891.
+
 ## v1.1.62 (2026-10-24)
 
 ### Fixed
