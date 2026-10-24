@@ -163,6 +163,23 @@ function registerAnalyticsBindings(
   ipcMain.handle('find-duplicates', (_, rawProjectPath: unknown, limit?: number) =>
     respond('[Duplicates] Analysis failed:', () => runFindDuplicates(rawProjectPath, limit))
   );
+
+  ipcMain.handle('check-documentation', (_, rawProjectPath: unknown, limit?: number) =>
+    respond('[Documentation] Analysis failed:', () => runCheckDocumentation(rawProjectPath, limit))
+  );
+}
+
+/** Documentation coverage of the open project for the Documentation tab (low-quality included). */
+async function runCheckDocumentation(rawProjectPath: unknown, limit?: number) {
+  requireProjectDirectory(rawProjectPath); // validate
+  const graphData = oracleStore.getState().getValidGraph();
+  const { documentationIndex, buildDocumentationToolReport } =
+    await import('./analysis/documentation/index.js');
+  const report = await documentationIndex.refreshFor(graphData);
+  return buildDocumentationToolReport(report, {
+    limit: typeof limit === 'number' ? limit : undefined,
+    includeLowQuality: true,
+  });
 }
 
 async function runFindDuplicates(rawProjectPath: unknown, limit?: number) {

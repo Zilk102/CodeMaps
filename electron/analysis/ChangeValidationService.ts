@@ -1,3 +1,8 @@
+import type { DocumentationReport } from './documentation';
+import {
+  documentationFindingForChanges,
+  documentationFindingForProject,
+} from './documentationFinding';
 import { isTestFile } from './testFiles';
 import { DetectedPattern, PatternEvidence } from './patternDetectionTypes';
 
@@ -72,7 +77,8 @@ const toFinding = (
 
 const validateWholeProject = (
   patterns: DetectedPattern[],
-  healthScore: number
+  healthScore: number,
+  documentation: DocumentationReport | null
 ): ChangeValidationResult => {
   const high = patterns.filter((pattern) => pattern.severity === 'high');
   const isValid = high.length === 0 && healthScore > 60;
@@ -88,7 +94,8 @@ const validateWholeProject = (
           Array.from(new Set(pattern.nodeIds.map(fileOf))).slice(0, MAX_PROJECT_FINDINGS),
           pattern.evidence ?? []
         )
-      ),
+      )
+      .concat(documentationFindingForProject(documentation) ?? []),
     recommendation: isValid
       ? 'No changed files were detected and the project is healthy overall.'
       : 'No changed files were detected, so the whole project was checked. Pass changedFiles or baseRef to validate only your edits.',
@@ -103,16 +110,19 @@ export const validateChanges = (input: {
   patterns: DetectedPattern[];
   changedFiles: string[];
   healthScore: number;
+  /** Documentation coverage of the project; leave out when it was not measured. */
+  documentation?: DocumentationReport | null;
 }): ChangeValidationResult => {
   const changed = new Set(input.changedFiles.map(normalize));
 
   if (changed.size === 0) {
-    return validateWholeProject(input.patterns, input.healthScore);
+    return validateWholeProject(input.patterns, input.healthScore, input.documentation ?? null);
   }
 
   const findings = input.patterns
     .filter((pattern) => !IGNORED_PATTERNS.has(pattern.id))
-    .flatMap((pattern) => findingsForChangedFiles(pattern, changed));
+    .flatMap((pattern) => findingsForChangedFiles(pattern, changed))
+    .concat(documentationFindingForChanges(input.documentation ?? null, input.changedFiles) ?? []);
 
   // Who depends on a file is not something an edit to it can fix, so a hub never blocks.
   const blocking = findings.filter(

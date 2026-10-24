@@ -57,6 +57,10 @@ const api: ElectronAPI & {
   findDuplicates: (projectPath: string, limit?: number) =>
     ipcRenderer.invoke('find-duplicates', projectPath, limit),
 
+  // Documentation coverage with hints on what to write
+  checkDocumentation: (projectPath: string, limit?: number) =>
+    ipcRenderer.invoke('check-documentation', projectPath, limit),
+
   // Activity Heatmap
   analyzeActivityHeatmap: (projectPath, since, until) =>
     ipcRenderer.invoke('analyze-activity-heatmap', projectPath, since, until),

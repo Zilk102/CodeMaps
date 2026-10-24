@@ -1,11 +1,10 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useGraphStore } from '../store/useStore';
-import { useAnalysisRunner } from '../hooks/useAnalysisRunner';
 import type { DuplicateCopy, DuplicateReport } from '../types/duplicates';
 import { DuplicateGroupCard } from './panels/DuplicateGroupCard';
-import { ErrorBanner, PanelCard, PanelHeader, StatTile } from './panels/PanelParts';
-import { findNodeForFile, sortGroups } from './panels/duplicatesUtils';
+import { AnalysisPanel, unwrapResponse } from './panels/AnalysisPanelFrame';
+import { FooterNote, PanelCard, StatTile } from './panels/PanelParts';
+import { sortGroups } from './panels/duplicatesUtils';
 
 interface DuplicatesPanelProps {
   projectPath: string;
@@ -15,9 +14,7 @@ const requestDuplicates = async (projectPath: string): Promise<DuplicateReport> 
   if (!window.api?.findDuplicates) {
     throw new Error('Duplicate finder not available in IPC');
   }
-  const response = await window.api.findDuplicates(projectPath);
-  if (!response.success) throw new Error(response.error || 'Unknown error');
-  return response.data;
+  return unwrapResponse(await window.api.findDuplicates(projectPath));
 };
 
 interface ReportViewProps {
@@ -58,58 +55,20 @@ const ReportView: React.FC<ReportViewProps> = ({ report, isSelectable, onSelect 
       )}
 
       {report.omittedGroups > 0 && (
-        <div className="text-center text-[12px] text-(--t3)">
-          {t('duplicates.omitted', { count: report.omittedGroups })}
-        </div>
+        <FooterNote>{t('duplicates.omitted', { count: report.omittedGroups })}</FooterNote>
       )}
     </div>
   );
 };
 
-export const DuplicatesPanel: React.FC<DuplicatesPanelProps> = ({ projectPath }) => {
-  const { t } = useTranslation();
-  const { graphData, setSelectedNode } = useGraphStore();
-  const { isRunning, result, error, run } = useAnalysisRunner<DuplicateReport>();
-  const nodes = graphData?.nodes;
-
-  const nodeFor = useCallback(
-    (copy: DuplicateCopy) => (nodes ? findNodeForFile(nodes, copy.file) : null),
-    [nodes]
-  );
-  const isSelectable = useCallback((copy: DuplicateCopy) => nodeFor(copy) !== null, [nodeFor]);
-  const handleSelect = useCallback(
-    (copy: DuplicateCopy) => {
-      const node = nodeFor(copy);
-      if (node) setSelectedNode(node);
-    },
-    [nodeFor, setSelectedNode]
-  );
-
-  const handleAnalyze = () => run(() => requestDuplicates(projectPath), t('duplicates.error'));
-
-  return (
-    <div className="space-y-4 p-4">
-      <PanelHeader
-        eyebrow={t('tools.quickActions.cleanup')}
-        title={t('duplicates.title')}
-        description={t('tools.quickActions.duplicatesDescription')}
+export const DuplicatesPanel: React.FC<DuplicatesPanelProps> = ({ projectPath }) => (
+  <AnalysisPanel namespace="duplicates" request={() => requestDuplicates(projectPath)}>
+    {(report, { isSelectable, onSelect }) => (
+      <ReportView
+        report={report}
+        isSelectable={(copy) => isSelectable(copy.file)}
+        onSelect={(copy) => onSelect(copy.file)}
       />
-
-      <PanelCard className="flex items-center justify-between gap-3 p-4">
-        <div className="text-[13px] text-(--t2)">{t('duplicates.hint')}</div>
-        <button
-          type="button"
-          onClick={handleAnalyze}
-          disabled={isRunning}
-          className="shrink-0 rounded-xl bg-(--acc) px-4 py-2.5 text-sm font-semibold text-(--bg0) transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isRunning ? t('duplicates.analyzing') : t('duplicates.analyze')}
-        </button>
-      </PanelCard>
-
-      {error && <ErrorBanner className="px-4 py-3 text-sm text-(--red)">{error}</ErrorBanner>}
-
-      {result && <ReportView report={result} isSelectable={isSelectable} onSelect={handleSelect} />}
-    </div>
-  );
-};
+    )}
+  </AnalysisPanel>
+);

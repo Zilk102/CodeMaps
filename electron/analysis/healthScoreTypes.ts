@@ -23,6 +23,11 @@ export interface HealthScoreSummary {
   longMethods: number;
   complexMethods: number;
   codeClones: number;
+  /** Percent of the symbols that need a doc comment and have one; 100 when not measured yet. */
+  documentationCoveragePercent: number;
+  undocumentedSymbols: number;
+  filesWithoutHeader: number;
+  lowQualityDocs: number;
   mixedResponsibilityModules: number;
   avgDesignSmellScore: number;
   maintainabilityScore: number;

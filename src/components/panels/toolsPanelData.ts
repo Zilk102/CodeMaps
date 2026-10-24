@@ -66,6 +66,14 @@ const DUPLICATES: ToolDefinition = {
   badgeKey: 'tools.quickActions.cleanup',
   quickDescriptionKey: 'tools.quickActions.duplicatesDescription',
 };
+const DOCUMENTATION: ToolDefinition = {
+  id: 'documentation',
+  nameKey: 'tools.documentation',
+  eyebrowKey: 'tools.documentationEyebrow',
+  descriptionKey: 'tools.documentationDescription',
+  badgeKey: 'tools.quickActions.docs',
+  quickDescriptionKey: 'tools.quickActions.documentationDescription',
+};
 const PR: ToolDefinition = {
   id: 'pr',
   nameKey: 'tools.prImpact',
@@ -76,9 +84,16 @@ const PR: ToolDefinition = {
 };
 
 /** Order of the tool tabs after the overview tab. */
-const TAB_ORDER: ToolDefinition[] = [BLAST, HEATMAP, DECOMPOSITION, DUPLICATES, PR];
+const TAB_ORDER: ToolDefinition[] = [BLAST, HEATMAP, DECOMPOSITION, DUPLICATES, DOCUMENTATION, PR];
 /** Order of the cards and guide steps on the overview tab. */
-const SCENARIO_ORDER: ToolDefinition[] = [BLAST, DECOMPOSITION, DUPLICATES, PR, HEATMAP];
+const SCENARIO_ORDER: ToolDefinition[] = [
+  BLAST,
+  DECOMPOSITION,
+  DUPLICATES,
+  DOCUMENTATION,
+  PR,
+  HEATMAP,
+];
 
 export function buildTabs(t: Translate): TabMeta[] {
   return [

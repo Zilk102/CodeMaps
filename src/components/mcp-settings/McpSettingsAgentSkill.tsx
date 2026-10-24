@@ -43,6 +43,8 @@ Do not wait until after file inspection to use it.
   Start with \`prepare_task_context\`.
 - Duplicated or copy-pasted code, "remove duplication":
   Call \`find_duplicates\` (pass \`filePath\` to focus on one file). Each group lists the copies with line ranges, \`parameters\` (how many values differ, i.e. the arguments of the function to extract), sample \`differences\` and a \`suggestion\` with the action and a target file. Extract the shared code there, then call \`find_duplicates\` again to confirm the group is gone.
+- Writing or changing code in any language:
+  Document every new or changed file and public symbol before answering. Open the file with a header comment, and put a doc comment above every exported symbol and every function of 10 or more lines. State the purpose, the contract (inputs, result, failures) and why it exists; never repeat the name, and never leave commented-out code behind. Then call \`check_documentation\` (pass \`filePath\` to focus on the files you touched) and fix every symbol it lists; each item has a \`hint\` saying what its comment must state.
 - Broad migration, replace SDK/library everywhere, cross-cutting refactor:
   Start with \`prepare_task_context\` and follow \`prepare_change_campaign\` if selected.
 - Localized feature/refactor with a clear code area:
@@ -59,6 +61,7 @@ Do not wait until after file inspection to use it.
 - Re-check CodeMaps after meaningful edits if the architectural context may have changed.
 - Run \`validate_architecture_changes\` before declaring a non-trivial change finished.
 - Before writing new code that resembles existing code, call \`find_duplicates\` (with \`filePath\` of the similar file) and reuse or extract instead of copy-pasting; after a refactor, call it again to confirm the duplication is gone.
+- Run \`check_documentation\` after writing code: every new or changed file needs a header comment and every public symbol a doc comment (purpose, contract, why; never echo the name; no commented-out code). \`validate_architecture_changes\` also reports \`missing_documentation\` for the files you changed.
 - \`prepare_*\` responses are size-bounded. If \`_compaction\` is present, some lists were cut; raise \`limit\` (up to 50) or use a low-level tool for the omitted part.
 
 ## Low-Level Fallback Tools
@@ -73,6 +76,7 @@ Use these only if the selected composite context is insufficient:
 - \`detect_patterns\`
 - \`analyze_decomposition\`
 - \`find_duplicates\` (copy-pasted code with how to extract it: parameters, differences and a target file; run it before writing similar code and after a refactor)
+- \`check_documentation\` (documentation coverage with a hint per undocumented symbol on what its comment must state; run it after writing code)
 - \`run_security_scan\`
 - \`search_signatures\`
 - \`get_semantic_skeleton\` (read a file's structure without bodies, to save tokens)

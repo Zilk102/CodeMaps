@@ -17,7 +17,7 @@
 CodeMaps는 프로젝트를 디렉터리, 파일, 클래스, 함수와 그 사이의 연결로 이루어진 그래프로 인덱싱하고, 이를 두 가지 방식으로 제공합니다.
 
 - **사람에게**는 인터랙티브 지도로: 새로 합류한 개발자가 무엇이 무엇과 연결되어 있는지, 파일을 건드리기 전에 무엇이 그 파일에 의존하는지 볼 수 있습니다.
-- **AI 에이전트**(Claude Code, Claude Desktop, Cursor, Trae 및 모든 MCP 클라이언트)에게는 크기가 제한된 22개의 도구로: 저장소 전체를 읽지 않고도 _이걸 바꾸면 무엇이 깨지는지_, _이미 쓸 만한 헬퍼가 있는지_, _내 수정이 거대한 파일이나 복제 코드를 늘리지 않았는지_ 에 답합니다.
+- **AI 에이전트**(Claude Code, Claude Desktop, Cursor, Trae 및 모든 MCP 클라이언트)에게는 크기가 제한된 23개의 도구로: 저장소 전체를 읽지 않고도 _이걸 바꾸면 무엇이 깨지는지_, _이미 쓸 만한 헬퍼가 있는지_, _내 수정이 거대한 파일이나 복제 코드를 늘리지 않았는지_ 에 답합니다.
 
 모든 것이 로컬에서 실행되며, 소스 코드는 컴퓨터 밖으로 나가지 않습니다.
 
@@ -88,7 +88,7 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 | 문서                                                     | 내용                                       |
 | -------------------------------------------------------- | ------------------------------------------ |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code와 Desktop 설정, 스킬, 검증 훅  |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 22개 도구와 4개 리소스 레퍼런스(자동 생성) |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 23개 도구와 4개 리소스 레퍼런스(자동 생성) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps의 구성과 그 이유                  |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | 개발 환경, 검사, 릴리스 절차               |
 | [CHANGELOG.md](CHANGELOG.md)                             | 버전별 변경 사항                           |

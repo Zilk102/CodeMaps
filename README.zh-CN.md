@@ -17,7 +17,7 @@
 CodeMaps 会把项目索引成由目录、文件、类和函数及其关联组成的图，并以两种方式提供这张图：
 
 - **给人**：交互式地图。新成员能看清什么与什么相连，以及修改某个文件之前有哪些依赖它。
-- **给 AI 智能体**（Claude Code、Claude Desktop、Cursor、Trae 以及任何 MCP 客户端）：22 个有大小限制的工具，可回答_改这里会破坏什么？_、_是否已经有现成的辅助函数？_、_我的改动是否引入了 god 文件或代码克隆？_，而无需通读整个仓库。
+- **给 AI 智能体**（Claude Code、Claude Desktop、Cursor、Trae 以及任何 MCP 客户端）：23 个有大小限制的工具，可回答_改这里会破坏什么？_、_是否已经有现成的辅助函数？_、_我的改动是否引入了 god 文件或代码克隆？_，而无需通读整个仓库；`check_documentation` 还会指出哪些公共符号和文件仍缺注释。
 
 一切都在本地运行，源代码不会离开你的机器。
 
@@ -88,7 +88,7 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 | 文档                                                     | 内容                                        |
 | -------------------------------------------------------- | ------------------------------------------- |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code 与 Desktop 配置、技能、校验钩子 |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 22 个工具和 4 个资源的参考（自动生成）      |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 23 个工具和 4 个资源的参考（自动生成）      |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps 的构成及原因                       |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | 开发环境、检查、发布流程                    |
 | [CHANGELOG.md](CHANGELOG.md)                             | 各版本的变更                                |
