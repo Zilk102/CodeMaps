@@ -209,6 +209,11 @@
         "title": "Find Duplicates",
         "description": "Finds copy-pasted code and says how to remove it: each group lists the copies with line ranges, how many values differ between them (the parameters of the function to extract), sample differences, and a suggested action with a target file.",
         "recommendedWhen": "When the user asks to remove duplication, and before writing code similar to existing code."
+      },
+      "check_documentation": {
+        "title": "Check Documentation",
+        "description": "Measures documentation coverage and says what to write: coverage of the public symbols, per-language bars, the files with the most gaps, and every undocumented symbol with a hint on what its comment must state (purpose, contract, why). Optionally lists comments that only repeat the name.",
+        "recommendedWhen": "After writing or changing code, to be sure every new public symbol and file is documented."
       }
     },
     "resources": {
@@ -459,6 +464,9 @@
     "duplicates": "Duplicates",
     "duplicatesEyebrow": "Copy-pasted code",
     "duplicatesDescription": "Finds copy-pasted code and suggests how to merge it.",
+    "documentation": "Documentation",
+    "documentationEyebrow": "Code comments",
+    "documentationDescription": "Shows how many public symbols and files carry a useful comment.",
     "prImpact": "PR Impact",
     "prImpactEyebrow": "Branch review",
     "prImpactDescription": "Builds risk and blast-radius context between base and head branches.",
@@ -473,8 +481,32 @@
       "heatmapDescription": "Find high-churn files to guide stabilization and refactoring work.",
       "decompositionActionDescription": "Analyze God classes, tangled methods, and architectural defects to safely split them.",
       "cleanup": "Cleanup",
-      "duplicatesDescription": "Find copy-pasted code and see where to extract a shared function or module."
+      "duplicatesDescription": "Find copy-pasted code and see where to extract a shared function or module.",
+      "docs": "Docs",
+      "documentationDescription": "Find undocumented public symbols and files, and see what each comment must state."
     }
+  },
+  "documentation": {
+    "title": "Documentation",
+    "hint": "Measures how many public symbols and files carry a useful comment.",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing...",
+    "error": "Documentation analysis failed",
+    "coverage": "Coverage",
+    "undocumented": "Undocumented symbols",
+    "missingHeaders": "Files without header",
+    "lowQuality": "Empty comments",
+    "byLanguage": "Coverage by language",
+    "topOffenders": "Files with the most gaps",
+    "symbols": "Symbols to document",
+    "headersList": "Files without a header comment",
+    "empty": "Everything required is documented.",
+    "omitted": "{{count}} more not shown",
+    "missingCount": "{{missing}} of {{required}} missing",
+    "filesCount": "{{count}} files",
+    "selectFile": "Select this file in the graph",
+    "notInGraph": "This file is not in the graph",
+    "hintLabel": "The comment must state"
   },
   "duplicates": {
     "title": "Duplicate Code",

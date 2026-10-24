@@ -78,9 +78,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # CodeMaps guards its own repo: both commands exit 1 when they list anything.
+      # CodeMaps guards its own repo: the guard commands exit 1 when they list anything.
       - name: Code quality (complexity and size)
         run: npm run quality
 
       - name: Duplicate code
         run: npm run duplicates
+
+      - name: Documentation coverage
+        run: npm run docs

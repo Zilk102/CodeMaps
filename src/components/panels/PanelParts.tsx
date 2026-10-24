@@ -195,3 +195,8 @@ export const ReasonLine: React.FC<ReasonLineProps> = ({ label, reason }) => (
     {reason}
   </div>
 );
+
+/** Small centered note under a result, for example how many items were not shown. */
+export const FooterNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="text-center text-[12px] text-(--t3)">{children}</div>
+);

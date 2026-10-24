@@ -33,6 +33,12 @@ flowchart LR
 
 Duplicated code is found by `electron/analysis/clones/`: every supported file is turned into a stream of normalized tokens (names, numbers and strings are interchangeable), n-gram hashes are winnowed, and matches are extended to maximal copies, and exact matches of the same two places that are only a statement apart are merged into one edited copy, across and inside files. Token streams are cached per file in `CloneIndex`, so tools that report clones (`ensureGraphLoaded` awaits the refresh) pay only for the files that changed. `electron/analysis/couplingMetrics.ts` counts fan-in and fan-out in distinct files rather than links, weighs references inside one package at a quarter, and exempts shared-by-design code and entry points from hub, fan-out and layer findings.
 
+## Documentation coverage
+
+`electron/analysis/documentation/` measures how well code is documented in every language CodeMaps parses: which declarations must carry a doc comment (exported symbols and long functions), which do, whether the comment says anything beyond the name, and which files open without a header. Results are cached per file in `documentationIndex` (by modification time and size), refreshed in the background after analysis and awaited by `ensureGraphLoaded`, like the clone index. The thresholds live in `policy.ts`.
+
+The report feeds four consumers: the health score (`documentation_gaps` issue and a penalty of at most 5 points, only below 80% coverage, also lowering the maintainability score), `validate_architecture_changes` (a `missing_documentation` finding for the changed files, or the worst offenders for the whole project), a short `documentation` section in `prepare_change_context` and `prepare_review_context`, and the `check_documentation` tool (`toolReport.ts`: coverage, per-language stats, top offenders and a bounded list of undocumented symbols, each with a hint on what its comment must state). The Documentation tab of the Workspace panel shows the same report through the `check-documentation` IPC call. `npm run docs` turns the report into a gate for this repository.
+
 ## MCP server
 
 `electron/mcp.ts` is an Express app speaking MCP Streamable HTTP on `127.0.0.1` (port `3005`, overridable with `CODEMAPS_MCP_PORT`) plus a WebSocket channel for the UI. It only listens on the loopback interface and accepts browser requests only from loopback origins. If the port is taken the server reports `Unavailable` with the reason instead of crashing the app.

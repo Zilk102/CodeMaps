@@ -5,6 +5,7 @@ import { PRImpactPanel } from './PRImpactPanel';
 import { BlastRadiusV2Panel } from './BlastRadiusV2Panel';
 import { ActivityHeatmap } from './ActivityHeatmap';
 import { DecompositionWizardPanel } from './DecompositionWizardPanel';
+import { DocumentationPanel } from './DocumentationPanel';
 import { DuplicatesPanel } from './DuplicatesPanel';
 import { ToolsOverview } from './panels/ToolsOverview';
 import { ToolsTabBar } from './panels/ToolsTabBar';
@@ -115,6 +116,7 @@ const ToolsTabPanel: React.FC<{
     {activeTab === 'blast' && <BlastRadiusV2Panel projectPath={projectPath} />}
     {activeTab === 'decomposition' && <DecompositionWizardPanel projectPath={projectPath} />}
     {activeTab === 'duplicates' && <DuplicatesPanel projectPath={projectPath} />}
+    {activeTab === 'documentation' && <DocumentationPanel projectPath={projectPath} />}
     {activeTab === 'heatmap' && <ActivityHeatmap projectPath={projectPath} />}
     {activeTab === 'pr' && <PRImpactPanel projectPath={projectPath} />}
   </div>

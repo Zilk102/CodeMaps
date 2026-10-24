@@ -179,6 +179,40 @@ const DESIGN_RULES: HealthRule[] = [
   ),
 ];
 
+/** Documentation coverage below this percent costs health score points. */
+export const DOCUMENTATION_TARGET_PERCENT = 80;
+/** The most points missing documentation can cost, in the score and in maintainability. */
+export const MAX_DOCUMENTATION_PENALTY = 5;
+
+/**
+ * Points lost for thin documentation: none from the target coverage up, then one per ten missing
+ * percent, capped so documentation can never dominate the score.
+ */
+export function calculateDocumentationPenalty(coveragePercent: number): number {
+  if (!(coveragePercent < DOCUMENTATION_TARGET_PERCENT)) return 0;
+  return Math.min(
+    MAX_DOCUMENTATION_PENALTY,
+    Math.ceil((DOCUMENTATION_TARGET_PERCENT - coveragePercent) / 10)
+  );
+}
+
+/** `high` below 40% coverage, `medium` below 60%, otherwise `low`. */
+const documentationSeverity = (coveragePercent: number): Severity =>
+  coveragePercent < 40 ? 'high' : coveragePercent < 60 ? 'medium' : 'low';
+
+const DOCUMENTATION_RULES: HealthRule[] = [
+  (m) => {
+    const penalty = calculateDocumentationPenalty(m.documentationCoveragePercent);
+    if (penalty === 0) return null;
+    return finding(
+      'documentation_gaps',
+      documentationSeverity(m.documentationCoveragePercent),
+      `Документация покрывает ${m.documentationCoveragePercent.toFixed(1)}% обязательных символов (цель ${DOCUMENTATION_TARGET_PERCENT}%): ${m.undocumentedSymbols} без doc-комментария, ${m.filesWithoutHeader} файлов без заголовка, ${m.lowQualityDocs} комментариев без содержания.`,
+      penalty
+    );
+  },
+];
+
 const QUALITY_RULES: HealthRule[] = [
   (m) =>
     m.maintainabilityScore < 85
@@ -238,16 +272,21 @@ export function buildHealthScoreResult(metrics: HealthScoreMetricSnapshot): Heal
   const structure = applyRules(STRUCTURE_RULES, metrics);
   const design = applyRules(DESIGN_RULES, metrics);
   const quality = applyRules(QUALITY_RULES, metrics);
+  const documentation = applyRules(DOCUMENTATION_RULES, metrics);
 
   const totalPenalty =
-    structure.penalty + design.penalty + calculateDesignDebtPenalty(metrics) + quality.penalty;
+    structure.penalty +
+    design.penalty +
+    calculateDesignDebtPenalty(metrics) +
+    quality.penalty +
+    documentation.penalty;
   const score = Math.max(0, Math.min(100, 100 - totalPenalty));
 
   return {
     score,
     grade: toGrade(score),
     summary: buildHealthSummary(metrics),
-    issues: [...structure.issues, ...design.issues, ...quality.issues],
+    issues: [...structure.issues, ...design.issues, ...quality.issues, ...documentation.issues],
   };
 }
 
@@ -264,6 +303,7 @@ export function calculateMaintainabilityScore(args: {
   godFiles: number;
   fileNodes: number;
   codeClones?: number;
+  documentationCoveragePercent?: number;
 }): number {
   const {
     avgDesignSmellScore,
@@ -273,6 +313,7 @@ export function calculateMaintainabilityScore(args: {
     godFiles,
     fileNodes,
     codeClones = 0,
+    documentationCoveragePercent = 100,
   } = args;
 
   if (fileNodes === 0) return 100;
@@ -282,7 +323,9 @@ export function calculateMaintainabilityScore(args: {
   const modulePenalty = Math.min(25, ((oversizedModules + godFiles * 2) / fileNodes) * 50);
   const clonePenalty = Math.min(20, (codeClones / fileNodes) * 30);
 
-  const rawScore = 100 - smellPenalty - methodPenalty - modulePenalty - clonePenalty;
+  const docPenalty = calculateDocumentationPenalty(documentationCoveragePercent);
+
+  const rawScore = 100 - smellPenalty - methodPenalty - modulePenalty - clonePenalty - docPenalty;
   return Math.max(0, Math.round(rawScore));
 }
 

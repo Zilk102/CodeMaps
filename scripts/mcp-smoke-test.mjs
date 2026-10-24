@@ -129,6 +129,7 @@ try {
     'get_semantic_skeleton',
     'validate_architecture_changes',
     'find_duplicates',
+    'check_documentation',
     'prepare_task_context',
     'prepare_change_campaign',
     'prepare_project_context',
@@ -252,6 +253,15 @@ try {
   for (const group of duplicates?.groups || []) {
     assert(group.copies.length >= 2, 'find_duplicates: a group needs at least two copies');
     assert(typeof group.suggestion?.action === 'string', 'find_duplicates: expected a suggestion');
+  }
+
+  // ─── 11f. check_documentation ─────────────────────────────────
+  const docs = await runTool('check_documentation', { limit: 5, includeLowQuality: true });
+  assert(docs?.coveragePercent >= 0, 'check_documentation: expected coveragePercent >= 0');
+  assert(Array.isArray(docs?.byLanguage), 'check_documentation: expected byLanguage array');
+  assert(Array.isArray(docs?.undocumented?.items), 'check_documentation: expected items array');
+  for (const item of docs?.undocumented?.items || []) {
+    assert(typeof item.hint === 'string', 'check_documentation: every symbol needs a hint');
   }
   await runTool('analyze_activity_heatmap', {});
   await runTool('calculate_blast_radius_v2', { nodeId: blastTarget.id });

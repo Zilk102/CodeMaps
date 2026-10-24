@@ -31,7 +31,7 @@ Restart Claude Desktop.
 
 ## Agent skill
 
-Copy `.claude/skills/codemaps-agent-autopilot/SKILL.md` to `~/.claude/skills/codemaps-agent-autopilot/SKILL.md` (all projects) or keep it in a project's `.claude/skills/`. It tells the agent to start from `prepare_task_context` and to run `validate_architecture_changes` before finishing. That tool checks only the files changed in the git working tree (or against `baseRef`) and returns just the problems in them with a fix hint, so legacy debt elsewhere does not block your edit; pass `scope: "project"` for the whole project.
+Copy `.claude/skills/codemaps-agent-autopilot/SKILL.md` to `~/.claude/skills/codemaps-agent-autopilot/SKILL.md` (all projects) or keep it in a project's `.claude/skills/`. It tells the agent to start from `prepare_task_context` and to run `validate_architecture_changes` before finishing. That tool checks only the files changed in the git working tree (or against `baseRef`) and returns just the problems in them with a fix hint, so legacy debt elsewhere does not block your edit; pass `scope: "project"` for the whole project. It also reports `missing_documentation` for changed files, and the skill makes the agent call `check_documentation` after writing code so every new file has a header comment and every public symbol a doc comment that states its purpose, contract and why.
 
 ## Automatic validation after every edit (Claude Code hook)
 

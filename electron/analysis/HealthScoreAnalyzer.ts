@@ -12,6 +12,7 @@ import {
   isStackAwareLink,
   shouldHaveDirectoryParent,
 } from './graphAnalysisUtils';
+import { documentationIndex, type DocumentationIndex } from './documentation';
 import { ArchitectureInsightService } from './ArchitectureInsightService';
 import { analyzeModuleQuality } from './moduleQualityMetrics';
 import {
@@ -163,6 +164,25 @@ function buildLinkMetrics(graph: GraphData, nodeById: GraphAdjacency['nodeById']
   };
 }
 
+type DocumentationMetrics = Pick<
+  HealthScoreMetricSnapshot,
+  'documentationCoveragePercent' | 'undocumentedSymbols' | 'filesWithoutHeader' | 'lowQualityDocs'
+>;
+
+/** Documentation facts from the last report of the project; a project not measured yet reads as fully documented so nothing is penalized on missing data. */
+function buildDocumentationMetrics(
+  documentation: Pick<DocumentationIndex, 'peek'>,
+  projectRoot: string | undefined
+): DocumentationMetrics {
+  const report = documentation.peek(projectRoot);
+  return {
+    documentationCoveragePercent: report?.coveragePercent ?? 100,
+    undocumentedSymbols: report?.undocumented.length ?? 0,
+    filesWithoutHeader: report?.filesWithoutHeader.length ?? 0,
+    lowQualityDocs: report?.lowQuality.length ?? 0,
+  };
+}
+
 /**
  * Combines violation and unknown layer counts from the architecture analysis with the
  * maintainability and SOLID scores computed from the quality counts.
@@ -170,7 +190,8 @@ function buildLinkMetrics(graph: GraphData, nodeById: GraphAdjacency['nodeById']
 function buildArchitectureMetrics(
   architecture: Architecture,
   counts: QualityCounts,
-  fileCount: number
+  fileCount: number,
+  documentationCoveragePercent: number
 ) {
   const architectureViolations = architecture.summary.violationCount;
   return {
@@ -184,6 +205,7 @@ function buildArchitectureMetrics(
       godFiles: counts.godFiles,
       fileNodes: fileCount,
       codeClones: counts.codeClones,
+      documentationCoveragePercent,
     }),
     solidScore: calculateSolidScore({
       godFiles: counts.godFiles,
@@ -197,7 +219,10 @@ function buildArchitectureMetrics(
 
 /** Computes the health score of a graph with the architecture and module quality analyzers. */
 export class HealthScoreAnalyzer {
-  constructor(private readonly architectureInsightService = new ArchitectureInsightService()) {}
+  constructor(
+    private readonly architectureInsightService = new ArchitectureInsightService(),
+    private readonly documentation: Pick<DocumentationIndex, 'peek'> = documentationIndex
+  ) {}
 
   /**
    * Gathers all metrics of the graph and passes them to the scoring policy. The result has a 0-100
@@ -216,6 +241,8 @@ export class HealthScoreAnalyzer {
       isOrphanNode(node, layerByNodeId, adjacency)
     ).length;
 
+    const documentationMetrics = buildDocumentationMetrics(this.documentation, graph.projectRoot);
+
     const metrics: HealthScoreMetricSnapshot = {
       totalNodes: graph.nodes.length,
       totalLinks: graph.links.length,
@@ -224,8 +251,14 @@ export class HealthScoreAnalyzer {
       orphanNodes: orphanCount,
       ...buildLinkMetrics(graph, adjacency.nodeById),
       directoryCoverageRatio: calculateDirectoryCoverageRatio(graph, adjacency.nodeById),
-      ...buildArchitectureMetrics(architecture, counts, fileCount),
+      ...buildArchitectureMetrics(
+        architecture,
+        counts,
+        fileCount,
+        documentationMetrics.documentationCoveragePercent
+      ),
       ...counts,
+      ...documentationMetrics,
       ...buildRefreshMetrics(graph),
     };
 

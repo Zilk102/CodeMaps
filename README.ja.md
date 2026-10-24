@@ -17,7 +17,7 @@
 CodeMaps はプロジェクトを、ディレクトリ・ファイル・クラス・関数とそれらの関係からなるグラフとしてインデックス化し、次の 2 通りで提供します。
 
 - **人に対して**はインタラクティブなマップとして。新しいメンバーが、何が何とつながっているか、ファイルを変更する前に何がそれに依存しているかを確認できます。
-- **AI エージェント**（Claude Code、Claude Desktop、Cursor、Trae、その他の MCP クライアント）に対しては、22 個のサイズ制限付きツールとして。リポジトリ全体を読まずに、_これを変えると何が壊れるか_、_すでに使えるヘルパーはあるか_、_自分の変更が巨大ファイルやクローンを増やしていないか_ に答えます。
+- **AI エージェント**（Claude Code、Claude Desktop、Cursor、Trae、その他の MCP クライアント）に対しては、23 個のサイズ制限付きツールとして。リポジトリ全体を読まずに、_これを変えると何が壊れるか_、_すでに使えるヘルパーはあるか_、_自分の変更が巨大ファイルやクローンを増やしていないか_ に答えます。
 
 すべてローカルで動作し、ソースコードがマシンの外に出ることはありません。
 
@@ -88,7 +88,7 @@ claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 | ドキュメント                                             | 内容                                                     |
 | -------------------------------------------------------- | -------------------------------------------------------- |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code と Desktop の設定、スキル、検証フック        |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 22 個のツールと 4 個のリソースのリファレンス（自動生成） |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | 23 個のツールと 4 個のリソースのリファレンス（自動生成） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | CodeMaps の構成とその理由                                |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | 開発環境、チェック、リリース手順                         |
 | [CHANGELOG.md](CHANGELOG.md)                             | 各バージョンの変更内容                                   |

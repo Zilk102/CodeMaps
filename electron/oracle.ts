@@ -9,6 +9,7 @@ import type { FileWatcher } from './oracle/FileWatcher';
 import type { StackGraphEnrichmentService } from './oracle/StackGraphEnrichmentService';
 import { createOracleParts, type OracleParts } from './oracle/oracleWiring';
 import { cloneIndex } from './analysis/clones/CloneIndex';
+import { documentationIndex } from './analysis/documentation';
 import { normalizePath } from './oracle/shared';
 
 /**
@@ -81,6 +82,7 @@ export class OracleService extends EventEmitter {
     this.emitGraphUpdated();
     // Duplication is found in the background; tools that report it wait for it.
     void cloneIndex.refreshFor(this.getGraph()).catch(() => undefined);
+    void documentationIndex.refreshFor(this.getGraph()).catch(() => undefined);
     this.parsingProgressResetTimeout = setTimeout(() => {
       this.parsingProgressResetTimeout = null;
       this.emit('parsing-progress', null);

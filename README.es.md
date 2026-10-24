@@ -17,7 +17,7 @@
 CodeMaps indexa un proyecto como un grafo de carpetas, archivos, clases y funciones y de los vínculos entre ellos, y lo ofrece de dos maneras:
 
 - **A las personas**, como un mapa interactivo: quien se incorpora ve qué está conectado con qué y qué depende de un archivo antes de tocarlo.
-- **A los agentes de IA** (Claude Code, Claude Desktop, Cursor, Trae y cualquier cliente MCP), como 22 herramientas acotadas que responden a _¿qué se rompe si cambio esto?_, _¿ya existe una función auxiliar para esto?_ y _¿mi cambio añadió un archivo gigante o un clon?_ sin leer todo el repositorio.
+- **A los agentes de IA** (Claude Code, Claude Desktop, Cursor, Trae y cualquier cliente MCP), como 23 herramientas acotadas que responden a _¿qué se rompe si cambio esto?_, _¿ya existe una función auxiliar para esto?_ y _¿mi cambio añadió un archivo gigante o un clon?_ sin leer todo el repositorio.
 
 Todo se ejecuta en local. El código fuente nunca sale de tu máquina.
 
@@ -88,7 +88,7 @@ La precisión de las dependencias entre archivos es mayor en el nivel semántico
 | Documento                                                | Contenido                                                         |
 | -------------------------------------------------------- | ----------------------------------------------------------------- |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Configuración de Claude Code y Desktop, skill, hook de validación |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Referencia de las 22 herramientas y 4 recursos (generada)         |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Referencia de las 23 herramientas y 4 recursos (generada)         |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | Cómo está construido CodeMaps y por qué                           |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | Entorno de desarrollo, comprobaciones, proceso de publicación     |
 | [CHANGELOG.md](CHANGELOG.md)                             | Qué cambió en cada versión                                        |

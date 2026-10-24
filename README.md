@@ -17,7 +17,7 @@
 CodeMaps indexes a project into a graph of directories, files, classes and functions and the links between them. It then serves that graph two ways:
 
 - **To people**, as an interactive map: a new developer sees what is connected to what, and what depends on a file before touching it.
-- **To AI agents** (Claude Code, Claude Desktop, Cursor, Trae and any other MCP client), as 22 bounded tools that answer questions like _what breaks if I change this?_, _is there already a helper for this?_ and _did my edit add a god file or a clone?_ without reading the whole repository.
+- **To AI agents** (Claude Code, Claude Desktop, Cursor, Trae and any other MCP client), as 23 bounded tools that answer questions like _what breaks if I change this?_, _is there already a helper for this?_ and _did my edit add a god file or a clone?_ without reading the whole repository. `check_documentation` also tells them which public symbols and files still need a comment.
 
 Everything runs locally. Source code never leaves your machine.
 
@@ -88,7 +88,7 @@ Cross-file dependency accuracy is highest for the semantic tier; for the others 
 | Document                                                 | About                                                  |
 | -------------------------------------------------------- | ------------------------------------------------------ |
 | [docs/CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md) | Claude Code and Desktop setup, skill, validation hook  |
-| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Reference for all 22 tools and 4 resources (generated) |
+| [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)                   | Reference for all 23 tools and 4 resources (generated) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | How CodeMaps is built and why                          |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                       | Development setup, checks, release process             |
 | [CHANGELOG.md](CHANGELOG.md)                             | What changed in each version                           |

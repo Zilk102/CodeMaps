@@ -3,6 +3,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as path from 'path';
 import * as z from 'zod/v4';
+import { documentationIndex } from '../analysis/documentation';
 import { validateChanges } from '../analysis/ChangeValidationService';
 import { GitService } from '../services/GitService';
 import { oracle } from '../oracle';
@@ -293,6 +294,7 @@ async function validateArchitectureChanges(
     patterns: patterns.patterns,
     changedFiles: resolved,
     healthScore: health.score,
+    documentation: documentationIndex.peek(graph.projectRoot),
   });
 
   return okStatusToolResult({

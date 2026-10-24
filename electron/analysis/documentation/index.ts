@@ -16,6 +16,7 @@ import type { DocumentationReport } from './types';
 export { analyzeDocumentationSource } from './fileAnalysis';
 export { DocumentationIndex, documentationIndex } from './DocumentationIndex';
 export { buildDocumentationReport, coveragePercent } from './report';
+export * from './toolReport';
 export * as documentationPolicy from './policy';
 export type * from './types';
 

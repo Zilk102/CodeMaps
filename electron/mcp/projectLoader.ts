@@ -1,4 +1,5 @@
 import { cloneIndex } from '../analysis/clones/CloneIndex';
+import { documentationIndex } from '../analysis/documentation';
 import { app } from 'electron';
 import { GraphData, oracleStore } from '../store';
 import { oracle } from '../oracle';
@@ -99,8 +100,11 @@ export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData
   return withCloneIndex(graph);
 };
 
-/** Tools that report duplication read it from the clone index, so it must be current first. */
+/** Tools that report duplication or documentation read the indexes, so they must be current first. */
 const withCloneIndex = async (graph: GraphData): Promise<GraphData> => {
-  await cloneIndex.refreshFor(graph).catch(() => undefined);
+  await Promise.all([
+    cloneIndex.refreshFor(graph).catch(() => undefined),
+    documentationIndex.refreshFor(graph).catch(() => undefined),
+  ]);
   return graph;
 };

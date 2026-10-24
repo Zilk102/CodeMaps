@@ -209,6 +209,11 @@
         "title": "查找重复代码",
         "description": "找出复制粘贴的代码并说明如何消除：每个分组列出各副本及其行范围、副本之间有多少处取值不同（即待提取函数的参数）、差异示例，以及带目标文件的建议操作。",
         "recommendedWhen": "当需要消除重复代码时，以及在编写与现有代码相似的新代码之前。"
+      },
+      "check_documentation": {
+        "title": "检查文档",
+        "description": "衡量文档覆盖率并说明该写什么：公共符号的覆盖率、各语言的覆盖条、缺口最多的文件，以及每个未注释的符号及其注释应说明内容的提示（用途、契约、原因）。可选列出仅重复名称的注释。",
+        "recommendedWhen": "编写或修改代码之后，用来确认每个新增的公共符号和文件都已写文档。"
       }
     },
     "resources": {
@@ -433,6 +438,9 @@
     "duplicates": "重复代码",
     "duplicatesEyebrow": "复制粘贴的代码",
     "duplicatesDescription": "查找复制粘贴的代码，并建议如何合并。",
+    "documentation": "文档",
+    "documentationEyebrow": "代码注释",
+    "documentationDescription": "显示有多少公共符号和文件带有有用的注释。",
     "prImpact": "PR 影响",
     "workspace": "工作区",
     "workspaceEyebrow": "分析工作区",
@@ -465,8 +473,32 @@
       "heatmapDescription": "找出高频变更的文件，为稳定性改进和重构工作提供依据。",
       "decompositionActionDescription": "分析 God 类、纠缠的方法和架构缺陷，以便安全地拆分它们。",
       "cleanup": "代码清理",
-      "duplicatesDescription": "查找复制粘贴的代码，了解在哪里提取公共函数或模块。"
+      "duplicatesDescription": "查找复制粘贴的代码，了解在哪里提取公共函数或模块。",
+      "docs": "文档",
+      "documentationDescription": "找出未注释的公共符号和文件，并了解每条注释应说明什么。"
     }
+  },
+  "documentation": {
+    "title": "文档",
+    "hint": "衡量有多少公共符号和文件带有有用的注释。",
+    "analyze": "分析",
+    "analyzing": "分析中...",
+    "error": "文档分析失败",
+    "coverage": "覆盖率",
+    "undocumented": "未注释的符号",
+    "missingHeaders": "缺少文件头的文件",
+    "lowQuality": "空洞的注释",
+    "byLanguage": "按语言的覆盖率",
+    "topOffenders": "缺口最多的文件",
+    "symbols": "待注释的符号",
+    "headersList": "缺少文件头注释的文件",
+    "empty": "所有必需的内容均已注释。",
+    "omitted": "还有 {{count}} 项未显示",
+    "missingCount": "缺少 {{missing}} / {{required}}",
+    "filesCount": "{{count}} 个文件",
+    "selectFile": "在图中选中此文件",
+    "notInGraph": "此文件不在图中",
+    "hintLabel": "注释应说明"
   },
   "duplicates": {
     "title": "重复代码",

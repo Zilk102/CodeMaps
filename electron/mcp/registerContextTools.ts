@@ -2,6 +2,9 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as z from 'zod/v4';
+import { documentationIndex } from '../analysis/documentation';
+import { buildDocumentationContext } from '../analysis/documentationContext';
+import type { ReviewContextResult } from '../analysis/ReviewContextService';
 import { GraphData } from '../store';
 import { defineGraphTool, type ToolArgs, type ToolSpec } from './defineTool';
 import { McpToolContext } from './toolContext';
@@ -185,6 +188,15 @@ function registerChangeCampaign(server: McpServer, context: McpToolContext) {
   );
 }
 
+/** Adds the `documentation` section for the touched files when something there lacks comments. */
+const withDocumentation = <T extends object>(graph: GraphData, result: T, touched: string[]) => {
+  const documentation = buildDocumentationContext(
+    documentationIndex.peek(graph.projectRoot),
+    touched
+  );
+  return documentation ? { ...result, documentation } : result;
+};
+
 /** Registers `prepare_change_context` for one target node or query. */
 function registerChangeContext(server: McpServer, context: McpToolContext) {
   defineContextTool(
@@ -215,17 +227,18 @@ function registerChangeContext(server: McpServer, context: McpToolContext) {
     async (
       graph,
       { target, taskMode, changeIntent, type, depth, includeSecurityFindings = false, limit = 15 }
-    ) => ({
-      result: await context.changeContextService.prepareChangeContext(graph, {
+    ) => {
+      const result = await context.changeContextService.prepareChangeContext(graph, {
         target,
         taskMode,
         changeIntent,
         type,
         depth,
         includeSecurityFindings,
-      }),
-      limit,
-    })
+      });
+      const touched = [result.target.node.id, ...result.recommendedFilesToInspect];
+      return { result: withDocumentation(graph, result, touched), limit };
+    }
   );
 }
 
@@ -254,9 +267,14 @@ function registerReviewContext(server: McpServer, context: McpToolContext) {
       },
     },
     'reviewContext',
-    (graph, { taskMode, focusQuery, ...switches }) =>
-      prepareWith({ taskMode, focusQuery, ...switchOptions(switches, true) }, (options) =>
-        context.reviewContextService.prepareReviewContext(graph, options)
-      )
+    async (graph, { taskMode, focusQuery, ...switches }) => {
+      const prepared = await prepareWith(
+        { taskMode, focusQuery, ...switchOptions(switches, true) },
+        (options) => context.reviewContextService.prepareReviewContext(graph, options)
+      );
+      const review = prepared.result as ReviewContextResult;
+      const touched = review.focus?.matches.map((node) => node.id) ?? [];
+      return { ...prepared, result: withDocumentation(graph, review, touched) };
+    }
   );
 }

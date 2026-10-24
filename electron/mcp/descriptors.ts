@@ -178,6 +178,14 @@ export const MCP_TOOLS: McpStatusToolDescriptor[] = [
       'When the user asks to remove duplication, and before writing code similar to existing code.',
   },
   {
+    name: 'check_documentation',
+    title: 'Check Documentation',
+    description:
+      'Measures documentation coverage and says what to write: coverage of the public symbols, per-language bars, the files with the most gaps, and every undocumented symbol with a hint on what its comment must state (purpose, contract, why). Optionally lists comments that only repeat the name.',
+    recommendedWhen:
+      'After writing or changing code, to be sure every new public symbol and file is documented.',
+  },
+  {
     name: 'get_semantic_skeleton',
     title: 'Get Semantic Skeleton',
     description:
