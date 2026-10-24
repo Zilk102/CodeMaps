@@ -19,6 +19,23 @@ interface Psr4Mapping {
 
 const trimSlashes = (value: string) => value.replace(/^\\+|\\+$/g, '');
 
+type Psr4Section = Record<string, string | string[]>;
+
+const psr4Section = (json: unknown, section: string): Psr4Section =>
+  (json as Record<string, { 'psr-4'?: Psr4Section }> | null)?.[section]?.['psr-4'] ?? {};
+
+const mappingsOfTarget = (
+  dir: string,
+  prefix: string,
+  target: string | string[]
+): Psr4Mapping[] => {
+  const normalized = trimSlashes(prefix);
+  return (Array.isArray(target) ? target : [target]).map((relative) => ({
+    prefix: normalized ? `${normalized}\\` : '',
+    dir: normalizeSegments(joinPath(dir, relative)),
+  }));
+};
+
 /** `autoload.psr-4` and `autoload-dev.psr-4` of one composer.json, directories made absolute. */
 export const parseComposerPsr4 = (dir: string, text: string): Psr4Mapping[] => {
   let json: unknown;
@@ -27,22 +44,11 @@ export const parseComposerPsr4 = (dir: string, text: string): Psr4Mapping[] => {
   } catch {
     return [];
   }
-  const mappings: Psr4Mapping[] = [];
-  for (const section of ['autoload', 'autoload-dev']) {
-    const psr4 = (json as Record<string, { 'psr-4'?: Record<string, string | string[]> }>)?.[
-      section
-    ]?.['psr-4'];
-    for (const [prefix, target] of Object.entries(psr4 ?? {})) {
-      for (const relative of Array.isArray(target) ? target : [target]) {
-        const normalized = trimSlashes(prefix);
-        mappings.push({
-          prefix: normalized ? `${normalized}\\` : '',
-          dir: normalizeSegments(joinPath(dir, relative)),
-        });
-      }
-    }
-  }
-  return mappings;
+  return ['autoload', 'autoload-dev'].flatMap((section) =>
+    Object.entries(psr4Section(json, section)).flatMap(([prefix, target]) =>
+      mappingsOfTarget(dir, prefix, target)
+    )
+  );
 };
 
 /** PHP namespaces use backslashes; the shared package logic uses dots, so names are converted. */

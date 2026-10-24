@@ -1,5 +1,14 @@
 # CodeMaps Changelog
 
+## v1.1.57 (2026-10-24)
+
+### Changed
+
+- **CodeMaps health score on itself: 79 (C) -> 97 (A).** God files, oversized modules, mixed-responsibility modules, layer violations, unknown layers, complex methods and duplicates: all 0. `stackTopologyAdapterKit`, `reviewContextPolicies`, `TaskIntelligenceService`, `ProjectInsightService`, `ChangeContextService` and `oracle.ts` were split; about 70 functions are down to complexity 8 or less and nesting 3 or less.
+- **CodeMaps is now a strict guardian of its own repository.** `npm run quality` (functions over 60 lines, complexity 8 or nesting 3, oversized classes) and `npm run duplicates` exit with code 1 on any finding and are part of `npm run verify` and CI: new code with a god file, a duplicate or extra complexity does not pass.
+- **Layers:** `types.ts` and `*.types.ts` files count as shared contracts, and root HTML and assets belong to the presentation layer, so their dependencies no longer raise false violations or "unknown layer" findings.
+- Tests: 521 -> 527.
+
 ## v1.1.56 (2026-10-24)
 
 ### Fixed

@@ -17,6 +17,7 @@ import {
   type FileEntry,
   type LanguageResolver,
   type ProjectIndex,
+  type ResolvedEdge,
 } from './types';
 
 /** Reasons start with the language id, which is how resolver-owned links are recognised. */
@@ -75,23 +76,22 @@ const collectResolverLinks = async (
 ): Promise<GraphLink[]> => {
   const links: GraphLink[] = [];
   const seen = new Set<string>();
+  const addLink = (source: string, edge: ResolvedEdge) => {
+    const key = `${source}\u0000${edge.target}`;
+    if (edge.target === source || seen.has(key)) return;
+    seen.add(key);
+    links.push({
+      source,
+      target: edge.target,
+      value: edge.value,
+      type: 'import',
+      reason: edge.reason,
+    });
+  };
   for (const resolver of resolvers) {
     await resolver.prepare(index);
     const files = [...index.files.values()].filter((file) => file.language === resolver.languageId);
-    for (const file of files) {
-      for (const edge of resolver.resolve(file)) {
-        const key = `${file.path}\u0000${edge.target}`;
-        if (edge.target === file.path || seen.has(key)) continue;
-        seen.add(key);
-        links.push({
-          source: file.path,
-          target: edge.target,
-          value: edge.value,
-          type: 'import',
-          reason: edge.reason,
-        });
-      }
-    }
+    for (const file of files) resolver.resolve(file).forEach((edge) => addLink(file.path, edge));
   }
   return links;
 };

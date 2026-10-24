@@ -36,6 +36,8 @@ function startsScanMode(
   return quoteMode ? { mode: quoteMode, skip: 0 } : null;
 }
 
+const BRACE_DELTA: Record<string, number> = { '{': 1, '}': -1 };
+
 export function findMatchingBrace(text: string, openBraceIndex: number): number {
   let depth = 0;
   let mode: ScanMode = 'code';
@@ -54,14 +56,10 @@ export function findMatchingBrace(text: string, openBraceIndex: number): number 
     if (started) {
       mode = started.mode;
       index += started.skip;
-    } else if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        return index;
-      }
+      continue;
     }
+    depth += BRACE_DELTA[char] ?? 0;
+    if (char === '}' && depth === 0) return index;
   }
 
   return -1;

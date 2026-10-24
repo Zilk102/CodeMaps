@@ -2,21 +2,17 @@ import { ChangeCampaignService } from './ChangeCampaignService';
 import { ChangeContextService } from './ChangeContextService';
 import { ProjectInsightService } from './ProjectInsightService';
 import { ReviewContextService } from './ReviewContextService';
+import { createServices, type ServiceBundle } from './serviceWiring';
 
 /** The context services task routing delegates to. */
-export interface TaskIntelligenceServices {
-  projectInsight: ProjectInsightService;
-  changeContext: ChangeContextService;
-  reviewContext: ReviewContextService;
-  changeCampaign: ChangeCampaignService;
-}
+const TASK_INTELLIGENCE_SERVICES = {
+  projectInsight: ProjectInsightService,
+  changeContext: ChangeContextService,
+  reviewContext: ReviewContextService,
+  changeCampaign: ChangeCampaignService,
+};
 
-export const createTaskIntelligenceServices = (
-  overrides: Partial<TaskIntelligenceServices> = {}
-): TaskIntelligenceServices => ({
-  projectInsight: new ProjectInsightService(),
-  changeContext: new ChangeContextService(),
-  reviewContext: new ReviewContextService(),
-  changeCampaign: new ChangeCampaignService(),
-  ...overrides,
-});
+export type TaskIntelligenceServices = ServiceBundle<typeof TASK_INTELLIGENCE_SERVICES>;
+
+export const createTaskIntelligenceServices = (overrides: Partial<TaskIntelligenceServices> = {}) =>
+  createServices(TASK_INTELLIGENCE_SERVICES, overrides);

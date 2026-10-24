@@ -59,15 +59,19 @@ class QueryCollector {
   ) {
     if (name === 'import_path') {
       match.importPath = normalizeImportPath(node.text);
-    } else if (name === 'import_entity') {
+      return;
+    }
+    if (name === 'import_entity') {
       const normalizedEntity = normalizeImportEntity(node.text);
       if (normalizedEntity) match.importEntities.add(normalizedEntity);
-    } else if (name === 'class' || name === 'function') {
-      this.pushEntity(name, node.text, toSourceLocation(node));
-    } else {
-      const target = this.textSets.get(name);
-      if (target) QueryCollector.addTrimmed(target, node.text);
+      return;
     }
+    if (name === 'class' || name === 'function') {
+      this.pushEntity(name, node.text, toSourceLocation(node));
+      return;
+    }
+    const target = this.textSets.get(name);
+    if (target) QueryCollector.addTrimmed(target, node.text);
   }
 
   collectMatch(captures: { name: string; node: CaptureNode }[]) {

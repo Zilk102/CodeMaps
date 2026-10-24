@@ -16,6 +16,7 @@ const { analyzeSourceFileStructure } = require(
 const TEST = /(\.test\.|\.spec\.|__tests__)/;
 const MAX_LINES = Number(process.env.QUALITY_MAX_LINES ?? 60);
 const MAX_COMPLEXITY = Number(process.env.QUALITY_MAX_COMPLEXITY ?? 8);
+const MAX_NESTING = Number(process.env.QUALITY_MAX_NESTING ?? 3);
 
 const files = sourceFilesOfArguments('quality-report.mjs', process.argv.slice(2));
 
@@ -24,13 +25,14 @@ for (const file of files) {
   if (TEST.test(file)) continue;
   const metrics = analyzeSourceFileStructure(file);
   for (const fn of metrics.allFunctions) {
-    if (fn.lineCount > MAX_LINES || fn.complexity > MAX_COMPLEXITY) {
+    if (fn.lineCount > MAX_LINES || fn.complexity > MAX_COMPLEXITY || fn.maxNesting > MAX_NESTING) {
       rows.push({
         kind: 'function',
         file,
         name: fn.name,
         lines: fn.lineCount,
         complexity: fn.complexity,
+        nesting: fn.maxNesting,
       });
     }
   }
@@ -50,9 +52,12 @@ rows.sort((a, b) => b.complexity - a.complexity || b.lines - a.lines);
 for (const row of rows) {
   const extra = row.methods ? ` ${row.methods} methods` : '';
   console.log(
-    `${row.kind.padEnd(8)} ${path.relative(root, row.file).replace(/\\/g, '/')}  ${row.name}  ${row.lines} lines, complexity ${row.complexity}${extra}`
+    `${row.kind.padEnd(8)} ${path.relative(root, row.file).replace(/\\/g, '/')}  ${row.name}  ${row.lines} lines, complexity ${row.complexity}${row.nesting === undefined ? '' : `, nesting ${row.nesting}`}${extra}`
   );
 }
-console.log(`\n${rows.length} item(s) over ${MAX_LINES} lines or complexity ${MAX_COMPLEXITY}`);
+console.log(
+  `\n${rows.length} item(s) over ${MAX_LINES} lines or complexity ${MAX_COMPLEXITY} or nesting ${MAX_NESTING}`
+);
+
 // A guardian, not a report: any finding fails `npm run quality`, `npm run verify` and CI.
 if (rows.length > 0) process.exitCode = 1;

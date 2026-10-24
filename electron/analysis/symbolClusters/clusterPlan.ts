@@ -74,12 +74,11 @@ const countOutgoingUse = (
   const talksTo = new Map<number, number>();
   const bump = (counts: Map<number, number>, key: number) =>
     counts.set(key, (counts.get(key) ?? 0) + 1);
-  for (const member of group.members) {
-    for (const to of analysis.references[member]) {
-      const other = clusterOf.get(to);
-      if (analysis.hubs.has(to)) bump(helperUse, to);
-      else if (other !== undefined && other !== groupIndex) bump(talksTo, other);
-    }
+  const targets = group.members.flatMap((member) => [...analysis.references[member]]);
+  for (const to of targets) {
+    const other = clusterOf.get(to);
+    if (analysis.hubs.has(to)) bump(helperUse, to);
+    else if (other !== undefined && other !== groupIndex) bump(talksTo, other);
   }
   return { helperUse, talksTo };
 };
