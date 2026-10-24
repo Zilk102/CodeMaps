@@ -35,6 +35,19 @@ const WATCH_EVENT_PRIORITY: Record<WatchEventType, number> = {
   unlinkDir: 5,
 };
 
+/**
+ * Files saved before the initial scan finishes are never reported, so analysis must not be
+ * considered done (and agents must not start editing) until the watcher is live.
+ */
+const whenWatcherReady = (watcher: ChokidarWatcher) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, WATCHER_READY_TIMEOUT_MS);
+    watcher.on('ready', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+
 export class FileWatcher {
   private watcher: ChokidarWatcher | null = null;
   private refreshTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -86,15 +99,7 @@ export class FileWatcher {
     });
     this.watcher = watcher;
 
-    // Files saved before the initial scan finishes are never reported, so analysis must not be
-    // considered done (and agents must not start editing) until the watcher is live.
-    const ready = new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, WATCHER_READY_TIMEOUT_MS);
-      watcher.on('ready', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
+    const ready = whenWatcherReady(watcher);
     watcher.on('error', (error: unknown) => console.warn('[FileWatcher] watcher error:', error));
 
     watcher

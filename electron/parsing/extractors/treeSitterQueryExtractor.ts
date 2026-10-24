@@ -31,6 +31,12 @@ class QueryCollector {
   private readonly variables = new Set<string>();
   private readonly calls = new Set<string>();
   private readonly comments = new Set<string>();
+  /** Captures that only contribute trimmed text, by capture name. */
+  private readonly textSets = new Map<string, Set<string>>([
+    ['variable', this.variables],
+    ['call', this.calls],
+    ['comment', this.comments],
+  ]);
 
   private pushEntity(type: 'class' | 'function', name: string, location?: SourceLocation) {
     const normalized = name.trim();
@@ -51,28 +57,16 @@ class QueryCollector {
     node: CaptureNode,
     match: { importPath: string | null; importEntities: Set<string> }
   ) {
-    switch (name) {
-      case 'import_path':
-        match.importPath = normalizeImportPath(node.text);
-        break;
-      case 'import_entity': {
-        const normalizedEntity = normalizeImportEntity(node.text);
-        if (normalizedEntity) match.importEntities.add(normalizedEntity);
-        break;
-      }
-      case 'class':
-      case 'function':
-        this.pushEntity(name, node.text, toSourceLocation(node));
-        break;
-      case 'variable':
-        QueryCollector.addTrimmed(this.variables, node.text);
-        break;
-      case 'call':
-        QueryCollector.addTrimmed(this.calls, node.text);
-        break;
-      case 'comment':
-        QueryCollector.addTrimmed(this.comments, node.text);
-        break;
+    if (name === 'import_path') {
+      match.importPath = normalizeImportPath(node.text);
+    } else if (name === 'import_entity') {
+      const normalizedEntity = normalizeImportEntity(node.text);
+      if (normalizedEntity) match.importEntities.add(normalizedEntity);
+    } else if (name === 'class' || name === 'function') {
+      this.pushEntity(name, node.text, toSourceLocation(node));
+    } else {
+      const target = this.textSets.get(name);
+      if (target) QueryCollector.addTrimmed(target, node.text);
     }
   }
 

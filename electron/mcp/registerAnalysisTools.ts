@@ -158,38 +158,40 @@ function registerDecomposition(server: McpServer) {
         limit: boundedInt(50, 'Maximum number of refactoring candidates to return (default 12).'),
       },
     },
-    async ({
-      focusNodeIds,
-      filePath,
-      limit = 12,
-    }: {
-      focusNodeIds?: string[];
-      filePath?: string;
-      limit?: number;
-    }) => {
-      const graph = await ensureGraphLoaded();
-      const { DecompositionGuidanceService } =
-        await import('../analysis/DecompositionGuidanceService.js');
-      const { SymbolClusterService } =
-        await import('../analysis/symbolClusters/SymbolClusterService.js');
-      const focus = [...(focusNodeIds ?? []), ...(filePath ? [filePath] : [])].map((reference) =>
-        resolveNodeReference(graph, reference)
-      );
-      const result = new DecompositionGuidanceService().prepareGuidance(graph, {
-        focusNodeIds: focus.length > 0 ? focus : undefined,
-        limit,
-      });
-      // Plans for what was asked about, otherwise for the files the candidates point at.
-      const planTargets =
-        focus.length > 0
-          ? focus
-          : result.candidates
-              .filter((candidate) => candidate.targetType !== 'method')
-              .map((candidate) => candidate.fileNodeId);
-      const splitPlans = await new SymbolClusterService().planFiles(graph, planTargets, 3);
-      return okStatusToolResult({ ...result, splitPlans });
-    }
+    analyzeDecomposition
   );
+}
+
+async function analyzeDecomposition({
+  focusNodeIds,
+  filePath,
+  limit = 12,
+}: {
+  focusNodeIds?: string[];
+  filePath?: string;
+  limit?: number;
+}) {
+  const graph = await ensureGraphLoaded();
+  const { DecompositionGuidanceService } =
+    await import('../analysis/DecompositionGuidanceService.js');
+  const { SymbolClusterService } =
+    await import('../analysis/symbolClusters/SymbolClusterService.js');
+  const focus = [...(focusNodeIds ?? []), ...(filePath ? [filePath] : [])].map((reference) =>
+    resolveNodeReference(graph, reference)
+  );
+  const result = new DecompositionGuidanceService().prepareGuidance(graph, {
+    focusNodeIds: focus.length > 0 ? focus : undefined,
+    limit,
+  });
+  // Plans for what was asked about, otherwise for the files the candidates point at.
+  const planTargets =
+    focus.length > 0
+      ? focus
+      : result.candidates
+          .filter((candidate) => candidate.targetType !== 'method')
+          .map((candidate) => candidate.fileNodeId);
+  const splitPlans = await new SymbolClusterService().planFiles(graph, planTargets, 3);
+  return okStatusToolResult({ ...result, splitPlans });
 }
 
 function registerSemanticSkeleton(server: McpServer) {
@@ -245,36 +247,39 @@ function registerValidateChanges(server: McpServer, context: McpToolContext) {
           .describe('auto (default): changed files when any, otherwise the whole project.'),
       },
     },
-    async ({
-      changedFiles,
-      baseRef,
-      scope = 'auto',
-    }: {
-      changedFiles?: string[];
-      baseRef?: string;
-      scope?: 'auto' | 'changed' | 'project';
-    }) => {
-      // The edits being validated were probably saved a moment ago; wait for the indexer.
-      await oracle.whenIdle();
-      const graph = await ensureGraphLoaded();
-      const health = context.healthScoreAnalyzer.analyze(graph);
-      const patterns = context.patternDetectionAnalyzer.analyze(graph);
-
-      const root = graph.projectRoot ?? '';
-      const resolved = scope === 'project' ? [] : filesToValidate(root, changedFiles, baseRef);
-
-      const result = validateChanges({
-        patterns: patterns.patterns,
-        changedFiles: resolved,
-        healthScore: health.score,
-      });
-
-      return okStatusToolResult({
-        ...result,
-        projectHealth: { score: health.score, grade: health.grade },
-      });
-    }
+    (args: ValidateChangesArgs) => validateArchitectureChanges(context, args)
   );
+}
+
+interface ValidateChangesArgs {
+  changedFiles?: string[];
+  baseRef?: string;
+  scope?: 'auto' | 'changed' | 'project';
+}
+
+async function validateArchitectureChanges(
+  context: McpToolContext,
+  { changedFiles, baseRef, scope = 'auto' }: ValidateChangesArgs
+) {
+  // The edits being validated were probably saved a moment ago; wait for the indexer.
+  await oracle.whenIdle();
+  const graph = await ensureGraphLoaded();
+  const health = context.healthScoreAnalyzer.analyze(graph);
+  const patterns = context.patternDetectionAnalyzer.analyze(graph);
+
+  const root = graph.projectRoot ?? '';
+  const resolved = scope === 'project' ? [] : filesToValidate(root, changedFiles, baseRef);
+
+  const result = validateChanges({
+    patterns: patterns.patterns,
+    changedFiles: resolved,
+    healthScore: health.score,
+  });
+
+  return okStatusToolResult({
+    ...result,
+    projectHealth: { score: health.score, grade: health.grade },
+  });
 }
 
 const filesToValidate = (root: string, changedFiles: string[] | undefined, baseRef?: string) =>

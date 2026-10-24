@@ -251,16 +251,12 @@ function detectLanguageSupportSummary(
 }
 
 function describeProjectShape(architecture: ArchitectureOverview) {
-  const layers = new Set(architecture.layers.map((entry) => entry.layer));
-  if (
-    layers.has('presentation') &&
-    layers.has('application') &&
-    layers.has('analysis') &&
-    layers.has('parsing')
-  ) {
+  const layers = new Set<string>(architecture.layers.map((entry) => entry.layer));
+  const hasAll = (...names: string[]) => names.every((name) => layers.has(name));
+  if (hasAll('presentation', 'application', 'analysis', 'parsing')) {
     return 'Multi-layered system with distinct UI, orchestration, analysis, and parsing zones.';
   }
-  if (layers.has('presentation') && layers.has('application')) {
+  if (hasAll('presentation', 'application')) {
     return 'Application with a clear separation of UI and orchestration.';
   }
   if (layers.has('analysis') || layers.has('parsing')) {

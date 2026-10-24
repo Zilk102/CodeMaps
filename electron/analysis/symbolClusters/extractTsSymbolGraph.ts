@@ -68,15 +68,15 @@ const statementSymbols = (statement: ts.Statement): TsSymbol[] => {
     return classSymbols(statement, statement.name.text);
   }
   if (ts.isVariableStatement(statement)) return variableSymbols(statement);
-  if (
-    ts.isInterfaceDeclaration(statement) ||
-    ts.isTypeAliasDeclaration(statement) ||
-    ts.isEnumDeclaration(statement)
-  ) {
-    return [newSymbol(statement.name.text, 'type', statement)];
-  }
-  return [];
+  return isTypeDeclaration(statement) ? [newSymbol(statement.name.text, 'type', statement)] : [];
 };
+
+const isTypeDeclaration = (
+  statement: ts.Statement
+): statement is ts.InterfaceDeclaration | ts.TypeAliasDeclaration | ts.EnumDeclaration =>
+  ts.isInterfaceDeclaration(statement) ||
+  ts.isTypeAliasDeclaration(statement) ||
+  ts.isEnumDeclaration(statement);
 
 const collectTsSymbols = (source: ts.SourceFile): TsSymbol[] =>
   source.statements.flatMap(statementSymbols);
@@ -101,36 +101,46 @@ const noteUse = (uses: Set<string>, name: string) => {
   if (name.length >= 3 && uses.size < MAX_USES) uses.add(name);
 };
 
+interface UsageState {
+  symbol: TsSymbol;
+  context: TsReferenceContext;
+  refs: Set<string>;
+  uses: Set<string>;
+}
+
+const visitPropertyAccess = (state: UsageState, node: ts.PropertyAccessExpression) => {
+  const { symbol, context, refs, uses } = state;
+  const member = symbol.owner ? `${symbol.owner}.${node.name.text}` : undefined;
+  if (member && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    if (context.names.has(member)) refs.add(member);
+    else noteUse(uses, node.name.text);
+    return;
+  }
+  noteUse(uses, node.name.text);
+  visitUsage(state, node.expression);
+};
+
+const visitIdentifierUse = (state: UsageState, node: ts.Identifier) => {
+  const targets = state.context.byName.get(node.text);
+  if (!targets) {
+    noteUse(state.uses, node.text);
+    return;
+  }
+  for (const target of targets) state.refs.add(target);
+};
+
+const visitUsage = (state: UsageState, node: ts.Node) => {
+  if (state.symbol.skip.has(node)) return;
+  if (ts.isPropertyAccessExpression(node)) visitPropertyAccess(state, node);
+  else if (ts.isIdentifier(node)) visitIdentifierUse(state, node);
+  else ts.forEachChild(node, (child) => visitUsage(state, child));
+};
+
 const collectTsUsage = (symbol: TsSymbol, context: TsReferenceContext) => {
-  const refs = new Set<string>();
-  const uses = new Set<string>();
-  const visitProperty = (node: ts.PropertyAccessExpression) => {
-    const member = symbol.owner ? `${symbol.owner}.${node.name.text}` : undefined;
-    if (member && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
-      if (context.names.has(member)) refs.add(member);
-      else noteUse(uses, node.name.text);
-      return;
-    }
-    noteUse(uses, node.name.text);
-    visit(node.expression);
-  };
-  const visitIdentifier = (node: ts.Identifier) => {
-    const targets = context.byName.get(node.text);
-    if (!targets) {
-      noteUse(uses, node.text);
-      return;
-    }
-    for (const target of targets) refs.add(target);
-  };
-  const visit = (node: ts.Node) => {
-    if (symbol.skip.has(node)) return;
-    if (ts.isPropertyAccessExpression(node)) visitProperty(node);
-    else if (ts.isIdentifier(node)) visitIdentifier(node);
-    else ts.forEachChild(node, visit);
-  };
-  ts.forEachChild(symbol.node, visit);
-  refs.delete(symbol.name);
-  return { refs, uses };
+  const state: UsageState = { symbol, context, refs: new Set(), uses: new Set() };
+  ts.forEachChild(symbol.node, (child) => visitUsage(state, child));
+  state.refs.delete(symbol.name);
+  return { refs: state.refs, uses: state.uses };
 };
 
 const lineOf = (source: ts.SourceFile, position: number) =>

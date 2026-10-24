@@ -64,14 +64,7 @@ export class ChangeCampaignService {
       limit: 12,
       focusNodeIds: Array.from(campaignStructuralIds),
     });
-    const quality = buildQualityArtifacts(
-      graph,
-      health!,
-      patterns,
-      decompositionGuidance,
-      this.qualityGovernanceService,
-      4
-    );
+    const quality = this.buildQuality(graph, health!, patterns, decompositionGuidance);
 
     return assembleCampaignResult({
       graph,
@@ -88,6 +81,22 @@ export class ChangeCampaignService {
       quality,
       qualityGovernanceService: this.qualityGovernanceService,
     });
+  }
+
+  private buildQuality(
+    graph: GraphData,
+    health: Parameters<typeof buildQualityArtifacts>[1],
+    patterns: Parameters<typeof buildQualityArtifacts>[2],
+    decompositionGuidance: Parameters<typeof buildQualityArtifacts>[3]
+  ) {
+    return buildQualityArtifacts(
+      graph,
+      health,
+      patterns,
+      decompositionGuidance,
+      this.qualityGovernanceService,
+      4
+    );
   }
 
   private resolveFileScope(

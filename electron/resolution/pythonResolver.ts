@@ -51,6 +51,27 @@ const importEdge = (target: string): ResolvedEdge => ({
   reason: 'python:import',
 });
 
+/** `from ..x import y` starts in the directory `dots - 1` levels above the importing file. */
+const climbDirectories = (filePath: string, dots: number): string => {
+  let base = dirOf(filePath);
+  for (let level = 1; level < dots; level += 1) base = dirOf(base);
+  return base;
+};
+
+/** The module file `entry` re-exports `name` from (`from .x import name`), if any. */
+const reExportSource = (
+  entry: FileEntry,
+  name: string,
+  resolveModule: (spec: string) => ModuleHit | null
+): string | null => {
+  for (const record of entry.facts.imports) {
+    if (!record.importedEntities.includes(name)) continue;
+    const next = resolveModule(record.path);
+    if (next && next.file !== entry.path) return next.file;
+  }
+  return null;
+};
+
 export class PythonResolver implements LanguageResolver {
   readonly languageId = 'python';
   private index!: ProjectIndex;
@@ -76,14 +97,11 @@ export class PythonResolver implements LanguageResolver {
     const segments = spec.slice(dots).split('.').filter(Boolean);
 
     if (dots > 0) {
-      let base = dirOf(importer.path);
-      for (let level = 1; level < dots; level += 1) base = dirOf(base);
+      const base = climbDirectories(importer.path, dots);
       // `from . import x` has no module part: the package itself.
-      if (segments.length === 0) {
-        const init = joinPath(base, '__init__.py');
-        return this.index.files.has(init) ? { file: init } : null;
-      }
-      return this.moduleFileAt(base, segments);
+      if (segments.length > 0) return this.moduleFileAt(base, segments);
+      const init = joinPath(base, '__init__.py');
+      return this.index.files.has(init) ? { file: init } : null;
     }
 
     for (const root of absoluteRoots(this.index.root, importer)) {
@@ -100,13 +118,11 @@ export class PythonResolver implements LanguageResolver {
       return { target: entityTarget(moduleFile, name), value: 2, reason: 'python:import' };
     }
     const entry = this.index.files.get(moduleFile);
-    if (entry && depth < MAX_REEXPORT_DEPTH) {
-      for (const record of entry.facts.imports) {
-        if (!record.importedEntities.includes(name)) continue;
-        const next = this.resolveModule(entry, record.path);
-        if (next && next.file !== moduleFile) return this.resolveName(next.file, name, depth + 1);
-      }
-    }
+    const forwardedTo =
+      entry && depth < MAX_REEXPORT_DEPTH
+        ? reExportSource(entry, name, (spec) => this.resolveModule(entry, spec))
+        : null;
+    if (forwardedTo) return this.resolveName(forwardedTo, name, depth + 1);
     return { target: moduleFile, value: 1, reason: 'python:import' };
   }
 

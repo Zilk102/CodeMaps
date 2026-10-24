@@ -11,6 +11,18 @@ const nameCluster = (
   documentFrequency: Map<string, number>,
   taken: Set<string>
 ): string => {
+  const best = bestToken(members, tokensOf, documentFrequency) || fallbackName(members, symbols);
+  let candidate = best;
+  for (let suffix = 2; taken.has(candidate); suffix += 1) candidate = `${best}_${suffix}`;
+  taken.add(candidate);
+  return candidate;
+};
+
+const bestToken = (
+  members: number[],
+  tokensOf: string[][],
+  documentFrequency: Map<string, number>
+): string => {
   const counts = new Map<string, number>();
   for (const member of members) {
     for (const token of new Set(tokensOf[member])) counts.set(token, (counts.get(token) ?? 0) + 1);
@@ -25,17 +37,16 @@ const nameCluster = (
       bestScore = score;
     }
   }
-  if (!best) {
-    const largest = [...members].sort((a, b) => symbols[b].lineCount - symbols[a].lineCount)[0];
-    best =
-      simpleName(symbols[largest].name)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_') || 'part';
-  }
-  let candidate = best;
-  for (let suffix = 2; taken.has(candidate); suffix += 1) candidate = `${best}_${suffix}`;
-  taken.add(candidate);
-  return candidate;
+  return best;
+};
+
+const fallbackName = (members: number[], symbols: SymbolInfo[]): string => {
+  const largest = [...members].sort((a, b) => symbols[b].lineCount - symbols[a].lineCount)[0];
+  return (
+    simpleName(symbols[largest].name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_') || 'part'
+  );
 };
 
 /** How much of the call traffic between clustered symbols stays inside a cluster. */
@@ -52,6 +63,27 @@ export const measureCohesion = (analysis: Analysis, clusterOf: Map<number, numbe
   return total === 0 ? 0 : Math.round((inside / total) * 100) / 100;
 };
 
+/** Which shared helpers a group calls, and how often it calls into each other group. */
+const countOutgoingUse = (
+  group: Group,
+  groupIndex: number,
+  analysis: Analysis,
+  clusterOf: Map<number, number>
+) => {
+  const helperUse = new Map<number, number>();
+  const talksTo = new Map<number, number>();
+  const bump = (counts: Map<number, number>, key: number) =>
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  for (const member of group.members) {
+    for (const to of analysis.references[member]) {
+      const other = clusterOf.get(to);
+      if (analysis.hubs.has(to)) bump(helperUse, to);
+      else if (other !== undefined && other !== groupIndex) bump(talksTo, other);
+    }
+  }
+  return { helperUse, talksTo };
+};
+
 export const describeClusters = (
   analysis: Analysis,
   groups: Group[],
@@ -59,7 +91,7 @@ export const describeClusters = (
   graph: SymbolGraph,
   listLimit: number
 ): SplitCluster[] => {
-  const { symbols, references, hubs, tokensOf, documentFrequency, linesOf } = analysis;
+  const { symbols, tokensOf, documentFrequency, linesOf } = analysis;
   const taken = new Set<string>();
   const names = groups.map((group) => {
     if (!group.misc) return nameCluster(group.members, symbols, tokensOf, documentFrequency, taken);
@@ -70,20 +102,7 @@ export const describeClusters = (
 
   return groups.map((group, groupIndex) => {
     const ordered = [...group.members].sort((a, b) => symbols[a].startLine - symbols[b].startLine);
-    const helperUse = new Map<number, number>();
-    const talksTo = new Map<number, number>();
-    for (const member of group.members) {
-      for (const to of references[member]) {
-        if (hubs.has(to)) {
-          helperUse.set(to, (helperUse.get(to) ?? 0) + 1);
-          continue;
-        }
-        const other = clusterOf.get(to);
-        if (other !== undefined && other !== groupIndex) {
-          talksTo.set(other, (talksTo.get(other) ?? 0) + 1);
-        }
-      }
-    }
+    const { helperUse, talksTo } = countOutgoingUse(group, groupIndex, analysis, clusterOf);
     return {
       name: names[groupIndex],
       suggestedFile: fileNameFor(names[groupIndex], graph.language, extension),

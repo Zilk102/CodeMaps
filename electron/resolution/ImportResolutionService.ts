@@ -68,6 +68,34 @@ const collectIndex = (
   return { files, filesByDir, entitiesByFile };
 };
 
+/** Every import edge the resolvers find, once per source file and target. */
+const collectResolverLinks = async (
+  resolvers: LanguageResolver[],
+  index: ProjectIndex
+): Promise<GraphLink[]> => {
+  const links: GraphLink[] = [];
+  const seen = new Set<string>();
+  for (const resolver of resolvers) {
+    await resolver.prepare(index);
+    const files = [...index.files.values()].filter((file) => file.language === resolver.languageId);
+    for (const file of files) {
+      for (const edge of resolver.resolve(file)) {
+        const key = `${file.path}\u0000${edge.target}`;
+        if (edge.target === file.path || seen.has(key)) continue;
+        seen.add(key);
+        links.push({
+          source: file.path,
+          target: edge.target,
+          value: edge.value,
+          type: 'import',
+          reason: edge.reason,
+        });
+      }
+    }
+  }
+  return links;
+};
+
 export class ImportResolutionService {
   private readonly resolvers: LanguageResolver[];
 
@@ -136,27 +164,7 @@ export class ImportResolutionService {
       readText: (path) => fs.readFile(path, 'utf-8').catch(() => null),
     };
 
-    const links: GraphLink[] = [];
-    const seen = new Set<string>();
-    for (const resolver of this.resolvers) {
-      await resolver.prepare(index);
-      for (const file of index.files.values()) {
-        if (file.language !== resolver.languageId) continue;
-        for (const edge of resolver.resolve(file)) {
-          if (edge.target === file.path) continue;
-          const key = `${file.path}\u0000${edge.target}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          links.push({
-            source: file.path,
-            target: edge.target,
-            value: edge.value,
-            type: 'import',
-            reason: edge.reason,
-          });
-        }
-      }
-    }
+    const links = await collectResolverLinks(this.resolvers, index);
 
     // Targets that are not nodes (an entity that was renamed, a directory outside the index)
     // would be dropped by the snapshot anyway; keeping the store clean helps every consumer.

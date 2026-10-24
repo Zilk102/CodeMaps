@@ -81,14 +81,9 @@ export class BlastRadiusAnalyzer {
     while (queue.length > 0) {
       const current = queue.shift()!;
       const currentDepth = depths.get(current) || 0;
-      if (typeof depthLimit === 'number' && currentDepth >= depthLimit) {
-        continue;
-      }
+      if (typeof depthLimit === 'number' && currentDepth >= depthLimit) continue;
 
-      for (const dependentLink of incomingByTarget.get(current) || []) {
-        if (!this.isDependencyLink(dependentLink)) continue;
-        // A file's own symbols referring to each other are not dependents.
-        if (ownIds.has(dependentLink.source)) continue;
+      for (const dependentLink of this.dependentLinksOf(current, ownIds, incomingByTarget)) {
         affectedLinks.push(dependentLink);
         const nextId = dependentLink.source;
         if (visited.has(nextId)) continue;
@@ -99,6 +94,17 @@ export class BlastRadiusAnalyzer {
     }
 
     return { visited, depths, affectedLinks };
+  }
+
+  /** A file's own symbols referring to each other are not dependents. */
+  private dependentLinksOf(
+    nodeId: string,
+    ownIds: Set<string>,
+    incomingByTarget: Map<string, GraphLink[]>
+  ): GraphLink[] {
+    return (incomingByTarget.get(nodeId) ?? []).filter(
+      (link) => this.isDependencyLink(link) && !ownIds.has(link.source)
+    );
   }
 
   private isDependencyLink(link: GraphLink) {

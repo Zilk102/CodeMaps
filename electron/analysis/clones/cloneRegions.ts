@@ -73,6 +73,21 @@ export class RegionMatcher {
   }
 
   /**
+   * Equal tokens just before a match can overlap the previous match, so only the gap that
+   * is left after it counts, and the new match has to reach further on both sides.
+   */
+  private continuesChain([chainA, chainB]: [Region, Region], a: Region, b: Region): boolean {
+    return (
+      a.start - chainA.end <= this.maxGap &&
+      b.start - chainB.end <= this.maxGap &&
+      a.end > chainA.end &&
+      b.end > chainB.end &&
+      // two copies inside one file must not run into each other
+      (a.stream !== b.stream || b.start > a.end)
+    );
+  }
+
+  /**
    * Two exact matches of the same pair of files that follow each other with only a few tokens
    * between them are one copy that was edited in between (an extra argument, a renamed branch).
    */
@@ -84,17 +99,7 @@ export class RegionMatcher {
     for (const [a, b] of ordered) {
       const bucket = chains.get(`${a.stream}|${b.stream}`) ?? [];
       chains.set(`${a.stream}|${b.stream}`, bucket);
-      // Equal tokens just before a match can overlap the previous match, so only the gap that
-      // is left after it counts, and the new match has to reach further on both sides.
-      const previous = bucket.find(
-        ([chainA, chainB]) =>
-          a.start - chainA.end <= this.maxGap &&
-          b.start - chainB.end <= this.maxGap &&
-          a.end > chainA.end &&
-          b.end > chainB.end &&
-          // two copies inside one file must not run into each other
-          (a.stream !== b.stream || b.start > a.end)
-      );
+      const previous = bucket.find((chain) => this.continuesChain(chain, a, b));
       if (previous) {
         previous[0].end = a.end;
         previous[1].end = b.end;
@@ -144,13 +149,13 @@ export const matchBuckets = (
 ): void => {
   for (const bucket of buckets.values()) {
     if (bucket.length < 4 || bucket.length / 2 > maxBucket) continue;
-    for (const members of equalClasses(bucket, matcher)) {
-      for (let first = 0; first < members.length; first += 1) {
-        for (let second = first + 1; second < members.length; second += 1) {
-          matcher.addPair(...members[first], ...members[second]);
-        }
-      }
-    }
+    for (const members of equalClasses(bucket, matcher)) pairUpMembers(members, matcher);
+  }
+};
+
+const pairUpMembers = (members: Array<[number, number]>, matcher: RegionMatcher): void => {
+  for (let first = 0; first < members.length; first += 1) {
+    for (const other of members.slice(first + 1)) matcher.addPair(...members[first], ...other);
   }
 };
 

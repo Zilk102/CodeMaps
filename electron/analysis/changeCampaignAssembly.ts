@@ -56,6 +56,20 @@ function buildScope(ctx: CampaignAssemblyContext): ChangeCampaignResult['scope']
   };
 }
 
+function buildExecutionPlan(
+  ctx: CampaignAssemblyContext,
+  waves: ChangeCampaignResult['executionPlan']['waves']
+): ChangeCampaignResult['executionPlan'] {
+  const { directlyMatchedFiles, runtimeCompositionRoots } = ctx.scope;
+  return {
+    preferredExecutionMode: 'multi_target_campaign',
+    waves,
+    refactoringWaves: ctx.quality.refactoringWaves,
+    shouldFallbackToLowLevelTools:
+      directlyMatchedFiles.length === 0 && runtimeCompositionRoots.length === 0,
+  };
+}
+
 export function assembleCampaignResult(ctx: CampaignAssemblyContext): ChangeCampaignResult {
   const { graph, input, taskMode, architecture, layerByNodeId, scope } = ctx;
   const { directlyMatchedFiles, runtimeCompositionRoots, affectedFiles } = scope;
@@ -79,13 +93,7 @@ export function assembleCampaignResult(ctx: CampaignAssemblyContext): ChangeCamp
     qualityBudget,
     qualityDashboard,
     decompositionGuidance: ctx.decompositionGuidance,
-    executionPlan: {
-      preferredExecutionMode: 'multi_target_campaign',
-      waves,
-      refactoringWaves,
-      shouldFallbackToLowLevelTools:
-        directlyMatchedFiles.length === 0 && runtimeCompositionRoots.length === 0,
-    },
+    executionPlan: buildExecutionPlan(ctx, waves),
     risks: buildChangeCampaignRisks(
       affectedFiles,
       runtimeCompositionRoots,

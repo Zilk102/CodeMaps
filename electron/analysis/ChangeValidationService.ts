@@ -110,43 +110,47 @@ export const validateChanges = (input: {
     return validateWholeProject(input.patterns, input.healthScore);
   }
 
-  const findings: ChangeFinding[] = [];
-  for (const pattern of input.patterns) {
-    if (IGNORED_PATTERNS.has(pattern.id)) continue;
-
-    const files = Array.from(
-      new Set(
-        pattern.nodeIds
-          .map(fileOf)
-          .filter((file) => changed.has(normalize(file)))
-          .filter((file) => !(SIZE_PATTERNS.has(pattern.id) && isTestFile(file)))
-      )
-    );
-    if (files.length === 0) continue;
-
-    const evidence = (pattern.evidence ?? []).filter((item) =>
-      changed.has(normalize(fileOf(item.nodeId)))
-    );
-    findings.push(toFinding(pattern, files, evidence));
-  }
+  const findings = input.patterns
+    .filter((pattern) => !IGNORED_PATTERNS.has(pattern.id))
+    .flatMap((pattern) => findingsForChangedFiles(pattern, changed));
 
   // Who depends on a file is not something an edit to it can fix, so a hub never blocks.
   const blocking = findings.filter(
     (finding) => finding.severity === 'high' && !ADVISORY_PATTERNS.has(finding.id)
   );
-  const isValid = blocking.length === 0;
-  let recommendation = 'Your changes introduce no flagged problems. Safe to proceed.';
-  if (!isValid) {
-    recommendation = `Fix ${blocking.length} high-severity problem(s) in the files you changed before finishing.`;
-  } else if (findings.length > 0) {
-    recommendation = 'No blocking problems in your changes; consider the lower-severity findings.';
-  }
 
   return {
     scope: 'changed',
     changedFiles: input.changedFiles,
-    isValid,
+    isValid: blocking.length === 0,
     findings,
-    recommendation,
+    recommendation: describeChangeVerdict(blocking.length, findings.length),
   };
+};
+
+const findingsForChangedFiles = (pattern: DetectedPattern, changed: Set<string>) => {
+  const files = Array.from(
+    new Set(
+      pattern.nodeIds
+        .map(fileOf)
+        .filter((file) => changed.has(normalize(file)))
+        .filter((file) => !(SIZE_PATTERNS.has(pattern.id) && isTestFile(file)))
+    )
+  );
+  if (files.length === 0) return [];
+
+  const evidence = (pattern.evidence ?? []).filter((item) =>
+    changed.has(normalize(fileOf(item.nodeId)))
+  );
+  return [toFinding(pattern, files, evidence)];
+};
+
+const describeChangeVerdict = (blockingCount: number, findingCount: number) => {
+  if (blockingCount > 0) {
+    return `Fix ${blockingCount} high-severity problem(s) in the files you changed before finishing.`;
+  }
+  if (findingCount > 0) {
+    return 'No blocking problems in your changes; consider the lower-severity findings.';
+  }
+  return 'Your changes introduce no flagged problems. Safe to proceed.';
 };

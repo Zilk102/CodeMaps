@@ -93,32 +93,26 @@ export const summarizeArchitectureDependencies = (
   violations: ArchitectureViolation[];
 } => {
   const dependencyCounts = new Map<string, number>();
-  const dedupedDependencyEdges = collectDependencyEdges(graph);
-
   const violations: ArchitectureViolation[] = [];
 
-  for (const { sourceId, targetId } of dedupedDependencyEdges.values()) {
+  for (const { sourceId, targetId } of collectDependencyEdges(graph).values()) {
     const sourceLayer = layerByNodeId.get(sourceId) || 'unknown';
     const targetLayer = layerByNodeId.get(targetId) || 'unknown';
     const dependencyKey = `${sourceLayer}->${targetLayer}`;
     dependencyCounts.set(dependencyKey, (dependencyCounts.get(dependencyKey) || 0) + 1);
 
     // The program's entry point legitimately reaches into every layer.
-    const violationReason = isCompositionRoot(sourceId)
+    const reason = isCompositionRoot(sourceId)
       ? null
       : getArchitectureViolationReason(sourceLayer, targetLayer);
-    if (violationReason) {
-      violations.push({
-        sourceId,
-        targetId,
-        sourceLayer,
-        targetLayer,
-        reason: violationReason,
-      });
-    }
+    if (reason) violations.push({ sourceId, targetId, sourceLayer, targetLayer, reason });
   }
 
-  const dependencies = Array.from(dependencyCounts.entries())
+  return { dependencies: sortLayerDependencies(dependencyCounts), violations };
+};
+
+const sortLayerDependencies = (dependencyCounts: Map<string, number>): LayerDependencySummary[] =>
+  Array.from(dependencyCounts.entries())
     .map(([key, count]) => {
       const [sourceLayer, targetLayer] = key.split('->') as [ArchitectureLayer, ArchitectureLayer];
       return { sourceLayer, targetLayer, count };
@@ -129,6 +123,3 @@ export const summarizeArchitectureDependencies = (
         a.sourceLayer.localeCompare(b.sourceLayer) ||
         a.targetLayer.localeCompare(b.targetLayer)
     );
-
-  return { dependencies, violations };
-};

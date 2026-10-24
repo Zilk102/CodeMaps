@@ -27,12 +27,15 @@ const readCargoFields = (text: string): CargoFields => {
       continue;
     }
     const pair = /^(\w+)\s*=\s*"([^"]*)"/.exec(line);
-    if (!pair) continue;
-    if (section === 'package' && pair[1] === 'name') fields.name = pair[2];
-    if (section === 'lib' && pair[1] === 'path') fields.libPath = pair[2];
-    if (section === 'bin' && pair[1] === 'path') fields.binPaths.push(pair[2]);
+    if (pair) applyCargoPair(fields, section, pair[1], pair[2]);
   }
   return fields;
+};
+
+const applyCargoPair = (fields: CargoFields, section: string, key: string, value: string) => {
+  if (section === 'package' && key === 'name') fields.name = value;
+  if (section === 'lib' && key === 'path') fields.libPath = value;
+  if (section === 'bin' && key === 'path') fields.binPaths.push(value);
 };
 
 export const parseCargoToml = (dir: string, text: string): CrateInfo | null => {
@@ -80,16 +83,17 @@ export class RustModuleTree {
       if (info) this.crates.push(info);
     }
 
-    for (const crate of this.crates) {
-      for (const root of crate.roots) {
-        if (!index.files.has(root)) continue;
-        this.isRoot.add(root);
-        // The library root represents the crate for `use crate_name::...`.
-        if (!this.crateRoot.has(crate.name) || root.endsWith('/lib.rs')) {
-          this.crateRoot.set(crate.name, root);
-        }
-        this.indexModuleTree(root, root);
+    for (const crate of this.crates) this.indexCrate(crate);
+  }
+
+  private indexCrate(crate: CrateInfo): void {
+    for (const root of crate.roots.filter((candidate) => this.index.files.has(candidate))) {
+      this.isRoot.add(root);
+      // The library root represents the crate for `use crate_name::...`.
+      if (!this.crateRoot.has(crate.name) || root.endsWith('/lib.rs')) {
+        this.crateRoot.set(crate.name, root);
       }
+      this.indexModuleTree(root, root);
     }
   }
 
@@ -146,7 +150,16 @@ export class RustModuleTree {
     }
     if (first === 'self') return { module: file, rest: tail };
     if (first === 'super') return this.startFromSuper(file, tail);
-    // Module in scope, then crate in the workspace, then the crate root (2015-style paths).
+    return this.startFromName(file, first, tail, segments);
+  }
+
+  /** Module in scope, then crate in the workspace, then the crate root (2015-style paths). */
+  private startFromName(
+    file: string,
+    first: string,
+    tail: string[],
+    segments: string[]
+  ): ModuleStart | null {
     if (this.childFile(file, first)) return { module: file, rest: segments };
     const crateRoot = this.crateRoot.get(first);
     if (crateRoot) return { module: crateRoot, rest: tail };

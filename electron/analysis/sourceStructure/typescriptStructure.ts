@@ -57,18 +57,20 @@ function getLineRange(
   };
 }
 
+const BRANCHING_KINDS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.IfStatement,
+  ts.SyntaxKind.ForStatement,
+  ts.SyntaxKind.ForInStatement,
+  ts.SyntaxKind.ForOfStatement,
+  ts.SyntaxKind.WhileStatement,
+  ts.SyntaxKind.DoStatement,
+  ts.SyntaxKind.ConditionalExpression,
+  ts.SyntaxKind.CaseClause,
+  ts.SyntaxKind.CatchClause,
+]);
+
 function isBranchingNode(node: ts.Node): boolean {
-  return (
-    ts.isIfStatement(node) ||
-    ts.isForStatement(node) ||
-    ts.isForInStatement(node) ||
-    ts.isForOfStatement(node) ||
-    ts.isWhileStatement(node) ||
-    ts.isDoStatement(node) ||
-    ts.isConditionalExpression(node) ||
-    ts.isCaseClause(node) ||
-    ts.isCatchClause(node)
-  );
+  return BRANCHING_KINDS.has(node.kind);
 }
 
 function isShortCircuitOperator(node: ts.Node): boolean {
@@ -120,6 +122,18 @@ function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
   const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
   return Boolean(modifiers?.some((modifier: ts.Modifier) => modifier.kind === kind));
 }
+
+type MethodWithBody = (ts.MethodDeclaration | ts.AccessorDeclaration) & { body: ts.Block };
+
+const hasMethodBody = (member: ts.ClassElement): member is MethodWithBody =>
+  (ts.isMethodDeclaration(member) ||
+    ts.isGetAccessorDeclaration(member) ||
+    ts.isSetAccessorDeclaration(member)) &&
+  !!member.body;
+
+const isPublicMember = (member: ts.Node) =>
+  !hasModifier(member, ts.SyntaxKind.PrivateKeyword) &&
+  !hasModifier(member, ts.SyntaxKind.ProtectedKeyword);
 
 /** Accumulates metrics while walking the top-level statements of one TypeScript file. */
 class TypeScriptStructureCollector {
@@ -195,16 +209,7 @@ class TypeScriptStructureCollector {
     const methodMetrics: SourceFunctionMetric[] = [];
     let classPublicMethodCount = 0;
 
-    for (const member of node.members) {
-      if (
-        (!ts.isMethodDeclaration(member) &&
-          !ts.isGetAccessorDeclaration(member) &&
-          !ts.isSetAccessorDeclaration(member)) ||
-        !member.body
-      ) {
-        continue;
-      }
-
+    for (const member of node.members.filter(hasMethodBody)) {
       const metric = this.analyzeFunctionLikeNode(
         getNodeName(member) || `${className}::*`,
         member.body
@@ -212,10 +217,7 @@ class TypeScriptStructureCollector {
       methodMetrics.push(metric);
       this.classMethodMetrics.push({ ...metric, name: `${className}.${metric.name}` });
 
-      if (
-        !hasModifier(member, ts.SyntaxKind.PrivateKeyword) &&
-        !hasModifier(member, ts.SyntaxKind.ProtectedKeyword)
-      ) {
+      if (isPublicMember(member)) {
         classPublicMethodCount += 1;
         this.publicMethodCount += 1;
       }

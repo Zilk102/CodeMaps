@@ -73,6 +73,11 @@ const weightsToCommunities = (
 
 const GAIN_EPSILON = 1e-12;
 
+/** A clearly higher gain wins; a tie goes to the lower-numbered community. */
+const isBetterGain = (candidate: number, bestGain: number, hasLowerId: boolean) =>
+  candidate > bestGain + GAIN_EPSILON ||
+  (Math.abs(candidate - bestGain) <= GAIN_EPSILON && hasLowerId);
+
 /** Moves one node to the community with the best modularity gain; true when it moved. */
 const moveToBestCommunity = (state: ModularityState, node: number, k: number): boolean => {
   const { graph, community, communityDegree, m, resolution } = state;
@@ -86,10 +91,7 @@ const moveToBestCommunity = (state: ModularityState, node: number, k: number): b
   let bestGain = gain(own);
   for (const target of toCommunity.keys()) {
     const candidate = gain(target);
-    const better =
-      candidate > bestGain + GAIN_EPSILON ||
-      (Math.abs(candidate - bestGain) <= GAIN_EPSILON && target < best);
-    if (better) {
+    if (isBetterGain(candidate, bestGain, target < best)) {
       best = target;
       bestGain = candidate;
     }
@@ -114,6 +116,21 @@ const weightBetween = (graph: WeightedGraph, from: number[], to: Set<number>): n
   return total;
 };
 
+/** The other group the group at `index` has the most call weight to, or -1 when it has none. */
+const strongestNeighbourIndex = (groups: Group[], index: number, graph: WeightedGraph): number => {
+  let bestIndex = -1;
+  let bestWeight = 0;
+  groups.forEach((other, otherIndex) => {
+    if (otherIndex === index) return;
+    const weight = weightBetween(graph, groups[index].members, new Set(other.members));
+    if (weight > bestWeight) {
+      bestWeight = weight;
+      bestIndex = otherIndex;
+    }
+  });
+  return bestIndex;
+};
+
 /** Folds the groups that are too small to be a file into the group they talk to most. */
 const mergeSmallGroups = (
   groups: Group[],
@@ -130,16 +147,7 @@ const mergeSmallGroups = (
     const smallIndex = result.findIndex((group) => result.length > 1 && isSmall(group));
     if (smallIndex < 0) break;
     const small = result[smallIndex];
-    let bestIndex = -1;
-    let bestWeight = 0;
-    result.forEach((other, index) => {
-      if (index === smallIndex) return;
-      const weight = weightBetween(graph, small.members, new Set(other.members));
-      if (weight > bestWeight) {
-        bestWeight = weight;
-        bestIndex = index;
-      }
-    });
+    const bestIndex = strongestNeighbourIndex(result, smallIndex, graph);
     if (bestIndex < 0) break;
     result[bestIndex].members.push(...small.members);
     result.splice(smallIndex, 1);

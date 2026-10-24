@@ -121,6 +121,15 @@ interface ChangeAssemblyContext {
   decompositionCandidates: DecompositionCandidate[];
 }
 
+const buildArchitectureView = (
+  architecture: ArchitectureOverview,
+  targetViolations: ChangeContextResult['architecture']['targetViolations']
+): ChangeContextResult['architecture'] => ({
+  summary: architecture.summary,
+  dominantLayerDependencies: architecture.dependencies.slice(0, 10),
+  targetViolations,
+});
+
 export class ChangeContextService {
   constructor(
     private readonly architectureInsightService = new ArchitectureInsightService(),
@@ -207,18 +216,13 @@ export class ChangeContextService {
     const { taskMode, resolvedTarget, architecture, targetClassification, dependencies } = ctx;
     const { blastRadius, relevantPatterns, securityFindings, targetViolations } = ctx;
     const { recommendedFilesToInspect, decompositionCandidates } = ctx;
-
     return {
       graphSummary: createGraphSummary(graph),
       taskMode,
       target: resolvedTarget,
       changeIntent: input.changeIntent || null,
       targetClassification,
-      architecture: {
-        summary: architecture.summary,
-        dominantLayerDependencies: architecture.dependencies.slice(0, 10),
-        targetViolations,
-      },
+      architecture: buildArchitectureView(architecture, targetViolations),
       dependencies: buildDependenciesView(dependencies, MAX_RELATED_NODES),
       blastRadius: buildBlastRadiusView(blastRadius, MAX_RELATED_NODES),
       relevantPatterns,

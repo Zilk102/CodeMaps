@@ -17,6 +17,16 @@ function isExported(node: ts.Node): boolean {
   );
 }
 
+function namedDeclarationOf(statement: ts.Statement): { name: string; kind: string } | undefined {
+  if (ts.isFunctionDeclaration(statement) && statement.name) {
+    return { name: statement.name.text, kind: 'function' };
+  }
+  if (ts.isInterfaceDeclaration(statement)) return { name: statement.name.text, kind: 'interface' };
+  if (ts.isTypeAliasDeclaration(statement)) return { name: statement.name.text, kind: 'type' };
+  if (ts.isEnumDeclaration(statement)) return { name: statement.name.text, kind: 'enum' };
+  return undefined;
+}
+
 class OutlineBuilder {
   readonly entries: SkeletonOutlineEntry[] = [];
 
@@ -37,18 +47,13 @@ class OutlineBuilder {
 
   private addStatement(statement: ts.Statement): void {
     const exported = isExported(statement);
-    if (ts.isFunctionDeclaration(statement) && statement.name) {
-      this.add(statement.name.text, 'function', statement, exported);
-    } else if (ts.isClassDeclaration(statement) && statement.name) {
+    if (ts.isClassDeclaration(statement) && statement.name) {
       this.addClass(statement, statement.name.text, exported);
-    } else if (ts.isInterfaceDeclaration(statement)) {
-      this.add(statement.name.text, 'interface', statement, exported);
-    } else if (ts.isTypeAliasDeclaration(statement)) {
-      this.add(statement.name.text, 'type', statement, exported);
-    } else if (ts.isEnumDeclaration(statement)) {
-      this.add(statement.name.text, 'enum', statement, exported);
     } else if (ts.isVariableStatement(statement)) {
       this.addVariables(statement, exported);
+    } else {
+      const named = namedDeclarationOf(statement);
+      if (named) this.add(named.name, named.kind, statement, exported);
     }
   }
 

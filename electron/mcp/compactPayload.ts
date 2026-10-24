@@ -24,59 +24,55 @@ const MIN_STRING_LENGTH = 100;
 const DEDUPE_MIN_CHARS = 600;
 const MAX_REPORTED_ARRAYS = 12;
 
-const compactValue = (
-  value: unknown,
-  path: string,
-  maxItems: number,
-  maxStringLength: number,
-  report: CompactionReport,
-  seen: Map<string, string>
-): unknown => {
-  if (typeof value === 'string') {
-    if (value.length <= maxStringLength) return value;
-    report.truncatedStrings += 1;
-    return `${value.slice(0, maxStringLength)}…`;
-  }
+interface CompactContext {
+  maxItems: number;
+  maxStringLength: number;
+  report: CompactionReport;
+  seen: Map<string, string>;
+}
 
-  if (Array.isArray(value)) {
-    const kept = value.slice(0, maxItems);
-    if (value.length > kept.length) {
-      report.omittedItems += value.length - kept.length;
-      if (report.arrays.length < MAX_REPORTED_ARRAYS) {
-        report.arrays.push({ path, total: value.length, kept: kept.length });
-      }
+const compactString = (value: string, ctx: CompactContext): string => {
+  if (value.length <= ctx.maxStringLength) return value;
+  ctx.report.truncatedStrings += 1;
+  return `${value.slice(0, ctx.maxStringLength)}…`;
+};
+
+const compactArray = (value: unknown[], path: string, ctx: CompactContext): unknown => {
+  const kept = value.slice(0, ctx.maxItems);
+  const { report } = ctx;
+  if (value.length > kept.length) {
+    report.omittedItems += value.length - kept.length;
+    if (report.arrays.length < MAX_REPORTED_ARRAYS) {
+      report.arrays.push({ path, total: value.length, kept: kept.length });
     }
-    return dedupe(
-      kept.map((item, index) =>
-        compactValue(item, `${path}[${index}]`, maxItems, maxStringLength, report, seen)
-      ),
-      path,
-      report,
-      seen
-    );
   }
+  return dedupe(
+    kept.map((item, index) => compactValue(item, `${path}[${index}]`, ctx)),
+    path,
+    report,
+    ctx.seen
+  );
+};
 
+const compactObject = (value: Record<string, unknown>, path: string, ctx: CompactContext) =>
+  dedupe(
+    Object.fromEntries(
+      Object.entries(slimGraphNode(value)).map(([key, child]) => [
+        key,
+        compactValue(child, path ? `${path}.${key}` : key, ctx),
+      ])
+    ),
+    path,
+    ctx.report,
+    ctx.seen
+  );
+
+const compactValue = (value: unknown, path: string, ctx: CompactContext): unknown => {
+  if (typeof value === 'string') return compactString(value, ctx);
+  if (Array.isArray(value)) return compactArray(value, path, ctx);
   if (value && typeof value === 'object') {
-    return dedupe(
-      Object.fromEntries(
-        Object.entries(slimGraphNode(value as Record<string, unknown>)).map(([key, child]) => [
-          key,
-          compactValue(
-            child,
-            path ? `${path}.${key}` : key,
-            maxItems,
-            maxStringLength,
-            report,
-            seen
-          ),
-        ])
-      ),
-      path,
-      report,
-      seen
-    );
+    return compactObject(value as Record<string, unknown>, path, ctx);
   }
-
   return value;
 };
 
@@ -137,26 +133,39 @@ export const compactPayload = <T>(
 
   let maxItems = Math.max(1, Math.floor(options.maxItems));
   let stringLength = maxStringLength;
-  let report: CompactionReport;
-  let compacted: unknown;
+  let attempt = compactOnce(payload, maxItems, stringLength);
 
-  for (;;) {
-    report = {
-      omittedItems: 0,
-      truncatedStrings: 0,
-      dedupedSubtrees: 0,
-      maxItemsApplied: maxItems,
-      maxStringLengthApplied: stringLength,
-      arrays: [],
-    };
-    compacted = compactValue(payload, '', maxItems, stringLength, report, new Map());
-    if (JSON.stringify(compacted).length <= maxChars) break;
-    if (maxItems <= MIN_ITEMS && stringLength <= MIN_STRING_LENGTH) break;
+  while (
+    JSON.stringify(attempt.compacted).length > maxChars &&
+    (maxItems > MIN_ITEMS || stringLength > MIN_STRING_LENGTH)
+  ) {
     maxItems = Math.max(MIN_ITEMS, Math.floor(maxItems / 2));
     stringLength = Math.max(MIN_STRING_LENGTH, Math.floor(stringLength / 2));
+    attempt = compactOnce(payload, maxItems, stringLength);
   }
 
-  const changed =
-    report.omittedItems > 0 || report.truncatedStrings > 0 || report.dedupedSubtrees > 0;
-  return { payload: compacted as T, compaction: changed ? report : null };
+  const { report } = attempt;
+  return { payload: attempt.compacted as T, compaction: wasCompacted(report) ? report : null };
+};
+
+const wasCompacted = (report: CompactionReport) =>
+  report.omittedItems > 0 || report.truncatedStrings > 0 || report.dedupedSubtrees > 0;
+
+/** Each attempt starts from a fresh report so halved limits do not double count. */
+const compactOnce = (payload: unknown, maxItems: number, stringLength: number) => {
+  const report: CompactionReport = {
+    omittedItems: 0,
+    truncatedStrings: 0,
+    dedupedSubtrees: 0,
+    maxItemsApplied: maxItems,
+    maxStringLengthApplied: stringLength,
+    arrays: [],
+  };
+  const compacted = compactValue(payload, '', {
+    maxItems,
+    maxStringLength: stringLength,
+    report,
+    seen: new Map(),
+  });
+  return { compacted, report };
 };
