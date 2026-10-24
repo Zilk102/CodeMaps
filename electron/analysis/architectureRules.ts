@@ -38,6 +38,12 @@ export const DEFAULT_ARCHITECTURE_RULES: ArchitectureRule[] = [
   ),
   dirRule('scripts|\\.github|\\.husky', 'configuration', 'automation_scripts'),
   dirRule('test|__tests__|spec', 'configuration', 'test_or_support_path'),
+  // Entry-point style folders own their templates and helpers, so they sit before the UI rules.
+  dirRule(
+    'setup|guard|cli|bootstrap|installers?|init|commands?|workflows?|pipelines?|jobs?|tasks?|runners?',
+    'application',
+    'application_entrypoint_path'
+  ),
   dirRule(
     'components|views|pages|ui|screens|layouts|hooks|i18n|locales|handlers?|routers?|routes|endpoints|transport|rest|grpc|graphql|resolvers|middleware|templates',
     'presentation',

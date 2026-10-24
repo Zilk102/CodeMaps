@@ -23,9 +23,17 @@ const lineOf = (graph: GraphData, evidence: ChangeFinding['evidence'][number]): 
   return known ?? Number(/\((?:line |L)(\d+)/.exec(evidence.message)?.[1] ?? 1);
 };
 
+/**
+ * Rules `--strict` tolerates besides hubs: a high fan-out is the normal shape of a composition
+ * root (an app shell, a service wiring file), so it is a hint to look at, never a failure by itself.
+ */
+const STRICT_TOLERATED_RULES = new Set(['high_fan_out_files']);
+
 /** Under `--strict` every finding fails the run except pure information; otherwise only blocking ones do. */
 const blocks = (finding: ChangeFinding, strict: boolean): boolean =>
-  strict ? !isAdvisoryFinding(finding) : isBlockingFinding(finding);
+  strict
+    ? !isAdvisoryFinding(finding) && !STRICT_TOLERATED_RULES.has(finding.id)
+    : isBlockingFinding(finding);
 
 /** One issue for a piece of evidence (`file` or `file#symbol`) of a finding. */
 const issueFor = (
