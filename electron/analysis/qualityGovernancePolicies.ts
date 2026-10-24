@@ -1,3 +1,8 @@
+/**
+ * Rules for the quality budget, the refactoring waves and the dashboard gates, kept apart from the
+ * service so they can be tested alone.
+ */
+
 import { GraphData } from '../store/types';
 import { buildCollapsedAdjacency, toStructuralNodeId, unique } from './AgentContextUtils';
 import { DecompositionCandidate, DecompositionGuidance } from './DecompositionGuidanceService';
@@ -36,6 +41,10 @@ function computeOperabilityScore(input: BuildQualityGovernanceInput) {
   );
 }
 
+/**
+ * Scores the four dimensions and gives each a status. Maintainability needs 75 for healthy and 55
+ * to avoid critical, SOLID 80 and 60, architecture and operability 80 and 60.
+ */
 function buildBudgetDimensions(input: BuildQualityGovernanceInput): QualityBudgetDimension[] {
   const { maintainabilityScore, solidScore } = input.health.summary;
   const architectureScore = computeArchitectureScore(input);
@@ -73,6 +82,11 @@ function buildBudgetDimensions(input: BuildQualityGovernanceInput): QualityBudge
   ];
 }
 
+/**
+ * Combines dimensions and counts into one status: critical when any dimension is critical, 3 or
+ * more high-priority extractions or 4 or more blocking issues exist; warning when any dimension is
+ * in warning or any blocking issue exists; otherwise healthy.
+ */
 function deriveOverallStatus(
   dimensions: QualityBudgetDimension[],
   decompositionPressure: number,
@@ -98,6 +112,11 @@ const POLICY_BY_STATUS: Record<QualityBudget['overallStatus'], QualityBudget['re
     healthy: 'allow_targeted_changes',
   };
 
+/**
+ * Builds the quality budget: the average of the dimension scores, the overall status, the policy
+ * that goes with it (freeze growth, refactor first or targeted changes) and up to 12 blocking
+ * issue codes (high-severity health issues and patterns).
+ */
 export function buildQualityBudget(input: BuildQualityGovernanceInput): QualityBudget {
   const dimensions = buildBudgetDimensions(input);
   const overallScore = Math.round(
@@ -159,6 +178,10 @@ const WAVE_SPECS: WaveSpec[] = [
 
 type CollapsedFileGraph = ReturnType<typeof buildCollapsedFileGraph>;
 
+/**
+ * Builds one wave from its candidates. Priority is the average of the candidate score and the
+ * dependency pressure of its file; blocking files are the files of earlier waves (up to 12).
+ */
 function buildWave(
   spec: WaveSpec,
   candidates: DecompositionCandidate[],
@@ -185,6 +208,11 @@ function buildWave(
   };
 }
 
+/**
+ * Builds up to three ordered waves: boundary splits, class extraction, then method simplification.
+ * In each wave the candidates with the most connected files come first, and each wave keeps at
+ * most `limitPerWave` of them.
+ */
 export function buildRefactoringWaves(
   graph: GraphData,
   decompositionGuidance: DecompositionGuidance,
@@ -213,6 +241,10 @@ export function buildRefactoringWaves(
   return producedWaves;
 }
 
+/**
+ * Gate for the quality budget: blocks when the policy is freeze_growth, warns for
+ * refactor_before_growth and passes otherwise.
+ */
 const buildBudgetGate = (budget: QualityBudget): QualityGate => {
   const statusByPolicy: Record<string, QualityGate['status']> = {
     freeze_growth: 'block',
@@ -226,6 +258,10 @@ const buildBudgetGate = (budget: QualityBudget): QualityGate => {
   };
 };
 
+/**
+ * Gate for high-priority extraction candidates: blocks at 3 or more, warns for 1 or 2, passes with
+ * none.
+ */
 const buildExtractionGate = (decompositionGuidance: DecompositionGuidance): QualityGate => {
   const { highPriorityCount } = decompositionGuidance.summary;
   let status: QualityGate['status'] = 'pass';
@@ -239,6 +275,10 @@ const buildExtractionGate = (decompositionGuidance: DecompositionGuidance): Qual
   };
 };
 
+/**
+ * Gate for the first refactoring wave: passes when there are no waves or the first has no blocking
+ * files, otherwise warns.
+ */
 const buildWaveGate = (refactoringWaves: RefactoringWave[]): QualityGate => {
   const [firstWave] = refactoringWaves;
   if (!firstWave) {
@@ -257,6 +297,10 @@ const buildWaveGate = (refactoringWaves: RefactoringWave[]): QualityGate => {
   };
 };
 
+/**
+ * Builds the dashboard from the three gates, the top blockers (blocking issue codes and blocking
+ * files, at most 12) and the five best extraction candidates.
+ */
 export function buildQualityDashboard(
   budget: QualityBudget,
   decompositionGuidance: DecompositionGuidance,
@@ -288,6 +332,10 @@ export function buildQualityDashboard(
   };
 }
 
+/**
+ * Gives one sentence of advice about the budget for use as a next step; unknown policies get the
+ * healthy message.
+ */
 export function summarizeBudgetForStep(budget: QualityBudget) {
   switch (budget.recommendedPolicy) {
     case 'freeze_growth':
@@ -313,6 +361,10 @@ function scoreCandidateDependencyPressure(
   );
 }
 
+/**
+ * Lists the checks that tell when a wave is done. The boundary and class waves have fixed
+ * criteria; any other wave asks for the top methods (up to 3) to be simplified.
+ */
 function createExitCriteria(waveId: string, candidates: DecompositionCandidate[]) {
   switch (waveId) {
     case 'wave-boundaries':

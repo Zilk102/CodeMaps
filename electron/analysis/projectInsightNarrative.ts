@@ -1,3 +1,7 @@
+/**
+ * Writes the human-readable parts of a project overview: profile, autopilot plan and next steps.
+ */
+
 import * as path from 'path';
 import { getLanguageByExtension } from '../parsing/languageRegistry';
 import { GraphData } from '../store/types';
@@ -22,6 +26,10 @@ const TECHNOLOGY_ALIASES: Array<{ match: RegExp; label: string }> = [
   { match: /\.md$/u, label: 'Markdown' },
 ];
 
+/**
+ * Describes the project: main technologies by file count, language support, detected stack, shape
+ * of the architecture and its maturity.
+ */
 export function buildProjectProfile(
   graph: GraphData,
   architecture: ArchitectureOverview,
@@ -46,6 +54,11 @@ export function buildProjectProfile(
   };
 }
 
+/**
+ * Plans how an agent should start: survey the project, then review architecture and inspect
+ * hotspots if there is something to review, then prepare changes and reviews. Suggests up to 10
+ * starting nodes and whether low-level tools are needed.
+ */
 export function buildProjectAutopilotPlan(
   architecture: ArchitectureOverview,
   health: HealthScoreResult,
@@ -150,6 +163,10 @@ const NEXT_STEP_RULES: Array<StepRule<NextStepInput>> = [
   ),
 ];
 
+/**
+ * Builds the ordered next steps for the project overview. Two fixed steps come first, then those
+ * whose conditions apply; findings from the security scan are placed first when there are any.
+ */
 export function buildProjectNextSteps(
   health: HealthScoreResult,
   architecture: ArchitectureOverview,
@@ -187,6 +204,10 @@ export function buildProjectNextSteps(
   return nextSteps;
 }
 
+/**
+ * Counts files and ADRs by technology from their extension (unknown ones as 'Other') and returns
+ * the five most common.
+ */
 function detectPrimaryTechnologies(graph: GraphData) {
   const counts = new Map<string, number>();
   for (const node of graph.nodes) {
@@ -206,6 +227,10 @@ function detectPrimaryTechnologies(graph: GraphData) {
     .slice(0, 5);
 }
 
+/**
+ * Counts the project's files per recognized language, with each language's support tier, and
+ * returns the ten most common.
+ */
 function detectLanguageSupportSummary(
   graph: GraphData
 ): ProjectInsightResult['projectProfile']['languageSupportSummary'] {
@@ -250,6 +275,10 @@ function detectLanguageSupportSummary(
     .slice(0, 10);
 }
 
+/**
+ * Describes the project in one sentence, from which layers exist (UI, orchestration, analysis,
+ * parsing).
+ */
 function describeProjectShape(architecture: ArchitectureOverview) {
   const layers = new Set<string>(architecture.layers.map((entry) => entry.layer));
   const hasAll = (...names: string[]) => names.every((name) => layers.has(name));
@@ -265,6 +294,10 @@ function describeProjectShape(architecture: ArchitectureOverview) {
   return 'Project structure is partially recognized; consider deepening the classification and entry points.';
 }
 
+/**
+ * Rates the architecture: 'strong' with a health score of 90 or more and no violations or unknown
+ * nodes, 'fair' with 75 or more and at most 5 violations, otherwise 'weak'.
+ */
 function getArchitectureMaturity(
   health: HealthScoreResult,
   architecture: ArchitectureOverview

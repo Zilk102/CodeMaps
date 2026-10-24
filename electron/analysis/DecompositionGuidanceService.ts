@@ -1,3 +1,7 @@
+/**
+ * Turns module quality metrics into a ranked list of concrete refactoring targets: modules to
+ * split, classes and methods to extract.
+ */
 import * as path from 'path';
 import { GraphData } from '../store/types';
 import {
@@ -7,6 +11,10 @@ import {
 } from './moduleQualityMetrics';
 import { toStructuralNodeId, unique } from './AgentContextUtils';
 
+/**
+ * One suggested refactoring: where it is (file, target symbol, line range), what to do, how urgent
+ * it is, a score for ranking, the reason, and the measurements that justify it.
+ */
 export interface DecompositionCandidate {
   fileNodeId: string;
   targetNodeId: string;
@@ -38,6 +46,10 @@ export interface DecompositionCandidate {
   };
 }
 
+/**
+ * The ranked candidates with a summary: how many there are, how many are high priority, and up to
+ * 8 files to focus on.
+ */
 export interface DecompositionGuidance {
   summary: {
     candidateCount: number;
@@ -47,6 +59,10 @@ export interface DecompositionGuidance {
   candidates: DecompositionCandidate[];
 }
 
+/**
+ * Options for guidance: `limit` caps the candidates (default 12) and `focusNodeIds` restricts them
+ * to the files of the given nodes.
+ */
 export interface PrepareDecompositionGuidanceInput {
   limit?: number;
   focusNodeIds?: string[];
@@ -54,6 +70,11 @@ export interface PrepareDecompositionGuidanceInput {
 
 const DEFAULT_LIMIT = 12;
 
+/**
+ * Proposes splitting a whole module when its design smell score is 55 or more or it mixes
+ * responsibilities. Returns at most one candidate, high priority from a score of 75 or six
+ * responsibility axes.
+ */
 function buildModuleCandidates(metric: ModuleQualityMetric): DecompositionCandidate[] {
   const candidates: DecompositionCandidate[] = [];
   const fileLabel = path.basename(toStructuralNodeId(metric.node.id));
@@ -89,6 +110,10 @@ function buildModuleCandidates(metric: ModuleQualityMetric): DecompositionCandid
   return candidates;
 }
 
+/**
+ * Proposes extracting a class for every god class found in the module; the class is high priority
+ * when it is very large (280 lines), has 12 or more methods or a method of complexity 14 or more.
+ */
 function buildClassCandidates(metric: ModuleQualityMetric): DecompositionCandidate[] {
   return metric.sourceMetrics.godClasses.map((item) => ({
     fileNodeId: metric.node.id,
@@ -123,6 +148,10 @@ function buildClassCandidates(metric: ModuleQualityMetric): DecompositionCandida
   }));
 }
 
+/**
+ * Combines two metric records of the same method by keeping the larger value of each measure and
+ * the first known start line.
+ */
 const mergeMethodMetrics = (
   existing: SourceFunctionMetric,
   item: SourceFunctionMetric
@@ -165,6 +194,11 @@ const methodScore = (item: SourceFunctionMetric, designSmellScore: number) =>
   item.maxNesting * 6 +
   Math.round(designSmellScore / 2);
 
+/**
+ * Proposes one candidate per long or complex method: 'reduce_complexity' when the method is
+ * complex (complexity 10 or nesting 4), otherwise 'extract_method'. High priority for very large
+ * or deeply nested methods.
+ */
 function buildMethodCandidates(metric: ModuleQualityMetric): DecompositionCandidate[] {
   return Array.from(collectMethodsByName(metric).values()).map((item) => ({
     fileNodeId: metric.node.id,
@@ -192,6 +226,10 @@ function buildMethodCandidates(metric: ModuleQualityMetric): DecompositionCandid
   }));
 }
 
+/**
+ * Removes duplicate candidates for the same target and action, keeping the one with the highest
+ * score.
+ */
 function deduplicateCandidates(candidates: DecompositionCandidate[]): DecompositionCandidate[] {
   const deduplicated = new Map<string, DecompositionCandidate>();
 
@@ -206,7 +244,12 @@ function deduplicateCandidates(candidates: DecompositionCandidate[]): Decomposit
   return Array.from(deduplicated.values());
 }
 
+/** Finds where code should be decomposed first, from module quality metrics. */
 export class DecompositionGuidanceService {
+  /**
+   * Analyzes module quality and returns up to `limit` candidates ordered by score, then by label.
+   * Candidates in files outside `focusNodeIds` are dropped when focus ids are given.
+   */
   prepareGuidance(
     graph: GraphData,
     input: PrepareDecompositionGuidanceInput = {}
@@ -239,6 +282,7 @@ export class DecompositionGuidanceService {
     };
   }
 
+  /** Collects module, class and method candidates for every module and removes duplicates. */
   private buildCandidates(metrics: ModuleQualityMetric[]): DecompositionCandidate[] {
     const candidates: DecompositionCandidate[] = [];
 

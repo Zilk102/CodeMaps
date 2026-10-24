@@ -1,3 +1,8 @@
+/**
+ * Review priorities for framework, DI and API contract wiring, based on how many such links the
+ * project has.
+ */
+
 import { GraphData } from '../store/types';
 import type { HealthScoreResult } from './HealthScoreAnalyzer';
 import { isContractSemanticLink, isDiRuntimeLink, isStackAwareLink } from './graphAnalysisUtils';

@@ -1,3 +1,5 @@
+/** The rules that decide which areas a reviewer should look at first and how severe each one is. */
+
 import { GraphData } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
@@ -21,6 +23,10 @@ import {
   type ReviewPriorityContext,
 } from './reviewPriorityShared';
 
+/**
+ * Critical priority when the project has critical security findings; other severities do not
+ * produce this priority.
+ */
 function securityPriority({ securityFindings }: ReviewPriorityContext): ReviewPriority | null {
   const critical = securityFindings.filter((finding) => finding.severity === 'critical');
   if (critical.length === 0) return null;
@@ -33,6 +39,10 @@ function securityPriority({ securityFindings }: ReviewPriorityContext): ReviewPr
   });
 }
 
+/**
+ * Priority for layer violations: high above 10 violations, medium below. It lists the nodes of the
+ * first 10 violations.
+ */
 function architecturePriority({ architecture }: ReviewPriorityContext): ReviewPriority | null {
   if (architecture.violations.length === 0) return null;
   return createPriority({
@@ -46,6 +56,7 @@ function architecturePriority({ architecture }: ReviewPriorityContext): ReviewPr
   });
 }
 
+/** High priority when any pattern has high severity, listing all nodes of those patterns. */
 const severePatternsPriority: PriorityBuilder = ({ patterns }) =>
   priorityFrom(
     patterns.filter((pattern) => pattern.severity === 'high'),
@@ -67,6 +78,10 @@ const healthIssuesPriority: PriorityBuilder = ({ health }) =>
     nodeIds: [],
   }));
 
+/**
+ * Priority when maintainability or SOLID score is under 85, the budget policy asks for refactoring
+ * or there are high-priority extraction candidates. High when either score is under 60.
+ */
 function maintainabilityBudgetPriority({
   health,
   patterns,
@@ -90,6 +105,11 @@ function maintainabilityBudgetPriority({
   });
 }
 
+/**
+ * Priority for design smells (oversized modules, god files and classes, long or complex methods,
+ * mixed responsibilities). High when god files or classes exist; carries up to 5 evidence
+ * messages.
+ */
 function designSmellsPriority({ health, patterns }: ReviewPriorityContext): ReviewPriority | null {
   if (!hasDesignSmellSignals(health)) return null;
   const designSmellPatterns = patterns.filter(isDesignSmellPattern);
@@ -106,6 +126,10 @@ function designSmellsPriority({ health, patterns }: ReviewPriorityContext): Revi
   });
 }
 
+/**
+ * Priority for concrete extraction candidates, high if any of them is high priority. Evidence
+ * lists the first 5 candidates and why they were chosen.
+ */
 function decompositionPriority({
   decompositionGuidance,
 }: ReviewPriorityContext): ReviewPriority | null {
@@ -122,6 +146,10 @@ function decompositionPriority({
   });
 }
 
+/**
+ * Priority for a strained incremental refresh pipeline (slow refreshes or many runtime-priority
+ * rebuilds), high from 50 ms average latency or 3 rebuilds. Points at the focus nodes, if any.
+ */
 function refreshPipelinePriority({ health, focus }: ReviewPriorityContext): ReviewPriority | null {
   if (!hasRefreshPressure(health)) return null;
   return createPriority({
@@ -161,6 +189,10 @@ const PRIORITY_BUILDERS: PriorityBuilder[] = [
   focusedScopePriority,
 ];
 
+/**
+ * Evaluates all priority rules in order and returns the ones that apply, at most 6. Security
+ * always comes before the other kinds.
+ */
 export function buildReviewPriorities(
   graph: GraphData,
   health: HealthScoreResult,

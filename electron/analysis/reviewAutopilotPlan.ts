@@ -1,3 +1,5 @@
+/** Plans the order in which an agent should go through the review areas. */
+
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { ReviewContextResult, ReviewTaskMode } from './ReviewContextService';
 import type { SecurityFinding } from './SecurityScanner';
@@ -24,6 +26,9 @@ function leadingStages(signals: AutopilotSignals): ReviewStage[] {
   return candidates.filter(([applies]) => applies).map(([, stage]) => stage);
 }
 
+/**
+ * Returns the review goal that matches the task mode; unknown modes get the general review goal.
+ */
 function describeReviewModeGoal(taskMode: ReviewTaskMode) {
   switch (taskMode) {
     case 'architecture':
@@ -38,6 +43,12 @@ function describeReviewModeGoal(taskMode: ReviewTaskMode) {
   }
 }
 
+/**
+ * Builds the review plan. Security and architecture stages go first when the mode asks for them or
+ * findings exist, followed by patterns and health (earlier for stack links and refresh signals)
+ * and the focus area if it matched. Low-level tools are advised only when the focus matched nodes
+ * but found no patterns or violations.
+ */
 export function buildReviewAutopilotPlan(
   taskMode: ReviewTaskMode,
   securityFindings: SecurityFinding[],

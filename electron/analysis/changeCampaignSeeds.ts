@@ -1,3 +1,7 @@
+/**
+ * Chooses the seed nodes a change campaign starts from, using explicit ids, query matches or a
+ * fallback.
+ */
 import type { GraphData, GraphNode } from '../store/types';
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import { compareScoredNodes } from './AgentContextUtils';
@@ -49,6 +53,11 @@ function fallbackOrchestrators(
     .filter((node): node is GraphNode => Boolean(node));
 }
 
+/**
+ * Picks up to `maxSeeds` campaign seeds: nodes named by id come first, then the best query matches
+ * among files, classes and functions. If nothing is found, it falls back to nodes in the
+ * application, integration and analysis layers.
+ */
 export function resolveCampaignSeedTargets(
   graph: GraphData,
   input: { seedNodeIds?: string[]; candidateQueries: string[] },

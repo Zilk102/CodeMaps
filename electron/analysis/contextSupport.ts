@@ -1,3 +1,7 @@
+/**
+ * Shared helpers of the context services: telemetry access, optional security scanning and quality
+ * artifacts.
+ */
 import { initialRefreshTelemetry } from '../store/telemetry';
 import { GraphData, RefreshTelemetry } from '../store/types';
 import { DecompositionGuidance } from './DecompositionGuidanceService';
@@ -22,9 +26,14 @@ export const EMPTY_SECURITY_SCAN_RESULT: SecurityScanResult = {
   },
 };
 
+/** Refresh telemetry of the graph, or the initial (empty) telemetry for a graph that has none. */
 export const getOperationalTelemetry = (graph: GraphData): RefreshTelemetry =>
   graph.refreshTelemetry || initialRefreshTelemetry;
 
+/**
+ * Runs the security scanner unless `includeSecurityFindings` is explicitly false, in which case an
+ * empty result is returned without scanning.
+ */
 export const resolveSecurityScan = async (
   graph: GraphData,
   includeSecurityFindings: boolean | undefined,
@@ -37,6 +46,10 @@ export const resolveSecurityScan = async (
   return securityScanner.analyze(graph);
 };
 
+/**
+ * Builds the quality budget, the refactoring waves (up to `limitPerWave` targets each) and the
+ * quality dashboard that ties both together.
+ */
 export const buildQualityArtifacts = (
   graph: GraphData,
   health: HealthScoreResult,

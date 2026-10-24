@@ -1,7 +1,15 @@
+/**
+ * Condenses a raw blast radius into a short, file-level summary grouped by area, for display to
+ * people and agents.
+ */
 import { isTestFile } from './testFiles';
 import { GraphData } from '../store/types';
 import { BlastRadiusResult } from './BlastRadiusAnalyzer';
 
+/**
+ * One affected file: its project-relative path, how many links tie it to the changed node (direct
+ * dependents) or its distance from it (indirect ones), and whether it is a test.
+ */
 export interface BlastRadiusFileEntry {
   file: string;
   /** Number of links that tie this file to the changed node. */
@@ -10,6 +18,10 @@ export interface BlastRadiusFileEntry {
   test: boolean;
 }
 
+/**
+ * Dependent files of one project area (first two path segments), split into direct and transitive,
+ * with the number of tests among them.
+ */
 export interface BlastRadiusAreaEntry {
   area: string;
   direct: number;
@@ -17,6 +29,10 @@ export interface BlastRadiusAreaEntry {
   tests: number;
 }
 
+/**
+ * The compact blast radius report: counts, per-area totals and truncated lists of direct and
+ * nearest indirect dependent files, with the number of omitted entries.
+ */
 export interface BlastRadiusSummary {
   nodeId: string;
   label: string;
@@ -66,6 +82,10 @@ const groupDependentsByTarget = (result: BlastRadiusResult) => {
   return dependentsOf;
 };
 
+/**
+ * Breadth-first distances from the seed nodes to every node that depends on them, following the
+ * affected links backwards.
+ */
 const computeDepths = (result: BlastRadiusResult) => {
   const dependentsOf = groupDependentsByTarget(result);
   const seeds = result.seedNodeIds ?? [result.rootNodeId];
@@ -83,6 +103,10 @@ const computeDepths = (result: BlastRadiusResult) => {
   return depths;
 };
 
+/**
+ * Counts, per file, the links that point straight at the changed node (or its symbols). The
+ * changed file itself is left out.
+ */
 const countDirectLinks = (result: BlastRadiusResult, rootFile: string) => {
   const seedIds = new Set(result.seedNodeIds ?? [result.rootNodeId]);
   const directLinks = new Map<string, number>();
@@ -94,6 +118,11 @@ const countDirectLinks = (result: BlastRadiusResult, rootFile: string) => {
   return directLinks;
 };
 
+/**
+ * Finds, for each file that depends only indirectly on the change, the smallest distance among its
+ * nodes. The changed file and direct dependents are excluded; nodes without a known distance use
+ * the maximum depth.
+ */
 const nearestIndirectDepths = (
   result: BlastRadiusResult,
   rootFile: string,
@@ -110,6 +139,10 @@ const nearestIndirectDepths = (
   return indirectDepth;
 };
 
+/**
+ * Sorts file entries in place: non-test files first, then by `rank` (descending or ascending),
+ * then by file name.
+ */
 const sortEntries = (
   entries: BlastRadiusFileEntry[],
   rank: (entry: BlastRadiusFileEntry) => number,
@@ -122,6 +155,10 @@ const sortEntries = (
       a.file.localeCompare(b.file)
   );
 
+/**
+ * Groups file entries by area and counts direct, transitive and test files, largest areas first
+ * and alphabetically on ties.
+ */
 const summarizeAreas = (direct: BlastRadiusFileEntry[], transitive: BlastRadiusFileEntry[]) => {
   const areas = new Map<string, BlastRadiusAreaEntry>();
   const bump = (entry: BlastRadiusFileEntry, kind: 'direct' | 'transitive') => {

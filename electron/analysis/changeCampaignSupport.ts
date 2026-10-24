@@ -1,3 +1,7 @@
+/**
+ * Public facade of the change campaign helpers plus the filters that restrict analysis results to
+ * the campaign's files.
+ */
 import type { GraphNode } from '../store/types';
 import type { ArchitectureViolation } from './ArchitectureInsightService';
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
@@ -25,6 +29,7 @@ export { getCampaignNodeTypePriority, scoreCampaignNodeMatch } from './changeCam
 const MAX_PATTERN_RESULTS = 10;
 const MAX_SECURITY_FINDINGS = 12;
 
+/** Security findings in the campaign scope with a count of findings by severity. */
 export interface ChangeCampaignSecurityView {
   summary: {
     total: number;
@@ -36,10 +41,15 @@ export interface ChangeCampaignSecurityView {
   findings: SecurityFinding[];
 }
 
+/**
+ * Reduces nodes to the set of file-level ids they belong to, so symbol-level ids can be compared
+ * with file-level results.
+ */
 export function collectStructuralNodeIds(nodes: GraphNode[]) {
   return new Set(nodes.map((node) => toStructuralNodeId(node.id)));
 }
 
+/** Keeps the detected patterns that involve at least one campaign file, limited to the first 10. */
 export function collectCampaignPatterns(
   patterns: DetectedPattern[],
   campaignStructuralIds: Set<string>
@@ -51,6 +61,7 @@ export function collectCampaignPatterns(
     .slice(0, MAX_PATTERN_RESULTS);
 }
 
+/** Keeps the security findings located in campaign files, limited to the first 12. */
 export function collectCampaignSecurityFindings(
   findings: SecurityFinding[],
   campaignStructuralIds: Set<string>
@@ -60,6 +71,7 @@ export function collectCampaignSecurityFindings(
     .slice(0, MAX_SECURITY_FINDINGS);
 }
 
+/** Keeps the architecture violations whose source or target is a campaign file. */
 export function collectCampaignViolations(
   violations: ArchitectureViolation[],
   campaignStructuralIds: Set<string>
@@ -71,6 +83,7 @@ export function collectCampaignViolations(
   );
 }
 
+/** Wraps the campaign's security findings together with the summary counts per severity. */
 export function buildCampaignSecurityView(findings: SecurityFinding[]): ChangeCampaignSecurityView {
   return {
     summary: summarizeSecurityFindings(findings),

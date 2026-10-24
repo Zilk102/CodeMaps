@@ -1,3 +1,8 @@
+/**
+ * Groups pattern ids into categories (design smells, change risks, hotspots) used when judging how
+ * risky a change is.
+ */
+
 import { DetectedPattern } from './PatternDetectionAnalyzer';
 
 export const DESIGN_SMELL_PATTERN_IDS = [
@@ -20,9 +25,14 @@ const createIdSet = <T extends readonly string[]>(items: T) => new Set<string>(i
 const designSmellPatternIdSet = createIdSet(DESIGN_SMELL_PATTERN_IDS);
 const changeRiskPatternIdSet = createIdSet(CHANGE_RISK_PATTERN_IDS);
 
+/**
+ * Whether the pattern is a design smell about code size or responsibilities, such as a god file or
+ * a long method.
+ */
 export const isDesignSmellPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
   designSmellPatternIdSet.has(pattern.id);
 
+/** Whether a change near the pattern is risky: design smells plus DI and API contract hubs. */
 export const isChangeRiskPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
   changeRiskPatternIdSet.has(pattern.id);
 
@@ -30,6 +40,7 @@ export const isChangeRiskPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
 export const isHotspotChangeRiskPattern = (pattern: Pick<DetectedPattern, 'id'>) =>
   pattern.id === 'hub_nodes' || pattern.id === 'high_fan_out_files' || isChangeRiskPattern(pattern);
 
+/** Collects the unique node ids of the patterns that satisfy the predicate. */
 export const collectPatternNodeIds = (
   patterns: DetectedPattern[],
   predicate: (pattern: DetectedPattern) => boolean

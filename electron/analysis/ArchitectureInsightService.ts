@@ -1,3 +1,7 @@
+/**
+ * Classifies every graph node into an architecture layer and summarizes layer sizes, cross-layer
+ * dependencies and violations.
+ */
 import { GraphData, GraphNode } from '../store/types';
 import { buildGraphAdjacency } from './graphAnalysisUtils';
 import { classifyNodeByRules, refineDirectoryClassifications } from './architectureClassification';
@@ -22,6 +26,10 @@ export type {
 
 export { DEFAULT_ARCHITECTURE_RULES } from './architectureRules';
 
+/**
+ * Entry point of the architecture analysis. Rules are resolved per project root (built-in
+ * defaults, optionally preceded by the project's own rules) and cached until the root changes.
+ */
 export class ArchitectureInsightService {
   private defaultRules: ArchitectureRule[];
   private cachedProjectRoot: string | null = null;
@@ -31,6 +39,10 @@ export class ArchitectureInsightService {
     this.defaultRules = customRules || DEFAULT_ARCHITECTURE_RULES;
   }
 
+  /**
+   * Returns the rules in force for a project: defaults, or custom rules from the project config
+   * placed before them. The result is cached for the last project root.
+   */
   getActiveRules(projectRoot: string): ArchitectureRule[] {
     if (this.cachedProjectRoot === projectRoot && this.cachedCustomRules) {
       return this.cachedCustomRules;
@@ -41,6 +53,11 @@ export class ArchitectureInsightService {
     return this.cachedCustomRules;
   }
 
+  /**
+   * Builds the architecture overview of a graph: per-node layers (directories inherit the dominant
+   * layer of their contents), layer counts with up to five sample nodes, layer dependencies,
+   * violations and a summary.
+   */
   analyze(graph: GraphData): ArchitectureOverview {
     const activeRules = this.getActiveRules(graph.projectRoot);
     const initialClassifications = graph.nodes.map((node) => this.classifyNode(node, activeRules));
@@ -82,6 +99,7 @@ export class ArchitectureInsightService {
     };
   }
 
+  /** Classifies a single node by the given rules; nodes that no rule matches are 'unknown'. */
   classifyNode(node: GraphNode, activeRules: ArchitectureRule[]): ArchitectureNodeClassification {
     return classifyNodeByRules(node, activeRules);
   }

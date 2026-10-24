@@ -1,3 +1,5 @@
+/** Runs the analyses behind a project overview and folds them into one result. */
+
 import { GraphData } from '../store/types';
 import { ArchitectureOverview } from './ArchitectureInsightService';
 import { DetectedPattern } from './PatternDetectionAnalyzer';

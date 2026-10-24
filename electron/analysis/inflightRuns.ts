@@ -1,3 +1,5 @@
+/** Deduplicates concurrent async computations by key. */
+
 /**
  * Shares one running computation per key: a second request that arrives while the first is still
  * working gets the same promise instead of starting a second scan of the project.

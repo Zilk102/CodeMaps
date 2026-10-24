@@ -1,3 +1,8 @@
+/**
+ * Building blocks for the risk lists of change and campaign contexts: small rules that each yield
+ * a message or nothing.
+ */
+
 import type { DetectedPattern } from './PatternDetectionAnalyzer';
 import { isDesignSmellPattern, isHotspotChangeRiskPattern } from './patternPolicies';
 

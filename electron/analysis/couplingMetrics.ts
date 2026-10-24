@@ -1,3 +1,7 @@
+/**
+ * Coupling measured in files: fan-in, fan-out, and detection of shared-by-design modules and
+ * composition roots.
+ */
 import { GraphData, GraphLink } from '../store/types';
 import { isArchitecturalDependencyLink } from './graphAnalysisUtils';
 
@@ -6,6 +10,10 @@ const fileOf = (nodeId: string) => nodeId.split('#')[0];
 /** A reference between files of one package/folder that needs no import counts for much less. */
 const IMPLICIT_WEIGHT = 0.25;
 
+/**
+ * Number of files that depend on a file (`fanIn`) and that it depends on (`fanOut`); references
+ * that need no import count for less than one.
+ */
 export interface FileCoupling {
   /** Distinct files that depend on this file (or on one of its symbols). */
   fanIn: number;

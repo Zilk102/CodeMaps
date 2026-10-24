@@ -1,9 +1,16 @@
+/** Types of the project health score: its issues, metric summary and result. */
+
+/** One problem found by the health check, with a stable code, a severity and an explanation. */
 export interface HealthScoreIssue {
   code: string;
   severity: 'high' | 'medium' | 'low';
   message: string;
 }
 
+/**
+ * The measurements behind the score: graph size, link quality, architecture, code quality, scores
+ * and refresh pipeline telemetry.
+ */
 export interface HealthScoreSummary {
   totalNodes: number;
   totalLinks: number;
@@ -39,6 +46,10 @@ export interface HealthScoreSummary {
   refreshPipelineDegraded: boolean;
 }
 
+/**
+ * The health outcome: a 0-100 score, a letter grade (A at 90 and above, F below 60), the metrics
+ * and the issues found.
+ */
 export interface HealthScoreResult {
   score: number;
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -46,4 +57,5 @@ export interface HealthScoreResult {
   issues: HealthScoreIssue[];
 }
 
+/** The measured values the scoring rules read; same shape as the summary. */
 export type HealthScoreMetricSnapshot = HealthScoreSummary;

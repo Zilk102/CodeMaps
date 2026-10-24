@@ -1,3 +1,8 @@
+/**
+ * Derives a short mental model of a project: its entry points, orchestrators, composition roots,
+ * contract surfaces and shared foundations.
+ */
+
 import { GraphData, GraphLink, GraphNode } from '../store/types';
 import type { ArchitectureLayer, ArchitectureOverview } from './ArchitectureInsightService';
 import { buildGraphAdjacency, isContractSemanticLink, isDiRuntimeLink } from './graphAnalysisUtils';
@@ -17,6 +22,10 @@ interface MentalModelContext {
 const ORCHESTRATOR_LAYERS: string[] = ['application', 'analysis', 'integration'];
 const FOUNDATION_LAYERS: string[] = ['shared', 'state'];
 
+/**
+ * Ranks files that look like entry points, by call-out count and layer, with a bonus for
+ * conventional entry file names. At most 8 files are returned.
+ */
 function rankEntryPoints(context: MentalModelContext) {
   const { fileNodes, layerByNodeId, incomingByTarget, outgoingBySource } = context;
   return collectRankedFiles(fileNodes, (node) => {
@@ -34,6 +43,10 @@ function rankEntryPoints(context: MentalModelContext) {
   });
 }
 
+/**
+ * Ranks files of the application, analysis and integration layers by their total number of links:
+ * the central coordinators.
+ */
 function rankCoreOrchestrators(context: MentalModelContext) {
   const { fileNodes, layerByNodeId, incomingByTarget, outgoingBySource } = context;
   return collectRankedFiles(fileNodes, (node) => {
@@ -55,6 +68,10 @@ function rankByOutgoingLinks(context: MentalModelContext, matches: (link: GraphL
   );
 }
 
+/**
+ * Ranks files of the shared and state layers by how many links point to them: the foundations many
+ * others rely on.
+ */
 function rankSharedFoundations(context: MentalModelContext) {
   const { fileNodes, layerByNodeId, incomingByTarget } = context;
   return collectRankedFiles(fileNodes, (node) => {
@@ -73,6 +90,10 @@ function describeKeyBoundaries(architecture: ArchitectureOverview) {
     .map((entry) => `${entry.sourceLayer} -> ${entry.targetLayer} (${entry.count})`);
 }
 
+/**
+ * Assembles the mental model: ranked file lists, the most important layer boundaries and the
+ * likely workflows.
+ */
 export function buildProjectMentalModel(
   graph: GraphData,
   architecture: ArchitectureOverview
@@ -98,6 +119,10 @@ export function buildProjectMentalModel(
   };
 }
 
+/**
+ * Scores every file, drops files whose score is null or not above zero, and returns the best 8,
+ * with ties broken by label.
+ */
 function collectRankedFiles(fileNodes: GraphNode[], scoreNode: (node: GraphNode) => number | null) {
   return fileNodes
     .map((node) => ({ node, score: scoreNode(node) }))
@@ -109,6 +134,11 @@ function collectRankedFiles(fileNodes: GraphNode[], scoreNode: (node: GraphNode)
     .map(({ node }) => node);
 }
 
+/**
+ * Whether a file can be an entry point: never a configuration file; yes when it has a conventional
+ * entry name (main, app, server, cli, index, preload, worker, mcp, oracle) or when it is an
+ * integration-layer file that nothing depends on.
+ */
 function isEntryPointCandidate(
   node: GraphNode,
   layer: ArchitectureLayer | undefined,
@@ -130,6 +160,11 @@ function isEntryPointCandidate(
   return Boolean(layer === 'integration' && fanIn === 0);
 }
 
+/**
+ * Entry point score: three points per outgoing link minus incoming links, plus bonuses for the
+ * integration (20), application (16) and presentation (12) layers and for conventional entry file
+ * names (25).
+ */
 function scoreEntryPoint(
   node: GraphNode,
   layer: ArchitectureLayer | undefined,
@@ -176,6 +211,11 @@ const LAYER_WORKFLOWS: Array<{ from: ArchitectureLayer; to: ArchitectureLayer; t
   },
 ];
 
+/**
+ * Describes how the layers work together: common layer-to-layer flows that exist in this project,
+ * plus DI and API contract flows if their links are present. Falls back to a note when none is
+ * recognized.
+ */
 function buildLikelyWorkflows(architecture: ArchitectureOverview, graph: GraphData) {
   const layers = new Set(architecture.layers.map((entry) => entry.layer));
   const workflows: string[] = LAYER_WORKFLOWS.filter(

@@ -1,3 +1,7 @@
+/**
+ * Types of the change context: the request, the resolved target, the evidence gathered and the
+ * result returned to the agent.
+ */
 import type { GraphLink, GraphNode } from '../store/types';
 import type {
   ArchitectureNodeClassification,
@@ -13,6 +17,10 @@ import type { ChangeTaskMode } from './changeContextRuntimeSupport';
 
 export type { ChangeTaskMode } from './changeContextRuntimeSupport';
 
+/**
+ * Request for a change context: the target (a node id or a name to search), optional intent, node
+ * type filter, traversal depth, task mode and whether to scan for security findings.
+ */
 export interface PrepareChangeContextInput {
   target: string;
   changeIntent?: string;
@@ -22,6 +30,10 @@ export interface PrepareChangeContextInput {
   taskMode?: ChangeTaskMode;
 }
 
+/**
+ * The graph node a request resolved to, with the other candidates and the reason for the choice.
+ * `exactMatch` is false when the query only matched approximately.
+ */
 export interface ResolvedTargetContext {
   query: string;
   exactMatch: boolean;
@@ -30,6 +42,10 @@ export interface ResolvedTargetContext {
   resolutionReason: string;
 }
 
+/**
+ * The change context returned to the agent: the target, its layer and violations, dependencies,
+ * blast radius, patterns, security findings, files to inspect, risks, a plan and next steps.
+ */
 export interface ChangeContextResult {
   graphSummary: {
     projectRoot: string;
@@ -78,6 +94,7 @@ export interface ChangeContextResult {
   nextSteps: string[];
 }
 
+/** Evidence collected around the target, before it is turned into the final result. */
 export interface ChangeEvidence {
   dependencies: ReturnType<typeof getNodeDependencies>;
   blastRadius: BlastRadiusResult;
@@ -88,6 +105,10 @@ export interface ChangeEvidence {
   decompositionCandidates: DecompositionCandidate[];
 }
 
+/**
+ * The full input of result assembly: the collected evidence plus the task mode, the resolved
+ * target and its architecture data.
+ */
 export interface ChangeAssemblyContext extends ChangeEvidence {
   taskMode: ChangeTaskMode;
   resolvedTarget: ResolvedTargetContext;

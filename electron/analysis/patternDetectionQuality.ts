@@ -175,6 +175,11 @@ const QUALITY_BUILDERS: QualityBuilder[] = [
   (quality) => buildPattern(quality.codeClones ?? [], CODE_CLONES),
 ];
 
+/**
+ * Turns the module quality findings into patterns (oversized modules, god files and classes, long
+ * and complex methods, mixed responsibilities, code clones). A pattern is only returned for a kind
+ * with at least one finding.
+ */
 export function buildQualityPatterns(quality: ModuleQualitySummary): DetectedPattern[] {
   return runBuilders(QUALITY_BUILDERS, quality);
 }

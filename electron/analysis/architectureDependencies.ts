@@ -1,3 +1,7 @@
+/**
+ * Checks the dependency edges between architecture layers against the layer rules and reports
+ * every forbidden cross-layer dependency.
+ */
 import { isCompositionRoot } from './couplingMetrics';
 import { GraphData } from '../store/types';
 import { toStructuralNodeId } from './AgentContextUtils';
@@ -54,6 +58,11 @@ const LAYER_RULES: LayerRule[] = [
 const violatesRule = (rule: LayerRule, targetLayer: ArchitectureLayer) =>
   rule.allowed ? !rule.allowed.includes(targetLayer) : !!rule.forbidden?.includes(targetLayer);
 
+/**
+ * Returns why a dependency from `sourceLayer` to `targetLayer` is forbidden, or null when it is
+ * allowed. Unknown layers, same-layer links and anything from configuration are never violations;
+ * any non-presentation layer reaching into presentation always is.
+ */
 export const getArchitectureViolationReason = (
   sourceLayer: ArchitectureLayer,
   targetLayer: ArchitectureLayer
@@ -85,6 +94,11 @@ const collectDependencyEdges = (graph: GraphData) => {
   return edges;
 };
 
+/**
+ * Counts dependencies per source/target layer pair and collects the violations. Edges are
+ * deduplicated at file level, nodes without a layer count as 'unknown', and the composition root
+ * (program entry point) is exempt from violations.
+ */
 export const summarizeArchitectureDependencies = (
   graph: GraphData,
   layerByNodeId: Map<string, ArchitectureLayer>
@@ -111,6 +125,10 @@ export const summarizeArchitectureDependencies = (
   return { dependencies: sortLayerDependencies(dependencyCounts), violations };
 };
 
+/**
+ * Turns the "source->target" counters into layer dependency summaries, largest count first, ties
+ * broken alphabetically by source then target layer.
+ */
 const sortLayerDependencies = (dependencyCounts: Map<string, number>): LayerDependencySummary[] =>
   Array.from(dependencyCounts.entries())
     .map(([key, count]) => {

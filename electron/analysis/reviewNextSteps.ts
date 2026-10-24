@@ -1,3 +1,5 @@
+/** Writes the ordered next steps of a review context. */
+
 import type { ArchitectureOverview } from './ArchitectureInsightService';
 import type { DecompositionGuidance } from './DecompositionGuidanceService';
 import type { HealthScoreResult } from './HealthScoreAnalyzer';
@@ -63,6 +65,10 @@ const REVIEW_STEP_RULES: Array<StepRule<ReviewStepInput>> = [
   ),
 ];
 
+/**
+ * Builds the review next steps: two fixed starting points, then the steps whose conditions apply
+ * to the health, architecture and patterns; security findings, if any, are placed first.
+ */
 export function buildReviewNextSteps(
   health: HealthScoreResult,
   architecture: ArchitectureOverview,

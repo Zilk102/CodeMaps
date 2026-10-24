@@ -1,3 +1,7 @@
+/**
+ * Predicates for link kinds and helpers for navigating the graph: adjacency maps, hierarchy depth
+ * and file line counts.
+ */
 import * as fs from 'fs';
 import { GraphData, GraphLink, GraphNode } from '../store/types';
 
@@ -25,12 +29,20 @@ export const CONTRACT_SEMANTIC_LINK_REASONS = [
   'grpc_web_client_symbol',
 ] as const;
 
+/**
+ * Whether a link expresses a code dependency (import, framework or build link) and so counts for
+ * architecture analysis.
+ */
 export const isArchitecturalDependencyLink = (link: GraphLink) =>
   Boolean(
     link.type &&
     ARCHITECTURAL_LINK_TYPES.includes(link.type as (typeof ARCHITECTURAL_LINK_TYPES)[number])
   );
 
+/**
+ * Whether a link is an import or framework link, the dependency kinds that exist at runtime (build
+ * links do not).
+ */
 export const isRuntimeArchitecturalLink = (link: GraphLink) =>
   Boolean(
     link.type &&
@@ -39,18 +51,27 @@ export const isRuntimeArchitecturalLink = (link: GraphLink) =>
     )
   );
 
+/** Whether a link comes from framework or build tool configuration instead of plain imports. */
 export const isStackAwareLink = (link: GraphLink) =>
   Boolean(
     link.type &&
     STACK_AWARE_LINK_TYPES.includes(link.type as (typeof STACK_AWARE_LINK_TYPES)[number])
   );
 
+/**
+ * Whether a link wires dependency injection at runtime: a NestJS provider binding, a Spring bean
+ * or an ASP.NET service registration.
+ */
 export const isDiRuntimeLink = (link: GraphLink) =>
   Boolean(
     link.reason &&
     DI_RUNTIME_LINK_REASONS.includes(link.reason as (typeof DI_RUNTIME_LINK_REASONS)[number])
   );
 
+/**
+ * Whether a link ties code to an API contract: OpenAPI operations, protobuf, ConnectRPC or
+ * gRPC-Web services and their clients or servers.
+ */
 export const isContractSemanticLink = (link: GraphLink) =>
   Boolean(
     link.reason &&
@@ -59,6 +80,10 @@ export const isContractSemanticLink = (link: GraphLink) =>
     )
   );
 
+/**
+ * Lookup tables over a graph: nodes by id, links by target and by source, and child nodes by
+ * parent id.
+ */
 export interface GraphAdjacency {
   nodeById: Map<string, GraphNode>;
   incomingByTarget: Map<string, GraphLink[]>;
@@ -66,6 +91,10 @@ export interface GraphAdjacency {
   childrenByParentId: Map<string, GraphNode[]>;
 }
 
+/**
+ * Builds the lookup tables of a graph in one pass over its nodes and links. Nodes without a parent
+ * id are not entered as children.
+ */
 export const buildGraphAdjacency = (graph: GraphData): GraphAdjacency => {
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const incomingByTarget = new Map<string, GraphLink[]>();
@@ -100,6 +129,7 @@ export const buildGraphAdjacency = (graph: GraphData): GraphAdjacency => {
   };
 };
 
+/** Counts the direct children of a node that are functions or classes. */
 export const getChildCodeSymbolCount = (
   nodeId: string,
   childrenByParentId: Map<string, GraphNode[]>
@@ -108,6 +138,10 @@ export const getChildCodeSymbolCount = (
     ['function', 'class'].includes(child.type)
   ).length;
 
+/**
+ * Counts the lines of a file on disk. Returns null when the file cannot be read, is larger than 1
+ * MB or looks binary (contains a NUL byte), so callers must handle a missing count.
+ */
 export const getFileLineCount = (filePath: string) => {
   try {
     const stat = fs.statSync(filePath);
@@ -126,10 +160,12 @@ export const getFileLineCount = (filePath: string) => {
   }
 };
 
+/** Whether the node's parent id refers to a node that exists in the graph. */
 export const hasKnownParent = (node: GraphNode, nodeById: Map<string, GraphNode>) => {
   return Boolean(node.parentId && nodeById.has(node.parentId));
 };
 
+/** Number of ancestors of a node. It stops early on a missing parent or on a cycle. */
 export const getHierarchyDepth = (node: GraphNode, nodeById: Map<string, GraphNode>) => {
   let depth = 0;
   let current: GraphNode | undefined = node;
@@ -149,6 +185,10 @@ export const getHierarchyDepth = (node: GraphNode, nodeById: Map<string, GraphNo
   return depth;
 };
 
+/**
+ * Whether a file or ADR node is expected to hang below a directory node: it must have a parent
+ * folder other than the project root.
+ */
 export const shouldHaveDirectoryParent = (node: GraphNode, projectRoot: string) => {
   if (node.type !== 'file' && node.type !== 'adr') {
     return false;

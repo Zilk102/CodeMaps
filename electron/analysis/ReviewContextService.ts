@@ -1,3 +1,8 @@
+/**
+ * Prepares the context for a code review or audit: health, architecture, patterns, security,
+ * priorities, quality plan and next steps.
+ */
+
 import { GraphData, GraphNode } from '../store/types';
 import {
   ArchitectureNodeClassification,
@@ -33,6 +38,10 @@ import {
 
 export type { ReviewTaskMode } from './reviewContextSupport';
 
+/**
+ * Options for a review context: an optional focus query (and node type) to look closer at one
+ * area, a list size limit, and flags for security findings and per-node classifications.
+ */
 export interface PrepareReviewContextInput {
   focusQuery?: string;
   type?: string;
@@ -42,6 +51,10 @@ export interface PrepareReviewContextInput {
   taskMode?: ReviewTaskMode;
 }
 
+/**
+ * One thing to look at first in a review: how severe it is, why, the nodes involved and optional
+ * evidence.
+ */
 export interface ReviewPriority {
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
@@ -50,6 +63,10 @@ export interface ReviewPriority {
   evidence?: string[];
 }
 
+/**
+ * The review context for the agent. `focus` is null without a focus query; `reviewPriorities` is
+ * the ordered list of what to inspect first.
+ */
 export interface ReviewContextResult {
   graphSummary: {
     projectRoot: string;
@@ -112,6 +129,10 @@ interface ReviewAssemblyContext {
   quality: ReturnType<typeof buildQualityArtifacts>;
 }
 
+/**
+ * Architecture part of the review: summary and layers, the first `limit` dependencies and
+ * violations, and classifications only when requested.
+ */
 const buildArchitectureView = (
   architecture: ArchitectureOverview,
   limit: number,
@@ -124,6 +145,11 @@ const buildArchitectureView = (
   classifications: includeClassifications ? architecture.classifications : undefined,
 });
 
+/**
+ * Orchestrates a review: runs the analysis snapshot, resolves the focus area, computes
+ * decomposition guidance and quality artifacts, and assembles them into priorities, a plan and
+ * next steps.
+ */
 export class ReviewContextService {
   constructor(
     private readonly analysisSnapshotService: AnalysisSnapshotService = new AnalysisSnapshotService(),
@@ -131,6 +157,10 @@ export class ReviewContextService {
     private readonly qualityGovernanceService: QualityGovernanceService = new QualityGovernanceService()
   ) {}
 
+  /**
+   * Builds the review context for a graph. Lists are limited to `limit` entries (default 12); an
+   * unknown task mode is treated as 'review'.
+   */
   async prepareReviewContext(
     graph: GraphData,
     input: PrepareReviewContextInput
@@ -180,6 +210,10 @@ export class ReviewContextService {
     });
   }
 
+  /**
+   * Combines the analysis results into the final response, adding the priorities, the autopilot
+   * plan and the next steps.
+   */
   private assembleResult(ctx: ReviewAssemblyContext): ReviewContextResult {
     const { graph, input, architecture, health, patterns, focus, decompositionGuidance } = ctx;
     const { qualityBudget, qualityDashboard, refactoringWaves } = ctx.quality;
