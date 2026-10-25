@@ -1,5 +1,14 @@
 # CodeMaps Changelog
 
+## v1.1.65 (2026-10-25)
+
+### Fixed
+
+- **Verified on live OpenCode 1.18.29 with a DeepSeek model.** MCP connects, the server `instructions` reach the model, the client name is `opencode` and tools are named `codemaps_<tool>`. With the rewritten instructions the model, on a plain "add a function" task, called `setup_project` first by itself, wrote the function with a meaningful doc comment and then called `validate_architecture_changes` and `check_documentation`. The after-edit plugin works: the CodeMaps report (for example complexity 13) lands in the edit tool result and the model sees it.
+- **Fixed what that check found.** The hook `.codemaps/hooks/validate.mjs` was not created for OpenCode-only projects, so the plugin was always silent. It is created now. `setup_project` no longer falls back to the project open in the window: `projectPath` is required (the agent's working directory), and a filesystem root, the home directory and nonexistent paths are rejected; a call without a path used to write files into someone else's project. The result starts with `projectRoot` and a `summary` line.
+- **The server instructions are now imperative** and ask for the working directory, so even weaker models follow them. The plugin finds the hook through `directory`, then `worktree`, then the current directory.
+- Tests: 921 -> 930.
+
 ## v1.1.64 (2026-10-25)
 
 ### Added

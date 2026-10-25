@@ -44,14 +44,14 @@ Commit all of it except the `graph.db` cache.
 
 ## OpenCode and DeepSeek Harness
 
-Both are supported on a best-effort basis. What was **verified from their documentation** and what is **not verified in practice** is stated below; CodeMaps has not been run against live installs of either.
+Both are supported on a best-effort basis. What was **verified from their documentation** and what is **not verified in practice** is stated below; OpenCode was tested live (CLI 1.18.29 with a DeepSeek model); DeepSeek Harness was not run.
 
 **OpenCode** (desktop, CLI and TUI share the config)
 
 - Verified from the docs: the project config is `opencode.json` / `opencode.jsonc` in the root; remote MCP servers are `mcp.<name>` with `type: "remote"`, `url`, `enabled`; `AGENTS.md` is read (and `CLAUDE.md` only as a fallback when it is missing); skills are read from `.opencode/skills`, `.claude/skills` and `.agents/skills`; plugins in `.opencode/plugins/` load at startup.
 - `setup_project` merges the `codemaps` entry into a plain-JSON `opencode.json` (into `mcp.servers` when the file already uses that newer layout). A `.jsonc` file, a file with comments or invalid JSON is **never edited**: the exact snippet is returned in `nextSteps`. An existing `codemaps` entry is never changed.
 - OpenCode reads `.claude/skills`, so the skill is written to `.opencode/skills` only when the Claude skill is neither present nor being written (no duplicate skills); the result's `notes` say so.
-- Confirmed with OpenCode 1.18.29: the server `instructions` reach the model, the client name is `opencode`, and tools are exposed as `codemaps_<tool>`. Not verified: the payloads of plugin events. A plain task alone does not make weaker models call `setup_project`, so the instructions open with an imperative trigger. The plugin therefore reads the edited path from several possible properties (`tool.execute.after` for edit/write/patch tools and `file.edited`), runs `.codemaps/hooks/validate.mjs` with the same stdin JSON as the Claude hook and appends its report to the tool output when it can. It never throws, never blocks and stays silent on any shape it does not understand.
+- Confirmed with OpenCode 1.18.29: the server `instructions` reach the model, the client name is `opencode`, and tools are exposed as `codemaps_<tool>`. Also confirmed live: after an edit the plugin runs the hook and the model sees the CodeMaps report (for example a complexity finding) inside the edit tool result, and with the imperative instructions a DeepSeek model called `setup_project` first on a plain task, then validated and documented its change. The `file.edited` payload is still unverified. A plain task alone does not make weaker models call `setup_project`, so the instructions open with an imperative trigger. The plugin therefore reads the edited path from several possible properties (`tool.execute.after` for edit/write/patch tools and `file.edited`), runs `.codemaps/hooks/validate.mjs` with the same stdin JSON as the Claude hook and appends its report to the tool output when it can. It never throws, never blocks and stays silent on any shape it does not understand.
 
 **DeepSeek Harness** (`dsh`, developer preview)
 
