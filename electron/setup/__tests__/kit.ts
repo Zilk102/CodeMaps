@@ -43,7 +43,8 @@ export const listFiles = (root: string, folder = ''): string[] =>
 
 /** Removes every directory made by `tempProject`. */
 export const cleanTemp = (): void => {
-  for (const root of created.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  for (const root of created.splice(0))
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 };
 
 /** A baseline creator that records how often it was called and writes a tiny baseline file. */
