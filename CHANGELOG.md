@@ -1,5 +1,16 @@
 # CodeMaps Changelog
 
+## v1.1.66 (2026-10-25)
+
+### Fixed
+
+- **Indexing no longer parses vendored dependencies.** The ignore list knew only `node_modules`, so vendored copies such as `node_modules-local` (one per workspace package) counted as project code: a project with about 2 000 source files produced 17 281 files and 191 910 nodes, and its map took minutes to build. `node_modules*`, `pnpm-local`, `playwright-report`, `*.map` and `*.tsbuildinfo` are excluded now; on the project that exposed it the index went from 17 281 files and 191 910 nodes to 1 905 files and 12 184 nodes, and a full index takes about 5 seconds.
+- **Graph writes are linear again.** Every inserted node copied the whole node map and every added link copied the whole link array, which made a 190k-node index quadratic. Nodes and links are now mutated in place, only the revision counters change, and `pendingDiff` is appended to instead of being spread per node.
+- **Graphs that used to hang now persist to Kuzu.** Symbol ids contain quotes (`<file>#BinaryExpression[operator='in']`), and the SQL style of doubling them (`''`) is a parse error in Kuzu, so `graph.db` was never written for such projects and blast-radius and PR-impact queries read an empty or stale database. Literals are escaped the openCypher way (`\'`, `\\`).
+- **The app can no longer index itself by accident.** The `analyze-project` channel fell back to `process.cwd()` when the renderer sent no path, which in a development build is the CodeMaps repository itself. It now reloads the open project or reports the missing path.
+- **An MCP client no longer replaces the map you have open.** Analyzing another repository used to clear the shared store, close the open project's watcher and push a different graph into the window. Such an analysis now runs in a private store with its own worker pool, without a watcher and without events, so the open project keeps its map, watcher and cache.
+- Tests: 930 -> 944.
+
 ## v1.1.65 (2026-10-25)
 
 ### Fixed
