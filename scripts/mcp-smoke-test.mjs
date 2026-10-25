@@ -265,7 +265,7 @@ try {
     assert(typeof item.hint === 'string', 'check_documentation: every symbol needs a hint');
   }
   // ─── 11g. setup_project (dry run: writes nothing) ──────────────
-  const setup = await runTool('setup_project', { apply: false });
+  const setup = await runTool('setup_project', { projectPath: process.cwd(), apply: false });
   assert(setup?.status === 'dry-run', 'setup_project: expected a dry run');
   assert(Array.isArray(setup?.nextSteps), 'setup_project: expected nextSteps');
   assert(Array.isArray(setup?.detected?.languages), 'setup_project: expected detected languages');

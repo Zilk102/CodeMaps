@@ -43,14 +43,29 @@ const pathIn = (value, depth = 0) => {
   return null;
 };
 
-/** Runs the CodeMaps hook for one edited file; resolves with its problem report, or '' when there is none. Never rejects. */
-const runHook = (directory, file) =>
+/** Candidate project folders in order of trust: the plugin's directory, the git worktree, then the process folder. */
+const rootsOf = (context) =>
+  [context?.directory, context?.worktree, process.cwd()].filter(
+    (value, index, all) => typeof value === 'string' && value !== '' && all.indexOf(value) === index
+  );
+
+/** The first candidate folder that holds the installed hook, or null. */
+const hookRoot = (roots) => roots.find((root) => fs.existsSync(path.join(root, HOOK_PATH))) ?? null;
+
+/**
+ * Runs the CodeMaps hook for one edited file; resolves with its problem report, or '' when there is
+ * none. The hook is located by absolute path in the first candidate folder that has it. The child
+ * inherits the environment untouched, so CODEMAPS_MCP_URL only applies when the user set it.
+ * Never rejects.
+ */
+const runHook = (roots, file) =>
   new Promise((resolve) => {
     try {
-      if (!fs.existsSync(path.join(directory, HOOK_PATH))) return resolve('');
+      const directory = hookRoot(roots);
+      if (directory === null) return resolve('');
       const child = execFile(
         'node',
-        [HOOK_PATH],
+        [path.join(directory, HOOK_PATH)],
         { cwd: directory, timeout: HOOK_TIMEOUT_MS, windowsHide: true },
         (error, _stdout, stderr) =>
           resolve(error && error.code === 2 ? String(stderr).trim().slice(0, MAX_MESSAGE_CHARS) : '')
@@ -69,8 +84,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** The plugin: validates files OpenCode edits and appends new problems to the tool output. */
 export const CodeMapsValidate = async (context) => {
   try {
-    const directory =
-      typeof context?.directory === 'string' && context.directory ? context.directory : process.cwd();
+    const roots = rootsOf(context);
+    const directory = roots[0];
     const recent = new Map();
     const keyOf = (file) => path.resolve(directory, file).toLowerCase();
 
@@ -81,7 +96,7 @@ export const CodeMapsValidate = async (context) => {
           const file = pathIn(input) ?? pathIn(output);
           if (!file) return;
           recent.set(keyOf(file), Date.now());
-          const message = await runHook(directory, file);
+          const message = await runHook(roots, file);
           if (message && typeof output?.output === 'string') {
             output.output = output.output + '\\n\\n[CodeMaps] ' + message;
           }
@@ -98,7 +113,7 @@ export const CodeMapsValidate = async (context) => {
           await sleep(300);
           const handled = recent.get(keyOf(file));
           if (handled !== undefined && Date.now() - handled < RECENT_MS) return;
-          const message = await runHook(directory, file);
+          const message = await runHook(roots, file);
           if (message) {
             await context?.client?.app?.log?.({
               body: { service: 'codemaps', level: 'warn', message },

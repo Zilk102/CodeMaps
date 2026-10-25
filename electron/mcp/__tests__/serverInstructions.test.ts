@@ -28,6 +28,14 @@ describe('MCP server instructions', () => {
     }
   });
 
+  it('open with the trigger and demand the working directory as projectPath', () => {
+    expect(
+      SERVER_INSTRUCTIONS.startsWith(
+        'At the start of every session in a project, before anything else, call `setup_project` with projectPath set to your current working directory'
+      )
+    ).toBe(true);
+  });
+
   it('mention only tools that are registered on the server', () => {
     const mentioned = [...SERVER_INSTRUCTIONS.matchAll(/`([a-z]+(?:_[a-z0-9]+)+)`/g)].map(
       (match) => match[1]

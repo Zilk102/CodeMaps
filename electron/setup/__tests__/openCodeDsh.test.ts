@@ -1,22 +1,27 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { agentFromClientName, detectAgents } from '../detectAgents';
 import { DSH_OVERLAY_COMMAND, DSH_OVERLAY_PATH } from '../deepSeekOverlay';
 import { mergeOpenCodeConfig } from '../openCodeConfig';
 import { fileMarker, FILE_MARKER_TOKEN } from '../markers';
 import { setupProject } from '../setupProject';
+import { HOOK_TEMPLATE } from '../templates/hookTemplate';
 import { OPENCODE_PLUGIN_TEMPLATE } from '../templates/openCodePlugin';
 import { cleanTemp, exists, fakeBaseline, listFiles, options, readFile, tempProject } from './kit';
 
-afterEach(cleanTemp);
+afterEach(() => {
+  vi.restoreAllMocks();
+  cleanTemp();
+});
 
 const ENDPOINT = 'http://127.0.0.1:3005/mcp';
 const deps = () => ({ createBaseline: fakeBaseline().create });
 const SKILL = '.claude/skills/codemaps-agent-autopilot/SKILL.md';
 const OC_SKILL = '.opencode/skills/codemaps-agent-autopilot/SKILL.md';
 const PLUGIN = '.opencode/plugins/codemaps-validate.ts';
+const HOOK = '.codemaps/hooks/validate.mjs';
 
 describe('detection of OpenCode and DeepSeek Harness', () => {
   it.each([
@@ -73,6 +78,22 @@ describe('setup_project for OpenCode', () => {
     });
     expect(readFile(root, OC_SKILL)).toContain("name: 'codemaps-agent-autopilot'");
     expect(readFile(root, PLUGIN).startsWith('// codemaps:file v1.2.0\n')).toBe(true);
+  });
+
+  it('writes the hook script the plugin runs, even without the Claude agent', async () => {
+    const root = tempProject();
+    const result = await setupProject(options(root, { agents: ['opencode'] }), deps());
+    expect(result.written).toContain(HOOK);
+    expect(readFile(root, HOOK)).toBe(
+      HOOK_TEMPLATE.replace(FILE_MARKER_TOKEN, fileMarker('1.2.0', 'slash'))
+    );
+    expect(exists(root, '.claude/settings.json')).toBe(false);
+    const both = tempProject();
+    const planned = await setupProject(
+      options(both, { agents: ['claude', 'opencode'], apply: false }),
+      deps()
+    );
+    expect(planned.wouldWrite?.filter((file) => file.path === HOOK)).toHaveLength(1);
   });
 
   it('writes no second skill when Claude Code files are written, and says why', async () => {
@@ -213,10 +234,85 @@ describe('the OpenCode plugin', () => {
 
   it('stays silent when the hook is not installed', async () => {
     const root = tempProject();
+    vi.spyOn(process, 'cwd').mockReturnValue(root);
     const handlers = await (await load(root))({ directory: root });
     const output = { output: 'done' };
     await handlers['tool.execute.after']?.({ tool: 'edit', args: { filePath: 'a.ts' } }, output);
     expect(output.output).toBe('done');
+  });
+
+  /** Loads the plugin with `execFile` replaced by a recorder, so no process is started. */
+  const loadWithFakeExec = async (root: string, stderr: string) => {
+    const calls: Array<{ args: string[]; options: Record<string, unknown>; stdin: string }> = [];
+    const execFile = (
+      _command: string,
+      args: string[],
+      options: Record<string, unknown>,
+      done: (error: unknown, out: string, err: string) => void
+    ) => {
+      const call = { args, options, stdin: '' };
+      calls.push(call);
+      return {
+        stdin: {
+          on: () => undefined,
+          end: (text: string) => {
+            call.stdin = text;
+            done({ code: 2 }, '', stderr);
+          },
+        },
+      };
+    };
+    (globalThis as Record<string, unknown>).__fakeExecFile = execFile;
+    const file = path.join(root, 'fake-plugin.mjs');
+    const source = OPENCODE_PLUGIN_TEMPLATE.replace(
+      FILE_MARKER_TOKEN,
+      fileMarker('1.2.0', 'slash')
+    ).replace(
+      "import { execFile } from 'node:child_process';",
+      'const execFile = globalThis.__fakeExecFile;'
+    );
+    expect(source).toContain('globalThis.__fakeExecFile');
+    fs.writeFileSync(file, source);
+    const module = await import(/* @vite-ignore */ pathToFileURL(file).href);
+    return { plugin: module.CodeMapsValidate as (context: unknown) => Promise<any>, calls };
+  };
+
+  it('finds the hook through directory, worktree or the working directory and reports through output', async () => {
+    const root = tempProject({ [HOOK]: '// hook' });
+    const empty = tempProject();
+    const { plugin, calls } = await loadWithFakeExec(root, 'problem found');
+    vi.spyOn(process, 'cwd').mockReturnValue(empty);
+
+    for (const context of [{ directory: root }, { directory: empty, worktree: root }]) {
+      const handlers = await plugin(context);
+      const output = { output: 'done' };
+      await handlers['tool.execute.after'](
+        { tool: 'write', args: { filePath: 'src/a.ts' } },
+        output
+      );
+      expect(output.output).toBe('done\n\n[CodeMaps] problem found');
+    }
+    vi.spyOn(process, 'cwd').mockReturnValue(root);
+    const viaCwd = await plugin({});
+    const last = { output: 'x' };
+    await viaCwd['tool.execute.after']({ tool: 'patch', args: { path: 'b.ts' } }, last);
+    expect(last.output).toBe('x\n\n[CodeMaps] problem found');
+
+    expect(calls).toHaveLength(3);
+    for (const call of calls) {
+      expect(call.args).toEqual([path.join(root, HOOK)]);
+      expect(call.options.cwd).toBe(root);
+      expect(call.options).not.toHaveProperty('env');
+      expect(JSON.parse(call.stdin)).toMatchObject({ tool_name: 'Edit', cwd: root });
+    }
+    expect(JSON.parse(calls[0].stdin).tool_input).toEqual({ file_path: 'src/a.ts' });
+
+    vi.spyOn(process, 'cwd').mockReturnValue(empty);
+    const none = await plugin({ directory: empty });
+    const quiet = { output: 'q' };
+    await none['tool.execute.after']({ tool: 'edit', args: { filePath: 'c.ts' } }, quiet);
+    expect(quiet.output).toBe('q');
+    expect(calls).toHaveLength(3);
   });
 
   it('appends the hook report to the output of an edit tool', async () => {

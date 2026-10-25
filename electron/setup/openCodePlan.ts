@@ -5,9 +5,11 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { HOOK_SCRIPT_PATH } from './claudeSettings';
 import { DSH_OVERLAY_COMMAND, DSH_OVERLAY_PATH, dshOverlayTemplate } from './deepSeekOverlay';
 import { OPENCODE_CONFIG_PATH, OPENCODE_JSONC_PATH, openCodeSnippet } from './openCodeConfig';
 import { skillFile } from './skillFile';
+import { HOOK_TEMPLATE } from './templates/hookTemplate';
 import { OPENCODE_PLUGIN_TEMPLATE } from './templates/openCodePlugin';
 import type { AgentId, FileOutcome, PlanContext, PlannedFile } from './types';
 
@@ -28,7 +30,7 @@ const claudeSkillCovers = (ctx: PlanContext): boolean =>
 const configPath = (root: string): string =>
   fs.existsSync(path.join(root, OPENCODE_JSONC_PATH)) ? OPENCODE_JSONC_PATH : OPENCODE_CONFIG_PATH;
 
-/** The files OpenCode needs: the skill (unless `.claude/skills` has it), the MCP entry and the best-effort edit plugin. */
+/** The files OpenCode needs: the skill (unless `.claude/skills` has it), the MCP entry, the best-effort edit plugin and the hook script the plugin runs (shared with Claude Code; the planner drops the duplicate). */
 export const openCodeFiles = (ctx: PlanContext): PlannedFile[] => [
   ...(claudeSkillCovers(ctx) ? [] : [skillFile(OPENCODE_SKILL_PATH, ctx.endpoint)]),
   { path: configPath(ctx.root), strategy: 'opencode-config', content: ctx.endpoint },
@@ -38,6 +40,7 @@ export const openCodeFiles = (ctx: PlanContext): PlannedFile[] => [
     style: 'slash',
     content: OPENCODE_PLUGIN_TEMPLATE,
   },
+  { path: HOOK_SCRIPT_PATH, strategy: 'owned', style: 'slash', content: HOOK_TEMPLATE },
 ];
 
 /** The files the DeepSeek Harness needs: only the overlay, because AGENTS.md is all it is known to read. */

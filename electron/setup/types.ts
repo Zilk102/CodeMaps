@@ -119,9 +119,12 @@ export interface CiSuggestion {
 
 /** The compact, bounded result of `setup_project`. */
 export interface SetupResult {
+  /** The project the run worked on, restated first so the model and the user see where files went. */
+  projectRoot: string;
+  /** One line: where it wrote, for which agents and how many files. */
+  summary: string;
   status: 'ok' | 'partial' | 'dry-run';
   upToDate: boolean;
-  projectRoot: string;
   codemapsVersion: string;
   detected: DetectedProject & { agents: DetectedAgents };
   written: string[];

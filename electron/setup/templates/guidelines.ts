@@ -33,7 +33,7 @@ This project is connected to CodeMaps, an MCP server (\`codemaps\`) that keeps a
 
 ### Workflow
 
-1. At the start of a session call \`setup_project\` once. It is idempotent and cheap, and reports \`upToDate\` when nothing changed.
+1. At the start of a session call \`setup_project\` once, with \`projectPath\` set to your current working directory. It is idempotent and cheap, and reports \`upToDate\` when nothing changed.
 2. Before coding call \`prepare_task_context\` with the user's request. It picks the target files, the blast radius and the risks, so do not guess files.
 3. Before writing code that resembles existing code call \`find_duplicates\` and reuse or extract instead of copy-pasting.
 4. After editing call \`validate_architecture_changes\` (it checks only the files you changed) and fix every problem it reports, then \`check_documentation\`.

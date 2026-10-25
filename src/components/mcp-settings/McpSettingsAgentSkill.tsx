@@ -32,7 +32,7 @@ Do not wait until after file inspection to use it.
 
 ## First Contact
 
-Call \`setup_project\` once per project, before anything else. It is idempotent and cheap: it reports \`upToDate\` when nothing needs to change. It detects the stack and your agent, writes the guardrails (AGENTS.md section, agent rules, this skill, the edit hook, \`.codemaps/config.json\`) and freezes the findings the project already has in \`.codemaps/baseline.json\`, so nobody has to configure anything by hand. Read its \`nextSteps\` and \`warnings\`, and tell the user to commit \`.codemaps/\` and the agent files.
+Call \`setup_project\` once per project, before anything else, with \`projectPath\` set to your current working directory (it is required). It is idempotent and cheap: it reports \`upToDate\` when nothing needs to change. It detects the stack and your agent, writes the guardrails (AGENTS.md section, agent rules, this skill, the edit hook, \`.codemaps/config.json\`) and freezes the findings the project already has in \`.codemaps/baseline.json\`, so nobody has to configure anything by hand. Read its \`nextSteps\` and \`warnings\`, and tell the user to commit \`.codemaps/\` and the agent files.
 
 ## Default Flow
 

@@ -47,6 +47,46 @@ describe('setup_project over MCP', () => {
     expect(fs.readdirSync(root)).toEqual([]);
   });
 
+  it('requires projectPath and never falls back to the open project', async () => {
+    const client = await connect('claude-code');
+    const response = await client.callTool({ name: 'setup_project', arguments: {} });
+    expect(response.isError).toBe(true);
+    const tools = (await client.listTools()).tools;
+    const schema = tools.find((tool) => tool.name === 'setup_project')?.inputSchema;
+    expect(schema?.required).toContain('projectPath');
+  });
+
+  it('restates the root and a one-line summary first in the result', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codemaps-mcp-setup-'));
+    roots.push(root);
+    const client = await connect('cursor');
+    const result = await call(client, { projectPath: root, apply: false });
+    expect(Object.keys(result)[0]).toBe('status');
+    const slashed = root.replace(/\\/g, '/');
+    expect(result.projectRoot).toBe(slashed);
+    expect(result.summary).toContain(slashed);
+    expect(result.summary).toContain('cursor');
+    expect(result.summary).toMatch(/\d+ files would be written/);
+  });
+
+  it.each([
+    ['a filesystem root', () => path.parse(os.tmpdir()).root],
+    ['the home directory', () => os.homedir()],
+    ['a relative path', () => 'some/relative/dir'],
+    ['a file', () => path.join(os.tmpdir(), 'codemaps-setup-file.txt')],
+  ])('rejects %s and writes nothing', async (_name, target) => {
+    const given = target();
+    if (given.endsWith('.txt')) fs.writeFileSync(given, 'x');
+    const client = await connect('claude-code');
+    const response = await client.callTool({
+      name: 'setup_project',
+      arguments: { projectPath: given },
+    });
+    if (given.endsWith('.txt')) fs.rmSync(given, { force: true });
+    expect(response.isError).toBe(true);
+    expect(JSON.stringify(response.content)).toContain('setup_project');
+  });
+
   it('rejects a project path that does not exist', async () => {
     const client = await connect('claude-code');
     const response = await client.callTool({

@@ -1,6 +1,6 @@
 # Zero-config agent setup
 
-You connect CodeMaps to your agent over MCP and do nothing else. The server hands every client a short `instructions` text on connect that says: _first call `setup_project`_. That tool configures the current project for the agent by itself.
+You connect CodeMaps to your agent over MCP and do nothing else. The server hands every client a short `instructions` text on connect that opens with: _At the start of every session in a project, before anything else, call `setup_project` with projectPath set to your current working directory (fast, idempotent)_. That tool configures the current project for the agent by itself.
 
 ## What `setup_project` does
 
@@ -13,7 +13,7 @@ You connect CodeMaps to your agent over MCP and do nothing else. The server hand
 
 `setup_project` never changes the project open in the CodeMaps window: for any other project it builds the baseline graph in memory with the headless indexer of the CI guard (no cache, watcher or recent-projects change).
 
-Calling it again is cheap and changes nothing (`upToDate: true`). Concurrent calls for one project are queued. It takes `projectPath` (default: the open project), `agents` (explicit list instead of detection), `apply: false` (dry run: returns `wouldWrite` and writes nothing) and `force` (rewrite CodeMaps-owned sections even when their version is current).
+Calling it again is cheap and changes nothing (`upToDate: true`). Concurrent calls for one project are queued. `projectPath` is **required**: the absolute path of the project the agent works in (its current working directory). There is deliberately no fallback to the project open in the CodeMaps window, because that once wrote the files of one repository into another. A path that is missing, relative, not a directory, a filesystem root or the home directory itself is rejected with an error and nothing is written. The result starts with `projectRoot` and a one-line `summary` ("Set up <root> for <agents>: N files written") so the model and the user see where files went. Optional inputs: `agents` (explicit list instead of detection), `apply: false` (dry run: returns `wouldWrite` and writes nothing) and `force` (rewrite CodeMaps-owned sections even when their version is current).
 
 ## Files written
 
@@ -23,7 +23,7 @@ Calling it again is cheap and changes nothing (`upToDate: true`). Concurrent cal
 | `CLAUDE.md`                                                               | Claude Code               | A block that imports `@AGENTS.md`                                                                                    |
 | `.claude/skills/codemaps-agent-autopilot/SKILL.md`                        | Claude Code               | Owned file with a `codemaps:file vX.Y.Z` marker                                                                      |
 | `.claude/settings.json`                                                   | Claude Code               | JSON merge: adds one `PostToolUse` hook, keeps every other key and hook                                              |
-| `.codemaps/hooks/validate.mjs`                                            | Claude Code               | Owned file: the dependency-free hook script                                                                          |
+| `.codemaps/hooks/validate.mjs`                                            | Claude Code, OpenCode     | Owned file: the dependency-free hook script (OpenCode's plugin runs it)                                              |
 | `.cursor/rules/codemaps.mdc`                                              | Cursor                    | Owned file, `alwaysApply: true`                                                                                      |
 | `.github/copilot-instructions.md`                                         | GitHub Copilot            | A block                                                                                                              |
 | `GEMINI.md`                                                               | Gemini CLI                | A block                                                                                                              |
@@ -51,7 +51,7 @@ Both are supported on a best-effort basis. What was **verified from their docume
 - Verified from the docs: the project config is `opencode.json` / `opencode.jsonc` in the root; remote MCP servers are `mcp.<name>` with `type: "remote"`, `url`, `enabled`; `AGENTS.md` is read (and `CLAUDE.md` only as a fallback when it is missing); skills are read from `.opencode/skills`, `.claude/skills` and `.agents/skills`; plugins in `.opencode/plugins/` load at startup.
 - `setup_project` merges the `codemaps` entry into a plain-JSON `opencode.json` (into `mcp.servers` when the file already uses that newer layout). A `.jsonc` file, a file with comments or invalid JSON is **never edited**: the exact snippet is returned in `nextSteps`. An existing `codemaps` entry is never changed.
 - OpenCode reads `.claude/skills`, so the skill is written to `.opencode/skills` only when the Claude skill is neither present nor being written (no duplicate skills); the result's `notes` say so.
-- Not verified: which MCP transport OpenCode uses (CodeMaps serves Streamable HTTP), whether tool names with underscores are exposed as `codemaps_<tool>` unchanged, the `clientInfo.name` OpenCode sends (matched case-insensitively on `opencode`), and the payloads of plugin events. The plugin therefore reads the edited path from several possible properties (`tool.execute.after` for edit/write/patch tools and `file.edited`), runs `.codemaps/hooks/validate.mjs` with the same stdin JSON as the Claude hook and appends its report to the tool output when it can. It never throws, never blocks and stays silent on any shape it does not understand.
+- Confirmed with OpenCode 1.18.29: the server `instructions` reach the model, the client name is `opencode`, and tools are exposed as `codemaps_<tool>`. Not verified: the payloads of plugin events. A plain task alone does not make weaker models call `setup_project`, so the instructions open with an imperative trigger. The plugin therefore reads the edited path from several possible properties (`tool.execute.after` for edit/write/patch tools and `file.edited`), runs `.codemaps/hooks/validate.mjs` with the same stdin JSON as the Claude hook and appends its report to the tool output when it can. It never throws, never blocks and stays silent on any shape it does not understand.
 
 **DeepSeek Harness** (`dsh`, developer preview)
 

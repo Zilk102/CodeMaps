@@ -111,6 +111,14 @@ const notesOf = (options: SetupOptions, agents: DetectedAgents): string[] => [
   ...agentNotes(planContext(options.root, agents.selected, '')),
 ];
 
+/** The one-line `summary` of a run: root, agents and the number of files written (or that would be). */
+const summaryOf = (options: SetupOptions, agents: DetectedAgents, files: number): string => {
+  const who = agents.selected.length > 0 ? agents.selected.join(', ') : 'AGENTS.md';
+  return options.apply
+    ? `Set up ${options.root} for ${who}: ${files} files written`
+    : `Dry run for ${options.root} (${who}): ${files} files would be written`;
+};
+
 /** Turns the state of a run into the compact report the tool returns. */
 const report = (options: SetupOptions, state: RunState): SetupResult => {
   const { detected, agents, outcomes, baseline } = state;
@@ -120,9 +128,10 @@ const report = (options: SetupOptions, state: RunState): SetupResult => {
   const warnings = warningsOf(outcomes, baseline);
   const changed = options.apply ? written.length + updated.length : pending.length;
   return {
+    projectRoot: options.root,
+    summary: summaryOf(options, agents, changed),
     status: statusOf(options.apply, warnings),
     upToDate: changed === 0 && baseline.status !== 'failed',
-    projectRoot: options.root,
     codemapsVersion: options.version,
     detected: { ...detected, agents },
     written,
@@ -152,7 +161,7 @@ const report = (options: SetupOptions, state: RunState): SetupResult => {
  * Sets a project up for AI agents: writes the AGENTS.md section, the files of every detected
  * agent, the `.codemaps` config, baseline and record, and returns a compact report. Safe to call
  * repeatedly and concurrently (calls for one project are queued); a second run writes nothing.
- * The root must be an existing directory; the caller validates that.
+ * The root must be an existing project directory; `resolveSetupRoot` validates that.
  */
 export const setupProject = async (
   options: SetupOptions,
