@@ -3,7 +3,10 @@
  * in a project, how each file is written and what the tool reports back.
  */
 
-/** Every agent family that has its own rules file. `codex` and unknown clients rely on AGENTS.md alone. */
+/**
+ * Every agent family CodeMaps knows. `codex` and unknown clients rely on AGENTS.md alone; `opencode`
+ * and `dsh` (DeepSeek Harness) are supported on a best-effort basis, see docs/AGENT_SETUP.md.
+ */
 export const AGENT_IDS = [
   'claude',
   'cursor',
@@ -12,6 +15,8 @@ export const AGENT_IDS = [
   'gemini',
   'windsurf',
   'cline',
+  'opencode',
+  'dsh',
 ] as const;
 
 /** One agent family, see `AGENT_IDS`. */
@@ -54,10 +59,12 @@ export interface DetectedAgents {
   clientName: string | null;
   /** The final list guardrails are written for (explicit `agents` input wins over detection). */
   selected: AgentId[];
+  /** Present when the calling client was not recognized and nothing was requested: says what was written instead. */
+  note?: string;
 }
 
 /** How a planned file is written, which decides what may be touched in an existing file. */
-export type WriteStrategy = 'block' | 'owned' | 'claude-hook';
+export type WriteStrategy = 'block' | 'owned' | 'claude-hook' | 'opencode-config';
 
 /** One file `setup_project` wants to write; `content` depends on the strategy (see `applyPlannedFile`). */
 export interface PlannedFile {
@@ -67,6 +74,14 @@ export interface PlannedFile {
   content: string;
   /** Comment style of the marker in an `owned` file. */
   style?: 'html' | 'slash' | 'hash';
+}
+
+/** What a per-agent planner knows: the project, the shared guidance, every selected agent and the MCP endpoint. */
+export interface PlanContext {
+  root: string;
+  guidance: string;
+  agents: AgentId[];
+  endpoint: string;
 }
 
 /** What happened (or would happen) to one file. */
@@ -117,6 +132,8 @@ export interface SetupResult {
   wouldWrite?: Array<{ path: string; action: 'create' | 'update' }>;
   baseline: BaselineSummary;
   warnings: string[];
+  /** Plain remarks about choices made (for example a skill that was not duplicated); never problems. */
+  notes: string[];
   nextSteps: string[];
   ciSuggestion: CiSuggestion;
 }

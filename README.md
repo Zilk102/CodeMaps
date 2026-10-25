@@ -66,6 +66,31 @@ Start CodeMaps, then:
 claude mcp add --transport http --scope user codemaps http://127.0.0.1:3005/mcp
 ```
 
+- **OpenCode** (desktop, CLI and TUI share one config): add the server to `opencode.json` in the project root, or to `~/.config/opencode/opencode.json` for every project.
+
+  ```json
+  {
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": { "codemaps": { "type": "remote", "url": "http://127.0.0.1:3005/mcp", "enabled": true } }
+  }
+  ```
+
+  The OpenCode documentation does not name the MCP transport it speaks; CodeMaps serves Streamable HTTP. `setup_project` writes this entry for you when `opencode.json` is plain JSON.
+
+- **DeepSeek Harness** (`dsh`, developer preview): MCP servers are registered host-wide in a `cordis.patch.yml`, not per project. Save this as an overlay and start with `npx @deepseek-ai/dsh web --patch cordis.patch.yml` (or add the entry to the `cordis.patch.yml` of your DSH home). `setup_project` writes the overlay to `.codemaps/dsh/cordis.patch.yml` but never touches your home directory.
+
+  ```yaml
+  - insert:
+      - id: mcp-codemaps
+        name: '@deepseek-ai/dsh-mcp-client'
+        config:
+          serverName: codemaps
+          transport: streamable-http
+          url: http://127.0.0.1:3005/mcp
+  ```
+
+  DSH is a developer preview: this follows its published documentation and has not been verified against a live install. It reads `AGENTS.md`, but skills and a post-edit hook are not documented for it.
+
 - **Claude Desktop** connects through the `mcp-remote` bridge, **Cursor** and **Trae** by URL. Ready snippets with a Copy button are in the app under **MCP Settings → Connection**.
 - **That is all you configure.** The server tells the agent to call `setup_project` first. It detects the stack and the agent, writes `AGENTS.md`, the agent rules, the `codemaps-agent-autopilot` skill and an edit-validation hook, and freezes the findings an old codebase already has in `.codemaps/baseline.json`, so only new problems are reported. Re-running it changes nothing. See [docs/AGENT_SETUP.md](docs/AGENT_SETUP.md) for every file it writes and how to remove them.
 

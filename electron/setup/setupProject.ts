@@ -9,7 +9,8 @@ import { applyPlannedFile, type ApplyEnvironment } from './applyFile';
 import { baselineStep, configStep, recordStep, type BaselineCreator } from './codemapsFiles';
 import { detectAgents } from './detectAgents';
 import { detectProject } from './detectProject';
-import { planFiles } from './planFiles';
+import { agentNotes, agentSteps } from './openCodePlan';
+import { DEFAULT_MCP_ENDPOINT, planContext, planFiles } from './planFiles';
 import { isSameFile, resolveInsideRoot, UnsafePathError } from './projectFiles';
 import { withProjectLock } from './projectLock';
 import { ciFilePaths } from './ciFiles';
@@ -104,6 +105,12 @@ const statusOf = (apply: boolean, warnings: string[]): SetupResult['status'] => 
   return warnings.length > 0 ? 'partial' : 'ok';
 };
 
+/** Remarks about the run: the unknown-client fallback and the choices made for OpenCode and the DeepSeek Harness. */
+const notesOf = (options: SetupOptions, agents: DetectedAgents): string[] => [
+  ...(agents.note ? [agents.note] : []),
+  ...agentNotes(planContext(options.root, agents.selected, '')),
+];
+
 /** Turns the state of a run into the compact report the tool returns. */
 const report = (options: SetupOptions, state: RunState): SetupResult => {
   const { detected, agents, outcomes, baseline } = state;
@@ -127,6 +134,7 @@ const report = (options: SetupOptions, state: RunState): SetupResult => {
     ...(options.apply ? {} : { wouldWrite: pending }),
     baseline,
     warnings,
+    notes: notesOf(options, agents),
     nextSteps: buildNextSteps({
       apply: options.apply,
       changed: changed > 0,
@@ -134,6 +142,7 @@ const report = (options: SetupOptions, state: RunState): SetupResult => {
       baseline,
       agents: agents.selected,
       ciFiles: ciFilePaths(options.root, detected),
+      agentSteps: agentSteps(outcomes, agents.selected, DEFAULT_MCP_ENDPOINT),
     }),
     ciSuggestion: ciSuggestionFor(options.root, detected),
   };

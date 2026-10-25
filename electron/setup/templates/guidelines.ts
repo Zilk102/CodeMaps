@@ -1,6 +1,7 @@
 /**
  * The agent-neutral guidance `setup_project` writes into AGENTS.md, GEMINI.md, the Copilot
- * instructions and the Cursor, Windsurf and Cline rules. One text keeps every agent on the same
+ * instructions and the Cursor, Windsurf and Cline rules. It is also the only guidance agents without
+ * skills or hooks (the DeepSeek Harness) are sure to read, so it stands on its own. One text keeps every agent on the same
  * rules; only the project commands are filled in from detection.
  */
 import type { DetectedProject } from '../types';
@@ -37,6 +38,10 @@ This project is connected to CodeMaps, an MCP server (\`codemaps\`) that keeps a
 3. Before writing code that resembles existing code call \`find_duplicates\` and reuse or extract instead of copy-pasting.
 4. After editing call \`validate_architecture_changes\` (it checks only the files you changed) and fix every problem it reports, then \`check_documentation\`.
 ${commandsSection(detected)}
+### Tool names and projects
+
+Some clients show the tools with a server prefix (for example \`codemaps_\` or \`mcp__codemaps__\` before the name); use the tool whose name ends with the one written here. If CodeMaps has not loaded the project, call \`analyze_project\` with the absolute project path. For a bug start from \`prepare_task_context\`; for duplicated code call \`find_duplicates\`; for a tangled file call \`analyze_decomposition\`. If your client does not validate edits for you, calling \`validate_architecture_changes\` after every edit is your job.
+
 ### Documentation
 
 - Every new or changed file starts with a header comment.

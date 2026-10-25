@@ -7,7 +7,9 @@ type ClientTitleKey =
   | 'claudeCodeProject'
   | 'claudeHook'
   | 'claudeHookScript'
-  | 'claudeDesktop';
+  | 'claudeDesktop'
+  | 'openCode'
+  | 'deepSeek';
 
 type ClientDescriptionKey = `${ClientTitleKey}Description`;
 
@@ -51,6 +53,29 @@ export const claudeDesktopSnippet = (endpoint: string): string => `{
     }
   }
 }`;
+
+/** `opencode.json` entry that registers CodeMaps as a remote MCP server in OpenCode. */
+export const openCodeSnippet = (endpoint: string): string =>
+  JSON.stringify(
+    {
+      $schema: 'https://opencode.ai/config.json',
+      mcp: { codemaps: { type: 'remote', url: endpoint, enabled: true } },
+    },
+    null,
+    2
+  );
+
+/**
+ * `cordis.patch.yml` overlay that registers CodeMaps in the DeepSeek Harness (developer preview).
+ * DSH configures MCP host-wide, so the file is passed with `--patch` or merged into the DSH home.
+ */
+export const deepSeekSnippet = (endpoint: string): string => `- insert:
+  - id: mcp-codemaps
+    name: '@deepseek-ai/dsh-mcp-client'
+    config:
+      serverName: codemaps
+      transport: streamable-http
+      url: ${endpoint}`;
 
 /**
  * Claude Code settings that run the validation hook script after Edit, Write and MultiEdit tool
@@ -121,5 +146,17 @@ export const buildClientExamples = (endpoint: string, hookScript: string): Clien
     titleKey: 'claudeDesktop',
     descriptionKey: 'claudeDesktopDescription',
     snippet: claudeDesktopSnippet(endpoint),
+  },
+  {
+    id: 'opencode',
+    titleKey: 'openCode',
+    descriptionKey: 'openCodeDescription',
+    snippet: openCodeSnippet(endpoint),
+  },
+  {
+    id: 'deepseek-harness',
+    titleKey: 'deepSeek',
+    descriptionKey: 'deepSeekDescription',
+    snippet: deepSeekSnippet(endpoint),
   },
 ];

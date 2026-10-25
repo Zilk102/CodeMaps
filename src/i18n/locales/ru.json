@@ -285,6 +285,11 @@
     "claudeHookDescription": "Добавь в `.claude/settings.json`. После каждой правки Claude Code просит CodeMaps проверить изменённый файл и сразу получает проблемы (god-файлы, клоны, сложные методы). Молчит, если всё хорошо или CodeMaps не запущен.",
     "claudeHookScript": "Скрипт хука",
     "claudeHookScriptDescription": "Сохрани как `.claude/hooks/codemaps-validate-hook.mjs` в проекте. Нужен только Node.js, без зависимостей; скрипт никогда не переключает проект, открытый в CodeMaps.",
+    "openCode": "OpenCode",
+    "openCodeDescription": "Добавьте это в `opencode.json` в корне проекта (или в `~/.config/opencode/opencode.json` для всех проектов). Десктоп, CLI и TUI используют один конфиг. Если файл в формате JSONC, добавьте запись `mcp` вручную. В документации OpenCode не указано, какой MCP-транспорт поддерживается.",
+    "deepSeek": "DeepSeek Harness",
+    "deepSeekDescription": "Developer preview. DSH регистрирует MCP-серверы на уровне всей установки, а не проекта: сохраните это как overlay и запустите `npx @deepseek-ai/dsh web --patch cordis.patch.yml` либо добавьте запись в `cordis.patch.yml` в домашней папке DSH. `setup_project` записывает этот overlay в `.codemaps/dsh/cordis.patch.yml`. На живой установке не проверялось.",
+    "clientsSetupNote": "Вручную нужно только подключение. Всё остальное (AGENTS.md, навык, хуки, конфиг, baseline, CI) агент настраивает сам через setup_project.",
     "error": {
       "port_in_use": "Порт {{port}} уже занят (другое окно CodeMaps или другая программа). MCP здесь недоступен; запусти с CODEMAPS_MCP_PORT на другой порт.",
       "listen_failed": "MCP-сервер не смог запуститься. Подробности в журнале приложения."

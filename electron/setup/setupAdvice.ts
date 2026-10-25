@@ -21,13 +21,15 @@ export interface AdviceInput {
   agents: AgentId[];
   /** CI files that belong to the project (see `ciFilePaths`). */
   ciFiles: string[];
+  /** Manual steps for OpenCode and the DeepSeek Harness, see `agentSteps`. */
+  agentSteps: string[];
 }
 
 const frozenCount = (baseline: BaselineSummary): string =>
   baseline.total === undefined ? 'the existing findings' : `${baseline.total} existing findings`;
 
 /**
- * Up to six short instructions for the agent, most urgent first. A dry run only says how to apply;
+ * A few short instructions for the agent, most urgent first. A dry run only says how to apply;
  * a clean re-run says there is nothing to do.
  */
 export const buildNextSteps = (input: AdviceInput): string[] => {
@@ -51,6 +53,7 @@ export const buildNextSteps = (input: AdviceInput): string[] => {
   if (input.changed && input.agents.includes('claude')) {
     steps.push('Claude Code may ask the user to approve the new edit hook; it is safe to accept.');
   }
+  steps.push(...input.agentSteps);
   if (input.changed) steps.push(...ciSteps(input.ciFiles));
   steps.push('Before coding call prepare_task_context with the user request.');
   steps.push('After every edit call validate_architecture_changes, then check_documentation.');

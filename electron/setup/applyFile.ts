@@ -5,6 +5,7 @@
  * and anything unexpected is skipped with a reason instead of being forced.
  */
 import { HOOK_COMMAND, mergeClaudeSettings } from './claudeSettings';
+import { mergeOpenCodeConfig, openCodeServerEntry } from './openCodeConfig';
 import {
   extractBlock,
   upsertBlock,
@@ -114,9 +115,25 @@ const decideClaudeHook = (existing: string | null): Decision => {
   return { outcome: { action, sha256 }, text: merge.text };
 };
 
+/** Decision for `opencode.json`: merge the server entry, or skip with a reason (and no `problem`, the caller shows the snippet) when the file is JSONC or not plain JSON. */
+const decideOpenCodeConfig = (file: PlannedFile, existing: string | null): Decision => {
+  if (file.path.endsWith('.jsonc')) {
+    return {
+      outcome: { action: 'skipped', reason: 'JSONC may hold comments, so it is not edited' },
+    };
+  }
+  const merge = mergeOpenCodeConfig(existing, file.content);
+  const sha256 = sha256Of(JSON.stringify(openCodeServerEntry(file.content)));
+  if (merge.outcome === 'skipped') return { outcome: { action: 'skipped', reason: merge.reason } };
+  if (merge.outcome === 'unchanged') return { outcome: { action: 'unchanged', sha256 } };
+  const action = merge.outcome === 'created' ? 'created' : 'updated';
+  return { outcome: { action, sha256 }, text: merge.text };
+};
+
 const decide = (file: PlannedFile, existing: string | null, env: ApplyEnvironment): Decision => {
   if (file.strategy === 'block') return decideBlock(file, existing, env);
   if (file.strategy === 'owned') return decideOwned(file, existing, env);
+  if (file.strategy === 'opencode-config') return decideOpenCodeConfig(file, existing);
   return decideClaudeHook(existing);
 };
 

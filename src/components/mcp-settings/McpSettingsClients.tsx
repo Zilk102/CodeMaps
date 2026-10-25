@@ -54,15 +54,27 @@ const ClientCard: React.FC<{
   );
 };
 
+/** Says that the connection is the only manual step and the agent configures the rest. */
+const SetupNote: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.45 }}>
+      {t('mcpSettings.clientsSetupNote')}
+    </div>
+  );
+};
+
 /**
- * Client setup tab: one card per client (Trae, Cursor, Claude Code, Claude Desktop and the Claude
- * validation hook with its script), built for the given endpoint.
+ * Client setup tab: a note that the agent configures everything else through `setup_project`, then
+ * one card per client (Trae, Cursor, Claude Code, Claude Desktop, the Claude validation hook with
+ * its script, OpenCode and DeepSeek Harness), built for the given endpoint.
  */
 export const McpSettingsClients: React.FC<Props> = ({ endpoint, copiedKey, copyText }) => {
   const clientExamples = useMemo(() => buildClientExamples(endpoint, hookScript), [endpoint]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <SetupNote />
       {clientExamples.map((client) => (
         <ClientCard
           key={client.id}
