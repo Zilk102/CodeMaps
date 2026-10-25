@@ -1,5 +1,14 @@
 # CodeMaps Changelog
 
+## v1.1.64 (2026-10-25)
+
+### Added
+
+- **OpenCode and DeepSeek Harness in `setup_project`.** The tool detects these clients from project files and from the MCP client name and writes the guardrails for them. OpenCode: a section in `AGENTS.md`, a skill in `.opencode/skills/`, a `codemaps` server entry in `opencode.json` (only for plain JSON, existing servers are kept; `opencode.jsonc` and files with comments are left alone and a ready snippet is returned instead) and an after-edit validation plugin `.opencode/plugins/codemaps-validate.ts`. DeepSeek Harness: a section in `AGENTS.md` and a ready `.codemaps/dsh/cordis.patch.yml` for use with `--patch`, because dsh configures MCP only machine-wide and `setup_project` never writes to the home directory.
+- **The MCP settings window** has connection cards for OpenCode and DeepSeek Harness (en/ru/zh), and the README and `docs/AGENT_SETUP.md` list which files are created for each client.
+- **What is confirmed only by documentation and not tested on the clients themselves:** the transport OpenCode uses, the format of MCP tool names, the MCP client names, the event shapes of the OpenCode plugin, the dsh home directory and whether `instructions` are shown to the model. DeepSeek Harness is a developer preview with no documented after-edit hook, so all guidance for the agent lives in `AGENTS.md`. These places are marked best-effort in the documentation.
+- Tests: 891 -> 921.
+
 ## v1.1.63 (2026-10-24)
 
 ### Fixed
