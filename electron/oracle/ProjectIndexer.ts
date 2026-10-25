@@ -20,6 +20,18 @@ export interface IndexProjectResult {
   languageProfile: ProjectLanguageProfile;
 }
 
+/**
+ * Absolute paths of all files under `baseDir` that are not excluded by `ORACLE_IGNORE_GLOBS`
+ * (dependencies, build output, binaries). Exported so the discovery rules can be tested without a
+ * worker pool.
+ */
+export const discoverProjectFiles = (baseDir: string) =>
+  fg('**/*', {
+    cwd: baseDir,
+    absolute: true,
+    ignore: ORACLE_IGNORE_GLOBS,
+  });
+
 /** Drives indexing of a whole project and re-indexing of single files. */
 export class ProjectIndexer {
   constructor(
@@ -30,11 +42,7 @@ export class ProjectIndexer {
 
   /** Absolute paths of all files under `baseDir` that are not excluded by `ORACLE_IGNORE_GLOBS` (dependencies, build output, binaries). */
   async discoverFiles(baseDir: string) {
-    return fg('**/*', {
-      cwd: baseDir,
-      absolute: true,
-      ignore: ORACLE_IGNORE_GLOBS,
-    });
+    return discoverProjectFiles(baseDir);
   }
 
   /** Detects the languages present in the given files. */

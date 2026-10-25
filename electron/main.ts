@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import log from 'electron-log/main';
 import { getMcpStatus, setupMcpServer, shutdownMcpServer } from './mcp';
+import { closeDetachedProjectAnalysis } from './mcp/detachedProject';
 import { oracle } from './oracle';
 import {
   initAutoUpdater,
@@ -119,7 +120,10 @@ async function shutdownApplication() {
   await gracefulShutdown({
     shutdownAutoUpdater,
     shutdownMcpServer,
-    shutdownOracle: () => oracle.close(),
+    shutdownOracle: async () => {
+      await closeDetachedProjectAnalysis();
+      await oracle.close();
+    },
     shutdownKuzuProcessManager,
     logger: log,
   });

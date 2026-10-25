@@ -2,6 +2,7 @@
 
 import { Connection, QueryResult } from 'kuzu';
 import { KuzuConnectionManager } from './KuzuConnectionManager';
+import { escapeCypherString } from './KuzuCypherLiteral';
 
 /** A node row of the Kuzu graph. `meta` is stored as JSON text. */
 export interface GraphNode {
@@ -21,10 +22,6 @@ export interface GraphEdge {
   targetId: string;
   type: 'imports' | 'calls' | 'extends' | 'implements' | 'contains' | 'references' | 'depends_on';
   meta?: Record<string, unknown>;
-}
-
-function escapeCypherString(value: string): string {
-  return value.replace(/'/g, "''");
 }
 
 function isAlreadyExistsError(error: unknown): boolean {

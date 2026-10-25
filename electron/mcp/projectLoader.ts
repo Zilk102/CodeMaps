@@ -3,6 +3,7 @@ import { documentationIndex } from '../analysis/documentation';
 import { app } from 'electron';
 import { GraphData, oracleStore } from '../store';
 import { oracle } from '../oracle';
+import { analyzeDetachedProject } from './detachedProject';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -69,12 +70,25 @@ const resolveDefaultPath = (baseDir: string | undefined): string => {
 
 const ANALYZE_TIMEOUT_MS = 60000;
 
-const analyzeWithTimeout = (targetPath: string) =>
+/**
+ * Runs one analysis under the shared mutex and a hard timeout, so a large project cannot block every
+ * other tool call. The timer is cleared as soon as the analysis settles.
+ */
+const analyzeWithBudget = (analyze: () => Promise<GraphData>) =>
   analyzeLimit(async () => {
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('oracle.analyzeProject timed out')), ANALYZE_TIMEOUT_MS)
-    );
-    return Promise.race([oracle.analyzeProject(targetPath), timeout]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error('oracle.analyzeProject timed out')),
+        ANALYZE_TIMEOUT_MS
+      );
+    });
+
+    try {
+      return await Promise.race([analyze(), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
   });
 
 const resolveTargetPath = (projectPath: string | undefined, baseDir: string | undefined) =>
@@ -98,14 +112,21 @@ const needsAnalysis = (
 
 /**
  * Returns the graph for `projectPath`, analyzing the project first when none is open or a different one was requested; otherwise returns the current oracle graph.
+ * A different project is analyzed in a private store when the app already shows one, so a tool call
+ * cannot replace the user's map.
  * Throws for a missing directory, or when no project is open and the working directory is the app install. Analysis is serialized and capped at 60 seconds. The clone index is refreshed before returning.
  */
 export const ensureGraphLoaded = async (projectPath?: string): Promise<GraphData> => {
   const { baseDir } = oracleStore.getState();
   const targetPath = resolveTargetPath(projectPath, baseDir);
-  const graph = needsAnalysis(projectPath, baseDir, targetPath)
-    ? await analyzeWithTimeout(targetPath)
-    : oracle.getGraph();
+
+  if (!needsAnalysis(projectPath, baseDir, targetPath)) {
+    return withCloneIndex(oracle.getGraph());
+  }
+
+  const graph = baseDir
+    ? await analyzeWithBudget(() => analyzeDetachedProject(targetPath))
+    : await analyzeWithBudget(() => oracle.analyzeProject(targetPath));
   return withCloneIndex(graph);
 };
 

@@ -2,10 +2,18 @@
 
 import * as path from 'path';
 
-export const ORACLE_CACHE_VERSION = 11;
+export const ORACLE_CACHE_VERSION = 12;
 
+/**
+ * Folders and files the indexer never parses. `node_modules*` also covers vendored copies such as
+ * `node_modules-local`, which otherwise pull hundreds of thousands of dependency symbols into the
+ * graph and turn a few thousand source files into a graph that takes minutes to index.
+ */
 export const ORACLE_IGNORE_GLOBS = [
   '**/node_modules/**',
+  '**/node_modules*/**',
+  '**/pnpm-local/**',
+  '**/playwright-report/**',
   '**/dist/**',
   '**/dist-electron/**',
   '**/dist-renderer/**',
@@ -62,6 +70,8 @@ export const ORACLE_IGNORE_GLOBS = [
   '**/*.sqlite3',
   '**/*.db',
   '**/*.log',
+  '**/*.map',
+  '**/*.tsbuildinfo',
   '**/LICENSES.chromium.html',
 ];
 
@@ -89,13 +99,19 @@ const IGNORED_FILE_SUFFIXES = [
   '.sqlite',
   '.sqlite3',
   '.log',
+  '.map',
+  '.tsbuildinfo',
 ];
+
+/** Dependency folders under any name, including vendored variants such as `node_modules-local` or `node_modules.old`. */
+const DEPENDENCY_DIRECTORY_SEGMENT = /\/(?:node_modules[^/]*|\.?pnpm[^/]*)\//;
 
 /** Whether a path lies in an excluded folder (dependencies, build output, VCS) or has an excluded suffix (binary or database files). Used for watcher events, which bypass the glob filter. */
 export const shouldIgnorePath = (filePath: string) => {
   const normalized = normalizePath(filePath).toLowerCase();
   return (
     IGNORED_DIRECTORY_SEGMENTS.some((segment) => normalized.includes(segment)) ||
+    DEPENDENCY_DIRECTORY_SEGMENT.test(normalized) ||
     IGNORED_FILE_SUFFIXES.some((suffix) => normalized.endsWith(suffix)) ||
     normalized.includes('licenses.chromium.html')
   );

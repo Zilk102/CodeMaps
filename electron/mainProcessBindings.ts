@@ -104,9 +104,16 @@ function registerProjectBindings(
     return result.canceled ? null : result.filePaths[0];
   };
 
-  const analyzeProject = async (projectPath: string) => {
+  /**
+   * Analyzes the requested project, or reloads the project that is already open when the renderer
+   * sends no path. It never falls back to `process.cwd()`: in a development build that is the
+   * CodeMaps repository itself, so a renderer that forgot the path would silently index CodeMaps
+   * instead of the user's project.
+   */
+  const analyzeProject = async (projectPath: unknown) => {
     try {
-      const data = await oracle.analyzeProject(projectPath || process.cwd());
+      const requestedPath = projectPath || oracleStore.getState().baseDir;
+      const data = await oracle.analyzeProject(requireProjectDirectory(requestedPath));
       return { success: true, data };
     } catch (error: unknown) {
       return { success: false, error: getErrorMessage(error) };
@@ -115,13 +122,13 @@ function registerProjectBindings(
 
   ipcMain.handle('select-directory', openDirectoryDialog);
   ipcMain.handle('dialog:open-directory', openDirectoryDialog);
-  ipcMain.handle('analyze-project', async (_, projectPath: string) => analyzeProject(projectPath));
+  ipcMain.handle('analyze-project', async (_, projectPath: unknown) => analyzeProject(projectPath));
   ipcMain.handle('mcp-status', () => getMcpStatus());
   ipcMain.handle('get-recent-projects', () => oracleStore.getState().recentProjects);
   ipcMain.handle('clear-recent-projects', () => {
     oracleStore.getState().clearRecentProjects();
   });
-  ipcMain.handle('open-recent-project', async (_, projectPath: string) =>
+  ipcMain.handle('open-recent-project', async (_, projectPath: unknown) =>
     analyzeProject(projectPath)
   );
 }
